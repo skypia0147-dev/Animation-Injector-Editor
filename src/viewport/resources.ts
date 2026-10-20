@@ -1,15 +1,21 @@
 import {clone} from '../model.ts';
 import {assetKey} from '../package.ts';
+import {pairedRig, type PairedRig} from '../pairedRigs.ts';
 import type {PreviewAssets, Workspace} from '../workspace.ts';
 import {tr} from '../i18n/korean.ts';
 
 export type PreviewAssetKind = 'skeletons' | 'skins';
 export const emptyPreviewAssets = (): PreviewAssets => ({skeletons: [], skins: []});
 
-/** The skeletons and skins the user chose for a clip. The editor ships no game assets: without a choice the viewer
- *  looks for a skeleton under the HKX's own actors folder and otherwise asks for one. */
-export function previewAssets(w: Workspace, clip: string): PreviewAssets {
-  return clone(w.assets.find(asset => assetKey(asset.clip) === assetKey(clip))?.preview ?? emptyPreviewAssets());
+export function previewAssets(w: Workspace, clip: string, targetRig?: PairedRig): PreviewAssets {
+  const result = clone(
+    w.assets.find(asset => assetKey(asset.clip) === assetKey(clip))?.preview ?? emptyPreviewAssets()
+  );
+  if (targetRig && targetRig !== 'character') {
+    result.skeletons[0] ||= pairedRig('character').previewSkeleton;
+    result.skeletons[1] ||= pairedRig(targetRig).previewSkeleton;
+  }
+  return result;
 }
 
 export function setPreviewAsset(
@@ -54,11 +60,21 @@ const normalizedStem = (path: string) =>
     .toLowerCase();
 
 /** Explicit A1/A2 mapping wins; a uniquely named registered skin is the automatic fallback. */
-export function skinPathForActor(w: Workspace, clip: string, actor: number, skeleton: string): string {
+export function skinPathForActor(
+  w: Workspace,
+  clip: string,
+  actor: number,
+  skeleton: string,
+  skeletonPath = ''
+): string {
   const explicit = previewAssets(w, clip).skins[actor];
   if (explicit) return explicit;
   const wanted = normalizedStem(skeleton);
   const candidates = [...new Set(w.assets.flatMap(asset => asset.preview.skins).filter(Boolean))];
   const matches = candidates.filter(path => normalizedStem(path) === wanted);
-  return matches.length === 1 ? matches[0] : '';
+  return matches.length === 1
+    ? matches[0]
+    : skeletonPath.startsWith('builtin/skeletons/')
+      ? `builtin/meshes/${skeleton}.glb`
+      : '';
 }

@@ -16,7 +16,7 @@ function frame(header, payload) {
 }
 const actor = count => ({
   skeleton: 'character',
-  skeletonPath: 'C:/Skyrim/meshes/actors/character/character assets/skeleton.hkx',
+  skeletonPath: 'builtin/skeletons/character.hkx',
   bones: [
     {name: 'NPC Root [Root]', parent: -1, body: true},
     {name: '뼈', parent: 0, body: false},

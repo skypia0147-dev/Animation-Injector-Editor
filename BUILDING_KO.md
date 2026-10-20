@@ -67,4 +67,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## 게임 파일
 
-저장소와 exe에는 게임 자산이 들어 있지 않습니다. HKX·스켈레톤·스킨은 사용자가 설치한 게임과 모드에서 씁니다.
+저장소에는 게임 자산이 없습니다. 배포판 exe에는 사람·크리처 미리보기용 스켈레톤(`*.hkx`)과 스킨(`*.glb`)이
+들어 있습니다. `build.rs`가 `src-tauri/assets/preview/skeletons`·`src-tauri/assets/preview/meshes` 폴더가 있으면
+그 안의 파일을 모두 넣고, 없으면 빈 목록으로 빌드합니다. 그래서 이 저장소에서 빌드하면 사용자가 지정한
+스켈레톤으로 미리 봅니다.

@@ -67,4 +67,7 @@ out. Messages from the Rust side are gathered with `node tools/i18n-backend.mjs`
 
 ## Game files
 
-The repository and the exe contain no game assets. HKX, skeletons and skins come from the user's own installation.
+The repository contains no game assets. The release package's exe embeds preview skeletons (`*.hkx`) and skins
+(`*.glb`) for humans and creatures; `build.rs` takes every file under `src-tauri/assets/preview/skeletons` and
+`src-tauri/assets/preview/meshes` when that folder exists, and builds an empty table when it does not. A build from
+this repository therefore previews with the skeletons the user chooses.

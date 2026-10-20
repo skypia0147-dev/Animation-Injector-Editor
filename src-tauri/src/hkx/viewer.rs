@@ -332,9 +332,13 @@ fn skeleton_label(path: &Path) -> String {
 }
 
 fn load_skeleton(path: &str) -> Result<SkeletonData, String> {
-    // The user's own skeleton files only: the editor ships no game assets.
-    let path = validate_hkx_path(path)?;
-    let bytes = read_limited(&path)?;
+    let (path, bytes) = if let Some(bytes) = super::builtin::bytes(path) {
+        (PathBuf::from(path), bytes.to_vec())
+    } else {
+        let path = validate_hkx_path(path)?;
+        let bytes = read_limited(&path)?;
+        (path, bytes)
+    };
     let classes: indexmap::IndexMap<usize, Classes<'_>> =
         serde_hkx::from_bytes(&bytes).map_err(|e| format!("스켈레톤 HKX 해석 실패: {e}"))?;
     let skeleton = classes.values().find_map(|class| match class {
@@ -977,12 +981,39 @@ fn decode(request: &ViewerRequest, bytes: &[u8]) -> Result<ViewerData, String> {
     let reader = track_reader(&source)?;
     let path = validate_hkx_path(&request.path)?;
     let paths = candidate_paths(&path, &request.candidates)?;
-    let loaded = load_candidates(paths, &request.skeletons)?;
+    // A built-in skeleton the front end names is left out when this build has none (a source build without the
+    // preview assets): the actor is then matched from the candidates like any unset one.
+    let skeletons: Vec<String> = request
+        .skeletons
+        .iter()
+        .map(|path| {
+            if path.starts_with("builtin/") && super::builtin::bytes(path).is_none() {
+                String::new()
+            } else {
+                path.clone()
+            }
+        })
+        .collect();
+    let mut loaded = load_candidates(paths, &skeletons)?;
+    // Prefer registered/local candidates. Add one canonical built-in per actor family.
+    for (name, _) in super::builtin::FILES
+        .iter()
+        .filter(|(name, _)| name.starts_with("builtin/skeletons/"))
+    {
+        let stem = Path::new(name).file_stem().unwrap().to_string_lossy();
+        if super::builtin::bytes(&format!("builtin/meshes/{stem}.glb")).is_none() {
+            continue;
+        }
+        let skeleton = load_skeleton(name)?;
+        if !loaded.iter().any(|item| item.label == skeleton.label) {
+            loaded.push(skeleton);
+        }
+    }
     let actors = if paired {
         let names = animation_track_names(parent, tracks)?;
         let targets = pair_track_sets(&names);
-        let first = choose_pair_actor(0, request.skeletons.first().map(String::as_str), &loaded, &targets[0])?;
-        let second = choose_pair_actor(1, request.skeletons.get(1).map(String::as_str), &loaded, &targets[1])?;
+        let first = choose_pair_actor(0, skeletons.first().map(String::as_str), &loaded, &targets[0])?;
+        let second = choose_pair_actor(1, skeletons.get(1).map(String::as_str), &loaded, &targets[1])?;
         ensure_ipc_budget(frames, &[&first, &second], &raw_annotations)?;
         let first_annotations: Vec<_> = raw_annotations
             .iter()
@@ -1015,7 +1046,7 @@ fn decode(request: &ViewerRequest, bytes: &[u8]) -> Result<ViewerData, String> {
     } else {
         let selected = choose_ordinary(
             &request.path,
-            request.skeletons.first().map(String::as_str),
+            skeletons.first().map(String::as_str),
             loaded,
             tracks,
             binding(&classes),
@@ -1115,8 +1146,8 @@ pub async fn hkx_frames(request: ViewerRequest) -> Result<tauri::ipc::Response, 
 mod tests {
     use super::*;
 
-    // Grapple's pairs (a local mod, AIE_GRAPPLE_HKX_DIR, so ignored by default): the four played from behind are the only ones whose
-    // two actors face the same way at the first frame; their XML keeps reorientSupport="false".
+    // Grapple's pairs (a local mod, AIE_GRAPPLE_HKX_DIR, so ignored by default): the four played from behind are the
+    // only ones whose two actors face the same way at the first frame; their XML keeps reorientSupport="false".
     #[test]
     #[ignore]
     fn grapple_pairs_from_behind_face_the_same_way() {
@@ -1168,6 +1199,38 @@ mod tests {
         assert_eq!(
             parse_numbers_after("NPCanimrotation 180", "animrotation", 1),
             Some(vec![180.0])
+        );
+    }
+
+    #[test]
+    fn bundled_skeletons_are_valid() {
+        for (path, _) in super::super::builtin::FILES.iter().filter(|(p, _)| p.ends_with(".hkx")) {
+            assert!(!load_skeleton(path).unwrap().names.is_empty(), "{path}");
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn native_builtin_preview() {
+        let path = std::env::var("AIE_VIEWER_HKX").unwrap();
+        let result = read(&ViewerRequest {
+            path,
+            skeletons: vec![],
+            candidates: vec![],
+        })
+        .unwrap();
+        assert!(!result.actors.is_empty());
+        for actor in &result.actors {
+            assert!(actor.skeleton_path.starts_with("builtin/"));
+            assert!(super::super::builtin::bytes(&format!("builtin/meshes/{}.glb", actor.skeleton)).is_some());
+        }
+        if let Ok(path) = std::env::var("AIE_VIEWER_ACTUAL_OUTPUT") {
+            fs::write(path, serde_json::to_vec(&result).unwrap()).unwrap();
+        }
+        eprintln!(
+            "Built-in preview: paired={} actors={:?}",
+            result.paired,
+            result.actors.iter().map(|a| &a.skeleton).collect::<Vec<_>>()
         );
     }
 

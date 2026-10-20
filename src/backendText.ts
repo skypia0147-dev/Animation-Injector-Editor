@@ -77,6 +77,7 @@ const patterns = [
   trPattern('검색 폴더 열람 실패: {raw}: {e}'),
   trPattern('검색 폴더 접근 불가: {raw}'),
   trPattern('검색 폴더가 너무 큽니다. 개별 모드 폴더를 선택하세요.'),
+  trPattern('내장 스킨을 찾지 못했습니다.'),
   trPattern('대상 스켈레톤의 애니메이션 경로가 잘못되었습니다.'),
   trPattern('런타임이 이 XML을 거부합니다(게임에서 파일 전체가 무시됨): {v0}'),
   trPattern('런타임이 이 XML을 거부했습니다.'),

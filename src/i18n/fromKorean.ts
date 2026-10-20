@@ -2000,6 +2000,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '下ろす動作は putdown（一人用 Action）とその中の CarryRelease 時点で指定するようになりました',
     '放下现在通过 putdown（单人 Action）及其中的 CarryRelease 时机指定',
   ],
+  '내장 스킨을 찾지 못했습니다.': [
+    'Built-in skin not found.',
+    '組み込みスキンが見つかりませんでした。',
+    '未找到内置蒙皮。',
+  ],
   네치: ['Netch', 'ネッチ', '内奇'],
   '높이는 후보의 예상 배치 높이 기준입니다. 거리·반경은 게임 단위, 경사는 도 단위입니다.': [
     "Height is based on candidate's predicted placement height. Distance and radius are in game units, slope is in degrees.",

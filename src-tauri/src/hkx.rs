@@ -2,6 +2,7 @@ use havok_classes::{Classes, hkaAnimation};
 use std::{fs, path::Path, io::Read};
 
 pub(crate) mod skin;
+mod builtin;
 mod spline;
 pub(crate) mod viewer;
 

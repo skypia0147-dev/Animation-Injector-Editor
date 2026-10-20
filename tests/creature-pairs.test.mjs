@@ -9,7 +9,7 @@ import {previewAssets} from '../src/viewport/resources.ts';
 const xml = rig =>
   `<?xml version="1.0"?><AnimationSet version="4" id="CreaturePair"><Inputs><Input id="use" key="G"/></Inputs><Pair id="Test" clip="Animations/Pair/Test.hkx"><Start input="use"/><Target rig="${rig}" range="250" angle="160"/><Exit at="end-0.05" blend="0.2"/></Pair></AnimationSet>`;
 for (const profile of pairedRigs) {
-  test(`creature pair ${profile.id}: XML, project, package and no built-in preview`, () => {
+  test(`creature pair ${profile.id}: XML, project, package and explicit preview identity`, () => {
     const w = importWorkspaceXml(xml(profile.id));
     assert.equal(w.actions[0].pair.targetRig, profile.id);
     const compiled = compileWorkspace(w);
@@ -17,8 +17,11 @@ for (const profile of pairedRigs) {
     assert.equal(copy.actions[0].pair.targetRig, profile.id);
     assert.equal(parseWorkspace(JSON.stringify(w)).actions[0].pair.targetRig, profile.id);
     assert.deepEqual(assets(w)[0].actorRoots, [...new Set(['meshes/actors/character', profile.actorRoot])]);
-    // The editor ships no game skeletons: a creature pair previews with what the user chose, nothing by default.
-    assert.deepEqual(previewAssets(w, w.actions[0].config.steps[0].clip).skeletons, []);
+    if (profile.id !== 'character') {
+      const preview = previewAssets(w, w.actions[0].config.steps[0].clip, profile.id);
+      assert.equal(preview.skeletons[0], 'builtin/skeletons/character.hkx');
+      assert.equal(preview.skeletons[1], profile.previewSkeleton);
+    }
   });
 }
 test('unknown creature identity cannot silently become human', () => {

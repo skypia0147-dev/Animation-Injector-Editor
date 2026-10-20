@@ -117,6 +117,10 @@ const defaultPanels = (): Panels => ({myProject: true, hkx: true, viewport: true
 function loadPanels(): Panels {
   try {
     const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null');
+    if (!localStorage.getItem('aieditor-builtin-preview-v1')) {
+      localStorage.setItem('aieditor-builtin-preview-v1', '1');
+      return {...defaultPanels(), ...saved, viewport: true};
+    }
     return saved && typeof saved === 'object' ? {...defaultPanels(), ...saved} : defaultPanels();
   } catch {
     return defaultPanels();
@@ -1218,7 +1222,7 @@ function Editor() {
       previewSource.path ||
       library.find(asset => asset.clip.toLowerCase() === previewClip.toLowerCase())?.localPath ||
       '',
-    previewResource = previewAssets(w, previewClip),
+    previewResource = previewAssets(w, previewClip, timelineAction?.pair?.targetRig),
     viewerRequest = useMemo(
       () =>
         panels.viewport && previewPath
@@ -1238,7 +1242,9 @@ function Editor() {
     ),
     previewFrame = frameAtTime(playback.time, viewer.data),
     previewSkinPaths =
-      viewer.data?.actors.map((actor, index) => skinPathForActor(w, previewClip, index, actor.skeleton)) ?? [];
+      viewer.data?.actors.map((actor, index) =>
+        skinPathForActor(w, previewClip, index, actor.skeleton, actor.skeletonPath)
+      ) ?? [];
   const changePreviewAsset = (kind: 'skeletons' | 'skins', actor: number, path: string) => {
     if (!previewClip) return;
     edit(w => setPreviewAsset(w, previewClip, kind, actor, path));

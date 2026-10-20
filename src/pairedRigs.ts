@@ -8,6 +8,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/character',
     skeleton: 'Character Assets/skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/character.hkx',
   },
   {
     id: 'ashhopper',
@@ -16,6 +17,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/scrib',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/ashhopper.hkx',
   },
   {
     id: 'atronachflame',
@@ -24,6 +26,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/atronachflame',
     skeleton: 'Character Assets/skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/atronachflame.hkx',
   },
   {
     id: 'atronachfrost',
@@ -32,6 +35,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/atronachfrost',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/atronachfrost.hkx',
   },
   {
     id: 'atronachstorm',
@@ -40,6 +44,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/atronachstorm',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/atronachstorm.hkx',
   },
   {
     id: 'bear',
@@ -48,6 +53,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/bear',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/bear.hkx',
   },
   {
     id: 'boar',
@@ -56,6 +62,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/boarriekling',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/boar.hkx',
   },
   {
     id: 'chaurus',
@@ -64,6 +71,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/chaurus',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/chaurus.hkx',
   },
   {
     id: 'chaurusflyer',
@@ -72,6 +80,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc01/chaurusflyer',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/chaurusflyer.hkx',
   },
   {
     id: 'chicken',
@@ -80,6 +89,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/ambient/chicken',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/chicken.hkx',
   },
   {
     id: 'cow',
@@ -88,6 +98,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/cow',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/cow.hkx',
   },
   {
     id: 'deer',
@@ -96,6 +107,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/deer',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/deer.hkx',
   },
   {
     id: 'dog',
@@ -104,6 +116,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/canine',
     skeleton: 'Character Assets Dog/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/canine_dog.hkx',
   },
   {
     id: 'dragon',
@@ -112,6 +125,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dragon',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/dragon.hkx',
   },
   {
     id: 'dragonpriest',
@@ -120,6 +134,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dragonpriest',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/dragonpriest.hkx',
   },
   {
     id: 'draugr',
@@ -128,6 +143,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/draugr',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/draugr.hkx',
   },
   {
     id: 'dwarvenballistacenturion',
@@ -136,6 +152,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/dwarvenballistacenturion',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/dwarvenballistacenturion.hkx',
   },
   {
     id: 'dwarvenspherecenturion',
@@ -144,6 +161,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dwarvenspherecenturion',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/dwarvenspherecenturion.hkx',
   },
   {
     id: 'dwarvenspider',
@@ -152,6 +170,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dwarvenspider',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/dwarvenspider.hkx',
   },
   {
     id: 'dwarvensteamcenturion',
@@ -160,6 +179,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dwarvensteamcenturion',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/dwarvensteamcenturion.hkx',
   },
   {
     id: 'falmer',
@@ -168,6 +188,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/falmer',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/falmer.hkx',
   },
   {
     id: 'frostbitespider',
@@ -176,6 +197,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/frostbitespider',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/frostbitespider.hkx',
   },
   {
     id: 'gargoyle',
@@ -184,6 +206,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc01/vampirebrute',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/gargoyle.hkx',
   },
   {
     id: 'giant',
@@ -192,6 +215,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/giant',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/giant.hkx',
   },
   {
     id: 'goat',
@@ -200,6 +224,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/goat',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/goat.hkx',
   },
   {
     id: 'hagraven',
@@ -208,6 +233,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/hagraven',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/hagraven.hkx',
   },
   {
     id: 'hare',
@@ -216,6 +242,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/ambient/hare',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/hare.hkx',
   },
   {
     id: 'horker',
@@ -224,6 +251,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/horker',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/horker.hkx',
   },
   {
     id: 'horse',
@@ -232,6 +260,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/horse',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/horse.hkx',
   },
   {
     id: 'icewraith',
@@ -240,6 +269,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/icewraith',
     skeleton: 'Character Assets/skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/icewraith.hkx',
   },
   {
     id: 'lurker',
@@ -248,6 +278,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/benthiclurker',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/lurker.hkx',
   },
   {
     id: 'mammoth',
@@ -256,6 +287,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/mammoth',
     skeleton: 'Character Assets/skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/mammoth.hkx',
   },
   {
     id: 'mudcrab',
@@ -264,6 +296,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/mudcrab',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/mudcrab.hkx',
   },
   {
     id: 'netch',
@@ -272,6 +305,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/netch',
     skeleton: 'CharacterAssets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/netch.hkx',
   },
   {
     id: 'riekling',
@@ -280,6 +314,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/riekling',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/riekling.hkx',
   },
   {
     id: 'sabrecat',
@@ -288,6 +323,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/sabrecat',
     skeleton: 'Character Assets/Skeleton.hkx',
+    previewSkeleton: 'builtin/skeletons/sabrecat.hkx',
   },
   {
     id: 'seeker',
@@ -296,6 +332,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/dlc02/hmdaedra',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/seeker.hkx',
   },
   {
     id: 'skeever',
@@ -304,6 +341,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/skeever',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/skeever.hkx',
   },
   {
     id: 'skeleton',
@@ -312,6 +350,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/draugr',
     skeleton: 'Character Assets/SkeletonS.HKX',
+    previewSkeleton: 'builtin/skeletons/draugr_s.hkx',
   },
   {
     id: 'slaughterfish',
@@ -320,6 +359,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/slaughterfish',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/slaughterfish.hkx',
   },
   {
     id: 'spriggan',
@@ -328,6 +368,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/spriggan',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/spriggan.hkx',
   },
   {
     id: 'troll',
@@ -336,6 +377,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/troll',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/troll.hkx',
   },
   {
     id: 'vampirelord',
@@ -344,6 +386,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/vampirelord',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/vampirelord.hkx',
   },
   {
     id: 'werewolf',
@@ -352,6 +395,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/werewolfbeast',
     skeleton: 'Character Assets/Skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/werewolfbeast.hkx',
   },
   {
     id: 'wispmother',
@@ -360,6 +404,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/wisp',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/wisp.hkx',
   },
   {
     id: 'witchlight',
@@ -368,6 +413,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/witchlight',
     skeleton: 'Character Assets/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/witchlight.hkx',
   },
   {
     id: 'wolf',
@@ -376,6 +422,7 @@ export const pairedRigs = [
     },
     actorRoot: 'meshes/actors/canine',
     skeleton: 'Character Assets Wolf/skeleton.HKX',
+    previewSkeleton: 'builtin/skeletons/canine_wolf.hkx',
   },
 ] as const;
 export type PairedRig = (typeof pairedRigs)[number]['id'];

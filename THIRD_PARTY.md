@@ -45,9 +45,11 @@ package's `THIRD_PARTY_NOTICES.txt` holds their license texts, gathered by `tool
 
 ## Game files
 
-The repository and the program contain no game assets. Skeleton HKX and skin GLB are files the user chooses from an
-installation they have the right to use; the editor reads them in place and never copies or uploads them. The GPL of
-this program grants no rights to anyone's game or mod assets.
+The source repository contains no game assets. The release package's exe embeds preview skeletons and skins
+converted from The Elder Scrolls V: Skyrim for the viewport only; they belong to their owner, are not covered by this
+program's GPL and are not part of its corresponding source. Other skeleton HKX and skin GLB are files the user
+chooses from an installation they have the right to use; the editor reads them in place and never copies or uploads
+them.
 
 ---
 
@@ -87,6 +89,7 @@ Tauri, React, Vite, TypeScript 등은 `package-lock.json`과 `src-tauri/Cargo.lo
 
 ## 게임 파일
 
-저장소와 프로그램에는 게임 자산이 들어 있지 않습니다. 스켈레톤 HKX와 스킨 GLB는 사용자가 사용할 권리가 있는
-설치본에서 직접 고르는 파일이며, 에디터는 그 자리에서 읽기만 하고 복사하거나 업로드하지 않습니다. 이 프로그램의
-GPL은 게임이나 모드 자산에 대한 권리를 주지 않습니다.
+소스 저장소에는 게임 자산이 없습니다. 배포판 exe에는 뷰포트 미리보기용으로 The Elder Scrolls V: Skyrim에서
+변환한 스켈레톤과 스킨이 들어 있습니다. 이 파일들의 권리는 원저작자에게 있으며, 이 프로그램의 GPL 적용 대상도
+대응 소스의 일부도 아닙니다. 그 밖의 스켈레톤 HKX와 스킨 GLB는 사용자가 사용할 권리가 있는 설치본에서 직접
+고르는 파일이며, 에디터는 그 자리에서 읽기만 하고 복사하거나 업로드하지 않습니다.

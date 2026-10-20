@@ -111,6 +111,16 @@ fn read_skin_at(path: &str) -> Result<SkinBinary, String> {
 
 #[tauri::command]
 pub async fn hkx_skin(path: String) -> Result<tauri::ipc::Response, String> {
+    if path.starts_with("builtin/meshes/") {
+        let bytes = super::builtin::bytes(&path).ok_or("내장 스킨을 찾지 못했습니다.")?;
+        validate_glb(bytes)?;
+        let skin = SkinBinary {
+            name: path.rsplit('/').next().unwrap_or_default().into(),
+            path,
+            bytes: bytes.to_vec(),
+        };
+        return encode_skin(&skin).map(tauri::ipc::Response::new);
+    }
     tauri::async_runtime::spawn_blocking(move || read_skin_at(&path).and_then(|skin| encode_skin(&skin)))
         .await
         .map_err(|error| error.to_string())?
@@ -161,6 +171,14 @@ mod tests {
         wrong_chunk[16..20].copy_from_slice(&0x004e_4942_u32.to_le_bytes());
         assert!(validate_glb(&wrong_chunk).is_err());
         assert!(validate_glb(&[0_u8; 20]).is_err());
+    }
+
+    #[test]
+    fn validates_all_bundled_skins() {
+        for (path, bytes) in super::super::builtin::FILES.iter().filter(|(p, _)| p.ends_with(".glb")) {
+            validate_glb(bytes).unwrap_or_else(|error| panic!("{path}: {error}"));
+        }
+        assert!(super::super::builtin::bytes("builtin/meshes/../../other.glb").is_none());
     }
 
     #[test]

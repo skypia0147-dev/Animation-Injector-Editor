@@ -41,7 +41,7 @@ No development tools (Node.js, Rust, Python) are needed.
 
 ## Viewer
 
-**Window → Viewport** plays the selected HKX. The editor ships no game files: first choose a skeleton HKX (for example `meshes\actors\character\character assets\skeleton.hkx`) under the viewport's **Preview assets**. It is remembered on this computer, and a skeleton under the same mod's `actors` folder is found automatically. Choose a GLB skin to see the body; without one the viewer draws the bones.
+**Window → Viewport** plays the selected HKX. The release package includes preview skeletons and skins for humans and creatures, so supported HKX play right away. A build from source has none: choose a skeleton HKX (for example `meshes\actors\character\character assets\skeleton.hkx`) under the viewport's **Preview assets**. It is remembered on this computer, and a skeleton under the same mod's `actors` folder is found automatically. Without a GLB skin the viewer draws the bones.
 
 - Middle-button drag: orbit · Shift+middle-button drag: pan · Wheel: zoom · Ctrl+wheel: field of view
 

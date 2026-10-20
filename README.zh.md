@@ -41,7 +41,7 @@
 
 ## 查看器
 
-**窗口 → 视口** 播放所选的 HKX。编辑器不包含游戏文件，首次使用时请在视口的 **预览资源** 中指定骨架 HKX（例如 `meshes\actors\character\character assets\skeleton.hkx`）。指定的文件会在本机记住；如果 HKX 所在模组的 `actors` 文件夹中有骨架，会自动找到。指定 GLB 蒙皮后会显示身体，否则只显示骨骼。
+**窗口 → 视口** 播放所选的 HKX。发布版内置人类和生物的预览骨架与蒙皮，受支持的 HKX 可直接播放。如果是从源码自行构建，则不包含这些文件，请在视口的 **预览资源** 中指定骨架 HKX（例如 `meshes\actors\character\character assets\skeleton.hkx`）。指定的文件会在本机记住；如果 HKX 所在模组的 `actors` 文件夹中有骨架，会自动找到。没有 GLB 蒙皮时只显示骨骼。
 
 - 中键拖动：旋转 · Shift＋中键拖动：平移 · 滚轮：缩放 · Ctrl＋滚轮：视野角
 
