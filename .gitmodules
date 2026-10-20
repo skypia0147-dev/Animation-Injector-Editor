@@ -1,0 +1,3 @@
+[submodule "vendor/serde-hkx"]
+	path = vendor/serde-hkx
+	url = https://github.com/SARDONYX-sard/serde-hkx.git

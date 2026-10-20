@@ -1,0 +1,6 @@
+# Backend Rust layout (review E-8). Check: cargo fmt --check. Apply: cargo fmt.
+# Same line width as the frontend (.prettierrc.json). Imports and modules keep their order.
+max_width = 120
+newline_style = "Unix"
+reorder_imports = false
+reorder_modules = false

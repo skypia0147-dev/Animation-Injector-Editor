@@ -1,0 +1,418 @@
+/* The event registry node (graph/RegistryCard.tsx) and the read-only event list of HKX cards. */
+.p3-node.eventRegistry {
+  border-color: #6c5a8a;
+}
+.p3-node.eventRegistry > .checklist-drag-handle {
+  background: #3a2f4d;
+}
+.p3-node.eventRegistry > .checklist-drag-handle svg {
+  color: #b48cf2;
+}
+.registry-body {
+  --registry: #b48cf2;
+  --registry-soft: #2c2638;
+  --registry-use: #9fd7a8;
+  --registry-lasting: #f0d08a;
+}
+.registry-count {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ue-dim, #8c8c8c);
+  font-size: var(--fs-xs);
+  margin-bottom: 6px;
+}
+.registry-no-port {
+  font-size: var(--fs-xs);
+  color: #b9a6d9;
+  border: 1px dashed #6c5a8a;
+  border-radius: 3px;
+  padding: 0 5px;
+}
+.registry-intro {
+  color: #b9a6d9;
+  background: var(--registry-soft);
+  border-radius: 5px;
+  padding: 6px 8px;
+  margin: 0 0 8px;
+}
+.registry-intro b {
+  color: #d8c8f4;
+}
+.registry-intro b.use {
+  color: var(--registry-use);
+}
+.registry-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.registry-tools input {
+  flex: 1;
+}
+.checklist-body .registry-tools select {
+  flex: none;
+  width: auto;
+}
+.registry-seg {
+  display: inline-flex;
+  border: 1px solid #0d0d0d;
+  border-radius: 4px;
+  overflow: hidden;
+  flex: none;
+}
+.checklist-body .registry-seg button {
+  border: 0;
+  border-radius: 0;
+  background: #262626;
+  min-height: 26px;
+}
+.checklist-body .registry-seg button.on {
+  background: #4a3d63;
+  color: #f0f0f0;
+}
+.registry-row {
+  border-bottom: 1px solid #404040;
+  border-radius: 4px;
+}
+.registry-row.flash {
+  outline: 2px solid var(--registry);
+  outline-offset: 1px;
+  background: #3a2f4d;
+}
+.checklist-body .registry-row-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 2px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.checklist-body .registry-row-head:hover {
+  background: #2d2d2d;
+}
+.registry-caret {
+  width: 12px;
+  color: var(--ue-dim, #8c8c8c);
+  flex: none;
+}
+.registry-row-main {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+.registry-name {
+  font-weight: 600;
+  color: #f0f0f0;
+  word-break: break-all;
+}
+.registry-usage-count {
+  font-size: var(--fs-xs);
+  color: var(--ue-dim, #8c8c8c);
+  white-space: nowrap;
+  flex: none;
+  padding-top: 2px;
+}
+.registry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+.registry-chip {
+  font-size: var(--fs-xs);
+  background: #333;
+  border: 1px solid #484848;
+  border-radius: 10px;
+  padding: 0 7px;
+  color: #d8c8f4;
+}
+.registry-chip.lasting {
+  border-color: #6b5a2a;
+  color: var(--registry-lasting);
+}
+.registry-chip.warn {
+  border-color: #6b5a2a;
+  color: var(--ue-warn, #e8b64a);
+}
+.registry-chip.use {
+  border-color: #2f5a3a;
+  color: var(--registry-use);
+}
+.registry-chip.none {
+  color: #a6a6a6;
+}
+.registry-row-body {
+  background: #1e1e1e;
+  border-radius: 5px;
+  margin: 0 0 6px 18px;
+  padding: 8px;
+}
+.registry-field-line {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.registry-field-line > span,
+.registry-sub-title span,
+.registry-usage-title,
+.registry-body .dim {
+  color: var(--ue-dim, #8c8c8c);
+}
+.registry-hint {
+  font-size: var(--fs-xs);
+  color: var(--ue-dim, #8c8c8c);
+  margin: -2px 0 6px 54px;
+}
+.registry-hint b {
+  color: #d8c8f4;
+  font-weight: 500;
+}
+.registry-sub-title {
+  margin: 10px 0 2px;
+  font-weight: 600;
+  color: #f0f0f0;
+}
+.registry-sub-title span {
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  margin-left: 4px;
+}
+.registry-empty-line,
+.registry-empty {
+  color: var(--ue-dim, #8c8c8c);
+  padding: 4px 0;
+}
+.registry-fn {
+  border: 1px solid #3c3c3c;
+  border-radius: 5px;
+  padding: 6px;
+  margin: 6px 0;
+  background: #232323;
+}
+.registry-fn-caption,
+.registry-fn-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
+  gap: 5px;
+  align-items: center;
+}
+.registry-fn-caption {
+  color: var(--ue-dim, #8c8c8c);
+  font-size: var(--fs-xs);
+  margin-bottom: 2px;
+}
+.checklist-body .registry-del {
+  padding: 2px 6px;
+  color: var(--ue-dim, #8c8c8c);
+  text-align: center;
+}
+.registry-fn-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 6px;
+  align-items: center;
+}
+.registry-fn-fields label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--ue-dim, #8c8c8c);
+  white-space: nowrap;
+}
+.registry-space {
+  margin-top: 4px;
+  color: var(--ue-dim, #8c8c8c);
+  font-size: var(--fs-sm);
+}
+.registry-space summary {
+  cursor: pointer;
+}
+.registry-fn-fields input[type='number'] {
+  width: 72px;
+}
+.registry-fn-fields input[type='text'] {
+  width: 80px;
+}
+.registry-fn-fields input[type='text'].wide {
+  width: 140px;
+}
+.registry-note {
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: #d9c07d;
+  background: #2a2618;
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.registry-note.player {
+  color: #9fc4d9;
+  background: #1b252b;
+}
+.registry-warn {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--ue-warn, #e8b64a);
+  background: #2a2416;
+  border: 1px solid #5a4a22;
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+.registry-uses {
+  margin: 2px 0 4px;
+  padding-left: 16px;
+  color: var(--registry-use);
+}
+.checklist-body .registry-link {
+  background: transparent;
+  border: 0;
+  color: #c8b6ea;
+  text-decoration: underline;
+  font-size: var(--fs-sm);
+  padding: 0 0 0 6px;
+  min-height: 0;
+  cursor: pointer;
+}
+.checklist-body .registry-link.dim {
+  color: var(--ue-dim, #8c8c8c);
+}
+.registry-add-use {
+  width: 100%;
+  margin-top: 4px;
+}
+.registry-usage {
+  margin-top: 8px;
+  border-top: 1px solid #3a3a3a;
+  padding-top: 6px;
+}
+.registry-usage ul {
+  margin: 2px 0 4px;
+  padding-left: 16px;
+  color: #bbb;
+}
+.registry-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.checklist-body .registry-add button {
+  flex: 1;
+  text-align: center;
+}
+.checklist-body button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.registry-group-title {
+  margin: 8px 0 2px;
+  font-weight: 600;
+  color: #f0f0f0;
+}
+.registry-group-title span {
+  color: var(--ue-dim, #8c8c8c);
+  font-weight: 400;
+}
+
+/* Read-only HKX annotation list on a playback card. Class names stay unique: theme.css styles .res. */
+.hkx-events .hkx-event {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 6px;
+  padding: 3px 2px;
+  border-bottom: 1px solid #353535;
+  border-radius: 3px;
+}
+.hkx-events .hkx-event:not(.unregistered) {
+  cursor: pointer;
+}
+.hkx-events .hkx-event:hover {
+  background: #2d2d2d;
+}
+.hkx-event-time {
+  color: var(--ue-dim, #8c8c8c);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hkx-event-body {
+  min-width: 0;
+}
+.hkx-event-name {
+  overflow-wrap: anywhere;
+}
+.hkx-event-role {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+.hkx-event-role.initiator {
+  background: #4a2f2f;
+  color: #f0b5b5;
+}
+.hkx-event-role.receiver {
+  background: #2f3a4a;
+  color: #b5cdf0;
+}
+.hkx-event-values {
+  color: var(--ue-dim, #8c8c8c);
+  font-size: var(--fs-sm);
+}
+.hkx-event-fn {
+  font-size: var(--fs-sm);
+  color: #c8b6ea;
+  overflow-wrap: anywhere;
+}
+.hkx-event-use {
+  font-size: var(--fs-sm);
+  color: #9fd7a8;
+  overflow-wrap: anywhere;
+}
+.hkx-event-state {
+  font-size: var(--fs-sm);
+  color: #7d7d7d;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.hkx-event-state.warn {
+  color: var(--ue-warn, #e8b64a);
+}
+.hkx-event.unregistered .hkx-event-name {
+  color: #7d7d7d;
+}
+.checklist-body .hkx-event-state button {
+  padding: 0 6px;
+  font-size: var(--fs-sm);
+  min-height: 0;
+}
+.hkx-events-hint {
+  color: var(--ue-dim, #8c8c8c);
+  font-size: var(--fs-xs);
+  margin-top: 6px;
+}
+.checklist-body .hkx-events-hint button {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  color: #c8b6ea;
+  text-decoration: underline;
+  font-size: var(--fs-xs);
+}
+.effect-note {
+  font-size: var(--fs-xs);
+  color: #d9c07d;
+  margin: 4px 0;
+}
+.effect-note.player {
+  color: #9fc4d9;
+}

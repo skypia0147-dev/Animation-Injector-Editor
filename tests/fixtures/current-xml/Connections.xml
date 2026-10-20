@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="4" id="EditorS4">
+  <Inputs>
+    <Input id="a1_i1" key="NumEnter"/>
+    <Input id="a1_i2" key="NumMul"/>
+    <Input id="a1_i3" key="NumMinus"/>
+    <Input id="a2_i3" key="NumMinus"/>
+    <Input id="a3_i1" key="NumPlus"/>
+    <Input id="a3_i2" key="NumMul"/>
+  </Inputs>
+  <Pair id="EditorS4Pair" clip="Animations\ComboTest\test_Null.hkx">
+    <Start input="a1_i1" onKeyUp="false"/>
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Advanced safety="15" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="true" applyMotionFromRoot="false"/>
+    <Target range="200" angle="180"/>
+    <OnPartnerLost blend="2"/>
+    <Connect to="EditorS4PairNext" input="a1_i2">
+      <Window from="0.15" until="10.5" buffer="true"/>
+    </Connect>
+    <Connect to="EditorS4UserOut" partnerTo="EditorS4TargetOut" input="a1_i3">
+      <Window from="0.15" until="10.5" buffer="true"/>
+    </Connect>
+  </Pair>
+  <Pair id="EditorS4PairNext" clip="Animations\ComboTest\test_Null.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Advanced safety="15" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="true" applyMotionFromRoot="false"/>
+    <Target range="200" angle="180"/>
+    <OnPartnerLost blend="2"/>
+    <Connect to="EditorS4UserOut" partnerTo="EditorS4TargetOut" input="a2_i3">
+      <Window from="0.15" until="10.5" buffer="true"/>
+    </Connect>
+  </Pair>
+  <Action id="EditorS4Intro" clip="Animations\ComboTest\test_Attack1.hkx">
+    <Start input="a3_i1" onKeyUp="false"/>
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Attack data="attackStart"/>
+    <Advanced safety="3"/>
+    <Connect to="EditorS4Pair" input="a3_i2">
+      <Window from="0.15" until="10.5" buffer="true"/>
+    </Connect>
+  </Action>
+  <Action id="EditorS4UserOut" clip="Animations\ComboTest\test_Attack1.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Attack data="attackStart"/>
+    <Advanced safety="3"/>
+  </Action>
+  <Action id="EditorS4TargetOut" clip="Animations\ComboTest\test_Attack3.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Attack data="attackStart"/>
+    <Advanced safety="3"/>
+  </Action>
+</AnimationSet>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="4" id="ImportedSet">
+  <Action id="EditorEvent" clip="Animations\ComboTest\test_Attack1.hkx">
+    <Start event="AI_EditorS3_Start" actor="both" onKeyUp="false"/>
+    <Require weapon="drawn" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Attack data="attackStart"/>
+    <Advanced safety="3"/>
+  </Action>
+</AnimationSet>

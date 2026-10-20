@@ -1,0 +1,393 @@
+/* The QTE panel (QteDetails, 10-18, docs/mockup-qte-redesign). */
+.qte-top {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.qte-top-note {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: #9a9a9a;
+}
+.qte-preview-screen.movable {
+  cursor: grab;
+  touch-action: none;
+}
+.qte-preview-screen.movable:active {
+  cursor: grabbing;
+}
+.qte-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--ue-line, #3a3a3a);
+  margin-bottom: 8px;
+}
+.shell .qte-tabs button {
+  display: grid;
+  gap: 1px;
+  padding: 8px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #a8a8a8;
+  font-size: var(--fs-sm);
+}
+.shell .qte-tabs button small {
+  font-size: var(--fs-xs);
+  color: #8a8a8a;
+}
+.shell .qte-tabs button[aria-selected='true'] {
+  color: #ececec;
+  border-bottom-color: #8fd3ff;
+}
+.qte-scope {
+  margin: 0 0 8px;
+  font-size: var(--fs-sm);
+  color: #c8e8fb;
+  background: #1d2e36;
+  border: 1px solid #2f4b58;
+  border-radius: 6px;
+  padding: 6px 9px;
+}
+.qte-scope.rule {
+  color: #eadcb8;
+  background: #2e2a1f;
+  border-color: #5b5240;
+  margin-top: 10px;
+}
+.qte-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.shell .qte-types button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  background: #272a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+}
+.shell .qte-types button[aria-pressed='true'] {
+  border-color: #8fd3ff;
+  background: #22323a;
+}
+.qte-seg {
+  display: inline-flex;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.shell .qte-seg button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 3px 12px;
+  color: #a8a8a8;
+}
+.shell .qte-seg button[aria-pressed='true'] {
+  background: #33403f;
+  color: #ececec;
+}
+.qte-timing {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.qte-timing-bar {
+  position: relative;
+  height: 18px;
+  border-radius: 4px;
+  background: #2b3030;
+  border: 1px solid #3a3a3a;
+  overflow: hidden;
+}
+.qte-timing-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.qte-timing-bar i.ok,
+.qte-timing-legend i.ok {
+  background: #4c6b54;
+}
+.qte-timing-bar i.perfect,
+.qte-timing-legend i.perfect {
+  background: #a68f4c;
+}
+.qte-timing-bar i.mark {
+  width: 2px;
+  margin-left: -1px;
+  background: #f0f1df;
+}
+.qte-timing-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: var(--fs-xs);
+  color: #9a9a9a;
+}
+.qte-timing-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+.qte-anchor {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qte-anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 20px);
+  gap: 3px;
+}
+.shell .qte-anchor-grid button {
+  width: 20px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid #4a4a4a;
+  border-radius: 3px;
+  background: #2b3030;
+}
+.shell .qte-anchor-grid button[aria-pressed='true'],
+.shell .qte-anchor > button[aria-pressed='true'] {
+  background: #8fd3ff;
+  border-color: #8fd3ff;
+  color: #161818;
+}
+.qte-scale,
+.qte-pair,
+.qte-result-to {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+.qte-scale input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+.qte-scale input[type='number'] {
+  width: 64px;
+}
+.qte-pair input,
+.qte-result-to > * {
+  flex: 1;
+  min-width: 0;
+}
+.qte-results {
+  display: grid;
+  gap: 8px;
+}
+/* One box per result: its outcome and how it goes on, then a row per role (pair-results mockup). */
+.qte-result {
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid #3a3a3a;
+  border-radius: 7px;
+  background: #242727;
+}
+.qte-result > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.qte-result em {
+  font-style: normal;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+.qte-result.tone-success em {
+  color: #9fd4a9;
+}
+.qte-result.tone-failure em {
+  color: var(--route-fail);
+}
+.qte-result.tone-perfect em {
+  color: var(--route-perfect);
+}
+.shell .qte-result .qte-seg button {
+  padding: 3px 8px;
+  font-size: var(--fs-sm);
+}
+.shell .qte-result .qte-seg button + button {
+  border-left: 1px solid #3a3a3a;
+}
+.qte-role-field {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.qte-role-field > span {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-align: center;
+  border-radius: 4px;
+  padding: 2px 0;
+  color: #161818;
+  background: #a8a8a8;
+}
+.qte-role-field.attacker > span {
+  background: var(--role-attacker);
+}
+.qte-role-field.victim > span {
+  background: var(--role-victim);
+}
+.qte-role-field.player > span {
+  background: var(--role-player);
+}
+.qte-role-field.partner > span {
+  background: var(--role-partner);
+}
+.qte-role-field.event > span {
+  background: #4c4362;
+  color: #ececec;
+}
+.qte-role-field select,
+.qte-role-field input {
+  width: 100%;
+  min-width: 0;
+}
+.qte-result-none {
+  margin: 0;
+  color: #8a8a8a;
+  font-size: var(--fs-sm);
+}
+.qte-rules {
+  display: grid;
+  gap: 6px;
+}
+.qte-rules-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.qte-rules-tools input {
+  flex: 1;
+  min-width: 0;
+}
+.qte-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.shell .qte-chips button {
+  font-size: var(--fs-xs);
+  padding: 1px 9px;
+  border-radius: 12px;
+  background: #272a2a;
+  border: 1px solid #3a3a3a;
+  color: #a8a8a8;
+}
+.shell .qte-chips button[aria-pressed='true'] {
+  border-color: #8fd3ff;
+  color: #ececec;
+}
+.qte-rules-table {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+}
+.qte-rules-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.qte-rules-table th,
+.qte-rules-table td {
+  text-align: left;
+  padding: 4px 7px;
+  border-bottom: 1px solid #2c3131;
+  white-space: nowrap;
+}
+.qte-rules-table th {
+  position: sticky;
+  top: 0;
+  background: #232727;
+  color: #9a9a9a;
+  font-weight: 500;
+}
+.qte-rules-table tbody tr {
+  cursor: pointer;
+}
+.qte-rules-table tbody tr:hover {
+  background: #262c2c;
+}
+.qte-rules-table tbody tr[aria-selected='true'] {
+  background: #22323a;
+  box-shadow: inset 2px 0 0 #8fd3ff;
+}
+.qte-rules-table td.tone-continue {
+  color: #888;
+}
+.qte-rules-table td.tone-event {
+  color: #e8cf86;
+}
+.qte-rules-table td.tone-transition {
+  color: #9fd4a9;
+}
+.qte-rules-empty {
+  margin: 6px 8px;
+  color: #888;
+  font-size: var(--fs-sm);
+}
+/* The start event's sender does not match the HKX's (QteDetails senderHint). */
+.qte-sender-hint {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 7px 9px;
+  border: 1px solid #7a4a44;
+  border-radius: 6px;
+  background: #2e2220;
+  color: #f0c2bc;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.qte-sender-hint button {
+  justify-self: start;
+}
+/* An event's QTE: the pair HKX that send its event (QteDetails pairSent, runtime 0.12.264). */
+.qte-senders {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border: 1px solid #3f6a52;
+  border-radius: 6px;
+  background: #1f2c25;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.qte-senders ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.qte-senders small {
+  color: #9aa19e;
+}
+/* A hidden QTE (runtime 0.12.266): the setting, and the preview's note that the game draws nothing. */
+.qte-hidden-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.qte-preview-hidden {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  color: #e8cf86;
+}

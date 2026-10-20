@@ -1,0 +1,384 @@
+.p3-node .checklist-drag-handle {
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+.checklist-body {
+  padding: 10px;
+  color: #eee;
+  font-size: var(--fs-sm);
+  text-align: left;
+  white-space: normal;
+}
+.checklist-body button,
+.checklist-body input,
+.checklist-body select {
+  font: inherit;
+  min-height: 28px;
+  box-sizing: border-box;
+}
+.checklist-body button {
+  padding: 4px 7px;
+  border-radius: 5px;
+  text-align: left;
+}
+.checklist-body select,
+.checklist-body input:not([type='checkbox']) {
+  max-width: 100%;
+  min-width: 0;
+  background: #202020;
+  border: 1px solid #555;
+  border-radius: 5px;
+  color: #eee;
+  padding: 4px 6px;
+}
+.checklist-body input[type='checkbox'] {
+  min-height: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #83b4ab;
+  flex: none;
+}
+.checklist-summary {
+  width: 100%;
+  display: block;
+  background: #292929;
+  border: 0;
+  margin: 4px 0;
+}
+.checklist-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.checklist-file select {
+  flex: 1;
+}
+.checklist-file > .asset-field {
+  flex: 1;
+  min-width: 0;
+}
+.checklist-file > .asset-field > .asset-relative,
+.checklist-file > .asset-field > small {
+  display: none;
+}
+.checklist-section {
+  margin-top: 10px;
+  border-top: 1px solid #4a4a4a;
+  padding-top: 6px;
+}
+.checklist-section-title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 0 6px;
+  font-weight: 600;
+}
+.checklist-section-title span {
+  font-weight: normal;
+  color: var(--ue-dim);
+}
+.checklist-section-title > button {
+  margin-left: auto;
+  font-weight: normal;
+  font-size: var(--fs-xs);
+  min-height: 22px;
+  background: none;
+  border: 0;
+  color: #ccc;
+}
+.checklist-add-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.checklist-add-menu {
+  flex: 1;
+  min-width: 0;
+}
+.checklist-add-menu > button {
+  width: 100%;
+  text-align: center;
+}
+/* Every option shows at once (10-17): a scrolled list hid its last items, and the wheel zooms the canvas. */
+.checklist-add-menu > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+}
+.checklist-add-menu > div button {
+  border: 0;
+  background: #303333;
+  width: 100%;
+}
+.checklist-row.active-item {
+  outline: 1px solid #a8ccc4;
+  outline-offset: 2px;
+}
+.checklist-event-dialog {
+  background: #212121;
+  color: #eee;
+  border: 1px solid #666;
+  border-radius: 10px;
+  padding: 0;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  box-shadow: 0 16px 60px #0008;
+}
+.checklist-event-dialog::backdrop {
+  background: #0005;
+}
+.checklist-event-dialog header,
+.checklist-event-dialog footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+}
+.checklist-event-dialog header {
+  border-bottom: 1px solid #444;
+  justify-content: space-between;
+}
+.checklist-event-dialog footer {
+  border-top: 1px solid #444;
+  justify-content: flex-end;
+}
+.checklist-event-content {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  padding: 16px;
+}
+.checklist-event-dialog > p {
+  padding: 0 16px;
+  color: #fbb;
+}
+.checklist-row {
+  border-bottom: 1px solid #404040;
+  padding: 3px 0;
+}
+.checklist-row-heading {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 30px;
+}
+.checklist-row-heading > button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+}
+.checklist-row-heading > button > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.checklist-row-heading small {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #bbb;
+  font-size: var(--fs-xs);
+}
+.checklist-row.is-disabled > .checklist-row-heading button {
+  color: var(--ue-dim);
+}
+/* One list since 10-16: the moments (⏱) follow the whole-play items under a small divider, their time or event
+   as a badge where the summary sits. */
+.checklist-moments {
+  font-size: var(--fs-xs);
+  color: var(--ue-dim);
+  padding: 8px 2px 2px;
+  letter-spacing: 0.02em;
+}
+.checklist-row.moment > .checklist-row-heading > button > span:first-child::before {
+  content: '⏱ ';
+  color: #e2c47c;
+  font-size: var(--fs-xs);
+}
+.checklist-row.moment > .checklist-row-heading small {
+  color: #e2c47c;
+  background: #3a3524;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.checklist-add-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+.checklist-add-group > small {
+  grid-column: 1 / -1;
+  color: #9a9a9a;
+  font-size: var(--fs-xs);
+  padding: 4px 2px 0;
+}
+.checklist-fields {
+  background: #242424;
+  padding: 8px;
+  border-radius: 5px;
+  margin: 4px 0;
+  min-width: 0;
+}
+.checklist-fields .detail-row {
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr) 0;
+  gap: 6px;
+}
+.checklist-fields .detail-category-title {
+  white-space: normal;
+  width: 100%;
+}
+.checklist-fields .detail-value {
+  min-width: 0;
+}
+.checklist-row-actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.checklist-row-actions select {
+  flex: 1;
+  min-width: 120px;
+}
+.checklist-shared {
+  display: block;
+  font-size: var(--fs-xs);
+  color: #a5ccc5;
+  padding-left: 21px;
+}
+.checklist-add {
+  width: 100%;
+  margin-top: 10px;
+}
+.checklist-error {
+  color: #ffafaf;
+  font-size: var(--fs-sm);
+  white-space: normal;
+}
+.checklist-body .condition-expression-tools {
+  flex-wrap: wrap;
+}
+.checklist-body .condition-expression-heading {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.checklist-body .condition-expression-heading .condition-name {
+  text-align: left;
+  min-width: 0;
+}
+.checklist-body .condition-expression-heading > select {
+  flex: 1;
+  min-width: 65px;
+}
+.checklist-body .condition-expression-children {
+  padding-left: 10px;
+}
+.checklist-body .condition-expression-row {
+  min-width: 0;
+}
+.checklist-body .condition-expression-fields {
+  padding: 6px;
+}
+.checklist-body .condition-expression-routes {
+  white-space: normal;
+}
+.checklist-body .detail-search {
+  width: 100%;
+}
+.graph-workspace .p3-node .checklist-body small {
+  padding: 0;
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 16px;
+}
+.graph-workspace .p3-node .checklist-body button {
+  min-height: 26px;
+  padding: 3px 6px;
+}
+.graph-workspace .p3-node .checklist-body input:not([type='checkbox']),
+.graph-workspace .p3-node .checklist-body select {
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 6px;
+}
+.graph-workspace .p3-node .checklist-row-heading > button {
+  min-height: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+}
+.graph-workspace .p3-node .checklist-body input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+}
+.graph-workspace .p3-node .checklist-summary small {
+  display: inline;
+  margin-left: 6px;
+}
+.notify-item.checklist-muted {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.checklist-unassigned {
+  position: relative;
+}
+.checklist-unassigned-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  width: 390px;
+  max-width: 65vw;
+  max-height: 65vh;
+  overflow: auto;
+  background: #252525;
+  border: 1px solid #666;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 24px #0008;
+  white-space: normal;
+}
+.checklist-unassigned-panel section {
+  border-top: 1px solid #484848;
+  padding-top: 6px;
+  margin-top: 8px;
+}
+.checklist-unassigned-panel section > button {
+  width: 100%;
+  text-align: left;
+}
+.checklist-condition-rules > .checklist-row .checklist-fields > label {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 6px 0;
+}
+.checklist-condition-rules .checklist-fields > label select {
+  max-width: 75%;
+}
+.checklist-inspector .checklist-row-heading > button {
+  height: auto;
+  min-height: 30px;
+}
+.checklist-inspector .checklist-fields .detail-row {
+  grid-template-columns: minmax(70px, 1fr) minmax(0, 1.5fr);
+}
+.checklist-section-title > button:first-child {
+  margin-left: 0;
+  flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: left;
+}

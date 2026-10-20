@@ -1,0 +1,32 @@
+{
+  "name": "animation-injector-editor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/*.mjs\" && cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/*.mjs\" && cargo fmt --manifest-path src-tauri/Cargo.toml --check",
+    "pretest": "npm run format:check",
+    "test": "node --test tests/*.test.mjs",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build --no-bundle",
+    "package:release": "node tools/package.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "@xyflow/react": "12.11.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  }
+}

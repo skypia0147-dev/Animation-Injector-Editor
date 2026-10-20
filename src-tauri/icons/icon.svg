@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 256 256">
+  <!-- Animation Injector Editor (10-20, docs/mockup-app-icon #12, emerald): an emerald plate and three chevrons
+       running forward, the back two near-black, the front one white. The chevrons sit by their area centroid
+       (x 119.2), not their box. -->
+  <rect x="14" y="14" width="228" height="228" rx="52" fill="#19a37a"/>
+  <g transform="translate(128 128) scale(.72) translate(-119.2 -128)" fill="none" stroke-width="30"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 62 L96 128 L34 194" stroke="#131314"/>
+    <path d="M92 62 L154 128 L92 194" stroke="#0d0d0e"/>
+    <path d="M150 62 L212 128 L150 194" stroke="#fbfaf7"/>
+  </g>
+</svg>

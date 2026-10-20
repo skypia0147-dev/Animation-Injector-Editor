@@ -1,0 +1,361 @@
+.graph-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.graph-tabs,
+.graph-crumbs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+  align-items: center;
+  overflow-x: auto;
+  background: #222;
+  border-bottom: 1px solid #111;
+  padding: 4px 8px;
+}
+.graph-tabs button,
+.graph-crumbs button {
+  font-size: var(--fs-sm);
+  min-height: 26px;
+  border: 0;
+  background: transparent;
+  color: #aaa;
+  white-space: nowrap;
+}
+.graph-tabs .active {
+  background: #363636;
+  color: white;
+  border-top: 2px solid #d7a050;
+}
+.graph-crumbs {
+  height: 30px;
+  background: #191919;
+}
+.p3-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+/* A project without an action: the first steps, above the canvas (FlatGraph). */
+.canvas-guide {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(460px, calc(100% - 32px));
+  padding: 14px 16px 12px;
+  border: 1px solid var(--ue-line2);
+  border-radius: var(--ui-radius);
+  background: rgba(23, 23, 23, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--ue-text);
+}
+.canvas-guide h3 {
+  margin: 0 0 8px;
+  font-size: var(--fs-lg);
+  color: var(--ue-strong);
+}
+.canvas-guide ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  line-height: 1.45;
+}
+.canvas-guide li span {
+  display: block;
+  margin-top: 4px;
+  color: var(--ue-dim);
+}
+.canvas-guide .canvas-guide-add {
+  min-height: var(--control-sm);
+  padding: 0 12px;
+  border: 1px solid var(--hkx-border);
+  border-radius: 6px;
+  background: var(--hkx-fill);
+  color: var(--ue-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+.canvas-guide-more {
+  margin: 10px 0 0;
+  color: var(--ue-dim);
+}
+.canvas-guide-more button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ue-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.canvas-guide .canvas-guide-add:hover {
+  background: var(--hkx-head);
+}
+/* An HKX card's "시작" row under its title (FlatGraph StartLine, mockup A): set, through other actions only, none. */
+.card-start {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  margin: 2px 8px 6px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+}
+.card-start > span,
+.card-start-pick {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.card-start.set {
+  border: 1px solid #5f7f78;
+  background: #2b3d3a;
+  color: #dfe9e6;
+}
+.card-start.via {
+  border: 1px solid #4a4a4a;
+  background: #2a2a2a;
+  color: #b8b8b8;
+}
+.card-start.none {
+  border: 1px dashed var(--warn);
+  background: #3a2a1f;
+  color: var(--warn);
+}
+.p3-node .card-start button {
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid #6d8f88;
+  border-radius: 5px;
+  background: #26302e;
+  color: var(--ue-strong);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.p3-node .card-start .card-start-pick {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+.p3-node .card-start .card-start-pick:hover {
+  text-decoration: underline;
+}
+/* The box drawn from an empty spot (FlatGraph startBox): every card it touches is chosen. */
+.p3-marquee {
+  position: absolute;
+  z-index: 6;
+  border: 1px dashed #8fd3ff;
+  background: rgba(143, 211, 255, 0.12);
+  pointer-events: none;
+}
+.p3-node {
+  width: 190px;
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: #252525;
+  color: #ddd;
+  min-height: 75px;
+  box-shadow: 0 3px 10px #0008;
+}
+.p3-node strong {
+  display: block;
+  padding: 9px;
+  background: #303030;
+  border-radius: 6px 6px 0 0;
+  font-size: var(--fs-sm);
+}
+.p3-node small {
+  display: block;
+  padding: 10px;
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.p3-node.selected {
+  outline: 2px solid #e5a44e;
+}
+.p3-node.entry {
+  width: 100px;
+  height: auto;
+  border-radius: 6px;
+  padding: 0;
+  background: #293d32;
+}
+.p3-node.comment {
+  border-style: dashed;
+  background: #37332c;
+  color: #d1c49f;
+}
+.p3-node.comment small {
+  white-space: pre-wrap;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+.p3-node.invalid {
+  border-color: #ed555c;
+}
+.p3-node.entry {
+  width: 90px;
+  border-radius: 40px;
+  background: #35543e;
+}
+.p3-node.transition {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  background: #ddd;
+  color: #333;
+}
+.p3-node.transition strong {
+  padding: 7px;
+  background: transparent;
+  text-align: center;
+}
+.p3-node.transition.invalid {
+  background: #9c383e;
+  color: white;
+}
+.p3-transition-summary {
+  position: absolute;
+  left: -30px;
+  top: 42px;
+  white-space: nowrap;
+  color: #bbb;
+  font-size: var(--fs-xs);
+  background: #181818c0;
+  padding: 3px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.p3-palette {
+  position: fixed;
+  z-index: 200;
+  width: 250px;
+  max-height: 330px;
+  overflow: auto;
+  background: #252525;
+  border: 1px solid #666;
+  padding: 8px;
+  box-shadow: 0 10px 30px #000b;
+}
+.p3-palette input {
+  width: 100%;
+  font-size: var(--fs-sm);
+}
+.p3-palette button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  min-height: 29px;
+  font-size: var(--fs-sm);
+}
+.p3-palette button:hover {
+  background: #3b536b;
+}
+.p3-node .react-flow__handle {
+  width: 10px;
+  height: 10px;
+}
+.p3-node .react-flow__handle[data-handleid^='pose'] {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.spell-rules {
+  display: grid;
+  gap: 12px;
+  padding: 10px;
+}
+.spell-rules label {
+  display: grid;
+  gap: 6px;
+}
+.spell-rule-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spell-rule-tools > * {
+  flex: 1;
+  min-width: 130px;
+}
+.spell-rule-scroll {
+  overflow-x: auto;
+}
+.spell-rules table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 610px;
+}
+.spell-rules th,
+.spell-rules td {
+  padding: 6px;
+  border-bottom: 1px solid #393939;
+  text-align: left;
+  vertical-align: top;
+}
+.spell-rules th {
+  font-size: var(--fs-sm);
+  color: #bbb;
+}
+.spell-rules input,
+.spell-rules select,
+.spell-rules textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.spell-rules textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+.spell-rules td:nth-child(1) {
+  width: 30%;
+}
+.spell-rules td:nth-child(2) {
+  width: 25%;
+}
+.spell-rules td:nth-child(4) {
+  width: 70px;
+}
+.spell-rules td:last-child {
+  width: 58px;
+}
+.spell-rules td button {
+  width: 100%;
+  margin-bottom: 4px;
+}
+.spell-rules td input + input {
+  margin-top: 5px;
+}
+.spell-rules small {
+  color: #aaa;
+}
+.p3-node.hkxPlay {
+  border-color: #388ca7;
+  background: #142c38;
+}
+.p3-node.hkxPlay > strong {
+  background: #205369;
+  color: #e3f7ff;
+}
+.p3-node.hkxPlay.selected {
+  border-color: #ffc666;
+  box-shadow: 0 0 0 2px #ffc666;
+}

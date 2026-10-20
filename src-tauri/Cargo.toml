@@ -1,0 +1,24 @@
+[package]
+name = "animation-injector-editor"
+version = "1.0.0"
+description = "Animation Injector graph authoring editor"
+authors = ["Smooth"]
+edition = "2021"
+rust-version = "1.88"
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-dialog = "=2.7.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_hkx = { path = "../vendor/serde-hkx/serde_hkx" }
+havok_classes = { path = "../vendor/serde-hkx/crates/havok_classes" }
+indexmap = "2"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

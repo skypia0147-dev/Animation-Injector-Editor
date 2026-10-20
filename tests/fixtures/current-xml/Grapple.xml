@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="4" id="ImportedSet">
+  <EventRegistry>
+    <Event name="Grapple_unequip">
+      <Do op="hide"/>
+    </Event>
+    <Event name="Grapple_equip">
+      <Do op="show"/>
+    </Event>
+    <Event name="Grapple_CamShake">
+      <Do op="shake" target="player" from="player" parameters="true"/>
+    </Event>
+    <Event name="Grapple_Stom">
+      <Do op="spell" plugin="FH_Grapple.esp" form="80B"/>
+    </Event>
+    <Event name="PIE.$Grapple_Stom">
+      <Do op="spell" plugin="FH_Grapple.esp" form="80B"/>
+    </Event>
+    <Event name="Grapple_Bodyfall">
+      <Do op="spell" plugin="FH_Grapple.esp" form="80A" delay="0.4"/>
+    </Event>
+    <Event name="PIE.$Grapple_Bodyfall">
+      <Do op="spell" plugin="FH_Grapple.esp" form="80A" delay="0.4"/>
+    </Event>
+    <Event name="Grapple_Ragdoll">
+      <Do op="spell" plugin="FH_Grapple.esp" form="806" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll">
+      <Do op="spell" plugin="FH_Grapple.esp" form="806" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Down">
+      <Do op="spell" plugin="FH_Grapple.esp" form="806" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Down">
+      <Do op="spell" plugin="FH_Grapple.esp" form="806" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Up">
+      <Do op="spell" plugin="FH_Grapple.esp" form="813" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Up">
+      <Do op="spell" plugin="FH_Grapple.esp" form="813" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Forward">
+      <Do op="spell" plugin="FH_Grapple.esp" form="815" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Forward">
+      <Do op="spell" plugin="FH_Grapple.esp" form="815" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Backward">
+      <Do op="spell" plugin="FH_Grapple.esp" form="817" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Backward">
+      <Do op="spell" plugin="FH_Grapple.esp" form="817" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Left">
+      <Do op="spell" plugin="FH_Grapple.esp" form="819" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Left">
+      <Do op="spell" plugin="FH_Grapple.esp" form="819" releasePhysics="true"/>
+    </Event>
+    <Event name="Grapple_Ragdoll_Right">
+      <Do op="spell" plugin="FH_Grapple.esp" form="81B" releasePhysics="true"/>
+    </Event>
+    <Event name="PIE.$Grapple_Ragdoll_Right">
+      <Do op="spell" plugin="FH_Grapple.esp" form="81B" releasePhysics="true"/>
+    </Event>
+  </EventRegistry>
+  <Pair id="GrappleFront" clip="Animations\DLC01\paired_vampfeedfront.hkx">
+    <Start event="Grapple_ContactFront" actor="both" onKeyUp="false" target="combatTarget"/>
+    <Require weapon="any" air="allow" blockWhileAttacking="false" cooldown="0.2" stamina="0"/>
+    <Exit at="end-0.05"/>
+    <Advanced safety="30" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="true" applyMotionFromRoot="false"/>
+    <Target range="200" angle="180"/>
+    <OnPartnerLost blend="2"/>
+    <Effects interruptOnThirdPartyHit="false">
+      <Camera reset="Grapple_CameraReset" restore="end" timeout="10"/>
+    </Effects>
+    <Connect to="GrappleStage01Attacker" partnerTo="GrappleStage01Target" event="Grapple_QTE_Stage01"/>
+    <Connect to="GrappleStage02Attacker" partnerTo="GrappleStage02Target" event="Grapple_QTE_Stage02"/>
+    <Connect to="GrappleStage10Attacker" partnerTo="GrappleStage10Target" event="Grapple_QTE_Stage10"/>
+  </Pair>
+  <Pair id="GrappleBack" clip="Animations\DLC01\paired_vampfeedback.hkx">
+    <Start event="Grapple_ContactBack" actor="both" onKeyUp="false" target="combatTarget"/>
+    <Require weapon="any" air="allow" blockWhileAttacking="false" cooldown="0.2" stamina="0"/>
+    <Exit at="end-0.05"/>
+    <Advanced safety="30" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="false" applyMotionFromRoot="false"/>
+    <Target range="200" angle="180"/>
+    <OnPartnerLost blend="2"/>
+    <Effects interruptOnThirdPartyHit="false">
+      <Camera reset="Grapple_CameraReset" restore="end" timeout="10"/>
+    </Effects>
+    <Connect to="GrappleStage01Attacker" partnerTo="GrappleStage01Target" event="Grapple_QTE_Stage01"/>
+    <Connect to="GrappleStage02Attacker" partnerTo="GrappleStage02Target" event="Grapple_QTE_Stage02"/>
+    <Connect to="GrappleStage10Attacker" partnerTo="GrappleStage10Target" event="Grapple_QTE_Stage10"/>
+  </Pair>
+  <Action id="GrappleStage01Attacker" clip="Animations\AnimationInjector\Grapple\Stage01_Attacker.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+  <Action id="GrappleStage01Target" clip="Animations\AnimationInjector\Grapple\Stage01_Target.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+  <Action id="GrappleStage02Attacker" clip="Animations\AnimationInjector\Grapple\Stage02_Attacker.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+  <Action id="GrappleStage02Target" clip="Animations\AnimationInjector\Grapple\Stage02_Target.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+  <Action id="GrappleStage10Attacker" clip="Animations\AnimationInjector\Grapple\Stage10_Attacker.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+  <Action id="GrappleStage10Target" clip="Animations\AnimationInjector\Grapple\Stage10_Target.hkx">
+    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <HyperArmor from="0" until="end"/>
+    <Advanced safety="10"/>
+  </Action>
+</AnimationSet>

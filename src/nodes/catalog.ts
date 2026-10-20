@@ -1,0 +1,75 @@
+// Graph nodes project existing domain fields; P3 will consume the same catalog for pins.
+export const nodeCatalog = {
+  qte: {layer: 'anim', fields: [], inputs: ['trigger'], outputs: ['pass', 'fail', 'perfect']},
+  entry: {layer: 'state', fields: [], inputs: [], outputs: ['trigger']},
+  state: {
+    layer: 'state',
+    fields: ['config.name', 'config.kind', 'config.actionId'],
+    inputs: ['trigger'],
+    outputs: ['trigger'],
+  },
+  transition: {layer: 'state', fields: ['from', 'to'], inputs: ['trigger'], outputs: ['trigger']},
+  keyInput: {
+    layer: 'rule',
+    fields: ['config.start.mode', 'config.start.input', 'config.start.onKeyUp', 'input'],
+    inputs: [],
+    outputs: ['trigger'],
+  },
+  markerReceive: {
+    layer: 'rule',
+    fields: ['config.start.event', 'config.start.actor', 'event'],
+    inputs: [],
+    outputs: ['trigger'],
+  },
+  stateCondition: {
+    layer: 'rule',
+    fields: ['config.weapon', 'config.air', 'config.blockWhileAttacking', 'config.cooldown', 'config.requiredStamina'],
+    inputs: [],
+    outputs: ['condition'],
+  },
+  detectionWindow: {
+    layer: 'rule',
+    fields: ['open', 'close', 'buffered', 'window'],
+    inputs: ['trigger'],
+    outputs: ['trigger'],
+  },
+  result: {layer: 'rule', fields: ['blend', 'partnerTo'], inputs: ['trigger', 'condition'], outputs: []},
+  hkxPlay: {
+    layer: 'anim',
+    fields: ['config.steps[].clip', 'config.steps[].localPath', 'config.steps[].attack', 'config.attack'],
+    inputs: [],
+    outputs: ['pose'],
+  },
+  findPartner: {
+    layer: 'anim',
+    fields: ['pair.range', 'pair.angle', 'pair.target'],
+    inputs: [],
+    outputs: ['partner'],
+  },
+  pairedPlay: {
+    layer: 'anim',
+    fields: ['pair.lossEnabled', 'pair.lossBlend', 'pair.interruptOnThirdPartyHit', 'pair.effectsEnabled'],
+    inputs: ['pose', 'partner'],
+    outputs: ['pose'],
+  },
+  blendIn: {layer: 'anim', fields: ['config.enterBlend', 'enterBlendEnabled'], inputs: ['pose'], outputs: ['pose']},
+  blendOut: {
+    layer: 'anim',
+    fields: ['config.exit', 'config.exitBlend', 'exitBlendEnabled'],
+    inputs: ['pose'],
+    outputs: ['pose'],
+  },
+  cameraRestore: {
+    layer: 'anim',
+    fields: ['cameraEnabled', 'camera.reset', 'camera.restore', 'camera.timeout'],
+    inputs: ['pose'],
+    outputs: ['pose'],
+  },
+  fireArrow: {layer: 'anim', fields: ['config.fireArrow'], inputs: ['trigger'], outputs: []},
+  carryRelease: {layer: 'anim', fields: ['config.carryRelease'], inputs: ['trigger'], outputs: []},
+  carryFix: {layer: 'anim', fields: ['pair.carry.fix'], inputs: ['trigger'], outputs: []},
+  suppress: {layer: 'anim', fields: ['config.suppress'], inputs: ['trigger'], outputs: []},
+  carry: {layer: 'anim', fields: ['pair.carry'], inputs: ['trigger'], outputs: ['trigger']},
+  outputPose: {layer: 'anim', fields: ['config.graph', 'config.safety'], inputs: ['pose'], outputs: []},
+} as const;
+export type NodeKind = keyof typeof nodeCatalog;

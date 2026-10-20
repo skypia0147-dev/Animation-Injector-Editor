@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "dependencies": {
+    "serde-hkx": {
+      "repository": "https://github.com/SARDONYX-sard/serde-hkx",
+      "commit": "e8bc1abc015d42567e6b7e7bb3e99447370f306a",
+      "upstreamTag": "0.7.3",
+      "manifestVersion": "0.7.2",
+      "license": "MIT OR Apache-2.0",
+      "path": "vendor/serde-hkx"
+    }
+  }
+}

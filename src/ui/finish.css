@@ -1,0 +1,182 @@
+/* Bounded dock sizes are user preferences, independent of document undo/history. */
+.shell {
+  min-width: 740px;
+}
+.work,
+.dock {
+  position: relative;
+}
+.dock.left {
+  grid-column: 1;
+}
+.dock.center {
+  grid-column: 2;
+  margin-inline: 3px;
+}
+.dock.right {
+  grid-column: 3;
+}
+.dock.center > .viewport-panel,
+.dock.center > .bottom-dock {
+  height: 100%;
+}
+.panel-resize {
+  position: absolute;
+  z-index: 18;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
+}
+.panel-resize.x {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+.panel-resize.y {
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+.panel-resize:hover,
+.panel-resize:focus-visible {
+  background: var(--ue-blue2);
+  outline: none;
+}
+.export-sheet {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.export-modes {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ue-line);
+}
+.export-modes button {
+  min-width: 120px;
+  height: 32px;
+}
+.export-modes button[aria-selected='true'] {
+  border-color: var(--ue-blue2);
+  background: #204461;
+  color: white;
+}
+.export-mod-body,
+.export-mod-body > .package-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.export-xml-body {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+.export-xml-body > p {
+  margin: 0;
+}
+.export-xml-body pre {
+  flex: 1;
+  min-height: 60px;
+  overflow: auto;
+  background: var(--ue-ground);
+  padding: 12px;
+  user-select: text;
+}
+.export-xml-body footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.export-version {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.package-modal {
+  width: min(1000px, calc(100vw - 40px));
+  height: min(780px, calc(100dvh - 40px));
+  max-height: calc(100dvh - 40px);
+  padding-bottom: 0;
+}
+.package-modal button {
+  white-space: normal;
+  min-height: 28px;
+}
+.package-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.package-assets,
+.package-asset {
+  min-width: 0;
+}
+.package-asset legend {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.package-asset-controls,
+.package-summary,
+.package-footer .top-actions {
+  flex-wrap: wrap;
+}
+.package-asset-controls select,
+.package-asset-controls input {
+  min-width: 120px;
+  max-width: 100%;
+  flex: 1;
+}
+.package-message,
+.package-roots .asset-path {
+  overflow-wrap: anywhere;
+}
+.package-footer {
+  flex-shrink: 0;
+}
+.package-panel .package-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+.details-body {
+  overflow-x: hidden;
+}
+.toolbar .tb-right {
+  min-width: 0;
+}
+.viewport-toolbar {
+  flex-wrap: wrap;
+}
+@media (max-width: 1100px) {
+  .react-flow__minimap,
+  .shell .minimap-toggle {
+    display: none;
+  }
+  .menubar-right {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .res {
+    grid-template-columns: 16px minmax(60px, 100px) minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+  .ptab .who {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .package-top {
+    grid-template-columns: 1fr;
+  }
+}

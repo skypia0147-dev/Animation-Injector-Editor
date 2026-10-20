@@ -1,0 +1,12 @@
+backups
+release
+dist
+node_modules
+src-tauri/target
+src-tauri/gen
+tests/generated
+docs
+examples
+*.md
+tools/*.py
+package-lock.json

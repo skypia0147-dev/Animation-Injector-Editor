@@ -1,0 +1,252 @@
+.detail-panel {
+  min-width: 0;
+  color: var(--ue-text);
+}
+.number-control {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+}
+.number-drag {
+  cursor: ew-resize;
+  touch-action: none;
+  width: 20px;
+  min-width: 20px;
+  min-height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ue-dim);
+}
+.detail-search {
+  width: 100%;
+  margin: 0 0 10px !important;
+  background: var(--ue-ground) !important;
+}
+.detail-category {
+  margin: 0;
+  border-bottom: 1px solid var(--ue-line);
+}
+.detail-category-title {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: var(--ue-header);
+  height: 29px;
+  min-height: 29px;
+  font-size: var(--fs-sm);
+  padding: 4px 8px;
+  color: var(--ue-strong);
+}
+.detail-category-title:hover {
+  background: var(--ue-tab);
+}
+.detail-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 34%) minmax(0, 1fr) 20px;
+  gap: 5px;
+  align-items: start;
+  padding: 5px 5px 5px 10px;
+  min-height: 34px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ue-line2), transparent 65%);
+}
+.detail-name {
+  font-size: var(--fs-sm);
+  line-height: 24px;
+  overflow-wrap: anywhere;
+  color: var(--ue-text);
+}
+.detail-value {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detail-value input:not([type='checkbox']),
+.detail-value select,
+.detail-value textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 25px;
+  font-size: var(--fs-sm);
+  margin: 0;
+  padding: 3px 5px;
+}
+.detail-value input[type='checkbox'] {
+  width: 13px;
+  height: 13px;
+  margin: 5px 0;
+  accent-color: var(--ue-blue);
+}
+.detail-value label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.detail-reset button {
+  width: 20px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ue-select);
+}
+.detail-number,
+.time-main,
+.asset-main,
+.key-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.detail-number span {
+  font-size: var(--fs-xs);
+  color: var(--ue-dim);
+}
+.time-field,
+.asset-field,
+.key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.time-main input {
+  flex: 1;
+  width: 45% !important;
+}
+.time-main select {
+  flex: 1.3;
+}
+.time-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+}
+.time-fallback input[type='number'] {
+  width: 68px !important;
+}
+.detail-advanced {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-xs);
+  color: var(--ue-dim);
+}
+.asset-main button,
+.key-main button {
+  min-height: 25px;
+  min-width: 24px;
+  padding: 2px 4px;
+  font-size: var(--fs-xs);
+}
+.asset-main select,
+.key-main input {
+  flex: 1;
+  min-width: 0;
+}
+/* Carry hold bone row: the bone name gets a line of its own (a narrow Details panel left it a few characters,
+   and a click there opened the name list instead of the field), the weight and delete go below it. */
+.carry-bone {
+  flex-wrap: wrap;
+}
+.key-main.carry-bone > input {
+  flex: 1 0 100%;
+}
+.carry-bone .number-control {
+  flex: 0 0 76px;
+}
+.asset-relative {
+  color: var(--ue-dim);
+  font-size: var(--fs-xs) !important;
+}
+.asset-field small {
+  color: var(--ue-warn);
+  font-size: var(--fs-xs);
+}
+.detail-panel code {
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+.detail-panel p {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  padding: 0 8px;
+}
+.detail-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+}
+.detail-choices button {
+  min-height: 26px;
+  font-size: var(--fs-sm);
+}
+.detail-choices button[aria-pressed='true'] {
+  border-color: var(--ue-select);
+}
+
+.motion-key-scroll {
+  max-height: 300px;
+  overflow: auto;
+}
+.motion-key-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.motion-key-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted, #aaa);
+}
+.motion-key-table td {
+  padding: 3px 2px;
+}
+.motion-key-table th:last-child {
+  width: 26px;
+}
+.motion-key-table .number-control {
+  min-width: 0;
+}
+.motion-key-table input {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 4px;
+}
+.motion-key-table .number-drag {
+  display: none;
+}
+.shell .motion-key-table button {
+  padding: 2px;
+  min-height: 26px;
+  height: 26px;
+  width: 22px;
+  min-width: 22px;
+}
+.shell .motion-key-table input {
+  min-height: 28px;
+  height: 28px;
+}
+.motion-fields > button {
+  margin-block: 6px;
+}
+.field-error {
+  color: #ed9a9a;
+  font-size: var(--fs-sm);
+  margin: 6px 0;
+}

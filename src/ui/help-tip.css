@@ -1,0 +1,90 @@
+/* Help shows when the pointer rests on the item (HelpTip); a faint dotted underline marks names that have it. */
+span.help-tip-target {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.detail-name.has-help,
+.help-tip-label {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.help-tip-popup {
+  position: fixed;
+  z-index: 100000;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--ue-line, #555);
+  border-radius: 5px;
+  background: #25282e;
+  color: #e3e5e8;
+  box-shadow: 0 6px 20px #0008;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.help-tip-popup > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #fff;
+}
+.help-tip-popup p {
+  margin: 6px 0;
+}
+.help-note,
+.field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: var(--fs-xs);
+  color: var(--ue-text, #ddd);
+}
+.detail-label-help {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.detail-label-help .detail-name {
+  flex: 1;
+}
+.clip-window-fields {
+  margin: 6px 0;
+  border-top: 1px solid var(--ue-line, #333);
+}
+.clip-window-fields .field-heading {
+  font-weight: 600;
+}
+.time-event-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.time-event-input input {
+  min-width: 0;
+  flex: 1;
+}
+.time-fallback > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+}
+.time-fallback input[type='checkbox'] {
+  flex: 0 0 auto;
+}
+.detail-panel .row-actions button {
+  min-height: 26px;
+  padding: 3px 9px;
+  font-size: var(--fs-sm);
+}

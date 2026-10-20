@@ -1,0 +1,167 @@
+.viewport-panel {
+  height: clamp(180px, 30vh, 320px);
+  flex: none;
+}
+.viewport {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #101216;
+}
+.viewport-toolbar {
+  min-height: 31px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-bottom: 1px solid var(--ue-line);
+  background: #202328;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.viewport-toolbar > * {
+  flex-shrink: 0;
+}
+.viewport-toolbar button,
+.viewport-toolbar select {
+  width: auto;
+  min-height: 23px;
+  height: 23px;
+  padding: 1px 7px;
+  font-size: var(--fs-xs);
+}
+.viewport-toolbar select {
+  width: 82px;
+  min-width: 82px;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: 82px;
+}
+.viewport-toolbar > label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ue-dim);
+}
+/* The previewed person (view.ts): a select for a `both` action, a label for a first-person one. */
+span.viewport-person {
+  padding: 1px 7px;
+  border: 1px solid var(--ue-line);
+  border-radius: 4px;
+  color: var(--ue-strong);
+  font-size: var(--fs-xs);
+}
+.viewport-frame {
+  min-width: 135px;
+  color: var(--ue-strong);
+  font-variant-numeric: tabular-nums;
+}
+.viewport-toggle.active,
+.viewport-assets-button.active {
+  color: #fff;
+  border-color: #397fbd;
+  background: #24577f;
+}
+.viewport-stage {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.viewport-scene,
+.viewport-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.viewport-message {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  color: var(--ue-dim);
+  background: radial-gradient(ellipse at 50% 80%, #20242a 0, #101216 72%);
+  text-align: center;
+  white-space: pre-wrap;
+}
+.viewport-message.error,
+.viewport-warning {
+  color: #ffb7b7;
+}
+.viewport-help {
+  position: absolute;
+  left: 8px;
+  bottom: 5px;
+  color: #96a0aa;
+  font-size: var(--fs-sm);
+  text-shadow: 0 1px 2px #000;
+}
+.viewport-warning {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  max-width: 48%;
+  padding: 4px 7px;
+  border: 1px solid #743d3d;
+  border-radius: 3px;
+  background: #351d1de8;
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+}
+.viewport-assets {
+  position: absolute;
+  z-index: 8;
+  top: 6px;
+  right: 7px;
+  width: min(620px, calc(100% - 14px));
+  padding: 8px;
+  border: 1px solid var(--ue-line2);
+  border-radius: 3px;
+  background: #202328f5;
+  box-shadow: 0 6px 18px #0009;
+}
+.viewport-assets > b {
+  display: block;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viewport-asset-row {
+  display: grid;
+  grid-template-columns: 25px 1fr 1fr;
+  gap: 5px;
+  align-items: center;
+  margin-top: 4px;
+}
+.viewport-resource-drop {
+  min-width: 0;
+  height: 28px;
+  display: grid;
+  grid-template-columns: 28px minmax(50px, 1fr) auto auto;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 3px 2px 6px;
+  border: 1px dashed #4d5965;
+  background: #15181c;
+}
+.viewport-resource-drop code {
+  overflow: hidden;
+  color: #abb6c1;
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.viewport-resource-drop button {
+  min-height: 20px;
+  height: 20px;
+  padding: 0 5px;
+  font-size: var(--fs-xs);
+}
+@media (max-height: 720px) {
+  .viewport-panel {
+    height: clamp(165px, 28vh, 220px);
+  }
+}

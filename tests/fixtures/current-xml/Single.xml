@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="4" id="ImportedSet">
+  <Inputs>
+    <Input id="a1_i1" key="Num0"/>
+  </Inputs>
+  <Action id="EditorSingle" clip="Animations\ComboTest\test_Attack1.hkx">
+    <Start input="a1_i1" onKeyUp="false"/>
+    <Require weapon="drawn" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Enter blend="0.1"/>
+    <Exit at="end-0.05" blend="0.2"/>
+    <Attack data="attackStart"/>
+    <Advanced safety="3"/>
+  </Action>
+</AnimationSet>

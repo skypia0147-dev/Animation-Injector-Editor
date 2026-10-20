@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The former Combo fixture as format 4 writes it: an Action per HKX, joined by key transitions (Connect). -->
+<AnimationSet version="4" id="ImportedSet">
+  <Action id="Attack1" clip="Animations\ComboTest\test_Attack1.hkx">
+    <Start key="Num6"/>
+    <Require weapon="drawn" cooldown="0.3"/>
+    <Enter blend="0.1"/>
+    <Exit blend="0.2"/>
+    <Rotate until="0.3"/>
+    <Recovery at="0.9" blend="0.15"/>
+    <Attack data="attackStart"/>
+    <Connect to="Attack2" key="Num6" blend="0.1"><Window from="0.45"/></Connect>
+    <Connect to="Attack3" key="H" blend="0.1"><Window from="0.45"/></Connect>
+  </Action>
+  <Action id="Attack2" clip="Animations\ComboTest\test_Attack2.hkx">
+    <Require weapon="drawn" cooldown="0.3"/>
+    <Enter blend="0.1"/>
+    <Exit blend="0.2"/>
+    <Rotate until="0.3"/>
+    <Recovery at="0.9" blend="0.15"/>
+    <Attack data="attackStart"/>
+    <Connect to="Attack3" key="Num6" blend="0.1"><Window from="0.45"/></Connect>
+  </Action>
+  <Action id="Attack3" clip="Animations\ComboTest\test_Attack3.hkx">
+    <Require weapon="drawn" cooldown="0.3"/>
+    <Enter blend="0.1"/>
+    <Exit blend="0.2"/>
+    <Rotate until="0.3"/>
+    <Recovery at="0.9" blend="0.15"/>
+    <Attack data="attackStart"/>
+  </Action>
+</AnimationSet>
