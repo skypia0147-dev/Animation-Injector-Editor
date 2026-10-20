@@ -13,7 +13,8 @@ import { homedir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { savedProject } from "../src/editorBlock.ts";
-import { createSourceArchive, zipDirectory } from "./source-package.mjs";
+import { spawnSync } from "node:child_process";
+import { zipDirectory } from "./zip.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageInfo = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -22,7 +23,6 @@ const releaseRoot = join(root, "release");
 const releaseName = `AnimationInjectorEditor-${version}`;
 const output = join(releaseRoot, releaseName);
 const binaryArchive = join(releaseRoot, `${releaseName}-windows-x64.zip`);
-const sourceArchive = join(releaseRoot, `${releaseName}-source.zip`);
 const releaseChecksums = join(releaseRoot, `${releaseName}-SHA256SUMS.txt`);
 const stageOutput = output;
 
@@ -30,19 +30,15 @@ const stageOutput = output;
 const EXAMPLES = readdirSync(join(root, "examples"))
   .filter((name) => /\.(?:xml|aitemplate)$/i.test(name))
   .sort();
-const RELEASE_DOCUMENTS = [
-  "docs/P6-마감.md",
-  "docs/p6-verification/ui-results.json",
-  "docs/p6-verification/ko-workspace.png",
-  "docs/p6-verification/en-workspace.png",
-  "docs/p6-verification/ja-workspace.png",
-  "docs/p6-verification/zh-workspace.png",
-  "docs/p6-verification/ko-export-1080.png",
-  "docs/P5-뷰어.md",
-  "docs/p5-verification/native-results.md",
-  "docs/p5-verification/ui-results.json",
-  "docs/p5-verification/approved-screenshots.json",
-];
+// The source is the public repositories at the commits printed in SOURCE.txt (the GPL's corresponding source); the
+// development notes and their old screenshots stay out of the package.
+const EDITOR_REPOSITORY = "https://github.com/skypia0147-dev/Animation-Injector-Editor";
+const RUNTIME_REPOSITORY = "https://github.com/skypia0147-dev/Animation-Injector";
+/** The commit of a public checkout beside this one (../<folder>), or "main" when there is none. */
+function publicCommit(folder) {
+  const result = spawnSync("git", ["-C", resolve(root, "..", folder), "rev-parse", "HEAD"], { encoding: "utf8" });
+  return result.status === 0 ? result.stdout.trim() : "main";
+}
 
 function hashFile(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -94,28 +90,6 @@ function verifyPortableExamples() {
       else if (value && typeof value === "object") values.push(...Object.values(value));
     }
     if (containsAbsolutePath) throw new Error(`release example contains a local absolute path: ${file}`);
-  }
-}
-
-function copyApprovedScreenshots() {
-  const manifestRelative = "docs/p5-verification/approved-screenshots.json";
-  const manifest = JSON.parse(readFileSync(join(root, manifestRelative), "utf8"));
-  if (!Array.isArray(manifest.files)) throw new Error(`${manifestRelative} must contain a files array`);
-
-  const seen = new Set();
-  for (const value of manifest.files) {
-    if (typeof value !== "string") throw new Error("approved screenshot entries must be strings");
-    const normalized = value.replaceAll("\\", "/");
-    if (
-      seen.has(normalized) ||
-      !normalized.startsWith("docs/p5-verification/") ||
-      normalized.includes("../") ||
-      !new Set([".jpg", ".jpeg", ".png", ".webp"]).has(extname(normalized).toLowerCase())
-    ) {
-      throw new Error(`invalid or duplicate approved screenshot path: ${value}`);
-    }
-    seen.add(normalized);
-    copyRelative(normalized);
   }
 }
 
@@ -226,7 +200,7 @@ function writeOutputChecksums() {
 function main() {
   verifyVersion();
   verifyPortableExamples();
-  for (const path of [output, binaryArchive, sourceArchive, releaseChecksums]) {
+  for (const path of [output, binaryArchive, releaseChecksums]) {
     if (existsSync(path)) throw new Error(`refusing to overwrite existing release output: ${path}`);
   }
   const executable = join(root, "src-tauri", "target", "release", "animation-injector-editor.exe");
@@ -236,21 +210,29 @@ function main() {
   if (!existsSync(checker)) throw new Error(`runtime XML checker is missing: ${checker} (build AnimationInjectorXmlCheck)`);
 
   mkdirSync(stageOutput, { recursive: true });
-  let createdSourceArchive = false;
   let createdBinaryArchive = false;
   try {
-    createSourceArchive({ quiet: true });
-    createdSourceArchive = true;
-
     copyFileSync(executable, join(stageOutput, "AnimationInjectorEditor.exe"));
     copyFileSync(checker, join(stageOutput, "AnimationInjectorXmlCheck.exe"));
     for (const file of ["LICENSE", "README.en.md", "README.ko.md", "README.ja.md", "README.zh.md", "THIRD_PARTY.md"]) copyRelative(file);
     for (const file of EXAMPLES) copyRelative(`examples/${file}`);
-    for (const file of RELEASE_DOCUMENTS) copyRelative(file);
-    copyApprovedScreenshots();
-
-    mkdirSync(join(stageOutput, "source"), { recursive: true });
-    copyFileSync(sourceArchive, join(stageOutput, "source", basename(sourceArchive)));
+    const editorCommit = publicCommit("AnimationInjectorEditor-public"),
+      runtimeCommit = publicCommit("AnimationInjector-public");
+    writeFileSync(
+      join(stageOutput, "SOURCE.txt"),
+      [
+        `Animation Injector Editor ${version} is free software under the GNU GPL version 3 (LICENSE).`,
+        "",
+        "Source code of this program:",
+        `  ${EDITOR_REPOSITORY}/tree/${editorCommit}`,
+        "Source code of AnimationInjectorXmlCheck.exe (the Animation Injector runtime):",
+        `  ${RUNTIME_REPOSITORY}/tree/${runtimeCommit}`,
+        "",
+        "The preview skeletons and skins inside AnimationInjectorEditor.exe come from the game and are not part of the",
+        "source (see THIRD_PARTY.md).",
+        "",
+      ].join("\r\n"),
+    );
     buildThirdPartyNotices();
     verifyReleaseContents();
     writeOutputChecksums();
@@ -258,21 +240,16 @@ function main() {
     zipDirectory(output, binaryArchive);
     createdBinaryArchive = true;
 
-    const lines = [
-      `${hashFile(binaryArchive)}  ${basename(binaryArchive)}`,
-      `${hashFile(sourceArchive)}  ${basename(sourceArchive)}`,
-    ];
+    const lines = [`${hashFile(binaryArchive)}  ${basename(binaryArchive)}`];
     writeFileSync(releaseChecksums, `${lines.join("\n")}\n`);
 
     console.log(output);
     console.log(binaryArchive);
-    console.log(sourceArchive);
     console.log(lines.join("\n"));
     console.log(`${hashFile(join(output, "AnimationInjectorEditor.exe"))}  AnimationInjectorEditor.exe`);
   } catch (error) {
     if (existsSync(output)) safeRemoveGenerated(output);
     if (createdBinaryArchive || existsSync(binaryArchive)) safeRemoveGenerated(binaryArchive);
-    if (createdSourceArchive || existsSync(sourceArchive)) safeRemoveGenerated(sourceArchive);
     if (existsSync(releaseChecksums)) safeRemoveGenerated(releaseChecksums);
     throw error;
   }
