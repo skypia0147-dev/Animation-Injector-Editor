@@ -9,8 +9,7 @@ import {blendNodes, blendBinding, animId} from '../src/graph/blends.ts';
 import {actionFlow} from '../src/graph/navigation.ts';
 test('identical active state conditions share edits, retain XML and detach on deletion', () => {
   const base = s4sample();
-  for (const a of base.actions)
-    Object.assign(a.config, {weapon: true, air: 'allow', cooldown: 0, requiredStamina: 0, blockWhileAttacking: false});
+  for (const a of base.actions) Object.assign(a.config, {air: 'allow', cooldown: 0.5});
   const w = shareRules(base),
     g = w.sharedRules.find(g => g.kind === 'state');
   assert.equal(g.members.length, base.actions.length);
@@ -18,19 +17,18 @@ test('identical active state conditions share edits, retain XML and detach on de
   assert.deepEqual(parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules, w.sharedRules);
   assert.equal(compactGraph(w, flatGraph(w)).nodes.filter(n => n.kind === 'stateCondition').length, 1);
   const next = structuredClone(w);
-  next.actions[0].config.weapon = false;
+  next.actions[0].config.cooldown = 0.9;
   synchronizeRules(w, next);
-  assert.ok(next.actions.every(a => !a.config.weapon));
+  assert.ok(next.actions.every(a => a.config.cooldown === 0.9));
   const removed = deleteFlat(w, 'start:' + g.members[0] + '|stateCondition');
   synchronizeRules(w, removed);
-  assert.equal(removed.actions[0].config.weapon, false);
-  assert.ok(removed.actions.slice(1).every(a => a.config.weapon));
+  assert.equal(removed.actions[0].config.cooldown, 0);
+  assert.ok(removed.actions.slice(1).every(a => a.config.cooldown === 0.5));
 });
 test('different state conditions remain separate and disabled defaults do not join', () => {
   const w = s4sample();
-  for (const a of w.actions)
-    Object.assign(a.config, {weapon: false, air: 'deny', cooldown: 0, requiredStamina: 0, blockWhileAttacking: false});
-  w.actions[0].config.weapon = true;
+  for (const a of w.actions) Object.assign(a.config, {air: 'deny', cooldown: 0});
+  w.actions[0].config.air = 'allow';
   w.actions[1].config.cooldown = 1;
   assert.ok(!shareRules(w).sharedRules.some(g => g.kind === 'state'));
 });

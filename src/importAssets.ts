@@ -4,17 +4,35 @@ import {assetKey, selectAsset} from './package.ts';
 
 type Resolved = {path: string; clip: string; error: string};
 
-/** Resolve only files belonging to the XML's mod, never another mod's replacement. */
+/** Resolve only files belonging to the XML's mod, never another mod's replacement. A source remembered on this
+ *  computer whose file is gone (`exists`: its mod folder renamed or moved, 10-22) is looked for there too: kept, it
+ *  pointed at nothing and the HKX could not play. `stale` counts those. */
 export async function connectXmlAssets(
   workspace: Workspace,
   xmlPath: string,
-  resolve: (paths: string[]) => Promise<Resolved[]>
-): Promise<{workspace: Workspace; connected: number; missing: number}> {
+  resolve: (paths: string[]) => Promise<Resolved[]>,
+  exists?: (paths: string[]) => Promise<boolean[]>
+): Promise<{workspace: Workspace; connected: number; missing: number; stale: number}> {
   const normalized = xmlPath.replaceAll('\\', '/');
   const root = /^([a-z]:\/.*?)\/SKSE\/Plugins\/AnimationInjector\/(?:[^/]+\/)*[^/]+\.xml$/i.exec(normalized)?.[1];
-  const result = {workspace, connected: 0, missing: 0};
+  const result = {workspace, connected: 0, missing: 0, stale: 0};
   if (!root || normalized.split('/').some(part => part === '..' || part === '.')) return result;
-  const candidates = assetLibrary(workspace)
+  const remembered = exists ? assetLibrary(workspace).filter(asset => asset.localPath) : [];
+  for (let offset = 0; offset < remembered.length; offset += 200) {
+    const batch = remembered.slice(offset, offset + 200);
+    let there: boolean[];
+    try {
+      there = await exists!(batch.map(asset => asset.localPath));
+    } catch {
+      continue;
+    }
+    batch.forEach((asset, i) => {
+      if (there[i] !== false) return;
+      result.workspace = selectAsset(result.workspace, asset.clip, '');
+      result.stale++;
+    });
+  }
+  const candidates = assetLibrary(result.workspace)
     .filter(asset => !asset.localPath)
     .map(asset => {
       const clip = asset.clip.replaceAll('\\', '/');

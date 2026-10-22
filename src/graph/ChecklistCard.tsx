@@ -1,8 +1,7 @@
 import {createContext, useContext, useState, useEffect, useRef, useMemo} from 'react';
-import {createPortal} from 'react-dom';
 import {useUpdateNodeInternals} from '@xyflow/react';
-import type {Workspace} from '../workspace.ts';
-import {putAction} from '../workspace.ts';
+import type {Action, Workspace} from '../workspace.ts';
+import {putAction, selectsOnly} from '../workspace.ts';
 import {assetLibrary} from '../assets.ts';
 import type {FlatNode} from './flat.ts';
 import {deleteFlat} from './flat.ts';
@@ -14,7 +13,7 @@ import {BlendDetails} from './BlendDetails.tsx';
 import {NotifyDetails} from '../timeline/Details.tsx';
 import {StateDetails} from '../ui/details/StateDetails.tsx';
 import {StepFiles, ViewFields, type ViewRow} from '../ui/details/ViewFields.tsx';
-import {NestedDetailPanel, InspectorLayout} from '../ui/details/DetailRow.tsx';
+import {NestedDetailPanel, InspectorLayout, CategoryRows} from '../ui/details/DetailRow.tsx';
 import {detachInspectorNode, sharedNodeMembers} from '../ui/details/inspectorModel.ts';
 import {switchPlaybackKind, playbackKind, playbackKinds, actionKindLabels} from '../actionTypes.ts';
 import {duplicate, rows} from '../timeline/model.ts';
@@ -22,11 +21,15 @@ import {nodeSettings} from './nodeSettings.ts';
 import {shareNodeSettings} from './sharing.ts';
 import {setChecklistEnabled, type ChecklistItem, checklistModel} from './checklist.ts';
 import {DraftDetails} from './DraftDetails.tsx';
-import {attachDraft} from './drafts.ts';
+import {addEntrySetting, attachDraft} from './drafts.ts';
+import {FireArrowShots, useFireArrowSummary} from './FireArrowShots.tsx';
 import './checklist.css';
 import './registry.css';
 import {useClipAnnotations, clipKey, sentEvent, roleLabel} from './annotations.ts';
-import {functionSummary, eventKey, addEventRow, addEventValue, ownUseLabels, vanillaName} from '../eventRegistry.ts';
+import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName} from '../eventRegistry.ts';
+import {commandSummary} from '../annotationCommands.ts';
+import {ordinaryEffectOps} from '../clipEffects.ts';
+import {MomentFields, useHkxMoments, RegistryMomentRow, CommandMomentRow} from './MomentFields.tsx';
 import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
 import {stepSource} from '../view.ts';
@@ -44,23 +47,10 @@ type Context = {
   globalSettings: () => void;
 };
 export const ChecklistContext = createContext<Context | null>(null);
-function useFold(key: string, initial = false) {
-  const [open, set] = useState(() => {
-    try {
-      return localStorage.getItem(key) === null ? initial : localStorage.getItem(key) === '1';
-    } catch {
-      return initial;
-    }
-  });
-  return [
-    open,
-    (v: boolean) => {
-      set(v);
-      try {
-        localStorage.setItem(key, v ? '1' : '0');
-      } catch {}
-    },
-  ] as const;
+// A card's folds start as they are each time it opens (10-23): a section or item left open is not remembered.
+// The key names the fold for readers; nothing is stored under it.
+function useFold(_key: string, initial = false) {
+  return useState(initial);
 }
 /** fold: the summary view decides whether a condition's editor is open (open while its card is chosen); without it
  *  the card keeps the open state it was left in. */
@@ -69,7 +59,8 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
   const {w, edit, status, model, library} = ctx;
   const action = w.actions.find(a => a.uid === node.action);
   const clip = action?.config.steps.find(s => s.id === node.step);
-  const [kept, setKept] = useFold(`checklist:${w.id}:${node.id}`, node.kind !== 'hkxPlay');
+  // An HKX card's 재생 설정 list opens with the card, its rows closed (as 기능).
+  const [kept, setKept] = useFold(`checklist:${w.id}:${node.id}`, true);
   // In the summary view the toggle only closes the chosen card for now; choosing another card resets it.
   const [handClosed, setHandClosed] = useState(false);
   useEffect(() => {
@@ -78,8 +69,8 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
   const expanded = fold ? fold === 'open' && !handClosed : kept,
     setExpanded = (v: boolean) => (fold ? setHandClosed(!v) : setKept(v));
   const [allOpen, setAllOpen] = useState<boolean>(),
+    [playAllOpen, setPlayAllOpen] = useState<boolean>(),
     [error, setError] = useState('');
-  const [info, setInfo] = useFold(`checklist:info:${w.id}:${node.id}`);
   const update = useUpdateNodeInternals(),
     ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -117,6 +108,8 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
     </div>
   );
   const storedItems = model.items.get(node.id) ?? [];
+  // The registered functions of the events this HKX sends and its AI. annotation commands (10-23).
+  const sent = useHkxMoments(w, node.kind === 'hkxPlay' ? action : undefined);
   const items = storedItems.filter(i => !(i.node.kind === 'blend' && !i.enabled));
   const settings = (group: 'playback' | 'info' = 'playback') =>
     action && (
@@ -140,22 +133,40 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
       ? node.id
       : (model.raw.nodes.find(n => n.action === node.action && n.kind === 'hkxPlay')?.id ?? node.id);
   const options = action ? contextualAdds(w, settingsTarget, model.raw) : [];
-  const internal = options.filter(o => {
-    if (['keyInput', 'markerReceive', 'playNode', 'conditionBranch', 'qte'].includes(o.kind)) return false;
-    if (!action?.pair && o.kind.startsWith('notify:')) {
-      const kind = o.kind.slice(7);
-      if (items.some(i => i.node.notify === kind || i.node.notify === `${kind}:${node.step}`)) return false;
-    }
-    if (
-      o.kind === 'blend' &&
-      items.some(i => i.node.kind === 'blend' && i.node.summary.includes(o.before ? tr('시작') : tr('종료')))
-    )
-      return false;
-    return true;
-  });
+  // Without a blend item the engine's own blend plays (10-23): the menu says so where one can be added.
+  const internal = options
+    .map(o => (o.kind === 'blend' ? {...o, note: tr('지금 엔진 기본값')} : o))
+    .filter(o => {
+      if (['keyInput', 'markerReceive', 'playNode', 'conditionBranch', 'qte'].includes(o.kind)) return false;
+      if (!action?.pair && o.kind.startsWith('notify:')) {
+        const kind = o.kind.slice(7);
+        // A clip-time function may come several times (0.12.274); a slot is the action's once.
+        if (
+          !ordinaryEffectOps.includes(kind) &&
+          items.some(i => i.node.notify === kind || i.node.notify === `${kind}:${node.step}`)
+        )
+          return false;
+      }
+      if (
+        o.kind === 'blend' &&
+        items.some(i => i.node.kind === 'blend' && i.node.summary.includes(o.before ? tr('시작') : tr('종료')))
+      )
+        return false;
+      return true;
+    });
   useEffect(() => {
     if (ctx.selected !== node.id && model.owners.get(ctx.selected)?.includes(node.id)) setExpanded(true);
   }, [ctx.selected]);
+  // The first condition of a selecting action carries that action's entry settings (graph/checklist.ts).
+  const entryCard =
+    !!action?.flow &&
+    selectsOnly(action) &&
+    (node.id === `flow:${action.uid}:${action.flow.entry}` || node.id === `conditionTable:${action.uid}`);
+  const has = (kind: string) => storedItems.some(i => i.node.kind === kind);
+  const entryOptions = [
+    {label: tr('시작 제한'), kind: 'stateCondition', disabled: has('stateCondition') ? tr('이미 있음') : undefined},
+    {label: tr('바닐라 이벤트 차단'), kind: 'suppress', disabled: has('suppress') ? tr('이미 있음') : undefined},
+  ];
   const eventOption = (kind: string) =>
     kind === 'cameraRestore' ||
     kind === 'fireArrow' ||
@@ -277,14 +288,25 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
               </select>
             </label>
             <ViewFields w={w} action={action} edit={edit} row={cardRow} />
-            <button className="checklist-summary" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-              {expanded ? '▾' : '▸'} {tr('재생 설정')}
-            </button>
-            {expanded && (
-              <NestedDetailPanel.Provider value={true}>
-                <div className="checklist-fields">{settings()}</div>
-              </NestedDetailPanel.Provider>
-            )}
+            {/* 재생 설정 is item rows as 기능 (docs/mockup-playback-settings): the name, the end, the attack data and an
+                ordinary action's input detection. */}
+            <section className="checklist-section checklist-playback">
+              <div className="checklist-section-title">
+                <button aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+                  {expanded ? '▾' : '▸'} {tr('재생 설정 ·')} {action.pair ? 3 : 4}
+                </button>
+                {expanded && (
+                  <button onClick={() => setPlayAllOpen(!playAllOpen)}>
+                    {playAllOpen ? tr('전체 접기') : tr('전체 펼치기')}
+                  </button>
+                )}
+              </div>
+              {expanded && (
+                <NestedDetailPanel.Provider value={true}>
+                  <CategoryRows.Provider value={{allOpen: playAllOpen}}>{settings()}</CategoryRows.Provider>
+                </NestedDetailPanel.Provider>
+              )}
+            </section>
             {/* The features and the HKX's events fold each on their own (one "기능 · 이벤트" fold above them was the
                 same fold twice, 10-20). */}
             {
@@ -292,6 +314,8 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
                 owner={node.id}
                 items={items.filter(i => i.category === 'feature')}
                 moments={byMoment(items.filter(i => i.category === 'event'))}
+                sent={sent}
+                action={action}
                 allOpen={allOpen}
                 toggleAll={() => setAllOpen(v => !v)}
               />
@@ -306,24 +330,37 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
               />
             )}
             <div className="checklist-add-actions">{addMenu()}</div>
-            <button className="checklist-summary" aria-expanded={info} onClick={() => setInfo(!info)}>
-              {info ? '▾' : '▸'} {tr('식별 정보')}
-            </button>
-            {info && (
+            <section className="checklist-section checklist-info">
               <NestedDetailPanel.Provider value={true}>
-                <div className="checklist-fields">{settings('info')}</div>
+                <CategoryRows.Provider value={{}}>{settings('info')}</CategoryRows.Provider>
               </NestedDetailPanel.Provider>
-            )}
+            </section>
           </>
         )
       )}
-      {node.kind !== 'hkxPlay' && items.length > 0 && (
+      {node.kind !== 'hkxPlay' && (items.length > 0 || entryCard) && (
         <section className="checklist-section">
           <div className="checklist-section-title">{tr('진입 공통 설정')}</div>
           {/* A selecting action's conditions only (graph/checklist.ts): nothing played here takes features. */}
           {items.map(item => (
             <ChecklistRow key={item.node.id} item={item} owner={node.id} />
           ))}
+          {entryCard && !items.length && (
+            <p className="checklist-entry-empty">{tr('아직 없음 · 시작할 때 따로 검사하지 않습니다')}</p>
+          )}
+          {entryCard && action && (
+            // Its HKX card is not drawn, so its entry settings are added here (docs/mockup-entry-settings).
+            <div className="checklist-add-actions">
+              <AddItemMenu
+                search={false}
+                groups={[{title: tr('진입 설정'), options: entryOptions}]}
+                label={tr('진입 설정')}
+                add={o =>
+                  attempt(() => edit(w => addEntrySetting(w, action.uid, o.kind as 'stateCondition' | 'suppress')))
+                }
+              />
+            </div>
+          )}
         </section>
       )}
       {error && (
@@ -350,16 +387,22 @@ function ChecklistSection({
   owner,
   items,
   moments,
+  sent,
+  action,
   allOpen,
   toggleAll,
 }: {
   owner: string;
   items: ChecklistItem[];
   moments: ChecklistItem[];
+  sent?: ReturnType<typeof useHkxMoments>;
+  action?: Action;
   allOpen?: boolean;
   toggleAll: () => void;
 }) {
-  const {w, selected} = useContext(ChecklistContext)!;
+  const {w, selected, edit} = useContext(ChecklistContext)!;
+  const extra = (sent?.registry.length ?? 0) + (sent?.commands.length ?? 0);
+  // The list is open when its card opens; each item in it starts closed (10-23).
   const [open, setOpen] = useFold(`checklist:section:${w.id}:${owner}:feature`, true);
   useEffect(() => {
     if ([...items, ...moments].some(i => i.node.id === selected)) setOpen(true);
@@ -368,13 +411,17 @@ function ChecklistSection({
     <section className="checklist-section">
       <div className="checklist-section-title">
         <button aria-expanded={open} onClick={() => setOpen(!open)}>
-          {open ? '▾' : '▸'} {tr('기능 ·')} {items.length + moments.length}
+          {open ? '▾' : '▸'} {tr('기능 ·')} {items.length + moments.length + extra}
         </button>
         {open && <button onClick={toggleAll}>{allOpen ? tr('전체 접기') : tr('전체 펼치기')}</button>}
       </div>
       {open && items.map(item => <ChecklistRow key={item.node.id} item={item} owner={owner} allOpen={allOpen} />)}
-      {open && moments.length > 0 && <div className="checklist-moments">{tr('특정 순간')}</div>}
+      {open && moments.length + extra > 0 && <div className="checklist-moments">{tr('특정 순간')}</div>}
       {open && moments.map(item => <ChecklistRow key={item.node.id} item={item} owner={owner} moment />)}
+      {open &&
+        action &&
+        sent?.registry.map(r => <RegistryMomentRow key={r.key} w={w} action={action} item={r} edit={edit} />)}
+      {open && sent?.commands.map(c => <CommandMomentRow key={c.key} item={c} />)}
     </section>
   );
 }
@@ -396,7 +443,6 @@ function ChecklistRow({
     a = w.actions.find(a => a.uid === n.action)!;
   const [open, setOpen] = useFold(`checklist:${w.id}:${owner}:${n.id}`);
   const [error, setError] = useState('');
-  const [eventEditor, setEventEditor] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (allOpen !== undefined) setOpen(allOpen);
@@ -409,6 +455,8 @@ function ChecklistRow({
   }, [ctx.selected]);
   const members = sharedNodeMembers(w, n.id),
     settings = nodeSettings(w, n.id);
+  // The 활 발사 item says every moment it shoots, its registry event shots included (FireArrowShots.tsx).
+  const fireSummary = useFireArrowSummary(w, n.kind === 'fireArrow' ? a : undefined);
   const attempt = (fn: () => void) => {
     try {
       fn();
@@ -442,16 +490,9 @@ function ChecklistRow({
       }
       data-item={n.id}
     >
+      {/* No checkbox (10-23, docs/mockup-no-checkbox): an item is used while it is there and deleted to stop. An
+          item an older project saved as 사용 안 함 shows so, with 다시 사용 and 삭제 only. */}
       <div className="checklist-row-heading">
-        {item.toggleable && (
-          <input
-            type="checkbox"
-            title={tr('사용 여부를 변경합니다. 접기는 설정에 영향을 주지 않습니다.')}
-            aria-label={tr('{title} 사용', {title: n.title})}
-            checked={item.enabled}
-            onChange={e => attempt(() => edit(w => setChecklistEnabled(w, item, e.target.checked)))}
-          />
-        )}
         <button
           title={item.scope}
           aria-expanded={open}
@@ -464,13 +505,12 @@ function ChecklistRow({
           <small title={n.summary}>
             {/* A summary that only repeats the title ("상태 조건 · 상태 조건") is left out. */}
             {item.enabled
-              ? n.summary === n.title
-                ? ''
-                : n.summary
+              ? fireSummary || (n.summary === n.title ? '' : n.summary)
               : n.kind === 'blend'
                 ? tr('엔진 기본값 사용')
-                : tr('사용 안 함 · 설정 유지')}
+                : ''}
           </small>
+          {!item.enabled && n.kind !== 'blend' && <span className="checklist-off">{tr('사용 안 함')}</span>}
           <span>{open ? '▾' : '▸'}</span>
         </button>
       </div>
@@ -481,11 +521,26 @@ function ChecklistRow({
           {tr('개 항목')}
         </span>
       )}
-      {open && (
+      {open && !item.enabled && item.toggleable && n.kind !== 'blend' && (
+        <div className="checklist-fields">
+          <p className="moment-note">{tr('꺼 둔 채 저장된 항목입니다. 설정은 남아 있고 XML에는 쓰지 않습니다.')}</p>
+          <div className="checklist-row-actions">
+            <button onClick={() => attempt(() => edit(w => setChecklistEnabled(w, item, true)))}>
+              {tr('다시 사용')}
+            </button>
+            <button onClick={() => attempt(() => edit(w => deleteFlat(detachInspectorNode(w, n.id), n.id)))}>
+              {tr('삭제')}
+            </button>
+          </div>
+        </div>
+      )}
+      {open && (item.enabled || n.kind === 'blend') && (
         <div className="checklist-fields">
           <NestedDetailPanel.Provider value={true}>
-            {item.category === 'event' ? (
-              <button onClick={() => setEventEditor(true)}>{tr('이벤트 편집…')}</button>
+            {n.kind === 'fireArrow' && a ? (
+              <FireArrowShots w={w} action={a} edit={edit} />
+            ) : item.category === 'event' ? (
+              <MomentFields w={w} action={a} node={n} edit={edit} status={status} globalSettings={ctx.globalSettings} />
             ) : n.notify ? (
               <NotifyDetails w={w} action={a} id={n.notify} edit={edit} />
             ) : n.kind === 'blend' ? (
@@ -538,9 +593,10 @@ function ChecklistRow({
                 {tr('복제')}
               </button>
             )}
+            {n.kind === 'blend' && <p className="moment-note">{tr('이 항목을 지우면 엔진 기본 블렌드를 씁니다.')}</p>}
             {item.toggleable && (
               <button onClick={() => attempt(() => edit(w => deleteFlat(detachInspectorNode(w, n.id), n.id)))}>
-                {tr('삭제')}
+                {n.kind === 'blend' ? tr('삭제 · 엔진 기본값으로') : tr('삭제')}
               </button>
             )}
           </div>
@@ -551,7 +607,6 @@ function ChecklistRow({
           {error}
         </p>
       )}
-      {eventEditor && <EventEditor node={n} close={() => setEventEditor(false)} />}
     </div>
   );
 }
@@ -560,10 +615,13 @@ function AddItemMenu({
   groups,
   label,
   add,
+  search = true,
 }: {
   groups: {title: string; options: ReturnType<typeof contextualAdds>}[];
   label: string;
   add: (o: ReturnType<typeof contextualAdds>[number]) => void;
+  /** A short list needs no search box. */
+  search?: boolean;
 }) {
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState('');
@@ -574,12 +632,14 @@ function AddItemMenu({
       </button>
       {open && (
         <div className="nowheel">
-          <input
-            aria-label={tr('{label} 검색', {label})}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={tr('{label} 검색…', {label})}
-          />
+          {search && (
+            <input
+              aria-label={tr('{label} 검색', {label})}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={tr('{label} 검색…', {label})}
+            />
+          )}
           {groups.map(g => {
             const shown = g.options.filter(o => o.label.includes(query));
             return shown.length ? (
@@ -588,6 +648,8 @@ function AddItemMenu({
                 {shown.map((o, i) => (
                   <button
                     key={i}
+                    disabled={!!o.disabled}
+                    title={o.disabled}
                     onClick={() => {
                       add(o);
                       setOpen(false);
@@ -598,6 +660,8 @@ function AddItemMenu({
                       .replace(tr('앞에 블렌드 추가'), tr('시작 블렌드'))
                       .replace(tr('뒤에 블렌드 추가'), tr('종료 블렌드'))
                       .replace(/ 추가$/, '')}
+                    {o.disabled && <small> · {o.disabled}</small>}
+                    {!o.disabled && o.note && <small> · {o.note}</small>}
                   </button>
                 ))}
               </div>
@@ -607,83 +671,6 @@ function AddItemMenu({
         </div>
       )}
     </div>
-  );
-}
-
-function EventEditor({node, close}: {node: FlatNode; close: () => void}) {
-  const {w, edit, status, globalSettings} = useContext(ChecklistContext)!;
-  const base = useRef(w),
-    [draft, setDraft] = useState(() => structuredClone(w)),
-    [error, setError] = useState('');
-  const changed = w !== base.current,
-    action = draft.actions.find(a => a.uid === node.action)!;
-  const modal = useRef<HTMLDialogElement>(null);
-  // Edits may change the workspace they are given and return it (putAction does), as the app's edit hands them
-  // a copy: give them one here too, or the draft keeps its identity and the dialog never shows the change.
-  const editDraft = (f: (w: Workspace) => Workspace) => setDraft(d => f(structuredClone(d)));
-  useEffect(() => {
-    modal.current?.showModal();
-    return () => modal.current?.close();
-  }, []);
-  return createPortal(
-    <dialog
-      ref={modal}
-      className="checklist-event-dialog"
-      aria-label={tr('이벤트 편집')}
-      onCancel={e => {
-        e.preventDefault();
-        close();
-      }}
-      onKeyDown={e => e.stopPropagation()}
-      onClick={e => e.stopPropagation()}
-    >
-      <header>
-        <strong>{node.title}</strong>
-        <button onClick={close} aria-label={tr('이벤트 편집 닫기')}>
-          ×
-        </button>
-      </header>
-      <div className="checklist-body checklist-event-content">
-        <NestedDetailPanel.Provider value={true}>
-          {node.notify ? (
-            <NotifyDetails w={draft} action={action} id={node.notify} edit={editDraft} />
-          ) : (
-            <GraphDetails
-              w={draft}
-              graph={node.scope}
-              node={node.original}
-              edit={editDraft}
-              status={status}
-              open={() => {}}
-              selectedAsset=""
-              onGlobalSettings={globalSettings}
-            />
-          )}
-        </NestedDetailPanel.Provider>
-      </div>
-      {changed && <p role="alert">{tr('원본이 변경되었습니다. 창을 닫고 최신 설정을 다시 여세요.')}</p>}
-      {error && <p role="alert">{error}</p>}
-      <footer>
-        <button onClick={close}>{tr('취소')}</button>
-        <button
-          disabled={changed}
-          onClick={() => {
-            try {
-              edit(current => {
-                if (JSON.stringify(current) !== JSON.stringify(base.current)) throw Error(tr('원본이 변경되었습니다.'));
-                return draft;
-              });
-              close();
-            } catch (e) {
-              setError(String(e));
-            }
-          }}
-        >
-          {tr('적용')}
-        </button>
-      </footer>
-    </dialog>,
-    document.body
   );
 }
 
@@ -704,7 +691,7 @@ function HkxEvents({
   pair: boolean;
 }) {
   const {w, edit} = useContext(ChecklistContext)!;
-  const [open, setOpen] = useFold(`checklist:section:${w.id}:${owner}:hkxEvents`, true);
+  const [open, setOpen] = useFold(`checklist:section:${w.id}:${owner}:hkxEvents`);
   const annotations = useClipAnnotations(w).get(clipKey(clip));
   const sent = useMemo(
     () =>
@@ -723,7 +710,7 @@ function HkxEvents({
           <HelpTip
             label={tr('이벤트 · HKX 주석')}
             help={tr(
-              '이 HKX가 보내는 이벤트를 HKX 주석에서 읽어 보여 줍니다(읽기 전용). 데스크톱 앱에서 HKX 원본 파일을 연결하면 보입니다. 이벤트 기능은 이벤트 등록에서 편집합니다.'
+              '이 HKX가 보내는 이벤트를 HKX 주석에서 읽어 보여 줍니다(읽기 전용). 데스크톱 앱에서 HKX 원본 파일을 연결하면 보입니다. 이벤트 기능은 이벤트 등록에서 편집합니다. 주석 AI.CamShake|세기|시간은 등록 없이 그 시점에 카메라를 흔듭니다.'
             )}
           >
             <span className="help-tip-label">{tr('이벤트')}</span>
@@ -738,15 +725,12 @@ function HkxEvents({
           {sent?.map((e, i) => {
             const entry = entries.get(eventKey(e.name)),
               fns = entry?.row?.functions ?? [],
-              uses = entry ? ownUseLabels(entry.uses, action, step) : [],
-              // "name|value" is sent only when that whole spelling is registered (the row's values).
-              valueMissing =
-                !!e.values && !(entry?.row?.values ?? []).some(v => v.toLowerCase() === e.values.toLowerCase());
+              uses = entry ? ownUseLabels(entry.uses, action, step) : [];
             const title = (
               <div className="hkx-event-name">
                 {e.role && <span className={'hkx-event-role ' + e.role}>{roleLabel[e.role]}</span>}
-                {e.name}
-                {e.values && (
+                {e.command ? 'AI.' + e.values : e.name}
+                {!e.command && e.values && (
                   <span className="hkx-event-values">
                     {' '}
                     {tr('· 값')} {e.values.split('|').join(', ')}
@@ -754,6 +738,40 @@ function HkxEvents({
                 )}
               </div>
             );
+            // "AI.Command|..." runs at once, declared nowhere (runtime 0.12.274).
+            if (e.command) {
+              const summary = commandSummary(e.values);
+              return (
+                <div key={i} className="hkx-event">
+                  <span className="hkx-event-time">{e.time.toFixed(2)}</span>
+                  <div className="hkx-event-body">
+                    {title}
+                    {summary ? (
+                      <div className="hkx-event-fn">
+                        {tr('주석 명령')} · {summary}
+                      </div>
+                    ) : (
+                      <div className="hkx-event-state warn">
+                        {tr('알 수 없는 주석 명령 · AI.CamShake|세기|시간 형식만 실행됩니다')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            // "name|value" makes the whole text the event name, which no registry may hold: never sent.
+            if (e.values)
+              return (
+                <div key={i} className="hkx-event unregistered">
+                  <span className="hkx-event-time">{e.time.toFixed(2)}</span>
+                  <div className="hkx-event-body">
+                    {title}
+                    <div className="hkx-event-state warn">
+                      {tr('「|」가 든 주석은 게임에서 발생하지 않습니다 · 흔들림은 AI.CamShake|세기|시간으로 적으세요')}
+                    </div>
+                  </div>
+                </div>
+              );
             // The game itself handles vanilla behavior and SoundPlay events: nothing to register here.
             if (!entry && vanillaName(e.name))
               return (
@@ -777,10 +795,7 @@ function HkxEvents({
                         onClick={ev => {
                           // The card would select itself on this click; the registry is the target.
                           ev.stopPropagation();
-                          edit(w => {
-                            const next = addEventRow(w, e.name);
-                            return e.values ? addEventValue(next, e.name, e.values) : next;
-                          });
+                          edit(w => addEventRow(w, e.name));
                           showRegistry(e.name);
                         }}
                       >
@@ -810,19 +825,6 @@ function HkxEvents({
                   {!fns.length && !uses.length && (
                     <div className="hkx-event-state">
                       {entry.uses.length ? tr('이 동작에서 쓰지 않음') : tr('그래프 등록만 · 기능 없음')}
-                    </div>
-                  )}
-                  {valueMissing && (
-                    <div className="hkx-event-state warn">
-                      {tr('값 이름 미등록 · 게임에서 이 주석이 발생하지 않음')}
-                      <button
-                        onClick={ev => {
-                          ev.stopPropagation();
-                          edit(w => addEventValue(w, e.name, e.values));
-                        }}
-                      >
-                        {tr('＋ 값 등록')}
-                      </button>
                     </div>
                   )}
                 </div>

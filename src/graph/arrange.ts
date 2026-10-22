@@ -76,14 +76,16 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
   const owners = [...new Set(g.nodes.map(n => n.action).filter(Boolean))];
   const compare = (a: FlatNode, b: FlatNode) =>
     owners.indexOf(a.action) - owners.indexOf(b.action) || a.id.localeCompare(b.id, undefined, {numeric: true});
-  const out = new Map<string, {to: string; pin: string}[]>(),
+  const out = new Map<string, {to: string; pin: string; rank?: number}[]>(),
     into = new Map<string, Set<string>>();
   for (const e of g.edges) {
     const s = byId.get(e.source),
       t = byId.get(e.target);
     if (!s || !t || SPECIAL.has(s.kind) || SPECIAL.has(t.kind) || s.id === t.id) continue;
+    // A branch's fail onto a branch of its own fan (①'s fail to ③) does not pull that branch out of the fan.
+    if (s.fan && t.fan && s.fan.parent === t.fan.parent) continue;
     const list = out.get(s.id) ?? [];
-    if (!list.some(x => x.to === t.id)) list.push({to: t.id, pin: e.pin});
+    if (!list.some(x => x.to === t.id)) list.push({to: t.id, pin: e.pin, rank: e.rank});
     out.set(s.id, list);
     into.set(t.id, (into.get(t.id) ?? new Set()).add(s.id));
   }
@@ -100,6 +102,8 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
           (a, b) =>
             tailRank(byId.get(a.to)!) - tailRank(byId.get(b.to)!) ||
             pinRank(a.pin) - pinRank(b.pin) ||
+            // A fan's branches stand in their stored order (graph/conditionFans.ts), not the cards' places.
+            (a.rank ?? 0) - (b.rank ?? 0) ||
             compare(byId.get(a.to)!, byId.get(b.to)!)
         )
         .map(x => x.to)

@@ -15,7 +15,7 @@ import {
   emptyWorkspace,
   operations,
 } from '../src/workspace.ts';
-import {eventOps, eventTargets, eventFroms, fieldsOf, doAttrs} from '../src/eventRegistry.ts';
+import {eventOps, pairRoles, fieldsOf, doAttrs} from '../src/eventRegistry.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {parseXml} from '../src/xml.ts';
 import {savedProject, withEditorBlock} from '../src/editorBlock.ts';
@@ -101,10 +101,12 @@ test('unknown XML and schema data fail atomically; entities are bounded and neve
     originalText.replace('<OnPartnerLost blend=', '<OnPartnerLost typo='),
     originalText.replace('<Exit', '<Unknown'),
     originalText.replace('<Do op="hide"/>', '<Do op="invalid"/>'),
-    originalText.replace('<Do op="hide"/>', '<Do op="hide" target="lead"/>'),
     originalText.replace('<EventRegistry>', '<EventRegistry><Event name="Grapple_unequip"/>'),
   ])
     assert.throws(() => importWorkspaceXml(raw));
+  // An older file's event function target opens as one changing its sender (runtime 0.12.273).
+  const older = importWorkspaceXml(originalText.replace('<Do op="hide"/>', '<Do op="hide" target="lead"/>'));
+  assert.ok(older.eventRegistry.every(r => r.functions.every(f => !('target' in f.values) && !('from' in f.values))));
   const w = migrateWorkspace(createProject());
   w.actions[0].unknown = true;
   assert.throws(() => parseWorkspace(JSON.stringify(w)));
@@ -137,15 +139,12 @@ const settingValue = {
   duration: '0.5',
   move: 'true',
   look: 'true',
-  space: 'front',
-  minSpace: '10',
-  maxSpace: '500',
   factor: '0.5',
 };
 const withSettings = (op, i) => ({
   op,
-  target: eventTargets[i % eventTargets.length],
-  from: eventFroms[i % eventFroms.length],
+  // A pair's clip-time effect names a role and no sender filter (runtime 0.12.275).
+  target: pairRoles[i % pairRoles.length],
   ...Object.fromEntries(fieldsOf(op).map(k => [k, settingValue[k]])),
 });
 test('all role operations and supported parameters preserve parser semantics', needsChecker, () => {
@@ -159,10 +158,9 @@ test('all role operations and supported parameters preserve parser semantics', n
   w.eventRegistry = eventOps.map((op, i) => ({
     id: 'event' + i,
     name: 'Event' + i,
-    functions: [{id: 'fn1', values: withSettings(op, i + 1)}],
+    // A registered function changes its sender: no role (runtime 0.12.273).
+    functions: [{id: 'fn1', values: (({target: _, ...v}) => v)(withSettings(op, i + 1))}],
   }));
-  // The event shot targets the sender or the player only.
-  w.eventRegistry.find(r => r.functions[0].values.op === 'fireArrow').functions[0].values.target = 'player';
   const a = resolve(dir, 'effects-v1.xml'),
     b = resolve(dir, 'effects-v2.xml');
   writeFileSync(a, compileWorkspace(w));
@@ -177,7 +175,14 @@ test('all role operations and supported parameters preserve parser semantics', n
     reread.eventRegistry.map(r => [r.name, r.functions.map(f => doAttrs(f.values))]),
     w.eventRegistry.map(r => [r.name, r.functions.map(f => doAttrs(f.values))])
   );
-  for (const patch of [{at: 'NaN'}, {form: '../bad'}, {space: 'up'}, {factor: '0'}, {target: 'npc'}, {from: 'other'}]) {
+  for (const patch of [
+    {at: 'NaN'},
+    {form: '../bad'},
+    {target: 'sender'},
+    {factor: '0'},
+    {target: 'npc'},
+    {from: 'any'},
+  ]) {
     const invalid = clone(w);
     Object.assign(invalid.actions[0].pair.effects[2].values, patch);
     assert.throws(() => compileWorkspace(invalid));

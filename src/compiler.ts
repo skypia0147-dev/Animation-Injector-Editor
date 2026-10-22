@@ -62,14 +62,9 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
     );
   add(
     'Require',
-    {
-      weapon: p.weapon ? 'drawn' : 'any',
-      air: p.air,
-      blockWhileAttacking: p.blockWhileAttacking,
-      cooldown: p.cooldown,
-      stamina: p.requiredStamina,
-    },
-    {weapon: 'any', air: 'deny', blockWhileAttacking: false, cooldown: 0, stamina: 0}
+    // 시작 제한 (runtime 0.12.276): the action's own nature; a state check is a condition branch's test.
+    {air: p.air, cooldown: p.cooldown},
+    {air: 'deny', cooldown: 0}
   );
   // The workspace drops a blend that is off (the graph's own transition then applies).
   add('Enter', {blend: p.enterBlend}, {}, true);
@@ -90,11 +85,19 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
       {at: '0', stamina: 0, magicka: 0},
       true
     );
-  if (p.fireArrow)
+  // A direct shot (runtime 0.12.268) has no release shot: no onRelease, its damage percent instead. Without its own
+  // shot (no time, no release) the action writes none: the HKX shoots only on the registry's events.
+  if (p.fireArrow && (p.fireArrow.at || p.fireArrow.onRelease))
     add(
       'FireArrow',
-      {...(p.fireArrow.at ? clock2('at', p.fireArrow.at, 'fallback') : {}), onRelease: p.fireArrow.onRelease},
-      {onRelease: true},
+      p.fireArrow.mode === 'direct'
+        ? {
+            ...(p.fireArrow.at ? clock2('at', p.fireArrow.at, 'fallback') : {}),
+            mode: 'direct',
+            damage: p.fireArrow.damage ?? 100,
+          }
+        : {...(p.fireArrow.at ? clock2('at', p.fireArrow.at, 'fallback') : {}), onRelease: p.fireArrow.onRelease},
+      {onRelease: true, damage: 100},
       true
     );
   if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at, 'fallback'));
@@ -102,6 +105,5 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
     add('Suppress', {events: uniqueEvents(p.suppress.events).join(','), when: p.suppress.when}, {when: 'startable'});
   const attack = p.steps[0].attack || p.attack;
   if (attack) add('Attack', {data: attack});
-  add('Advanced', {safety: p.safety}, {safety: pair ? 30 : 3});
   return out;
 }

@@ -14,9 +14,9 @@ const xml = `<AnimationSet version="4" id="T">
   <EventRegistry><Event name="CamReset"/><Event name="Go"/></EventRegistry>
   <Pair id="Pick" clip="Animations\\T\\pick.hkx">
     <Start event="Contact" target="combatTarget"/>
-    <Require weapon="drawn"/>
+    <Require weapon="drawn" cooldown="0.5"/>
     <Exit at="end-0.2"/>
-    <Advanced safety="40"/>
+    <Advanced reorientSupport="false"/>
     <Flow entry="Sneak">
       <Test id="Sneak" kind="sneaking" subject="self" pass="ToA" fail="ToB"/>
       <Play id="ToA" action="A"/>
@@ -46,7 +46,11 @@ test('a selecting action is written with its start, conditions and flow only', (
   // Its clip never plays: it is not written (runtime 0.12.244).
   assert.equal(pick.attrs.clip, undefined);
   assert.deepEqual(pick.children[0].attrs, {event: 'Contact', target: 'combatTarget'});
-  assert.deepEqual(pick.children[1].attrs, {weapon: 'drawn'});
+  // Its weapon check moved to the front of its flow (runtime 0.12.276).
+  assert.deepEqual(pick.children[1].attrs, {cooldown: '0.5'});
+  const flow = pick.children[2];
+  assert.equal(flow.attrs.entry, 'RequireWeapon');
+  assert.deepEqual(flow.children[0].attrs, {id: 'RequireWeapon', kind: 'weaponDrawn', subject: 'self', pass: 'Sneak'});
   // The destinations keep their own playback settings.
   assert.deepEqual(
     out.children.find(n => n.attrs.id === 'A').children.map(n => n.name),
@@ -81,11 +85,16 @@ test('a selecting action without a clip reads back, writes the same and needs a 
 test('the events a selecting action suppresses show with its conditions and are written', () => {
   const action = xml
     .replace('<Pair id="Pick"', '<Action id="Pick"')
+    // Only a pair has the synchronisation's Advanced.
+    .replace('<Advanced reorientSupport="false"/>', '')
     // An action picks actions.
     .replace(/<Pair id="A" (clip="[^"]+")><Target [^>]+><\/Pair>/, '<Action id="A" $1/>')
     .replace(/<Pair id="B" (clip="[^"]+")\/>/, '<Action id="B" $1/>')
     .replace('<Start event="Contact" target="combatTarget"/>', '<Start event="Contact"/>')
-    .replace('<Require weapon="drawn"/>', '<Require weapon="drawn"/><Suppress events="blockStart"/>')
+    .replace(
+      '<Require weapon="drawn" cooldown="0.5"/>',
+      '<Require weapon="drawn" cooldown="0.5"/><Suppress events="blockStart"/>'
+    )
     .replace(
       /<Target range="200" angle="180"\/>\s*<OnPartnerLost blend="0.6"\/>\s*<Effects>.*<\/Effects>\s*<Connect to="A" event="Go"\/>\s*<\/Pair>/s,
       '</Action>'

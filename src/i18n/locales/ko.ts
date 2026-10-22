@@ -78,7 +78,7 @@ export const ko: Record<string, string> = {
   'node.transition': '전환',
   'node.keyInput': '키 입력',
   'node.markerReceive': '이벤트 수신',
-  'node.stateCondition': '상태 조건',
+  'node.stateCondition': '시작 제한',
   'node.detectionWindow': '감지 구간',
   'node.result': '결과',
   'node.hkxPlay': 'HKX 재생',

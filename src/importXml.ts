@@ -9,6 +9,7 @@ import type {Mark, Input} from './model.ts';
 import {gamepadFromXml} from './keys.ts';
 import {emptyWorkspace, wrap, defaultPair, addLink, arrange, validateWorkspace} from './workspace.ts';
 import {readDo, readRegistry} from './eventRegistry.ts';
+import {liftStartLimits} from './startLimits.ts';
 import type {EventRow} from './eventRegistry.ts';
 import type {Workspace, Action} from './workspace.ts';
 import {parseXml, shapeXml, one} from './xml.ts';
@@ -215,7 +216,7 @@ export function importWorkspaceXml(text: string): Workspace {
       pair ? ['safety', 'getToMarkTime', 'markErrorThreshold', 'reorientSupport', 'applyMotionFromRoot'] : ['safety']
     );
     p.graph = [pair ? 'RootBehaviorGraph' : fullBodyGraph];
-    p.safety = num(adv, 'safety', pair ? 30 : 3);
+    // Advanced safety is read and left out: the runtime keeps its own default (10-23).
     p.steps = [
       // No clip: a selecting action (runtime 0.12.244); the workspace check requires one if it plays itself.
       {id: 'A1', label: 'A1', clip: n.attrs.clip ?? '', localPath: '', attack: '', position: {x: 360, y: 140}},
@@ -254,11 +255,14 @@ export function importWorkspaceXml(text: string): Workspace {
         throw new Error(tr('일반 동작에 페어 대상이 지정되었습니다.'));
     }
     const require = child(n, 'Require', ['weapon', 'air', 'blockWhileAttacking', 'cooldown', 'stamina']);
-    p.weapon = choice(require, 'weapon', ['drawn', 'any'], 'any') === 'drawn';
     p.air = choice(require, 'air', ['deny', 'allow', 'only'], 'deny');
     p.cooldown = num(require, 'cooldown', 0);
-    p.requiredStamina = num(require, 'stamina', 0);
-    p.blockWhileAttacking = bool(require, 'blockWhileAttacking', false);
+    // An older file's state checks (runtime 0.12.276 refuses them): liftStartLimits moves them into a branch.
+    Object.assign(p, {
+      weapon: choice(require, 'weapon', ['drawn', 'any'], 'any') === 'drawn',
+      requiredStamina: num(require, 'stamina', 0),
+      blockWhileAttacking: bool(require, 'blockWhileAttacking', false),
+    });
     const readEvents = (text: string) => {
       const list = text.split(',');
       const error = eventListError(list);
@@ -312,14 +316,31 @@ export function importWorkspaceXml(text: string): Workspace {
       if (pair) throw Error(tr('대상 놓기(CarryRelease)는 한 사람 일반 동작에만 씁니다.'));
       p.carryRelease = {at: clock(required(release, 'at'), get(release, 'fallback'))};
     }
-    const fire = child(n, 'FireArrow', ['at', 'onRelease']);
+    const fire = child(n, 'FireArrow', ['at', 'onRelease', 'mode', 'damage']);
     if (fire) {
       if (pair) throw Error(tr('페어에는 활 발사를 사용할 수 없습니다.'));
-      const at = get(fire, 'at');
+      const at = get(fire, 'at'),
+        mode = get(fire, 'mode') || 'drawn';
       if (at.startsWith('event:')) throw removed3(tr('FireArrow의 이벤트 시각'));
-      p.fireArrow = {at: at ? clock(at) : null, onRelease: bool(fire, 'onRelease', true)};
-      if (!p.fireArrow.at && !p.fireArrow.onRelease)
-        throw Error(tr('FireArrow: at 또는 onRelease="true"가 필요합니다.'));
+      if (!['drawn', 'direct'].includes(mode)) throw Error(tr('FireArrow.mode: drawn 또는 direct입니다.'));
+      if (mode === 'direct') {
+        if (bool(fire, 'onRelease', false))
+          throw Error(tr('FireArrow: mode="direct"(바로 발사)는 onRelease를 쓸 수 없습니다.'));
+        const damage = get(fire, 'damage') ? Number(get(fire, 'damage')) : 100;
+        if (!(damage >= 1 && damage <= 1000)) throw Error(tr('FireArrow.damage: 1~1000%입니다.'));
+        p.fireArrow = {
+          at: at ? clock(at) : null,
+          onRelease: false,
+          mode: 'direct',
+          ...(damage !== 100 ? {damage} : {}),
+        };
+        if (!p.fireArrow.at) throw Error(tr('FireArrow: mode="direct"(바로 발사)에는 at이 필요합니다.'));
+      } else {
+        if (get(fire, 'damage')) throw Error(tr('FireArrow.damage는 mode="direct"(바로 발사)에서만 씁니다.'));
+        p.fireArrow = {at: at ? clock(at) : null, onRelease: bool(fire, 'onRelease', true)};
+        if (!p.fireArrow.at && !p.fireArrow.onRelease)
+          throw Error(tr('FireArrow: at 또는 onRelease="true"가 필요합니다.'));
+      }
     }
     const cost = child(n, 'Cost', ['at', 'stamina', 'magicka']);
     if (cost) {
@@ -441,9 +462,13 @@ export function importWorkspaceXml(text: string): Workspace {
     } else {
       if (n.children.some(c => c.name === 'PairFeatures'))
         throw new Error(tr('페어 전용 설정이 일반 동작에 있습니다.'));
-      // An ordinary action's Effects holds a camera restore alone (runtime 0.12.260).
-      const fx = child(n, 'Effects', [], ['Camera']);
-      if (fx) readCamera(a, fx);
+      // An ordinary action's Effects: a camera restore (runtime 0.12.260) and clip-time functions (0.12.274).
+      const fx = child(n, 'Effects', [], ['Camera', 'Do']);
+      if (fx) {
+        readCamera(a, fx);
+        const dos = fx.children.filter(c => c.name === 'Do');
+        if (dos.length) a.config.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));
+      }
     }
     w.actions.push(a);
     source.set(a.uid, n);
@@ -675,6 +700,7 @@ export function importWorkspaceXml(text: string): Workspace {
   readQtes(w, root, clock);
   readEventQtes(w, registryNode);
   if (rows.length) w.eventRegistry = rows;
+  liftStartLimits(w);
   const errors = validateWorkspace(w).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(i => i.node + ': ' + i.message).join('\n'));
   return shareEventReceivers(arrange(foldNotConditions(w)));

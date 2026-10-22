@@ -20,11 +20,13 @@ test('every offered node action creates a connected node without mutating the so
   }
   assert.equal(JSON.stringify(w), before);
 });
-test('paired playback offers spell attachment and ordinary playback does not', () => {
+test("both playbacks offer clip-time functions; pair-only ones stay a pair's (runtime 0.12.274)", () => {
   const w = s4sample(),
     get = a => flatGraph(w).nodes.find(n => n.action === a.uid && n.kind === 'hkxPlay').id;
   assert.ok(contextualAdds(w, get(w.actions[0])).some(o => o.kind === 'notify:spell'));
-  assert.ok(!contextualAdds(w, get(w.actions[2])).some(o => o.kind === 'notify:spell'));
+  const ordinary = contextualAdds(w, get(w.actions[2])).map(o => o.kind);
+  for (const op of ['spell', 'shake', 'hide', 'timeOn']) assert.ok(ordinary.includes('notify:' + op), op);
+  for (const op of ['cancel']) assert.ok(!ordinary.includes('notify:' + op), op);
   assert.deepEqual(contextualAdds(w, 'missing'), []);
 });
 test('branch context offers explicit pass/fail destinations and connects the chosen port', () => {
@@ -58,11 +60,10 @@ test('paired playback exposes blends first and completes both endpoints without 
 });
 
 test('lightweight next-play menu matches actual connection validation', () => {
-  for (const field of ['weapon', 'cooldown', 'air', 'default', 'mixed']) {
+  for (const field of ['cooldown', 'air', 'default', 'mixed']) {
     const r = addFlat(s4sample(), '', 'playNode', {x: 0, y: 0}),
       w = r.workspace;
     const a = w.actions.at(-1);
-    if (field === 'weapon') a.config.weapon = true;
     if (field === 'cooldown') a.config.cooldown = 2;
     if (field === 'air') a.config.air = 'deny';
     if (field === 'mixed') {

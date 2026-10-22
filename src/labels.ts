@@ -50,12 +50,10 @@ export const labels = {
   form: ['detail.form', 'tip.spell'],
   releasePhysics: ['detail.releasePhysics', 'tip.physics'],
   strength: ['detail.strength', 'tip.shake'],
+  duration: ['detail.duration', 'tip.shake'],
   factor: ['detail.factor', 'tip.factor'],
-  parameters: ['detail.parameters', 'tip.parameters'],
-  space: ['detail.space', 'tip.space'],
-  minSpace: ['detail.minSpace', 'tip.space'],
-  maxSpace: ['detail.maxSpace', 'tip.space'],
 } as const;
 export type LabelId = keyof typeof labels;
-export const labelText = (id: LabelId) => t(labels[id][0]);
-export const labelHelp = (id: LabelId) => t(labels[id][1]);
+// A row id without an entry (a setting added later) shows no name or help rather than failing the whole panel.
+export const labelText = (id: LabelId) => (labels[id] ? t(labels[id][0]) : String(id));
+export const labelHelp = (id: LabelId) => (labels[id] ? t(labels[id][1]) : '');

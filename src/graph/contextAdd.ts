@@ -6,7 +6,18 @@ import {blendNodes, animId} from './blends.ts';
 import {title} from '../timeline/model.ts';
 import {branchTest, parseNodeId} from './nodeRef.ts';
 import {tr} from '../i18n/korean.ts';
-export type AddOption = {label: string; kind: string; before?: boolean; port?: string; entry?: boolean};
+import {ordinaryEffectOps} from '../clipEffects.ts';
+export type AddOption = {
+  label: string;
+  kind: string;
+  before?: boolean;
+  port?: string;
+  entry?: boolean;
+  /** Shown dimmed with this reason (a menu that lists what is already there). */
+  disabled?: string;
+  /** A short note beside an option that can be added (a blend: the engine's own plays until one is added). */
+  note?: string;
+};
 /** The start or end blend an HKX play card's features add (10-20: 0.2 s was too short to read as a blend). */
 export const HKX_BLEND_SECONDS = 0.3;
 export function addConnected(w: Workspace, source: string, option: AddOption, position: {x: number; y: number}) {
@@ -92,7 +103,7 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       {label: tr('시작 이벤트 추가'), kind: 'markerReceive', before: true},
       {label: tr('전환 키 입력 추가'), kind: 'keyInput'},
       {label: tr('전환 이벤트 추가'), kind: 'markerReceive'},
-      {label: tr('상태 조건 추가'), kind: 'stateCondition', before: true},
+      {label: tr('시작 제한 추가'), kind: 'stateCondition', before: true},
       {label: tr('진입 조건 분기 추가'), kind: 'conditionBranch', entry: true},
       {label: tr('앞에 블렌드 추가'), kind: 'blend', before: true},
       {label: tr('뒤에 블렌드 추가'), kind: 'blend'},
@@ -109,7 +120,9 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
     options.push({label: tr('카메라 복구 추가'), kind: 'cameraRestore'});
     if (a?.pair) options.push({label: tr('운반 추가'), kind: 'carry'});
     for (const kind of notifyKinds.filter(k =>
-      a?.pair ? k !== 'vanillaCancel' : ['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel'].includes(k)
+      a?.pair
+        ? k !== 'vanillaCancel'
+        : ['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k)
     ))
       options.push({label: title(kind) + tr(' 추가'), kind: 'notify:' + kind});
   } else if (node.kind === 'conditionBranch') {

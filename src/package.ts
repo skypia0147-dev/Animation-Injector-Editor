@@ -1,6 +1,7 @@
 import {pairedRig} from './pairedRigs.ts';
 import type {Workspace} from './workspace.ts';
 import {compileWorkspace} from './workspace.ts';
+import {clipEffects} from './clipEffects.ts';
 import {t} from './i18n/index.ts';
 import {isFirstPersonClip, stepFiles} from './view.ts';
 export type Asset = {
@@ -110,8 +111,12 @@ export function plugins(w: Workspace): string[] {
   return [
     ...new Set(
       w.actions
-        .filter(a => a.pair?.effectsEnabled)
-        .flatMap(a => a.pair!.effects.filter(e => e.values.op === 'spell').map(e => e.values.plugin))
+        .filter(a => !a.pair || a.pair.effectsEnabled)
+        .flatMap(a =>
+          clipEffects(a)
+            .filter(e => e.values.op === 'spell')
+            .map(e => e.values.plugin)
+        )
         .filter(Boolean)
     ),
   ].sort();

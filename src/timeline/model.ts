@@ -7,8 +7,9 @@ import {uid} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
 import {layoutKey} from '../graph/projection.ts';
 import {t} from '../i18n/index.ts';
-import {targetLabels} from '../eventRegistry.ts';
+import {pairRoleLabels} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
+import {clipEffects, ordinaryEffectOps, setClipEffects} from '../clipEffects.ts';
 export type Meta = {duration: number; tracks: number; annotations: {time: number; text: string; track: string}[]};
 export type Row = {
   id: string;
@@ -55,7 +56,7 @@ export const title = (kind: string) => {
   );
 };
 /** A function's target, as shown on timeline rows. */
-export const roleTitle = (role: string) => targetLabels[role] ?? role;
+export const roleTitle = (role: string) => pairRoleLabels[role] ?? role;
 export function rows(w: Workspace, a: Action, step?: string): Row[] {
   const p = a.config,
     items: Row[] = [];
@@ -119,7 +120,7 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
               label: title(spec.kind),
               from: effectMark(on),
               until: effectMark(off),
-              role: on.values.target ?? 'sender',
+              role: on.values.target ?? 'both',
               group: {on, off},
             });
           }
@@ -133,7 +134,7 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
           kind: e.values.op,
           label: title(e.values.op),
           from: effectMark(e),
-          role: e.values.target ?? 'sender',
+          role: e.values.target ?? 'both',
           effect: e,
         });
     }
@@ -145,6 +146,9 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
       else if (s.enabled) items.push({id: key, kind: key, label: title(key), from: s.from, until: s.until});
     }
     if (p.cost.enabled) items.push({id: 'cost', kind: 'cost', label: title('cost'), from: p.cost.at});
+    // Clip-time functions on the actor playing it (runtime 0.12.274).
+    for (const e of p.effects ?? [])
+      items.push({id: 'effect:' + e.id, kind: e.values.op, label: title(e.values.op), from: effectMark(e), effect: e});
   }
   if (p.recovery.enabled && (!step || !p.steps.find(s => s.id === step)?.recovery))
     items.push({id: 'recovery', kind: 'recovery', label: title('recovery'), from: p.recovery.at});
@@ -207,7 +211,7 @@ export function patch(w: Workspace, action: string, id: string, change: {from?: 
     }
   } else if (id.startsWith('effect:')) {
     // A pair effect runs at a clip time; an event moment is a registry function (format 3).
-    const e = a.pair?.effects.find(e => e.id === id.slice(7));
+    const e = clipEffects(a).find(e => e.id === id.slice(7));
     if (e && change.from?.basis === 'seconds') e.values.at = String(change.from.seconds);
   } else if (id.startsWith('pair:') && a.pair) {
     const key = id.slice(5) as keyof typeof a.pair.timeline;
@@ -242,7 +246,11 @@ export function remove(w: Workspace, action: string, id: string): Workspace {
   else if (id === 'runtime:carryFix' && a.pair?.carry) a.pair.carry.fix = null;
   else if (id === 'runtime:cameraRestore') a.cameraEnabled = false;
   else if (id.startsWith('cancel:')) a.cancels = a.cancels.filter(c => c.id !== id.slice(7));
-  else if (id.startsWith('effect:')) a.pair!.effects = a.pair!.effects.filter(e => e.id !== id.slice(7));
+  else if (id.startsWith('effect:'))
+    setClipEffects(
+      a,
+      clipEffects(a).filter(e => e.id !== id.slice(7))
+    );
   else if (id.startsWith('pair:') && a.pair)
     a.pair.timeline[id.slice(5) as keyof typeof a.pair.timeline].enabled = false;
   else if (slots.includes(id as any)) {
@@ -331,9 +339,22 @@ export function add(
         'effect',
         a.pair.effects.map(e => e.id)
       ),
-      values: {op: kind, at: String(time), target: 'initiator', from: 'initiator'},
+      // Both actors unless the item names one (runtime 0.12.275).
+      values: {op: kind, at: String(time)},
     };
     a.pair.effects.push(e);
+    id = 'effect:' + e.id;
+  } else if (ordinaryEffectOps.includes(kind)) {
+    // An ordinary action's clip-time function changes the actor playing it: no target (runtime 0.12.274).
+    const list = clipEffects(a);
+    const e = {
+      id: uid(
+        'effect',
+        list.map(e => e.id)
+      ),
+      values: {op: kind, at: String(time)},
+    };
+    setClipEffects(a, [...list, e]);
     id = 'effect:' + e.id;
   } else throw Error(t('timeline.unsupported'));
   const result = patch(n, action, id, {
@@ -366,8 +387,7 @@ export function duplicate(w: Workspace, action: string, id: string, time: number
               id: '',
               values: {
                 op,
-                target: s.role,
-                from: s.source,
+                ...(s.role !== 'both' ? {target: s.role} : {}),
                 ...(r.kind === 'cost' ? {stamina: String(s.stamina), magicka: String(s.magicka)} : {}),
               },
             }) as Effect
@@ -393,17 +413,18 @@ export function duplicate(w: Workspace, action: string, id: string, time: number
     n.layout[key][group] = {x: 0, y: 0, text: JSON.stringify({kind: r.kind, on: copies[0].id, off: copies[1].id})};
     return {workspace: assignTrack(n, action, 'range:' + group, trackOf(w, action, id)), id: 'range:' + group};
   }
-  const e = a.pair?.effects.find(e => id === 'effect:' + e.id);
+  const list = clipEffects(a),
+    e = list.find(e => id === 'effect:' + e.id);
   if (!e) throw Error(t('timeline.singleton'));
   const copy = {
     ...clone(e),
     id: uid(
       'effect',
-      a.pair!.effects.map(e => e.id)
+      list.map(e => e.id)
     ),
   };
   copy.values.at = String(time);
-  a.pair!.effects.push(copy);
+  setClipEffects(a, [...list, copy]);
   return {workspace: assignTrack(n, action, 'effect:' + copy.id, trackOf(w, action, id)), id: 'effect:' + copy.id};
 }
 const layout = (a: string) => 'timeline_' + layoutKey(a);

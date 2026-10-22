@@ -110,8 +110,8 @@ export function checklistModel(w: Workspace, raw = flatGraph(w)) {
   // nodeAuthored) draws it with a line to each start; an action made in the editor never did, so a project
   // looks the same whether it was made here or read from its XML.
   for (const n of raw.nodes.filter(n => n.kind === 'entry')) hidden.add(n.id);
-  // The end of an action is no card: its exit blend is an item of the HKX card and its safety time is in the
-  // HKX details. Choosing an output pose (a check's location) shows the HKX card.
+  // The end of an action is no card: its exit blend is an item of the HKX card. Choosing an output pose (a
+  // check's location) shows the HKX card.
   for (const n of raw.nodes.filter(n => n.kind === 'outputPose')) {
     hidden.add(n.id);
     const own = plays.filter(p => p.action === n.action);
@@ -276,5 +276,12 @@ export function copyChecklistNodes(w: Workspace, ids: string[]): NodeClipboard {
 export function deleteChecklistNode(w: Workspace, id: string): Workspace {
   const n = flatGraph(w).nodes.find(n => n.id === id),
     a = w.actions.find(a => a.uid === n?.action);
-  return n?.kind === 'hkxPlay' && a?.config.steps.length === 1 ? retirePlayback(w, a.uid, false) : deleteFlat(w, id);
+  if (n?.kind === 'hkxPlay' && a?.config.steps.length === 1) return retirePlayback(w, a.uid, false);
+  const next = deleteFlat(w, id);
+  // A selecting action with no HKX of its own whose last condition is gone plays nothing: it goes too (its hidden
+  // HKX card came back empty and its entry settings stayed in the XML), its start card left as a loose card.
+  const left = a && next.actions.find(x => x.uid === a.uid);
+  return left && selectsOnly(a) && !a.config.steps[0]?.clip && !left.flow?.tests.length
+    ? retirePlayback(next, a.uid, false)
+    : next;
 }

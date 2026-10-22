@@ -5,11 +5,10 @@
   </Inputs>
   <Action id="EditorDirectional_F" clip="Animations\DirectDodge\Dodge_Forward.hkx">
     <Start input="a1_i1" onKeyUp="false"/>
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <IFrame from="0" until="end"/>
-    <Advanced safety="3"/>
     <Flow entry="dir">
       <Test id="dir" kind="movementDirection" subject="self" option="forward" pass="Play"/>
       <Play id="Play" action="EditorDirectional_F"/>
@@ -17,11 +16,10 @@
   </Action>
   <Action id="EditorDirectional_B" clip="Animations\DirectDodge\Dodge_Back.hkx">
     <Start input="a1_i1" onKeyUp="false"/>
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <IFrame from="0" until="end"/>
-    <Advanced safety="3"/>
     <Flow entry="dir">
       <Any id="dir" pass="Play">
         <Use node="held"/>
@@ -34,11 +32,10 @@
   </Action>
   <Action id="EditorDirectional_L" clip="Animations\DirectDodge\Dodge_Left.hkx">
     <Start input="a1_i1" onKeyUp="false"/>
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <IFrame from="0" until="end"/>
-    <Advanced safety="3"/>
     <Flow entry="dir">
       <Test id="dir" kind="movementDirection" subject="self" option="left" pass="Play"/>
       <Play id="Play" action="EditorDirectional_L"/>
@@ -46,11 +43,10 @@
   </Action>
   <Action id="EditorDirectional_R" clip="Animations\DirectDodge\Dodge_Right.hkx">
     <Start input="a1_i1" onKeyUp="false"/>
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <IFrame from="0" until="end"/>
-    <Advanced safety="3"/>
     <Flow entry="dir">
       <Test id="dir" kind="movementDirection" subject="self" option="right" pass="Play"/>
       <Play id="Play" action="EditorDirectional_R"/>

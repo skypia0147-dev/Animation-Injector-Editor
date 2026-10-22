@@ -66,6 +66,16 @@ export function makeDraft(w: Workspace, owner: string, kind: string, position: {
   }
   return {workspace: {...w, drafts: [...(w.drafts ?? []), d]}, id, position};
 }
+/** A selecting action's entry settings (docs/mockup-entry-settings, 10-21): what its start reads before it picks.
+ *  Its HKX card is not drawn, so the item is put on the action as a dropped card would be. */
+export function addEntrySetting(w: Workspace, action: string, kind: 'stateCondition' | 'suppress') {
+  const made = makeDraft(w, action, kind, {x: 0, y: 0});
+  return attachDraft(
+    made.workspace,
+    made.workspace.drafts!.find(d => d.id === made.id)!,
+    action
+  ).workspace;
+}
 export function attachDraft(w: Workspace, d: DraftNode, action: string, step?: string) {
   if (d.from || d.to) throw Error(tr('HKX에서 나온 전환 키입니다. 출력을 도착할 다른 HKX에 연결하세요.'));
   let next = structuredClone(w),
@@ -98,8 +108,7 @@ export function attachDraft(w: Workspace, d: DraftNode, action: string, step?: s
       p.start = {...q.start, input: id};
     } else p.start = {...q.start, input: ''};
   } else if (d.kind === 'stateCondition') {
-    for (const k of ['weapon', 'air', 'cooldown', 'requiredStamina', 'blockWhileAttacking'] as const)
-      Object.assign(p, {[k]: q[k]});
+    for (const k of ['air', 'cooldown'] as const) Object.assign(p, {[k]: q[k]});
   } else if (d.kind === 'fireArrow') {
     if (a.pair || p.fireArrow) throw Error(tr('일반 동작에 활 발사 하나만 연결하세요.'));
     p.fireArrow = structuredClone(q.fireArrow ?? defaultFireArrow());
@@ -143,6 +152,10 @@ export function attachDraft(w: Workspace, d: DraftNode, action: string, step?: s
         const c = a.cancels.at(-1)!;
         Object.assign(c, structuredClone(d.value.cancels[0]), {id: c.id});
       }
+      // A clip-time function keeps what was set on the draft (runtime 0.12.274).
+      const fresh = d.value.config.effects?.at(-1),
+        added = a.config.effects?.at(-1);
+      if (fresh && added && local === 'effect:' + added.id) added.values = structuredClone(fresh.values);
     } else {
       // A draft starts from an empty pair timeline/effect list.
       for (const [key, val] of Object.entries(d.value.pair!.timeline))

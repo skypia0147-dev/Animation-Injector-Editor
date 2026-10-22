@@ -34,6 +34,8 @@ export type GraphEdge = {
   via?: string;
   /** The actions whose own QTE sends `via` to themselves on this line. */
   viaFrom?: string[];
+  /** A fanned branch's place (0 = ①, graph/conditionFans.ts): the lines out of one pass in their order. */
+  rank?: number;
 };
 // Drawing asks for each graph's action many times (hundreds of scans of every action per edit): an index per
 // actions array, checked against the array on each lookup, since edit code may still change the array.
@@ -211,7 +213,7 @@ export function projectGraph(w: Workspace, g: GraphRef): {nodes: GraphNode[]; ed
       edge('detectionWindow', 'result');
     } else if (mode !== 'none') edge(mode === 'event' ? 'markerReceive' : 'keyInput', 'result');
     if (g.kind === 'start') {
-      if (p.weapon || p.blockWhileAttacking || p.cooldown > 0 || p.requiredStamina > 0 || p.air !== 'deny') {
+      if (p.cooldown > 0 || p.air !== 'deny') {
         add('stateCondition', 'stateCondition', t('node.stateCondition'), 260, 190, {outputs: ['condition']});
         edge('stateCondition', 'result', 'condition');
       }
@@ -349,11 +351,8 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
       p.start.mode = remove ? 'none' : kind === 'keyInput' ? 'input' : 'event';
       if (!remove && kind === 'keyInput') p.start.input = p.inputs[0]?.id ?? '';
     } else if (kind === 'stateCondition') {
-      // Removed: the defaults (no condition); added: a drawn weapon, the condition a new node starts with.
-      p.weapon = !remove;
-      p.blockWhileAttacking = false;
-      p.cooldown = 0;
-      p.requiredStamina = 0;
+      // Removed: the defaults (ground, no cooldown); added: the common 0.2 s cooldown a new item starts with.
+      p.cooldown = remove ? 0 : 0.2;
       p.air = 'deny';
     } else throw Error(t('graph.unsupported'));
   } else if (g.kind === 'link') {

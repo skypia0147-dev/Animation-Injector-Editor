@@ -95,9 +95,8 @@ test('defaults are not written (format 4): a new action is its clip, key and ble
   assert.match(xml, /<Action id="EditorSingle" clip="Animations\\MyMod\\Action.hkx">/);
   assert.doesNotMatch(xml, /<Require|<Advanced|graph=|cooldown=|safety=|air=/);
   const p = createProject();
-  Object.assign(p, {cooldown: 0.2, air: 'allow', weapon: true, safety: 0.7});
-  assert.match(exportXml(p), /<Require weapon="drawn" air="allow" cooldown="0.2"\/>/);
-  assert.match(exportXml(p), /<Advanced safety="0.7"\/>/);
+  Object.assign(p, {cooldown: 0.2, air: 'allow'});
+  assert.match(exportXml(p), /<Require air="allow" cooldown="0.2"\/>/);
 });
 test('runtime timing limits block unsupported clocks and escaping preserves event strings', () => {
   const p = createProject();

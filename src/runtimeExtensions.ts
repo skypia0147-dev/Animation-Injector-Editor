@@ -90,14 +90,37 @@ export function stripExtensions(value: any): unknown {
   }
   if (p?.fireArrow !== undefined) {
     const f = p.fireArrow;
+    const keys = f ? Object.keys(f).filter(k => k !== 'mode' && k !== 'damage') : [];
     if (
       !f ||
-      Object.keys(f).sort().join() !== 'at,onRelease' ||
+      keys.sort().join() !== 'at,onRelease' ||
       typeof f.onRelease !== 'boolean' ||
-      (f.at !== null && !markOk(f.at))
+      (f.at !== null && !markOk(f.at)) ||
+      (f.mode !== undefined && f.mode !== 'direct') ||
+      (f.damage !== undefined && (f.mode !== 'direct' || typeof f.damage !== 'number' || !Number.isFinite(f.damage)))
     )
       fail();
     delete p.fireArrow;
+  }
+  if (p?.effects !== undefined) {
+    const list = p.effects;
+    if (
+      !Array.isArray(list) ||
+      list.length > 500 ||
+      list.some(
+        (e: any) =>
+          !e ||
+          typeof e !== 'object' ||
+          Object.keys(e).sort().join() !== 'id,values' ||
+          typeof e.id !== 'string' ||
+          !e.values ||
+          typeof e.values !== 'object' ||
+          Array.isArray(e.values) ||
+          Object.values(e.values).some(v => typeof v !== 'string' || v.length > 1024)
+      )
+    )
+      fail();
+    delete p.effects;
   }
   if (p?.extraEvents !== undefined) {
     events(p.extraEvents);

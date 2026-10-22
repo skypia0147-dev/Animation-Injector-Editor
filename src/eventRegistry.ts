@@ -10,10 +10,10 @@ import {vanillaEvents} from './vanillaEvents.ts';
 import {animId} from './graph/blends.ts';
 import {tr} from './i18n/korean.ts';
 
-/** A function is an Effect: `values` holds op, target, from and the op's settings (strings, like XML). */
-/** `values`: payloads clips send after the name ("Grapple_CamShake|1.5|0.5" -> "1.5|0.5"). An annotation
- *  is sent only when its whole text is a graph event name, so each "name|value" is registered too. */
-export type EventRow = {id: string; name: string; functions: Effect[]; values?: string[]};
+/** A function is an Effect: `values` holds op and the op's settings (strings, like XML). A registered event's
+ *  function changes the actor that sent the event (runtime 0.12.273); only a pair's clip-time effect also holds
+ *  a target. */
+export type EventRow = {id: string; name: string; functions: Effect[]};
 
 export const eventOps = [
   'hide',
@@ -36,43 +36,42 @@ export const eventOps = [
   'fireArrow',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
-export const eventTargets = ['sender', 'partner', 'both', 'player', 'initiator', 'receiver'] as const;
-export const eventFroms = ['any', 'player', 'npc', 'initiator', 'receiver'] as const;
-export const targetLabels: Record<string, string> = {
-  get sender() {
-    return tr('이벤트 보낸 쪽');
-  },
-  get partner() {
-    return tr('페어 상대');
-  },
+/** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
+ *  Absent = both. A registered event's function changes its sender and an ordinary action's the actor playing
+ *  it: neither holds one. */
+export const pairRoles = ['both', 'initiator', 'receiver', 'player'] as const;
+export const pairRoleLabels: Record<string, string> = {
   get both() {
     return tr('둘 다');
   },
-  get player() {
-    return tr('플레이어');
-  },
   get initiator() {
-    return tr('페어 시작 쪽');
+    return tr('가해자');
   },
   get receiver() {
-    return tr('페어 대상 쪽');
-  },
-};
-export const fromLabels: Record<string, string> = {
-  get any() {
-    return tr('모두');
+    return tr('피해자');
   },
   get player() {
-    return tr('플레이어');
-  },
-  npc: 'NPC',
-  get initiator() {
-    return tr('페어 시작 쪽');
-  },
-  get receiver() {
-    return tr('페어 대상 쪽');
+    return tr('플레이어인 쪽');
   },
 };
+/** An older pair effect's target and sender filter as the role they reached (with every role a sender). */
+export function pairRole(target?: string, from?: string): string {
+  const t = target || 'sender',
+    f = from || 'any';
+  if ((pairRoles as readonly string[]).includes(t)) return t;
+  if (f === 'initiator') return t === 'sender' ? 'initiator' : 'receiver';
+  if (f === 'receiver') return t === 'sender' ? 'receiver' : 'initiator';
+  if (f === 'player' && t === 'sender') return 'player';
+  return 'both';
+}
+/** A pair clip-time effect's values in the 0.12.275 shape: a role (none for both or a player-only op), no `from`. */
+export function pairEffectValues(values: Record<string, string>) {
+  const role = pairRole(values.target, values.from);
+  delete values.from;
+  if (role === 'both' || opInfo[values.op as EventOp]?.player) delete values.target;
+  else values.target = role;
+  return values;
+}
 type OpInfo = {label: string; lasting?: EventOp; player?: boolean; fields: string[]};
 export const opInfo: Record<EventOp, OpInfo> = {
   hide: {
@@ -118,7 +117,7 @@ export const opInfo: Record<EventOp, OpInfo> = {
       return tr('카메라 흔들림');
     },
     player: true,
-    fields: ['strength', 'duration', 'parameters'],
+    fields: ['strength', 'duration'],
   },
   stopVelocity: {
     get label() {
@@ -191,7 +190,8 @@ export const opInfo: Record<EventOp, OpInfo> = {
       return tr('활 발사');
     },
     player: true,
-    fields: [],
+    // How the arrow leaves the bow (runtime 0.12.268): drawn (absent) or direct, and the direct shot's damage %.
+    fields: ['mode', 'damage'],
   },
 };
 export const settingKeys = [
@@ -202,16 +202,30 @@ export const settingKeys = [
   'magicka',
   'strength',
   'duration',
-  'parameters',
   'factor',
   'delay',
-  'space',
-  'minSpace',
-  'maxSpace',
+  'mode',
+  'damage',
 ] as const;
-/** Every key a function's values may hold; a pair's clip-time effect adds `at`. */
-export const functionKeys = ['op', 'target', 'from', ...settingKeys];
-export const timedKeys = ['at', ...functionKeys];
+/** Every key a registered event's function may hold; a pair's clip-time effect adds `at`, `target` and `from`. */
+export const functionKeys = ['op', ...settingKeys];
+export const timedKeys = ['at', 'op', 'target', ...settingKeys];
+/** Target and sender filter of a registered event's function are gone (runtime 0.12.273): it changes the sender. */
+export function senderOnly(values: Record<string, string>) {
+  delete values.target;
+  delete values.from;
+  return values;
+}
+/** Retired settings an older file or project may still hold: a shake's `parameters` (runtime 0.12.274: an
+ *  annotation's own numbers are AI.CamShake|strength|duration). */
+export function dropRetired(values: Record<string, string>) {
+  delete values.parameters;
+  // A function's own space condition is gone (runtime 0.12.275): a space split is a condition branch.
+  delete values.space;
+  delete values.minSpace;
+  delete values.maxSpace;
+  return values;
+}
 export const settingLabels: Record<string, string> = {
   get plugin() {
     return tr('플러그인');
@@ -234,28 +248,27 @@ export const settingLabels: Record<string, string> = {
   get duration() {
     return tr('시간(초)');
   },
-  get parameters() {
-    return tr('값 전달(이름|세기|시간)');
-  },
   get factor() {
     return tr('배율');
   },
   get delay() {
     return tr('지연(초)');
   },
-  get space() {
-    return tr('공간 조건 방향');
+  get mode() {
+    return tr('발사 방식');
   },
-  get minSpace() {
-    return tr('최소 공간');
-  },
-  get maxSpace() {
-    return tr('최대 공간');
+  get damage() {
+    return tr('피해 %');
   },
 };
-const booleanKeys = new Set(['releasePhysics', 'parameters']);
+/** A fireArrow's ways (runtime 0.12.268): the value written for each and what the menu says. */
+export const arrowModes = (): [string, string][] => [
+  ['', tr('당긴 만큼')],
+  ['direct', tr('바로 발사')],
+];
+const booleanKeys = new Set(['releasePhysics']);
 export const isBooleanSetting = (key: string) => booleanKeys.has(key);
-const commonFields = ['delay', 'space', 'minSpace', 'maxSpace'];
+const commonFields = ['delay'];
 export const fieldsOf = (op: string) => [...(opInfo[op as EventOp]?.fields ?? []), ...commonFields];
 const numberRanges: Record<string, [number, number]> = {
   delay: [0, 60],
@@ -263,9 +276,8 @@ const numberRanges: Record<string, [number, number]> = {
   magicka: [0, 100000],
   strength: [0, 10],
   duration: [0, 30],
-  minSpace: [0, 10000],
-  maxSpace: [0, 10000],
   factor: [0.05, 5],
+  damage: [1, 1000],
 };
 export const settingRange = (key: string) => numberRanges[key];
 export const settingDefault: Record<string, string> = {
@@ -273,22 +285,11 @@ export const settingDefault: Record<string, string> = {
   duration: '0.5',
   factor: '1',
   releasePhysics: 'false',
-  parameters: 'false',
   delay: '0',
-  minSpace: '0',
-  maxSpace: '10000',
+  damage: '100',
 };
 
 const eventNameOk = (s: string) => !!s.trim() && s.length <= 256 && !/[|@\x00-\x1f]/.test(s);
-/** A payload spelling of `name`: no spaces (the XML separator), no "@", and "name|value" within 256. */
-export const eventValueOk = (name: string, value: string) =>
-  !!value && !/[\s@\x00-\x1f]/.test(value) && name.length + 1 + value.length <= 256;
-/** The values of a space-separated field, in order, each once (case ignored). */
-export function splitValues(text: string): string[] {
-  const out: string[] = [];
-  for (const v of text.split(/\s+/)) if (v && !out.some(o => o.toLowerCase() === v.toLowerCase())) out.push(v);
-  return out;
-}
 export const eventKey = (name: string) => name.toLowerCase();
 /** A registered function on a vanilla behavior event name runs across the whole game. An annotation
  *  "Name.payload" (SoundPlay.WPNSwingFx, StartAnimatedCamera.Camera3rd [Cam3]) is the vanilla event Name
@@ -301,17 +302,22 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
   const out: Record<string, string> = {};
   if (timed) out.at = values.at ?? '0';
   out.op = values.op;
-  if (values.target && values.target !== 'sender') out.target = values.target;
-  if (values.from && values.from !== 'any') out.from = values.from;
+  if (timed && values.target && values.target !== 'both') out.target = values.target;
   const used = new Set(fieldsOf(values.op));
   for (const k of settingKeys) if (used.has(k) && values[k] !== undefined && values[k] !== '') out[k] = values[k];
+  // Only a direct shot has a damage, and 100% is the runtime's default.
+  if (out.mode !== 'direct' || out.damage === '100') delete out.damage;
+  if (out.mode !== 'direct') delete out.mode;
   return out;
 }
 /** Chip text: the op and only what differs from the defaults. */
 export function functionSummary(values: Record<string, string>): string {
-  const parts = [opInfo[values.op as EventOp]?.label ?? values.op];
-  if (values.target && values.target !== 'sender') parts.push(targetLabels[values.target] ?? values.target);
-  if (values.from && values.from !== 'any') parts.push((fromLabels[values.from] ?? values.from) + tr(' 이벤트만'));
+  return [opInfo[values.op as EventOp]?.label ?? values.op, ...functionParts(values)].join(' · ');
+}
+/** A function's settings without its name (a card item already titled by it): the defaults left out. */
+export function functionParts(values: Record<string, string>): string[] {
+  const parts: string[] = [];
+  if (values.target && values.target !== 'both') parts.push(pairRoleLabels[values.target] ?? values.target);
   if (values.form) parts.push(values.form);
   if (values.op === 'cost')
     parts.push(
@@ -320,10 +326,13 @@ export function functionSummary(values: Record<string, string>): string {
         .join(' ') || '0'
     );
   if (values.op === 'timeOn' && values.factor) parts.push('×' + values.factor);
+  if (values.op === 'shake' && (values.strength || values.duration))
+    parts.push(tr('세기 {s} · {d}초', {s: values.strength || '1', d: values.duration || '0.5'}));
+  if (values.op === 'fireArrow' && values.mode === 'direct')
+    parts.push(tr('바로 발사 · 피해 {damage}%', {damage: values.damage || '100'}));
   if (values.delay && Number(values.delay)) parts.push(tr('지연 ') + values.delay + tr('초'));
   if (values.releasePhysics === 'true') parts.push(tr('물리 풀기'));
-  if (values.parameters === 'true') parts.push(tr('값 전달'));
-  return parts.join(' · ');
+  return parts;
 }
 export const lastingOp = (op: string) => !!opInfo[op as EventOp]?.lasting;
 
@@ -395,8 +404,14 @@ export function liftToRegistry(w: any) {
   if (!w || typeof w !== 'object') return;
   const rows: EventRow[] = Array.isArray(w.eventRegistry) ? w.eventRegistry : [];
   const register = (name: unknown, values?: Record<string, string>) => {
-    if (typeof name === 'string' && name.trim()) registerIn(rows, name.trim(), values);
+    if (typeof name === 'string' && name.trim()) registerIn(rows, name.trim(), values && senderOnly({...values}));
   };
+  // A function saved with a target or a sender filter changes its sender now (runtime 0.12.273); payload
+  // spellings and shake parameters are gone (0.12.274: AI.CamShake annotations carry the numbers).
+  for (const row of rows) {
+    if (row && typeof row === 'object') delete (row as {values?: unknown}).values;
+    for (const f of row?.functions ?? []) if (f?.values) dropRetired(senderOnly(f.values));
+  }
   const visit = (a: any) => {
     if (!a || typeof a !== 'object') return;
     const p = a.config;
@@ -412,7 +427,7 @@ export function liftToRegistry(w: any) {
       if (p.fireArrow && typeof p.fireArrow === 'object' && !('onRelease' in p.fireArrow)) {
         const m = p.fireArrow.at;
         if (isMark(m) && m.basis === 'event') {
-          register(m.event, {op: 'fireArrow', from: 'player'});
+          register(m.event, {op: 'fireArrow'});
           p.fireArrow = {at: null, onRelease: true};
         } else p.fireArrow = {at: isMark(m) ? m : null, onRelease: true};
       }
@@ -488,6 +503,23 @@ export function liftToRegistry(w: any) {
   };
   for (const a of Array.isArray(w.actions) ? w.actions : []) visit(a);
   for (const d of Array.isArray(w.drafts) ? w.drafts : []) visit(d?.value);
+  // After the renames above: a pair's clip-time effect names a role and no sender filter (0.12.275); an ordinary
+  // action's names none.
+  const roles = (a: any) => {
+    if (!a || typeof a !== 'object') return;
+    for (const e of Array.isArray(a.pair?.effects) ? a.pair.effects : [])
+      if (e?.values && typeof e.values === 'object') pairEffectValues(dropRetired(e.values));
+    for (const e of Array.isArray(a.config?.effects) ? a.config.effects : [])
+      if (e?.values && typeof e.values === 'object') senderOnly(dropRetired(e.values));
+    for (const t of Object.values(a.pair?.timeline ?? {}) as any[])
+      if (t && typeof t === 'object' && 'role' in t) {
+        t.role = pairRole(t.role, t.source);
+        t.source = 'any';
+      }
+    for (const v of Object.values(a.variants ?? {})) roles(v);
+  };
+  for (const a of Array.isArray(w.actions) ? w.actions : []) roles(a);
+  for (const d of Array.isArray(w.drafts) ? w.drafts : []) roles(d?.value);
   if (Array.isArray(w.eventCatalog)) {
     w.eventCatalog.forEach((n: unknown) => register(n));
     delete w.eventCatalog;
@@ -504,10 +536,13 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   const out: string[] = [];
   if (!eventOps.includes(v.op as EventOp)) out.push(tr('기능을 선택하세요.'));
   if (timed && v.op === 'fireArrow') out.push(tr('시간 기준 활 발사는 동작의 활 발사에서 지정합니다.'));
-  if (v.target !== undefined && !eventTargets.includes(v.target as any)) out.push(tr('대상 값이 잘못되었습니다.'));
-  if (v.from !== undefined && !eventFroms.includes(v.from as any)) out.push(tr('반응 조건 값이 잘못되었습니다.'));
-  if (v.op === 'fireArrow' && !['sender', 'player', undefined].includes(v.target))
-    out.push(tr('활 발사의 대상은 이벤트 보낸 쪽 또는 플레이어입니다.'));
+  if (v.target !== undefined && !(timed && (pairRoles as readonly string[]).includes(v.target)))
+    out.push(tr('적용 값이 잘못되었습니다.'));
+  if (v.from !== undefined) out.push(tr('반응 조건은 없어졌습니다.'));
+  if (v.mode !== undefined && v.mode !== '' && !(v.op === 'fireArrow' && ['drawn', 'direct'].includes(v.mode)))
+    out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
+  if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
+    out.push(tr('피해 %는 바로 발사에서만 씁니다.'));
   if (['spell', 'stateOn', 'stateOff'].includes(v.op)) {
     if (!v.plugin || /[\\/:]/.test(v.plugin)) out.push(tr('플러그인 파일 이름을 입력하세요.'));
     if (!/^(?:0x)?[\da-f]{1,8}$/i.test(v.form ?? '')) out.push(tr('16진수 폼 ID를 입력하세요.'));
@@ -522,9 +557,6 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   for (const k of booleanKeys)
     if (v[k] !== undefined && !['true', 'false'].includes(v[k]))
       out.push(tr('{v0}: 켬/끔 값 오류', {v0: settingLabels[k]}));
-  if (v.space !== undefined && v.space !== '' && !['front', 'back', 'left', 'right', 'down'].includes(v.space))
-    out.push(tr('공간 조건 방향 오류'));
-  if (Number(v.minSpace || 0) > Number(v.maxSpace || 10000)) out.push(tr('최소 공간은 최대 공간 이하여야 합니다.'));
   if (timed && !(v.at !== undefined && v.at.trim() !== '' && Number(v.at) >= 0 && Number(v.at) <= 600))
     out.push(tr('시각은 0~600초입니다.'));
   return out;
@@ -549,14 +581,6 @@ export function registryIssues(w: Workspace): Issue[] {
     seen.add(eventKey(r.name));
     if (r.functions.length > 64)
       out.push({level: 'error', node: 'eventRegistry', message: where(tr('기능은 64개까지입니다.'))});
-    const values = r.values ?? [];
-    if (values.length > 64)
-      out.push({level: 'error', node: 'eventRegistry', message: where(tr('값은 64개까지입니다.'))});
-    for (const v of values)
-      if (!eventValueOk(r.name, v))
-        out.push({level: 'error', node: 'eventRegistry', message: where(tr('값이 잘못되었습니다: {v}', {v}))});
-    if (new Set(values.map(v => v.toLowerCase())).size !== values.length)
-      out.push({level: 'error', node: 'eventRegistry', message: where(tr('같은 값을 두 번 적었습니다.'))});
     for (const f of r.functions)
       for (const m of functionErrors(f.values)) out.push({level: 'error', node: 'eventRegistry', message: where(m)});
     if (r.functions.length && vanillaName(r.name))
@@ -608,7 +632,7 @@ export function registryXml(w: Workspace): Xml | undefined {
     rows.map(r =>
       node(
         'Event',
-        {name: r.name, ...(r.values?.length ? {values: r.values.join(' ')} : {})},
+        {name: r.name},
         r.functions.map(f => node('Do', doAttrs(f.values)))
       )
     )
@@ -617,6 +641,16 @@ export function registryXml(w: Workspace): Xml | undefined {
 const eventDoAttrs = functionKeys;
 /** One <Do> of a registered event, or (`timed`) of a pair's <Effects>. */
 export function readDo(n: Xml, timed: boolean): Record<string, string> {
+  // An older file's event function with a target or sender filter opens as one changing its sender (0.12.273).
+  if (!timed) senderOnly(n.attrs);
+  dropRetired(n.attrs);
+  // An older file's clip-time target and sender filter become the role they reached (0.12.275).
+  if (timed && (n.attrs.from !== undefined || n.attrs.target !== undefined)) {
+    const role = pairRole(n.attrs.target, n.attrs.from);
+    delete n.attrs.from;
+    if (role === 'both') delete n.attrs.target;
+    else n.attrs.target = role;
+  }
   shapeXml(n, timed ? timedKeys : eventDoAttrs);
   const values = {...n.attrs};
   if (!values.op) throw Error(tr('Do.op: 필수 값'));
@@ -639,16 +673,9 @@ export function readRegistry(r: Xml, rows: EventRow[]) {
     // An event that only starts QTEs (runtime 0.12.248) is no registry row: its QTE cards carry it (qte.ts
     // readEventQtes), and writing them back gives the same <Event>.
     const dos = e.children.filter(d => d.name === 'Do');
-    if (!dos.length && !e.attrs.values && e.children.some(d => d.name === 'QTE')) continue;
-    const row = registerIn(rows, name);
-    const text = e.attrs.values ?? '',
-      values = splitValues(text);
-    if (values.length !== text.split(/\s+/).filter(Boolean).length)
-      throw Error(tr('Event.values: 같은 값을 두 번 적었습니다: {name}', {name}));
-    for (const v of values)
-      if (!eventValueOk(name, v)) throw Error(tr('Event.values: 값이 잘못되었습니다: {name}|{v}', {name, v}));
-    if (values.length > 64) throw Error(tr('Event.values: 값은 64개까지입니다: {name}', {name}));
-    if (values.length) row.values = values;
+    // An older file's payload spellings (values) are dropped: AI.CamShake annotations carry numbers (0.12.274).
+    if (!dos.length && e.children.some(d => d.name === 'QTE')) continue;
+    registerIn(rows, name);
     for (const d of dos) registerIn(rows, name, readDo(d, false));
   }
 }
@@ -953,21 +980,6 @@ export function addEventRow(w: Workspace, name: string): Workspace {
     throw Error(tr('이미 등록된 이벤트입니다.'));
   return withRows(w, rows => registerIn(rows, name));
 }
-/** Replaces the payload spellings of `name`, registering the name first when it has no row. */
-export function setEventValues(w: Workspace, name: string, values: string[]): Workspace {
-  const list = splitValues(values.join(' '));
-  const bad = list.find(v => !eventValueOk(name, v));
-  if (bad) throw Error(tr('값이 잘못되었습니다: {bad} (공백·@ 없이, 이름|값 256자 이내)', {bad}));
-  if (list.length > 64) throw Error(tr('값은 64개까지입니다.'));
-  return withRows(w, rows => {
-    const row = registerIn(rows, name);
-    if (list.length) row.values = list;
-    else delete row.values;
-  });
-}
-/** Adds one payload spelling (an HKX annotation "name|value") to `name`'s registration. */
-export const addEventValue = (w: Workspace, name: string, value: string) =>
-  setEventValues(w, name, [...(w.eventRegistry?.find(r => eventKey(r.name) === eventKey(name))?.values ?? []), value]);
 export const newEventName = (w: Workspace) =>
   nextId('NewEvent', [...(w.eventRegistry ?? []).map(r => r.name), ...eventUses(w).keys()]);
 export function removeEventRow(w: Workspace, id: string): Workspace {

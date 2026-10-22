@@ -1,3 +1,4 @@
+import {commandEvent} from '../annotationCommands.ts';
 import {useEffect, useMemo, useState} from 'react';
 import {invoke, isTauri} from '../backend.ts';
 import type {Meta} from '../timeline/model.ts';
@@ -9,12 +10,15 @@ import {tr} from '../i18n/korean.ts';
 export type Annotation = {time: number; text: string};
 // Local HKX path -> its annotations (null: could not be read). Read once per path and session.
 const cache = new Map<string, Annotation[] | null>();
+const durations = new Map<string, number>(); // local HKX path -> its clip length (seconds)
 const pending = new Map<string, Promise<void>>();
 function load(path: string): Promise<void> {
   let p = pending.get(path);
   if (!p) {
     p = invoke<{animations: Meta[]}>('hkx_meta', {path})
       .then(result => {
+        const length = Math.max(0, ...result.animations.map(a => a.duration).filter(Number.isFinite));
+        if (length > 0) durations.set(path, length);
         const seen = new Set<string>(),
           list: Annotation[] = [];
         for (const a of result.animations)
@@ -66,9 +70,19 @@ export function useClipAnnotations(w: Workspace): Map<string, Annotation[]> {
     // `revision` changes when a read finishes.
   }, [paths, revision]);
 }
+/** Clip path (clipKey) -> its length in seconds, for every clip whose source was read (useClipAnnotations reads
+ *  them: call it in the same component so a finished read draws again). */
+export function clipDurations(w: Workspace): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const e of renderedLibrary(w)) {
+    const length = e.localPath ? durations.get(e.localPath) : undefined;
+    if (length) out.set(clipKey(e.clip), length);
+  }
+  return out;
+}
 /** The event an annotation sends: its name ("name|values" payloads send the name), the values, and in a
  *  paired clip the actor that sends it ("NPC" prefix: the initiator, "2_": the receiver). */
-export type SentEvent = {name: string; values: string; role?: 'initiator' | 'receiver'};
+export type SentEvent = {name: string; values: string; role?: 'initiator' | 'receiver'; command?: boolean};
 export const roleLabel = {
   get initiator() {
     return tr('가해자');
@@ -100,6 +114,8 @@ export function sentEvent(text: string, pair: boolean): SentEvent | undefined {
     body = body.slice(3);
   }
   if (/^anim(motion|rotation)\b/i.test(body)) return undefined;
+  // "AI.CamShake|1.5|0.5": the reserved event AI with a command payload (runtime 0.12.274, annotationCommands.ts).
+  if (/^ai\./i.test(body)) return {name: commandEvent, values: body.slice(3), role, command: true};
   const bar = body.indexOf('|');
   return {name: bar < 0 ? body : body.slice(0, bar), values: bar < 0 ? '' : body.slice(bar + 1), role};
 }

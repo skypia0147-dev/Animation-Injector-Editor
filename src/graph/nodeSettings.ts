@@ -111,7 +111,7 @@ export function nodeSettings(w: Workspace, id: string): Settings | undefined {
     };
   }
   if (parts[0] !== 'anim' && parts[0] !== 'start') return;
-  if (local === 'outputPose') return {kind: 'outputPose', value: pick(a.config, ['graph', 'safety'])};
+  if (local === 'outputPose') return {kind: 'outputPose', value: pick(a.config, ['graph'])};
   const keys = fields(a, local);
   if (!keys.length) return;
   if (keys.some(k => k.startsWith('pair.')) && !a.pair) return;

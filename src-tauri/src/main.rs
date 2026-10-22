@@ -254,6 +254,23 @@ async fn resolve_hkx(paths: Vec<String>) -> Result<Vec<HkxResolved>, String> {
     .map_err(|e| e.to_string())
 }
 
+/// Whether each path is a file now: a source path remembered on this computer may point into a mod folder that was
+/// renamed or moved since (the editor then finds the HKX beside the XML again).
+#[tauri::command]
+async fn files_exist(paths: Vec<String>) -> Result<Vec<bool>, String> {
+    if paths.len() > 200 {
+        return Err("한 번에 200개까지 확인합니다.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .iter()
+            .map(|path| fs::metadata(path).map(|m| m.is_file()).unwrap_or(false))
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn check_assets(files: Vec<AssetRequest>) -> Result<Vec<AssetResult>, String> {
     if files.len() > 100 {
@@ -503,6 +520,7 @@ fn main() {
             save_to_path,
             pick_hkx,
             resolve_hkx,
+            files_exist,
             resolve_search_roots,
             check_assets,
             modpack::pick_asset_root,

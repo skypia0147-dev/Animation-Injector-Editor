@@ -64,7 +64,7 @@ test('native equivalence checks detect a changed rotation lock', needsChecker, (
   const fixture = readFileSync('tests/fixtures/current-xml/Single.xml', 'utf8');
   const files = [false, true].map(locked => {
     const file = resolve(out, `rotation-${locked}.xml`);
-    writeFileSync(file, fixture.replace('    <Advanced', `    <Rotate locked="${locked}"/>\n    <Advanced`));
+    writeFileSync(file, fixture.replace('    <Attack', `    <Rotate locked="${locked}"/>\n    <Attack`));
     check(file);
     return file;
   });

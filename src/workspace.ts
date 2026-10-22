@@ -6,6 +6,7 @@ import {XML_FORMAT_VERSION} from './xmlFormat.ts';
 import {lowerDisconnected} from './graph/disconnect.ts';
 import {sourceLinks} from './graph/playback.ts';
 import {checkFlows, flowXml, lowerFlowDrafts, foldNotConditions, unpairableRoutes} from './graph/conditions.ts';
+import {checkFans} from './graph/conditionFans.ts';
 import {lowerGraph} from './graph/document.ts';
 import type {ActionKind, ActionVariant} from './actionTypes.ts';
 import {lowerBlends} from './graph/blends.ts';
@@ -24,6 +25,7 @@ import {
   dropCombo,
   dropMotion,
   dropLock,
+  dropSafety,
   removedGone,
   keyCode,
   mark,
@@ -43,14 +45,15 @@ import {
   registryXml,
   functionErrors,
   doAttrs,
-  eventTargets,
-  eventFroms,
+  pairRoles,
   eventKey,
 } from './eventRegistry.ts';
 import type {EventRow} from './eventRegistry.ts';
 import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts} from './view.ts';
 import type {View, FirstPersonStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
+import {liftStartLimits, takeStartChecks} from './startLimits.ts';
+import {ordinaryEffectOps} from './clipEffects.ts';
 export const operations = [
   'hide',
   'show',
@@ -251,7 +254,6 @@ export function addAction(w: Workspace, kind: 'single' | 'pair' = 'single'): Act
     a.pair = defaultPair();
     a.config.graph = ['RootBehaviorGraph'];
     a.config.cost.enabled = false;
-    a.config.safety = 30;
   }
   return a;
 }
@@ -480,6 +482,8 @@ const migratable = (schema: unknown): schema is number =>
 function fieldsAddedInSchema7(w: any) {
   // Format 3 (runtime 0.12.222): event functions live in the global registry.
   liftToRegistry(w);
+  // 시작 제한 (runtime 0.12.276): an action's state checks move into a condition branch.
+  liftStartLimits(w);
   // Motion is the HKX's AMR annotations only (runtime 0.12.231): declared motion and directions are dropped,
   // and a directional action keeps its entry clip (with that clip's detection window) as a single action.
   const withoutMotion = (a: any) => {
@@ -553,8 +557,12 @@ function fieldsAddedInSchema7(w: any) {
   const withoutLock = (a: any) => {
     if (!a || typeof a !== 'object') return;
     dropLock(a.config);
+    dropSafety(a.config);
     if (a.variants && typeof a.variants === 'object' && !Array.isArray(a.variants))
-      for (const v of Object.values(a.variants) as any[]) dropLock(v?.config);
+      for (const v of Object.values(a.variants) as any[]) {
+        dropLock(v?.config);
+        dropSafety(v?.config);
+      }
     const timeline = a.pair?.timeline;
     if (timeline && typeof timeline === 'object') {
       if (timeline.lock?.enabled) throw removedGone(a.config?.name || tr('프로젝트'), tr('조작 잠금'));
@@ -749,6 +757,8 @@ function checkAction(a: any): Project {
     (!flow ||
       typeof flow.entry !== 'string' ||
       (flow.detached !== undefined && typeof flow.detached !== 'boolean') ||
+      (flow.selects !== undefined && flow.selects !== true) ||
+      !checkFans(flow) ||
       !Array.isArray(flow.tests) ||
       flow.tests.some(
         (t: any) =>
@@ -787,6 +797,10 @@ function checkAction(a: any): Project {
       if (typeof value.buffered !== 'boolean') throw Error(tr('선입력 형식 오류'));
       if (!windowMarksOk(value.open, value.close)) throw Error(tr('HKX 감지 구간 값을 확인하세요.'));
     }
+  }
+  for (const e of a.config.effects ?? []) {
+    exact(e, {id: '', values: {}}, tr('연출'));
+    checkValues(e.values, effectKeys, tr('알 수 없는 연출 속성'));
   }
   if (a.cancels.length > 100) throw Error(tr('캔슬 창은 100개까지 지원합니다.'));
   for (const c of a.cancels) {
@@ -892,8 +906,15 @@ export function parseWorkspace(text: string): Workspace {
   if (w && typeof w === 'object') delete w.xmlVersion;
   if (w?.schema === 8) return repairEmptyPlaybacks(parseWorkspace(JSON.stringify(lowerGraph(w))));
   fieldsBeforeMigration(w);
-  // Schemas 1-2 (and unversioned files) are single-action projects.
-  if (!migratable(w?.schema) && w?.schema !== WORKSPACE_SCHEMA) return migrateWorkspace(parseProject(text));
+  // Schemas 1-2 (and unversioned files) are single-action projects. Their state checks move into a branch of the
+  // action they become (runtime 0.12.276).
+  if (!migratable(w?.schema) && w?.schema !== WORKSPACE_SCHEMA) {
+    const raw = JSON.parse(text),
+      checks = takeStartChecks(raw);
+    const single = migrateWorkspace(parseProject(JSON.stringify(raw)));
+    if (single.actions[0]) Object.assign(single.actions[0].config, checks);
+    return liftStartLimits(single);
+  }
   while (w.schema !== WORKSPACE_SCHEMA) w = MIGRATIONS[w.schema](w);
   fieldsAddedInSchema7(w);
   liftCamera(w);
@@ -968,6 +989,20 @@ export function validateWorkspace(w: Workspace): Issue[] {
       // Named as the user sees the action (its display name), not by its XML id.
       out.push({...e, node: a.uid, message: (a.config.name.trim() || a.config.actionId) + ': ' + e.message});
     if (a.pair && a.config.fireArrow) err(a.uid, tr('페어에는 활 발사를 사용할 수 없습니다.'));
+    // An ordinary action's clip-time functions (runtime 0.12.274) change the actor playing it.
+    if (a.config.effects) {
+      if (a.pair) err(a.uid, tr('페어의 시각 기능은 페어 연출에 둡니다.'));
+      const seen = new Set<string>();
+      for (const e of a.config.effects) {
+        if (!idOk(e.id) || seen.has(e.id)) err(a.uid, tr('연출 ID 중복 또는 형식 오류'));
+        seen.add(e.id);
+        if (!ordinaryEffectOps.includes(e.values.op))
+          err(a.uid, e.id + ': ' + tr('일반 동작에서 쓸 수 없는 시각 기능입니다: {op}', {op: e.values.op}));
+        if (e.values.target || e.values.from)
+          err(a.uid, e.id + ': ' + tr('일반 동작의 시각 기능은 그 동작을 재생하는 액터에게 적용됩니다(대상 없음).'));
+        for (const m of functionErrors(e.values, true)) err(a.uid, e.id + ': ' + m);
+      }
+    }
     for (const message of carryErrors(w, a)) err(a.uid, message);
     if (strayCarryRelease(w, a))
       err(
@@ -1040,11 +1075,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(a.uid, tr('페어 거리·각도·종료 블렌드 범위를 확인하세요.'));
     for (const key of pairTrackKeys) {
       const t = p.timeline[key];
-      if (
-        !(eventTargets as readonly string[]).includes(t.role) ||
-        !(eventFroms as readonly string[]).includes(t.source)
-      )
-        err(a.uid, key + tr(': 페어 트랙 대상·반응 조건 오류'));
+      if (!(pairRoles as readonly string[]).includes(t.role)) err(a.uid, key + tr(': 페어 트랙 적용 값 오류'));
       for (const m of [t.from, t.until])
         if (m.basis !== 'seconds' || m.fallback || !number(m.seconds))
           err(
@@ -1135,7 +1166,9 @@ export function selectsOnly(a: Action): boolean {
   const f = a.flow;
   if (!f?.tests.some(t => t.id === f.entry)) return false;
   const ends = f.tests.flatMap(t => [t.pass, t.fail]).flatMap(e => (e && 'action' in e ? [e.action] : []));
-  return ends.length > 0 && !ends.includes(a.uid);
+  // With no destination yet only a flow made to select (graph/flat.ts splitCondition) selects: a new HKX card
+  // whose condition is emptied keeps its card.
+  return !ends.includes(a.uid) && (ends.length > 0 || f.selects === true);
 }
 const SELECTING = new Set(['Start', 'Require', 'Suppress', 'Flow']);
 
@@ -1235,11 +1268,9 @@ export function compileWorkspace(w: Workspace): string {
             ]
           )
         );
-      // The pair's synchronisation values join its Advanced (safety); an Advanced left empty is not written.
+      // The pair's synchronisation values are its Advanced; an Advanced left empty is not written.
       const settings = omitDefaults({reorientSupport: pair.reorientSupport}, {reorientSupport: true});
-      const adv = out.children.find(n => n.name === 'Advanced');
-      if (adv) Object.assign(adv.attrs, node('', settings).attrs);
-      else if (Object.keys(settings).length) out.children.push(node('Advanced', settings));
+      if (Object.keys(settings).length) out.children.push(node('Advanced', settings));
       if (config.start.mode === 'event' && pair.target !== 'nearest')
         out.children.find(n => n.name === 'Start')!.attrs.target = pair.target;
       if (pair.effectsEnabled) {
@@ -1253,8 +1284,14 @@ export function compileWorkspace(w: Workspace): string {
         out.children.push(effects);
       }
     }
-    // An ordinary action's camera restore (runtime 0.12.260): Effects holding Camera alone.
-    if (!a.pair && a.cameraEnabled && a.camera) out.children.push(node('Effects', {}, [cameraNode(w, a.camera)]));
+    // An ordinary action's Effects: its camera restore (runtime 0.12.260) and its clip-time functions (0.12.274).
+    if (!a.pair && ((a.cameraEnabled && a.camera) || a.config.effects?.length))
+      out.children.push(
+        node('Effects', {}, [
+          ...(a.cameraEnabled && a.camera ? [cameraNode(w, a.camera)] : []),
+          ...(a.config.effects ?? []).map(e => node('Do', doAttrs(e.values, true))),
+        ])
+      );
     // Transitions (Connect): no <Window> is the whole clip.
     for (const l of w.links.filter(l => l.from === a.uid)) {
       const target = w.actions.find(a => a.uid === l.to)!,

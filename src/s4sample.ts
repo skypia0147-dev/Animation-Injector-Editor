@@ -26,12 +26,8 @@ export function s4sample(): Workspace {
     a.config.start.input = 'use';
     a.config.graph = ['RootBehaviorGraph'];
     a.config.cost.enabled = false;
-    a.config.safety = 15;
     a.config.cooldown = 0.3;
-    if (!a.pair) {
-      a.config.attack = 'attackStart';
-      a.config.safety = 3;
-    }
+    if (!a.pair) a.config.attack = 'attackStart';
     w.actions.push(a);
   }
   const [first, next, intro, user, target] = w.actions;

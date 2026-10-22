@@ -5,7 +5,7 @@
 ## 运行需求
 
 - Windows 10/11 x64，Microsoft Edge WebView2 运行时（Windows 11 已自带）
-- 在游戏中使用需要 **Animation Injector 0.12.267 或更高版本**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）及其前置模组
+- 在游戏中使用需要 **Animation Injector 0.12.277 或更高版本**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）及其前置模组
 - 请将随附的 `AnimationInjectorXmlCheck.exe` 与 `AnimationInjectorEditor.exe` 放在同一文件夹。保存时会执行与游戏运行时相同的检查，不会写出会被游戏整体忽略的 XML。缺少该文件时会在不检查的情况下保存并给出警告。
 
 不需要 Node.js、Rust、Python 等开发工具。

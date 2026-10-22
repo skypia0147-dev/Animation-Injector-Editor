@@ -112,9 +112,9 @@ test('features, input, actor conditions and extension nodes are shared by direct
   a.config.start.event = 'SharedStart';
   w = connectFlat(w, `start:${a.uid}|markerReceive`, pb);
   assert.equal(w.actions[1].config.start.event, 'SharedStart');
-  w.actions[0].config.weapon = true;
+  w.actions[0].config.cooldown = 0.7;
   w = connectFlat(w, `start:${a.uid}|stateCondition`, pb);
-  assert.equal(w.actions[1].config.weapon, true);
+  assert.equal(w.actions[1].config.cooldown, 0.7);
 });
 test('shared condition configuration preserves per-path destinations', () => {
   let {w, a, b} = sample();

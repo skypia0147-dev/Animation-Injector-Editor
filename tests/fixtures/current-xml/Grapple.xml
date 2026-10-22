@@ -8,7 +8,7 @@
       <Do op="show"/>
     </Event>
     <Event name="Grapple_CamShake">
-      <Do op="shake" target="player" from="player" parameters="true"/>
+      <Do op="shake"/>
     </Event>
     <Event name="Grapple_Stom">
       <Do op="spell" plugin="FH_Grapple.esp" form="80B"/>
@@ -67,9 +67,9 @@
   </EventRegistry>
   <Pair id="GrappleFront" clip="Animations\DLC01\paired_vampfeedfront.hkx">
     <Start event="Grapple_ContactFront" actor="both" onKeyUp="false" target="combatTarget"/>
-    <Require weapon="any" air="allow" blockWhileAttacking="false" cooldown="0.2" stamina="0"/>
+    <Require air="allow" cooldown="0.2"/>
     <Exit at="end-0.05"/>
-    <Advanced safety="30" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="true" applyMotionFromRoot="false"/>
+    <Advanced getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="true" applyMotionFromRoot="false"/>
     <Target range="200" angle="180"/>
     <OnPartnerLost blend="2"/>
     <Effects interruptOnThirdPartyHit="false">
@@ -81,9 +81,9 @@
   </Pair>
   <Pair id="GrappleBack" clip="Animations\DLC01\paired_vampfeedback.hkx">
     <Start event="Grapple_ContactBack" actor="both" onKeyUp="false" target="combatTarget"/>
-    <Require weapon="any" air="allow" blockWhileAttacking="false" cooldown="0.2" stamina="0"/>
+    <Require air="allow" cooldown="0.2"/>
     <Exit at="end-0.05"/>
-    <Advanced safety="30" getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="false" applyMotionFromRoot="false"/>
+    <Advanced getToMarkTime="0" markErrorThreshold="0.1" reorientSupport="false" applyMotionFromRoot="false"/>
     <Target range="200" angle="180"/>
     <OnPartnerLost blend="2"/>
     <Effects interruptOnThirdPartyHit="false">
@@ -94,45 +94,39 @@
     <Connect to="GrappleStage10Attacker" partnerTo="GrappleStage10Target" event="Grapple_QTE_Stage10"/>
   </Pair>
   <Action id="GrappleStage01Attacker" clip="Animations\AnimationInjector\Grapple\Stage01_Attacker.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
   <Action id="GrappleStage01Target" clip="Animations\AnimationInjector\Grapple\Stage01_Target.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
   <Action id="GrappleStage02Attacker" clip="Animations\AnimationInjector\Grapple\Stage02_Attacker.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
   <Action id="GrappleStage02Target" clip="Animations\AnimationInjector\Grapple\Stage02_Target.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
   <Action id="GrappleStage10Attacker" clip="Animations\AnimationInjector\Grapple\Stage10_Attacker.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
   <Action id="GrappleStage10Target" clip="Animations\AnimationInjector\Grapple\Stage10_Target.hkx">
-    <Require weapon="any" air="deny" blockWhileAttacking="false" cooldown="0" stamina="0"/>
+    <Require air="deny" cooldown="0"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <HyperArmor from="0" until="end"/>
-    <Advanced safety="10"/>
   </Action>
 </AnimationSet>

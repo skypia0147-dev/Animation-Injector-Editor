@@ -1,13 +1,17 @@
 import type {Workspace} from '../workspace.ts';
 import type {BranchTarget} from './conditions.ts';
 import {tr} from '../i18n/korean.ts';
+import {addFanBranch, applyFans, dropFan, fanOf, fanOfBranch, setFanFail} from './conditionFans.ts';
 
+/** `mode` 'add': a line drawn from a pass that already leads to a condition, onto another condition, fans out
+ *  (graph/conditionFans.ts) instead of replacing it. */
 export function setBranchTarget(
   w: Workspace,
   owner: string,
   key: string,
   port: 'pass' | 'fail',
-  target?: BranchTarget
+  target?: BranchTarget,
+  mode?: 'add'
 ): Workspace {
   const action = w.actions.find(a => a.uid === owner),
     flow = action?.flow;
@@ -32,8 +36,25 @@ export function setBranchTarget(
     if (!destination || (!action.pair && destination.pair) || (destination.flow && destination.uid !== owner))
       throw Error(tr('다른 분기가 없는 HKX로 연결하세요. 페어 목적지는 페어 분기에서 선택합니다.'));
   }
+  const current = flow.tests.find(t => t.id === key)![port];
+  if (
+    mode === 'add' &&
+    port === 'pass' &&
+    target &&
+    'node' in target &&
+    (fanOf(flow, key) || (current && 'node' in current && current.node !== target.node))
+  )
+    return addFanBranch(w, owner, key, target.node);
   const next = structuredClone(w);
-  const test = next.actions.find(a => a.uid === owner)!.flow!.tests.find(t => t.id === key)!;
+  const f = next.actions.find(a => a.uid === owner)!.flow!;
+  // A fanned branch's fail is its own connection; the chain is rewritten from the fan.
+  if (port === 'fail' && fanOfBranch(f, key)) {
+    setFanFail(f, key, target);
+    return next;
+  }
+  // A fan's pass chosen or cleared as a whole: the fan ends, each branch keeping only its own fail.
+  if (port === 'pass') dropFan(f, key);
+  const test = f.tests.find(t => t.id === key)!;
   if (target) test[port] = {...target};
   else delete test[port];
   return next;
@@ -76,6 +97,9 @@ export function deleteCondition(w: Workspace, owner: string, key: string): Works
     }
   }
   if (!action.flow!.tests.length) delete action.flow;
-  else if (action.flow!.entry === key) action.flow!.entry = '';
+  else {
+    if (action.flow!.entry === key) action.flow!.entry = '';
+    applyFans(action.flow!);
+  }
   return next;
 }

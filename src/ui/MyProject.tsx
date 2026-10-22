@@ -5,6 +5,7 @@ const effectTitle = (e: {id: string; values: Record<string, string>}) =>
 import {inputLabel, type Issue} from '../model.ts';
 import type {Workspace} from '../workspace.ts';
 import {selectsOnly} from '../workspace.ts';
+import {clipEffects} from '../clipEffects.ts';
 import {gamepadXml} from '../keys.ts';
 import {memo, useMemo, useRef, useState} from 'react';
 import {markerUseCounts} from './details/markerCatalog.ts';
@@ -92,7 +93,7 @@ const ActionRow = memo(function ActionRow({
     return `→ ${names.get(l.to) ?? l.to} · ${via}`;
   };
   const actionMatch = match(a.config.name + ' ' + a.config.actionId);
-  const effects = (a.pair?.effects ?? []).filter(e => actionMatch || match(effectTitle(e)));
+  const effects = clipEffects(a).filter(e => actionMatch || match(effectTitle(e)));
   const links = allLinks.filter(l => l.from === a.uid && (actionMatch || match(linkLabel(l))));
   if (!actionMatch && !effects.length && !links.length) return null;
   const kind = kindOf(a);

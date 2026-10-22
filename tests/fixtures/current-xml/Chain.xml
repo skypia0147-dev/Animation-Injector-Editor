@@ -3,7 +3,7 @@
 <AnimationSet version="4" id="ImportedSet">
   <Action id="Attack1" clip="Animations\ComboTest\test_Attack1.hkx">
     <Start key="Num6"/>
-    <Require weapon="drawn" cooldown="0.3"/>
+    <Require cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit blend="0.2"/>
     <Rotate until="0.3"/>
@@ -11,9 +11,13 @@
     <Attack data="attackStart"/>
     <Connect to="Attack2" key="Num6" blend="0.1"><Window from="0.45"/></Connect>
     <Connect to="Attack3" key="H" blend="0.1"><Window from="0.45"/></Connect>
+    <Flow entry="RequireWeapon">
+      <Test id="RequireWeapon" kind="weaponDrawn" subject="self" pass="Self"/>
+      <Play id="Self" action="Attack1"/>
+    </Flow>
   </Action>
   <Action id="Attack2" clip="Animations\ComboTest\test_Attack2.hkx">
-    <Require weapon="drawn" cooldown="0.3"/>
+    <Require cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit blend="0.2"/>
     <Rotate until="0.3"/>
@@ -22,7 +26,7 @@
     <Connect to="Attack3" key="Num6" blend="0.1"><Window from="0.45"/></Connect>
   </Action>
   <Action id="Attack3" clip="Animations\ComboTest\test_Attack3.hkx">
-    <Require weapon="drawn" cooldown="0.3"/>
+    <Require cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit blend="0.2"/>
     <Rotate until="0.3"/>

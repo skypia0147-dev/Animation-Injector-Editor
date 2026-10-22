@@ -395,6 +395,88 @@
   flex-shrink: 0;
   color: #bfbfbf;
 }
+/* A fanned branch's number (its order menu) and its warning (docs/mockup-condition-fan). */
+.p3-node > strong .fan-badge {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 11px;
+  background: #8fd3ff;
+  color: #10222b;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  cursor: pointer;
+}
+.p3-node > strong .fan-badge:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.p3-node > strong .fan-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 5px;
+  border: 1px solid #8a6d3e;
+  border-radius: 3px;
+  color: var(--warn);
+  font-size: var(--fs-xs);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 18px;
+}
+.p3-node > strong .fan-tag.back {
+  border-color: #8a4a44;
+  color: #e59a92;
+}
+.fan-menu {
+  width: 160px;
+}
+/* A fan whose cards stand out of their order: under its condition card. */
+.fan-note {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 3px 8px;
+  border: 1px solid #8a6d3e;
+  border-radius: 5px;
+  background: #2a2520;
+  color: var(--warn);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: all;
+}
+.fan-note button {
+  min-height: 0;
+  height: 20px;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+}
+/* Where a dragged branch would be inserted (canvas units, under the cards). */
+.fan-insert {
+  position: absolute;
+  height: 3px;
+  border-radius: 2px;
+  background: #8fd3ff;
+  pointer-events: none;
+}
+.fan-insert span {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #8fd3ff;
+  color: #10222b;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
 .node-fields {
   display: grid;
   gap: 7px;

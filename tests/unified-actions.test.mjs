@@ -94,8 +94,10 @@ test('paired feature ranges emit supported role operations and match the actual 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.deepEqual(p.effects, original);
   const xml = compileWorkspace(w);
-  assert.match(xml, /<Do at="[^"]*" op="cost" target="receiver" from="initiator" stamina="17"/);
-  assert.match(xml, /<Do at="0.3" op="hide" target="both"\/>/);
+  // A role and no sender filter (runtime 0.12.275); both is the default and left out.
+  assert.match(xml, /<Do at="[^"]*" op="cost" target="receiver" stamina="17"/);
+  assert.match(xml, /<Do at="0.3" op="hide"\/>/);
+  assert.doesNotMatch(xml, / from="/);
   p.timeline.iframe.enabled = false;
   const off = compileWorkspace(w);
   assert.doesNotMatch(off, /iframeOn/);

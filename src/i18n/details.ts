@@ -6,7 +6,6 @@ const entries: Record<string, [string, string]> = {
     'Optional elapsed time. An event and a time can both trigger this feature; this is not a fallback.',
     '선택 사항입니다. 이벤트와 시간을 모두 지정하면 각각 실행 조건이 됩니다. 대체 시각이 아닙니다.',
   ],
-  'detail.down': ['Down', '아래'],
   'detail.dragNumber': ['Drag to adjust · Escape to cancel', '드래그로 값 조절 · Esc로 취소'],
   'detail.addNotify': ['Add role feature', '역할 기능 추가'],
   'details.effects': ['FEATURES', '기능'],
@@ -51,11 +50,8 @@ const entries: Record<string, [string, string]> = {
   'detail.form': ['Form ID (hex)', 'Form ID (16진수)'],
   'detail.releasePhysics': ['Release physics', '물리 제어 해제'],
   'detail.strength': ['Strength', '세기'],
+  'detail.duration': ['Duration (s)', '시간(초)'],
   'detail.factor': ['Time scale', '시간 배율'],
-  'detail.parameters': ['Marker parameters', '이벤트 매개변수'],
-  'detail.space': ['Space direction', '공간 방향'],
-  'detail.minSpace': ['Minimum space', '최소 공간'],
-  'detail.maxSpace': ['Maximum space', '최대 공간'],
   'detail.restoreSettings': ['Project camera settings', '프로젝트 카메라 설정'],
   'detail.effects': ['Pair features', '페어 기능'],
   'detail.transitionRule': ['Transition rule', '전환 규칙'],
@@ -161,11 +157,6 @@ const entries: Record<string, [string, string]> = {
   'tip.factor': [
     'Global time multiplier applied by the player role.',
     '플레이어 역할에 적용하는 전체 시간 배율입니다.',
-  ],
-  'tip.parameters': ['Allow values embedded in the marker name.', '이벤트 이름에 포함된 매개변수를 허용합니다.'],
-  'tip.space': [
-    'Apply only when the requested surrounding space is available.',
-    '지정한 방향에 필요한 공간이 있을 때만 적용합니다.',
   ],
 };
 export const detailsEn = Object.fromEntries(Object.entries(entries).map(([k, v]) => [k, v[0]]));

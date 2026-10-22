@@ -84,7 +84,7 @@ export const en: Record<string, string> = {
   // rule graph nodes
   'node.keyInput': 'Key Input',
   'node.markerReceive': 'Marker Received',
-  'node.stateCondition': 'State Condition',
+  'node.stateCondition': 'Start Limits',
   'node.detectionWindow': 'Detection Window',
   'node.result': 'Result',
   // anim graph nodes

@@ -93,39 +93,62 @@ test(
     single.config.steps[0].clip = 'Animations\\New\\Single.hkx';
     pair.config.steps[0].clip = 'Animations\\New\\Pair.hkx';
     assert.deepEqual(
-      [single.config.cooldown, single.config.air, single.config.safety],
-      [0, 'deny', 3],
-      'a new action: no cooldown, ground only, safety 3'
+      [single.config.cooldown, single.config.air, 'safety' in single.config],
+      [0, 'deny', false],
+      'a new action: no cooldown, ground only, no maximum play time'
     );
     assert.deepEqual(
-      [pair.config.cooldown, pair.config.safety, pair.pair.range, pair.pair.angle],
-      [0, 30, 150, 60],
-      'a new pair: no cooldown, safety 30, target 150 / 60'
+      [pair.config.cooldown, pair.pair.range, pair.pair.angle],
+      [0, 150, 60],
+      'a new pair: no cooldown, target 150 / 60'
     );
     const xml = compileWorkspace(w);
     assert.doesNotMatch(xml, /<Require|<Advanced|<Target|cooldown=|safety=|range=|angle=/);
     const r = runtime('defaults', xml);
     assert.ok(r.ok, r.text);
     // Changed values are written, and read back.
-    Object.assign(single.config, {cooldown: 0.5, air: 'allow', safety: 2});
+    Object.assign(single.config, {cooldown: 0.5, air: 'allow'});
     Object.assign(pair.pair, {range: 200, angle: 90});
     const changed = compileWorkspace(w);
     assert.match(changed, /<Require air="allow" cooldown="0.5"\/>/);
-    assert.match(changed, /<Advanced safety="2"\/>/);
     assert.match(changed, /<Target range="200" angle="90"\/>/);
     same('changed', changed, importWorkspaceXml(changed));
   }
 );
 
-test('Require stamina only checks (format 4); spending is Cost', needsChecker, () => {
-  const xml = `<AnimationSet version="4" id="Stamina"><Action id="A" clip="a.hkx"><Require stamina="30"/><Cost stamina="10"/></Action></AnimationSet>`;
+test('the maximum play time left the editor (10-23): a written one is read and dropped, a saved one too', () => {
+  const xml = `<AnimationSet version="4" id="Safety"><Action id="A" clip="a.hkx"><Start key="G"/><Advanced safety="2"/></Action></AnimationSet>`;
   const w = importWorkspaceXml(xml);
-  assert.equal(w.actions[0].config.requiredStamina, 30);
-  assert.deepEqual([w.actions[0].config.cost.enabled, w.actions[0].config.cost.stamina], [true, 10]);
-  assert.match(compileWorkspace(w), /<Require stamina="30"\/>/);
-  assert.match(compileWorkspace(w), /<Cost stamina="10"\/>/);
-  same('stamina', xml, w);
+  assert.equal('safety' in w.actions[0].config, false);
+  assert.doesNotMatch(compileWorkspace(w), /<Advanced|safety=/);
+  const saved = captureGraph(w);
+  saved.nodes.find(n => n.kind === 'settings').data.config.safety = 2;
+  const reopened = parseWorkspace(JSON.stringify(saved));
+  assert.equal('safety' in reopened.actions[0].config, false);
 });
+
+test(
+  'an older Require stamina check becomes a branch test (runtime 0.12.276); spending stays Cost',
+  needsChecker,
+  () => {
+    const xml = `<AnimationSet version="4" id="Stamina"><Action id="A" clip="a.hkx"><Start key="G"/><Require stamina="30"/><Cost stamina="10"/></Action></AnimationSet>`;
+    const w = importWorkspaceXml(xml);
+    assert.equal('requiredStamina' in w.actions[0].config, false);
+    assert.deepEqual(
+      w.actions[0].flow.tests.map(t => [t.kind, t.minimum, t.pass]),
+      [['stamina', 30, {action: w.actions[0].uid}]]
+    );
+    assert.deepEqual([w.actions[0].config.cost.enabled, w.actions[0].config.cost.stamina], [true, 10]);
+    const out = compileWorkspace(w);
+    assert.doesNotMatch(out, /<Require/);
+    assert.match(out, /<Test id="RequireStamina" kind="stamina" subject="self" minimum="30" pass="[^"]+"\/>/);
+    assert.match(out, /<Cost stamina="10"\/>/);
+    mkdirSync('tests/generated', {recursive: true});
+    writeFileSync('tests/generated/format4-stamina.xml', out);
+    const r = spawnSync(checker, ['tests/generated/format4-stamina.xml'], {encoding: 'utf8'});
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  }
+);
 
 test('removed forms are refused by the editor and the runtime alike, naming what replaces them', needsChecker, () => {
   const action = body =>

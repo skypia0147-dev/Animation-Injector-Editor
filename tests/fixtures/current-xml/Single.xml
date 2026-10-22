@@ -5,10 +5,13 @@
   </Inputs>
   <Action id="EditorSingle" clip="Animations\ComboTest\test_Attack1.hkx">
     <Start input="a1_i1" onKeyUp="false"/>
-    <Require weapon="drawn" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <Attack data="attackStart"/>
-    <Advanced safety="3"/>
+    <Flow entry="RequireWeapon">
+      <Test id="RequireWeapon" kind="weaponDrawn" subject="self" pass="Self"/>
+      <Play id="Self" action="EditorSingle"/>
+    </Flow>
   </Action>
 </AnimationSet>

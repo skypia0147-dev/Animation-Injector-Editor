@@ -431,7 +431,7 @@ test('an event starts a QTE with no HKX (runtime 0.12.248): XML and project roun
   assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
   assert.equal(parseWorkspace(JSON.stringify(captureGraph(w))).qtes[0].eventStart, 'Ragdoll');
   // A registered event with functions keeps one <Event>: its functions and its QTE together.
-  const both = RAGDOLL_XML.replace('<Event name="Ragdoll">', '<Event name="Ragdoll"><Do op="shake" target="player"/>');
+  const both = RAGDOLL_XML.replace('<Event name="Ragdoll">', '<Event name="Ragdoll"><Do op="shake"/>');
   const wb = importWorkspaceXml(both);
   assert.equal(wb.eventRegistry.length, 1);
   const xb = compileWorkspace(wb);

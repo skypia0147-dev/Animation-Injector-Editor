@@ -76,3 +76,28 @@ test('installed Grapple XML resolves its actual HKX sources', needsGrapple, asyn
     else assert.ok(!expected.some(item => item.clip === asset.clip));
   }
 });
+test('a remembered source whose mod folder was renamed is found again beside the XML; one still there stays', async () => {
+  const w = fixture(['Animations/Gone.hkx', 'Animations/Kept.hkx']);
+  w.actions[0].config.steps[0].localPath = 'H:\\Mods\\My Mod AI\\meshes\\actors\\character\\Animations\\Gone.hkx';
+  w.actions[1].config.steps[0].localPath = 'D:\\Work\\Kept.hkx';
+  const asked = [];
+  const exists = async paths => {
+    asked.push(...paths);
+    return paths.map(path => !path.includes('My Mod AI'));
+  };
+  const r = await connectXmlAssets(w, xml, resolver, exists);
+  assert.equal(r.stale, 1);
+  assert.equal(r.connected, 1);
+  assert.equal(
+    r.workspace.actions[0].config.steps[0].localPath,
+    'H:\\Mods\\My Mod\\meshes\\actors\\character\\Animations\\Gone.hkx'
+  );
+  assert.equal(r.workspace.actions[1].config.steps[0].localPath, 'D:\\Work\\Kept.hkx');
+  assert.equal(asked.length, 2);
+  // Without the check (or when it fails) a remembered path is left alone, as before.
+  assert.equal((await connectXmlAssets(w, xml, resolver)).stale, 0);
+  const offline = await connectXmlAssets(w, xml, resolver, async () => {
+    throw Error('offline');
+  });
+  assert.equal(offline.workspace.actions[0].config.steps[0].localPath, w.actions[0].config.steps[0].localPath);
+});

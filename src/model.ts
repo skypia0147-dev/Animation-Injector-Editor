@@ -36,24 +36,25 @@ export type Project = {
     actor: 'both' | 'player' | 'npc';
     onKeyUp: boolean;
   };
-  weapon: boolean;
   air: 'deny' | 'allow' | 'only';
-  blockWhileAttacking: boolean;
   cooldown: number;
-  requiredStamina: number;
   suppress?: Suppression;
-  /** The action's own shot: at a clip time (`at`, seconds) and/or on the attack button's release.
-   *  A shot on an event is a registry function (fireArrow). */
-  fireArrow?: {at: Mark | null; onRelease: boolean};
+  /** The action's own shot: at a clip time (`at`, seconds) and/or on the attack button's release; neither keeps
+   *  the HKX card's item for the event shots without writing a <FireArrow> (10-22).
+   *  A shot on an event is a registry function (fireArrow). `mode` 'direct' (runtime 0.12.268): no draw, a full
+   *  draw's speed and range, `damage` percent of its damage (absent = 100), one arrow taken; it has no release shot. */
+  fireArrow?: {at: Mark | null; onRelease: boolean; mode?: 'direct'; damage?: number};
   /** Putdown Action of a carry: when the carried target is released as a ragdoll. */
   carryRelease?: {at: Mark};
+  /** Clip-time functions on the actor playing it (runtime 0.12.274, clipEffects.ts): values as a pair effect's,
+   *  without target or from. Absent = none. */
+  effects?: {id: string; values: Record<string, string>}[];
   attack: string;
   enterBlend: number;
   exitBlend: number;
   exit: Mark;
   graph: string[];
   rotationLocked?: boolean;
-  safety: number;
   slots: Record<'rotate' | 'iframe' | 'armor', RangeSlot>;
   recovery: {enabled: boolean; at: Mark; blend: number};
   cost: {enabled: boolean; at: Mark; stamina: number; magicka: number};
@@ -158,7 +159,7 @@ export const startLabel = (p: Project) =>
     : p.start.mode === 'event'
       ? p.start.event || tr('이벤트 미지정')
       : tr('외부 연결 전용');
-/** A new action: one HKX, started by its own key (format 4 defaults: no cooldown, ground only, safety 3). */
+/** A new action: one HKX, started by its own key (format 4 defaults: no cooldown, ground only). */
 export function createProject(): Project {
   return {
     schema: 2,
@@ -169,18 +170,14 @@ export function createProject(): Project {
     inputs: [{id: 'use', label: tr('사용'), key: 'Num0', gamepad: 0}],
     events: [],
     start: {mode: 'input', input: 'use', event: '', actor: 'both', onKeyUp: false},
-    weapon: false,
     air: 'deny',
-    blockWhileAttacking: false,
     cooldown: 0,
-    requiredStamina: 0,
     attack: '',
     enterBlend: 0.1,
     exitBlend: 0.2,
     exit: mark(0.05, 'end'),
     graph: [fullBodyGraph],
     rotationLocked: false,
-    safety: 3,
     slots: {rotate: range(), iframe: range(), armor: range()},
     recovery: {enabled: false, at: mark(0.9), blend: 0.15},
     cost: {enabled: false, at: mark(0.05), stamina: 0, magicka: 0},
@@ -316,8 +313,14 @@ export function parseProject(contents: string): Project {
   dropMotion(p);
   dropCombo(p);
   dropLock(p);
+  dropSafety(p);
   shape(p);
   return p;
+}
+/** The maximum play time (Advanced safety) left the editor (10-23, docs/mockup-playback-settings): the runtime
+ *  ends a play at its HKX's length and keeps its own default for an HKX it cannot read. A saved value is dropped. */
+export function dropSafety(p: any) {
+  if (p && typeof p === 'object' && !Array.isArray(p)) delete p.safety;
 }
 /** A key window (an HKX's detection window or a transition's own): it opens at a clip time or an event and
  *  closes at the end or an event; an event's fallback is a time of the same kind. */
@@ -378,14 +381,8 @@ export function validate(p: Project, selecting = false): Issue[] {
   if (!p.graph.length || p.graph.some(g => !graphs.includes(g)) || new Set(p.graph).size !== p.graph.length)
     error('project', tr('지원 그래프를 하나 이상 선택하세요.'));
   if (p.attack && !eventValid(p.attack)) error('project', tr('공격 데이터 이름이 잘못되었습니다.'));
-  if (
-    !num(p.enterBlend, 5) ||
-    !num(p.exitBlend, 5) ||
-    !num(p.safety, 600, 0.001) ||
-    !num(p.cooldown) ||
-    !num(p.requiredStamina, 100000)
-  )
-    error('project', tr('블렌드(0~5), 복구 시간(0 초과), 조건 값을 확인하세요.'));
+  if (!num(p.enterBlend, 5) || !num(p.exitBlend, 5) || !num(p.cooldown))
+    error('project', tr('블렌드(0~5)와 재사용 간격을 확인하세요.'));
   if (!num(p.recovery.blend, 5) || !num(p.cost.stamina, 100000) || !num(p.cost.magicka, 100000))
     error('project', tr('리커버리 블렌드 또는 자원 소모 범위를 확인하세요.'));
   const inputIds = new Set<string>();
@@ -435,14 +432,17 @@ export function validate(p: Project, selecting = false): Issue[] {
       checkMark(s.recovery.at, s.id, ['seconds', 'event'], 'seconds');
     }
   if (p.cost.enabled) checkMark(p.cost.at, 'project', ['seconds'], 'seconds');
-  if (p.fireArrow) {
-    if (p.fireArrow.at) checkMark(p.fireArrow.at, 'project', ['seconds'], 'seconds');
-    else if (!p.fireArrow.onRelease)
+  if (p.fireArrow?.mode === 'direct') {
+    if (!p.fireArrow.at)
       error(
         'project',
-        tr('활 발사: 시각 발사 또는 버튼 떼기 발사가 필요합니다. 이벤트로 쏘려면 이벤트 등록의 활 발사를 쓰세요.')
+        tr('활 발사: 바로 발사는 시각 발사가 필요합니다. 이벤트로 쏘려면 이벤트 등록의 활 발사를 쓰세요.')
       );
+    if (p.fireArrow.damage !== undefined && !num(p.fireArrow.damage, 1000, 1))
+      error('project', tr('활 발사: 피해는 1~1000%입니다.'));
   }
+  // Neither its own shot is fine (10-22): the item stays for the HKX's event shots and no FireArrow is written.
+  if (p.fireArrow?.at) checkMark(p.fireArrow.at, 'project', ['seconds'], 'seconds');
   if (p.carryRelease) checkMark(p.carryRelease.at, 'project', ['seconds', 'event'], 'seconds');
   if (p.steps.length !== 1)
     error('project', tr('동작은 HKX 하나입니다. 다음 HKX는 다른 동작으로 만들어 전환으로 이으세요.'));
@@ -482,5 +482,10 @@ export const timingLabel = (m: Mark) =>
       : tr('{seconds}초', {seconds: m.seconds});
 /** The action shot's summary: its clip time and/or the button-release shot. */
 export const fireArrowLabel = (f: NonNullable<Project['fireArrow']>) =>
-  [f.at ? timingLabel(f.at) + tr(' 발사') : '', f.onRelease ? tr('버튼 떼기 발사') : ''].filter(Boolean).join(' · ') ||
-  tr('발사 없음');
+  [
+    f.mode === 'direct' ? tr('바로 발사 · 피해 {damage}%', {damage: f.damage ?? 100}) : '',
+    f.at ? timingLabel(f.at) + tr(' 발사') : '',
+    f.onRelease && f.mode !== 'direct' ? tr('버튼 떼기 발사') : '',
+  ]
+    .filter(Boolean)
+    .join(' · ') || tr('발사 없음');

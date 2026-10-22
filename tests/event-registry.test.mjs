@@ -54,14 +54,12 @@ test('an older project moves its event functions into the registry once, renamin
   const legacy = {...structuredClone(w), eventCatalog: ['Declared']};
   const opened = parseWorkspace(JSON.stringify(legacy));
   const rows = Object.fromEntries(opened.eventRegistry.map(r => [r.name, r.functions.map(f => f.values)]));
-  assert.deepEqual(rows.Grapple_Stom, [
-    {op: 'spell', target: 'sender', plugin: 'FH_Grapple.esp', form: '80B'},
-    {op: 'hide', target: 'partner', from: 'receiver'},
-  ]);
+  // An event function changes its sender (runtime 0.12.273): an older target or sender filter is dropped.
+  assert.deepEqual(rows.Grapple_Stom, [{op: 'spell', plugin: 'FH_Grapple.esp', form: '80B'}, {op: 'hide'}]);
   assert.equal(rows.grapple_stom, undefined, 'one row per name, first spelling');
-  assert.deepEqual(rows.GuardOn, [{op: 'iframeOn', target: 'initiator', from: 'initiator'}]);
+  assert.deepEqual(rows.GuardOn, [{op: 'iframeOn'}]);
   assert.deepEqual(rows['SoundPlay.X'], []);
-  assert.deepEqual(rows.Shoot, [{op: 'fireArrow', from: 'player'}]);
+  assert.deepEqual(rows.Shoot, [{op: 'fireArrow'}]);
   assert.deepEqual(rows.ArmorOn, [{op: 'armorOn'}]);
   assert.deepEqual(rows.ArmorOff, [{op: 'armorOff'}]);
   assert.deepEqual(rows.Pay, [{op: 'cost', stamina: '5', magicka: '0'}]);
@@ -70,8 +68,9 @@ test('an older project moves its event functions into the registry once, renamin
   assert.deepEqual(
     p.effects.map(e => e.values),
     [
-      {op: 'show', at: '0.75', target: 'both', from: 'any'},
-      {op: 'iframeOff', target: 'initiator', from: 'initiator', at: '0.9'},
+      // A role and no sender filter (runtime 0.12.275): both is left out.
+      {op: 'show', at: '0.75'},
+      {op: 'iframeOff', target: 'initiator', at: '0.9'},
     ]
   );
   assert.equal(p.timeline.iframe.enabled, false);
@@ -126,15 +125,13 @@ test('summaries and XML leave defaults out; checks warn about game-wide names an
   assert.deepEqual(doAttrs({op: 'hide', target: 'sender', from: 'any', plugin: 'x.esp'}), {op: 'hide'});
   assert.deepEqual(doAttrs({op: 'spell', target: 'both', plugin: 'a.esp', form: '1', stamina: '3'}), {
     op: 'spell',
-    target: 'both',
     plugin: 'a.esp',
     form: '1',
   });
   assert.equal(functionSummary({op: 'hide'}), '무기 숨김');
-  assert.equal(
-    functionSummary({op: 'shake', target: 'player', from: 'player', parameters: 'true'}),
-    '카메라 흔들림 · 플레이어 · 플레이어 이벤트만 · 값 전달'
-  );
+  assert.equal(functionSummary({op: 'shake'}), '카메라 흔들림');
+  // A set shake says its numbers (a card item would otherwise show none).
+  assert.equal(functionSummary({op: 'shake', strength: '1.5'}), '카메라 흔들림 · 세기 1.5 · 0.5초');
   assert.ok(vanillaName('weaponSwing') && vanillaName('SoundPlay.WPNBowFire') && !vanillaName('Grapple_unequip'));
   // "Name.payload" annotations of a vanilla event are the game's; Payload Interpreter commands are not.
   assert.ok(vanillaName('StartAnimatedCamera.Camera3rd [Cam3]') && !vanillaName('PIE.@SGVF'));
@@ -148,9 +145,10 @@ test('summaries and XML leave defaults out; checks warn about game-wide names an
   w = addFunction(w, 'Unequip', 'show');
   assert.ok(!validateWorkspace(w).some(i => i.message.includes('짝 기능')));
   w = addFunction(w, 'Shoot', 'fireArrow');
+  // A registered function holds no target (runtime 0.12.273).
   w.eventRegistry.at(-1).functions[0].values.target = 'partner';
-  assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('활 발사')));
-  w.eventRegistry.at(-1).functions[0].values.target = 'player';
+  assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('적용')));
+  delete w.eventRegistry.at(-1).functions[0].values.target;
   w = addFunction(w, 'Cast', 'stateOn');
   assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('플러그인')));
   assert.throws(() => addEventRow(w, 'WEAPONSWING'), /이미/);
@@ -284,49 +282,29 @@ test('the registry lists repeated uses once with a count; unbinding a group free
   assert.equal(eventUses(w).get('open'), undefined);
 });
 
-test(
-  'values: "name|value" spellings round-trip through the project, XML and the runtime checker',
-  needsChecker,
-  async () => {
-    const {setEventValues, addEventValue, registryIssues, splitValues} = await import('../src/eventRegistry.ts');
-    let w = emptyWorkspace();
-    w.actions.push(addAction(w, 'single'));
-    w = addFunction(w, 'Grapple_CamShake', 'shake');
-    w = setEventValues(w, 'Grapple_CamShake', splitValues(' 1.5|0.5  3.0|1.0 1.5|0.5 '));
-    w = addEventValue(w, 'Grapple_HealthDamage', '2|1');
-    assert.deepEqual(
-      w.eventRegistry.map(r => [r.name, r.values]),
-      [
-        ['Grapple_CamShake', ['1.5|0.5', '3.0|1.0']],
-        ['Grapple_HealthDamage', ['2|1']],
-      ]
-    );
-    assert.deepEqual(parseWorkspace(JSON.stringify(w)).eventRegistry, w.eventRegistry);
-    assert.throws(() => setEventValues(w, 'X', ['@SGVF']), /값이 잘못/);
-    assert.equal(registryIssues(w).filter(i => i.level === 'error').length, 0);
-    const xml = compileWorkspace(w);
-    assert.match(xml, /<Event name="Grapple_CamShake" values="1.5\|0.5 3.0\|1.0">/);
-    assert.match(xml, /<Event name="Grapple_HealthDamage" values="2\|1"\/>/);
-    fs.writeFileSync(folder + '/values.xml', xml);
-    assert.match(runtime(folder + '/values.xml'), /2 registered events/);
-    const back = importWorkspaceXml(xml);
-    assert.deepEqual(
-      back.eventRegistry.map(r => [r.name, r.values]),
-      w.eventRegistry.map(r => [r.name, r.values])
-    );
-    fs.writeFileSync(folder + '/values-back.xml', compileWorkspace(back));
-    const same = spawnSync(checker, ['--compare', folder + '/values.xml', folder + '/values-back.xml'], {
-      encoding: 'utf8',
-    });
-    assert.equal(same.status, 0, same.stdout + same.stderr);
-    // Clearing the field drops the attribute; a value twice is refused like the runtime.
-    assert.equal(setEventValues(w, 'Grapple_HealthDamage', []).eventRegistry[1].values, undefined);
-    assert.throws(
-      () =>
-        importWorkspaceXml(
-          '<AnimationSet version="4" id="V"><EventRegistry><Event name="X" values="1|2 1|2"/></EventRegistry><Action id="A" clip="a.hkx"/></AnimationSet>'
-        ),
-      /두 번/
-    );
-  }
-);
+test('values and shake parameters are gone (runtime 0.12.274): an older file opens without them', needsChecker, () => {
+  const old =
+    '<AnimationSet version="4" id="V"><EventRegistry>' +
+    '<Event name="Grapple_CamShake" values="1.5|0.5 3.0|1.0"><Do op="shake" parameters="true"/></Event>' +
+    '<Event name="Grapple_HealthDamage" values="2|1"/>' +
+    '</EventRegistry><Action id="A" clip="a.hkx"/></AnimationSet>';
+  fs.writeFileSync(folder + '/values-old.xml', old);
+  assert.match(spawnSync(checker, [folder + '/values-old.xml'], {encoding: 'utf8'}).stdout, /0\.12\.274/);
+  const w = importWorkspaceXml(old);
+  assert.deepEqual(
+    w.eventRegistry.map(r => [r.name, r.functions.map(f => f.values)]),
+    [
+      ['Grapple_CamShake', [{op: 'shake'}]],
+      ['Grapple_HealthDamage', []],
+    ]
+  );
+  const xml = compileWorkspace(w);
+  assert.doesNotMatch(xml, /values=|parameters=/);
+  fs.writeFileSync(folder + '/values-new.xml', xml);
+  assert.match(runtime(folder + '/values-new.xml'), /2 registered events/);
+  // A saved project with them opens the same way.
+  const project = JSON.parse(JSON.stringify(w));
+  project.eventRegistry[0].values = ['1.5|0.5'];
+  project.eventRegistry[0].functions[0].values.parameters = 'true';
+  assert.deepEqual(parseWorkspace(JSON.stringify(project)).eventRegistry, w.eventRegistry);
+});

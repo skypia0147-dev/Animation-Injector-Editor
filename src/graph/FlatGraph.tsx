@@ -1,6 +1,8 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
 import {PinMenu, openPinMenu} from './PinMenu.tsx';
 import {setBranchTarget} from './conditionCommands.ts';
+import {fanDropSlot, fanSlots, moveFanBranch} from './conditionFans.ts';
+import {FanBadge, fanNumber} from './FanBadge.tsx';
 import {routeTarget} from './ConditionExpressionEditor.tsx';
 import {connectPin, createdLink, pinRows, portLabel, routable, routePins, routeTone, routeEmpty} from './pinTargets.ts';
 import {parseNodeId} from './nodeRef.ts';
@@ -37,6 +39,7 @@ import {
   useUpdateNodeInternals,
   useStore,
   applyNodeChanges,
+  ViewportPortal,
 } from '@xyflow/react';
 import type {Node, NodeProps} from '@xyflow/react';
 import type {Workspace} from '../workspace.ts';
@@ -319,9 +322,25 @@ function Card({id, data, selected}: NodeProps<Visual>) {
         ? context.w.actions.find(a => a.uid === branch.owner)?.flow?.tests.find(t => t.id === branch.test)
         : undefined;
   // A condition's route reads from its test (an unconnected one says what then happens: next condition or none).
+  // A fan (graph/conditionFans.ts): the pass names its branches; a branch's empty fail is written as the next
+  // branch but reads "실행하지 않음" (the next branch is tried).
+  const fanText = (p: string) =>
+    p === 'pass' && data.fanCount
+      ? tr('→ 갈래 {n}개 (①부터)', {n: data.fanCount})
+      : p === 'fail' && data.fan && !data.fan.ownFail
+        ? tr('실행하지 않음') + (data.fan.next ? tr(' · 다음 갈래 검사') : '')
+        : p === 'fail' && data.fan?.failTo !== undefined
+          ? tr('{n} 갈래', {n: fanNumber(data.fan.failTo)})
+          : undefined;
   const routeText = (p: string) =>
-    test && (p === 'pass' || p === 'fail') && context ? routeTarget(context.w, test, p) : data.routeTo?.[p] || '';
-  const routeSet = (p: string) => (test && (p === 'pass' || p === 'fail') ? !!test[p] : !!data.routeTo?.[p]);
+    fanText(p) ??
+    (test && (p === 'pass' || p === 'fail') && context ? routeTarget(context.w, test, p) : data.routeTo?.[p] || '');
+  const routeSet = (p: string) =>
+    p === 'fail' && data.fan && !data.fan.ownFail
+      ? false
+      : test && (p === 'pass' || p === 'fail')
+        ? !!test[p]
+        : !!data.routeTo?.[p];
   // A routing pin's destination is also chosen from a list (graph/pinTargets.ts), read when it opens.
   // The shown document's view comes from the render cache; an edit's copy is projected on its own.
   const view = (w: Workspace) => checklistProjection(w, renderedChecklist(w));
@@ -427,8 +446,34 @@ function Card({id, data, selected}: NodeProps<Visual>) {
         <Handle key={p} id={p} type="target" position={Position.Left} style={{top: pinTop(data) + i * 24}} title={p} />
       ))}
       <strong className="checklist-drag-handle" title={data.presentation.title}>
-        <Icon name={data.presentation.icon} size={19} />
+        {data.fan && context ? (
+          <FanBadge
+            index={data.fan.index}
+            count={data.fan.count}
+            move={to => {
+              try {
+                context.edit(w =>
+                  moveFanBranch(
+                    w,
+                    branch.kind === 'branch' ? branch.owner : '',
+                    branch.kind === 'branch' ? branch.test : '',
+                    to
+                  )
+                );
+              } catch (e) {
+                context.status(String(e));
+              }
+            }}
+          />
+        ) : (
+          <Icon name={data.presentation.icon} size={19} />
+        )}
         <span>{data.presentation.title}</span>
+        {data.fan?.back ? (
+          <em className="fan-tag back">{tr('앞 갈래로 되돌아감')}</em>
+        ) : data.fan && !data.fan.reached ? (
+          <em className="fan-tag">{tr('도달하지 않음')}</em>
+        ) : null}
       </strong>
       {data.start && <StartLine node={data} start={data.start} />}
       {data.kind === 'eventRegistry' ? (
@@ -716,6 +761,9 @@ function FlatGraphPanel({
   }, [projection, fullProjection, presentations, w]);
   const region = useRef<HTMLDivElement>(null),
     cancelled = useRef(false),
+    // A fanned branch dragged onto another branch of its fan: where it would go (docs/mockup-condition-fan).
+    [fanDrop, setFanDrop] = useState<{id: string; at: number; x: number; y: number; w: number}>(),
+    dragFrom = useRef<{id: string; x: number; y: number}>(undefined),
     right = useRef({x: 0, y: 0});
   const [minimapOpen, setMinimapOpen] = useState(storedMinimap);
   const toggleMinimap = () =>
@@ -1298,7 +1346,7 @@ function FlatGraphPanel({
           interactionWidth: 24,
           sourceHandle: e.pin,
           targetHandle: e.targetPin ?? e.pin,
-          label: e.id.startsWith('operand:') ? tr('구성 조건') : undefined,
+          label: e.id.startsWith('operand:') ? tr('구성 조건') : e.rank !== undefined ? fanNumber(e.rank) : undefined,
           zIndex: hit || chosenLine ? 10 : 0,
           style: {
             stroke: chosenLine || hit ? lit : routeLine[tone],
@@ -1393,6 +1441,77 @@ function FlatGraphPanel({
           : tr('카드와 내부 설정을 붙여넣었습니다.')
       );
     });
+  const fanBranchIds = (parent: string) =>
+    projection.nodes
+      .filter(x => x.fan?.parent === parent)
+      .sort((a, b) => a.fan!.index - b.fan!.index)
+      .map(x => x.id);
+  const fanHeights = (ids: string[]) =>
+    Object.fromEntries(
+      ids.flatMap(id => {
+        const n = projection.nodes.find(x => x.id === id);
+        return n ? [[id, cardHeight(n)]] : [];
+      })
+    );
+  const fanDropAt = (n: Node) => {
+    const fan = projection.nodes.find(x => x.id === n.id)?.fan;
+    if (!fan) return;
+    const placed = getNodes(),
+      box = (m: Node) => ({
+        id: m.id,
+        x: m.position.x,
+        y: m.position.y,
+        w: m.measured?.width ?? 0,
+        h: m.measured?.height ?? 0,
+      });
+    return fanDropSlot(
+      box(n),
+      fanBranchIds(fan.parent).flatMap(id => {
+        const m = id === n.id ? n : placed.find(x => x.id === id);
+        return m ? [box(m)] : [];
+      })
+    );
+  };
+  // A fan whose branch cards stand out of their order: a notice under its card, whose 「정렬」 has the cards trade
+  // places (the order itself is never read from the places).
+  const fanNotes = useMemo(() => {
+    const placed = new Map(nodes.map(v => [v.id, v]));
+    return projection.nodes
+      .filter(p => p.fanCount)
+      .flatMap(p => {
+        const ids = fanBranchIds(p.id),
+          card = placed.get(p.id);
+        if (!card || ids.some(id => !placed.has(id))) return [];
+        const screen = [...ids].sort(
+          (a, b) =>
+            placed.get(a)!.position.y - placed.get(b)!.position.y ||
+            placed.get(a)!.position.x - placed.get(b)!.position.x
+        );
+        if (screen.join() === ids.join()) return [];
+        return [{id: p.id, ids, x: card.position.x, y: card.position.y + (card.measured?.height ?? 0) + 8}];
+      });
+  }, [nodes, projection]);
+  const arrangeFan = (ids: string[]) => {
+    const placed = new Map(nodes.map(v => [v.id, v.position])),
+      slots = fanSlots(ids, Object.fromEntries(ids.map(id => [id, placed.get(id)!])), fanHeights(ids));
+    if (focusAction) setFocusPositions(p => ({...p, ...slots}));
+    else edit(w => moveNodes(w, {kind: 'root'}, slots));
+  };
+  // A fan's branches: the selected branch moves up or down its order with Alt+↑/↓.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+      if (!region.current?.contains(e.target as globalThis.Node)) return;
+      const fan = selectedNode?.fan,
+        ref = parseNodeId(selectedNode?.id ?? '');
+      if (!fan || ref.kind !== 'branch') return;
+      e.preventDefault();
+      const to = fan.index + (e.key === 'ArrowUp' ? -1 : 1);
+      if (to >= 0 && to < fan.count) attempt(() => edit(w => moveFanBranch(w, ref.owner, ref.test, to)));
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -1457,6 +1576,8 @@ function FlatGraphPanel({
       ...(branch.kind === 'branch'
         ? [
             ...(['pass', 'fail'] as const).flatMap(port =>
+              // A fanned branch's empty fail is written as "the next branch": nothing of its own to clear.
+              (port === 'fail' ? (projection.nodes.find(n => n.id === id)?.fan?.ownFail ?? true) : true) &&
               w.actions.find(a => a.uid === branch.owner)?.flow?.tests.find(t => t.id === branch.test)?.[port]
                 ? [
                     {
@@ -1800,6 +1921,7 @@ function FlatGraphPanel({
                 }}
                 onNodeDragStart={(_, n, all) => {
                   dragging.current = true;
+                  dragFrom.current = {id: n.id, ...n.position};
                   setSelectedEdge('');
                   cancelled.current = false;
                   if (all.length < 2) {
@@ -1807,8 +1929,46 @@ function FlatGraphPanel({
                     select(n.id);
                   }
                 }}
+                onNodeDrag={(_, n, all) => {
+                  const slot = all.length === 1 ? fanDropAt(n) : undefined;
+                  setFanDrop(d =>
+                    slot ? (d?.id === n.id && d.at === slot.at && d.y === slot.y ? d : {id: n.id, ...slot}) : undefined
+                  );
+                }}
                 onNodeDragStop={(_, n, all) => {
                   dragging.current = false;
+                  const drop = all.length === 1 && !cancelled.current ? fanDropAt(n) : undefined;
+                  setFanDrop(undefined);
+                  if (drop) {
+                    // Inserted: the order changes and the branch cards trade places to stand in it.
+                    const ref = parseNodeId(n.id),
+                      fan = projection.nodes.find(x => x.id === n.id)?.fan;
+                    if (ref.kind === 'branch' && fan) {
+                      const branchIds = fanBranchIds(fan.parent),
+                        rest = branchIds.filter(id => id !== n.id);
+                      rest.splice(drop.at, 0, n.id);
+                      const placed = getNodes(),
+                        places = Object.fromEntries(
+                          branchIds.map(id => [
+                            id,
+                            id === n.id && dragFrom.current?.id === id
+                              ? {x: dragFrom.current.x, y: dragFrom.current.y}
+                              : (placed.find(p => p.id === id)?.position ?? {x: 0, y: 0}),
+                          ])
+                        ),
+                        slots = fanSlots(rest, places, fanHeights(rest));
+                      attempt(() => {
+                        if (focusAction) {
+                          edit(w => moveFanBranch(w, ref.owner, ref.test, drop.at));
+                          setFocusPositions(p => ({...p, ...slots}));
+                        } else
+                          edit(w => moveNodes(moveFanBranch(w, ref.owner, ref.test, drop.at), {kind: 'root'}, slots));
+                      });
+                      // Dropped back into its own place the document does not change: the drawn card returns too.
+                      setNodes(ns => ns.map(v => (slots[v.id] ? {...v, position: slots[v.id]} : v)));
+                      return;
+                    }
+                  }
                   if (!cancelled.current)
                     focusAction
                       ? setFocusPositions(p => ({...p, ...Object.fromEntries(all.map(n => [n.id, n.position]))}))
@@ -1855,6 +2015,32 @@ function FlatGraphPanel({
                 colorMode="dark"
               >
                 <ScreenGrid />
+                {fanNotes.length > 0 && (
+                  <ViewportPortal>
+                    {fanNotes.map(note => (
+                      <div
+                        key={note.id}
+                        className="fan-note nodrag nopan"
+                        style={{transform: `translate(${note.x}px, ${note.y}px)`}}
+                      >
+                        {tr('화면 순서와 번호가 다름')}
+                        <button type="button" onClick={() => arrangeFan(note.ids)}>
+                          {tr('정렬')}
+                        </button>
+                      </div>
+                    ))}
+                  </ViewportPortal>
+                )}
+                {fanDrop && (
+                  <ViewportPortal>
+                    <div
+                      className="fan-insert"
+                      style={{transform: `translate(${fanDrop.x}px, ${fanDrop.y}px)`, width: fanDrop.w}}
+                    >
+                      <span>{tr('놓으면 {n}번', {n: fanDrop.at + 1})}</span>
+                    </div>
+                  </ViewportPortal>
+                )}
                 <SelectionRing target={region} />
                 <EdgeWidth target={region} />
                 <CanvasControls />

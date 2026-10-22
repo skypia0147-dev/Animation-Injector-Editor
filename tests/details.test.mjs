@@ -40,7 +40,7 @@ test('marker rename preserves references in the registry, windows, globals and c
   w.actions.push(a);
   const b = addAction(w);
   w.actions.push(b);
-  w.eventRegistry = [{id: 'event1', name: 'Old', functions: [{id: 'fn1', values: {op: 'hide', target: 'both'}}]}];
+  w.eventRegistry = [{id: 'event1', name: 'Old', functions: [{id: 'fn1', values: {op: 'hide'}}]}];
   a.config.start.mode = 'event';
   a.config.start.event = 'Old';
   a.camera = {reset: 'Old', restore: 'end', timeout: 10};

@@ -199,7 +199,7 @@
 .registry-fn-caption,
 .registry-fn-top {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) 28px;
   gap: 5px;
   align-items: center;
 }
@@ -226,14 +226,6 @@
   align-items: center;
   color: var(--ue-dim, #8c8c8c);
   white-space: nowrap;
-}
-.registry-space {
-  margin-top: 4px;
-  color: var(--ue-dim, #8c8c8c);
-  font-size: var(--fs-sm);
-}
-.registry-space summary {
-  cursor: pointer;
 }
 .registry-fn-fields input[type='number'] {
   width: 72px;

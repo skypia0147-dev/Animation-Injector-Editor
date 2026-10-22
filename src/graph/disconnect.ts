@@ -8,6 +8,7 @@ import {blendNodes, blendBinding} from './blends.ts';
 import {remove} from '../timeline/model.ts';
 import {inScope, parseNodeId} from './nodeRef.ts';
 import {setBranchTarget} from './conditionCommands.ts';
+import {fanOf, removeFanBranch} from './conditionFans.ts';
 import {tr} from '../i18n/korean.ts';
 export type Connection = {source: string; target: string; pin: string; targetPin?: string};
 export type Disconnection = {source: string; target: string; pin: string; bindings: Connection[]; setting?: boolean};
@@ -18,8 +19,17 @@ export function disconnectEdge(w: Workspace, e: GraphEdge): Workspace {
   // "→ … 추가" stayed hidden and a drag from it was refused).
   if (binding.every(b => parseNodeId(b.source).kind === 'branch' && (b.pin === 'pass' || b.pin === 'fail')))
     return binding.reduce((next, b) => {
-      const ref = parseNodeId(b.source);
-      return ref.kind === 'branch' ? setBranchTarget(next, ref.owner, ref.test, b.pin as 'pass' | 'fail') : next;
+      const ref = parseNodeId(b.source),
+        to = parseNodeId(b.target);
+      if (ref.kind !== 'branch') return next;
+      // One fanned line: only that branch leaves the fan.
+      if (
+        b.pin === 'pass' &&
+        to.kind === 'branch' &&
+        fanOf(next.actions.find(a => a.uid === ref.owner)?.flow, ref.test)
+      )
+        return removeFanBranch(next, ref.owner, ref.test, to.test);
+      return setBranchTarget(next, ref.owner, ref.test, b.pin as 'pass' | 'fail');
     }, w);
   // A QTE's line is edited in the document too: kept as a hidden line, a group's detail still listed every action
   // whose line was gone (10-15, Grapple Carry QTE: one line left, eleven actions listed).
@@ -200,11 +210,8 @@ export function lowerDisconnected(w: Workspace): Workspace {
       }
       if (s?.kind === 'stateCondition' && s.action) {
         Object.assign(n.actions.find(a => a.uid === s.action)!.config, {
-          weapon: false,
           air: 'deny',
           cooldown: 0,
-          requiredStamina: 0,
-          blockWhileAttacking: false,
         });
         continue;
       }

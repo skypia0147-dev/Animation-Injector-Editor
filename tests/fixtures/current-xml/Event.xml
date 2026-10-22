@@ -2,10 +2,13 @@
 <AnimationSet version="4" id="ImportedSet">
   <Action id="EditorEvent" clip="Animations\ComboTest\test_Attack1.hkx">
     <Start event="AI_EditorS3_Start" actor="both" onKeyUp="false"/>
-    <Require weapon="drawn" air="deny" blockWhileAttacking="false" cooldown="0.3" stamina="0"/>
+    <Require air="deny" cooldown="0.3"/>
     <Enter blend="0.1"/>
     <Exit at="end-0.05" blend="0.2"/>
     <Attack data="attackStart"/>
-    <Advanced safety="3"/>
+    <Flow entry="RequireWeapon">
+      <Test id="RequireWeapon" kind="weaponDrawn" subject="self" pass="Self"/>
+      <Play id="Self" action="EditorEvent"/>
+    </Flow>
   </Action>
 </AnimationSet>

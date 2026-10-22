@@ -74,10 +74,10 @@ test('draft condition connects to exactly the chosen HKX and retains its setting
   const before = structuredClone(w.actions[0].config);
   const r = addFlat(w, '', 'stateCondition', {x: 0, y: 200});
   w = r.workspace;
-  w.drafts[0].value.config.weapon = true;
-  w.drafts[0].value.config.requiredStamina = 23;
+  w.drafts[0].value.config.air = 'allow';
+  w.drafts[0].value.config.cooldown = 2.3;
   w = connectFlat(w, r.id, 'anim:a2:|clip_A1');
-  assert.equal(w.actions[1].config.requiredStamina, 23);
+  assert.equal(w.actions[1].config.cooldown, 2.3);
   assert.deepEqual(w.actions[0].config, before);
   assert.ok(flatGraph(w).edges.some(e => e.source === 'start:a2|stateCondition' && e.target === 'anim:a2:|clip_A1'));
   assert.equal(w.drafts.length, 0);

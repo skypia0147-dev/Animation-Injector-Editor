@@ -94,6 +94,18 @@
   background: #33403f;
   color: #ececec;
 }
+/* The shot's way (StateDetails): its dialog sits outside .shell, so the pressed button is styled here too. */
+.qte-seg.fire-mode button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 3px 12px;
+  color: #a8a8a8;
+}
+.qte-seg.fire-mode button[aria-pressed='true'] {
+  background: #33403f;
+  color: #ececec;
+}
 .qte-timing {
   display: grid;
   gap: 5px;

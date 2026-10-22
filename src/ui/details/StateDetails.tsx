@@ -104,26 +104,38 @@ export function StateDetails({
   );
   return (
     <DetailPanel>
-      <Category
-        sectionId="playback"
-        group="playback"
-        title={integrated ? tr('동작 설정') : a.nodeAuthored ? t('node.hkxPlay') + tr(' · 동작 설정') : t('node.state')}
-        initialOpen
-      >
-        <Prop id="name" value={p.name} change={name => patch({name})} />
-        <Prop id="kind" value={kind} change={switchKind} options={playbackKinds.map(k => [k, t('actionKind.' + k)])} />
-        {!integrated && <ViewFields w={w} action={a} edit={editAll} row={detailRow} />}
-      </Category>
+      {/* In the HKX card (integrated) 재생 설정 is item rows (docs/mockup-playback-settings): the kind and the file
+          are the card's top, finding the partner and the pair play are its features. */}
+      {integrated ? (
+        <Category sectionId="playback" group="playback" title={tr('이름')} summary={p.name}>
+          <Prop id="name" value={p.name} change={name => patch({name})} />
+        </Category>
+      ) : (
+        <Category
+          sectionId="playback"
+          group="playback"
+          title={a.nodeAuthored ? t('node.hkxPlay') + tr(' · 동작 설정') : t('node.state')}
+          initialOpen
+        >
+          <Prop id="name" value={p.name} change={name => patch({name})} />
+          <Prop
+            id="kind"
+            value={kind}
+            change={switchKind}
+            options={playbackKinds.map(k => [k, t('actionKind.' + k)])}
+          />
+          <ViewFields w={w} action={a} edit={editAll} row={detailRow} />
+        </Category>
+      )}
       {p.steps
-        .filter(s => !stepId || s.id === stepId)
+        .filter(s => !integrated && (!stepId || s.id === stepId))
         .map(s => (
           <Category
             key={s.id}
             sectionId={'clip-' + s.id}
             group="playback"
             initialOpen={integrated}
-            title={integrated ? tr('애니메이션 파일') : t('node.hkxPlay') + ' · ' + s.label}
-            summary={integrated ? s.clip.split(/[\\/]/).at(-1) || tr('파일 미지정') : undefined}
+            title={t('node.hkxPlay') + ' · ' + s.label}
           >
             <StepFiles
               w={w}
@@ -138,16 +150,12 @@ export function StateDetails({
                 patch({steps: p.steps.map(x => (x.id === s.id ? {...x, clip, localPath} : x))})
               }
             />
-            {(!integrated || p.steps.length > 1) && (
-              <Prop
-                id="name"
-                value={s.label}
-                change={label => patch({steps: p.steps.map(x => (x.id === s.id ? {...x, label} : x))})}
-              />
-            )}
-            {!pair && !integrated && (
-              <ClipWindowFields action={a} step={s.id} change={change} events={markerNames(w)} />
-            )}
+            <Prop
+              id="name"
+              value={s.label}
+              change={label => patch({steps: p.steps.map(x => (x.id === s.id ? {...x, label} : x))})}
+            />
+            {!pair && <ClipWindowFields action={a} step={s.id} change={change} events={markerNames(w)} />}
           </Category>
         ))}
       {integrated && !pair && (
@@ -169,7 +177,7 @@ export function StateDetails({
       <Category
         sectionId="attack"
         group="playback"
-        title={tr('공격 설정')}
+        title={integrated ? tr('공격 데이터') : tr('공격 설정')}
         summary={
           p.steps.length === 1 ? p.steps[0].attack || p.attack || tr('지정 안 함') : p.attack || tr('클립별 설정')
         }
@@ -258,16 +266,12 @@ export function StateDetails({
         sectionId="state-condition"
         title={t('node.stateCondition')}
         summary={
-          tr('동작 시작 시 · ') + t('detail.' + (p.air === 'deny' ? 'ground' : p.air === 'only' ? 'air' : 'both'))
-        }
-        advanced={
-          <>
-            {number('cooldown', 'cooldown')}
-            {number('startStamina', 'requiredStamina', 100000)}
-          </>
+          t('detail.' + (p.air === 'deny' ? 'ground' : p.air === 'only' ? 'air' : 'both')) +
+          (p.cooldown ? ' · ' + p.cooldown + tr('초') : '')
         }
       >
-        <Prop id="weaponDrawn" value={p.weapon} initial={d.weapon} change={weapon => patch({weapon})} />
+        {/* 시작 제한 (runtime 0.12.276): the action's own nature, on every way in. A state check (weapon, attacking,
+            stamina) is a condition branch's test. */}
         <Prop
           id="location"
           value={p.air}
@@ -279,15 +283,69 @@ export function StateDetails({
             ['allow', t('detail.both')],
           ]}
         />
-        <Prop
-          id="noAttack"
-          value={p.blockWhileAttacking}
-          initial={false}
-          change={blockWhileAttacking => patch({blockWhileAttacking})}
-        />
+        {number('cooldown', 'cooldown')}
+        <p className="effect-note">
+          {tr('어느 경로로 와도 적용됩니다. 무기·공격 중·스태미나 검사는 조건 분기에서 합니다.')}
+        </p>
       </Category>
       {p.fireArrow && !pair && (
         <Category title={t('node.fireArrow')} initialOpen>
+          {/* How the arrow leaves the bow (docs/mockup-direct-arrow, runtime 0.12.268). */}
+          <DetailRow
+            label={tr('발사 방식')}
+            hint={
+              p.fireArrow.mode === 'direct'
+                ? tr(
+                    '당기지 않아도 바로 쏩니다. 속도·거리는 끝까지 당긴 것과 같고, 피해는 아래 %를 곱합니다. 장착 화살 1개를 소모하고, 화살이 없으면 쏘지 않습니다. 활 마법부여·독은 아직 적용하지 않습니다.'
+                  )
+                : tr('시위를 당기고 있을 때만 쏩니다. 그 순간까지 당긴 만큼 속도·거리·피해가 정해집니다.')
+            }
+          >
+            <div className="qte-seg fire-mode" role="group" aria-label={tr('발사 방식')}>
+              {(
+                [
+                  ['drawn', tr('당긴 만큼')],
+                  ['direct', tr('바로 발사')],
+                ] as const
+              ).map(([mode, name]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={(p.fireArrow!.mode ?? 'drawn') === mode}
+                  onClick={() => {
+                    const {mode: _, damage: __, ...rest} = p.fireArrow!;
+                    // A direct shot has no draw to release: it fires at its time (a shot on an event is the registry's).
+                    patch({
+                      fireArrow:
+                        mode === 'direct'
+                          ? {...rest, mode: 'direct', onRelease: false, at: rest.at ?? mark(0.5)}
+                          : {...rest, onRelease: rest.at ? rest.onRelease : true},
+                    });
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </DetailRow>
+          {p.fireArrow.mode === 'direct' && (
+            <DetailRow label={tr('피해 %')} hint={tr('끝까지 당긴 피해에 곱합니다. 1~1000%, 기본 100%.')}>
+              <input
+                type="number"
+                aria-label={tr('피해 %')}
+                min={1}
+                max={1000}
+                step={5}
+                value={p.fireArrow.damage ?? 100}
+                onChange={e => {
+                  const value = Number(e.target.value);
+                  if (!Number.isFinite(value)) return;
+                  const {damage: _, ...rest} = p.fireArrow!;
+                  patch({fireArrow: value === 100 ? rest : {...rest, damage: value}});
+                }}
+              />
+            </DetailRow>
+          )}
           <DetailRow
             label={tr('버튼 떼기 발사')}
             hint={tr(
@@ -297,7 +355,11 @@ export function StateDetails({
             <input
               type="checkbox"
               aria-label={tr('버튼 떼기 발사')}
-              checked={p.fireArrow.onRelease}
+              checked={p.fireArrow.onRelease && p.fireArrow.mode !== 'direct'}
+              disabled={p.fireArrow.mode === 'direct'}
+              title={
+                p.fireArrow.mode === 'direct' ? tr('바로 발사는 당김이 없어 버튼 떼기로 쏠 수 없습니다.') : undefined
+              }
               onChange={e => patch({fireArrow: {...p.fireArrow!, onRelease: e.target.checked}})}
             />
           </DetailRow>
@@ -319,10 +381,13 @@ export function StateDetails({
               />
             </DetailRow>
           )}
-          {!p.fireArrow.at && !p.fireArrow.onRelease && (
+          {!p.fireArrow.at && p.fireArrow.mode === 'direct' && (
             <p className="field-error" role="alert">
-              {tr('시각 발사나 버튼 떼기 발사 중 하나는 켜야 합니다.')}
+              {tr('바로 발사는 시각 발사를 켜거나, 이벤트 등록의 활 발사로 쏘세요.')}
             </p>
+          )}
+          {!p.fireArrow.at && !p.fireArrow.onRelease && p.fireArrow.mode !== 'direct' && (
+            <p className="fire-shot-hint">{tr('이 동작 자체로는 쏘지 않습니다. 이벤트 등록의 활 발사로만 쏩니다.')}</p>
           )}
         </Category>
       )}
@@ -377,55 +442,59 @@ export function StateDetails({
       )}
       {pair && (
         <>
-          <Category
-            sectionId="pair-target"
-            group="playback"
-            title={t('node.findPartner')}
-            summary={`${pair.targetRig ?? 'character'} · ${pair.range} · ${pair.angle}°`}
-            advanced={
-              // Read from the HKX's start pose (graph/pairFacing.ts): a pair played from behind does not turn the two
-              // to face each other.
-              <DetailRow id="reorient">
-                <span>{t(pair.reorientSupport ? 'detail.facingFront' : 'detail.facingBack')}</span>
-              </DetailRow>
-            }
-          >
-            <Prop
-              id="target"
-              label={tr('대상 스켈레톤')}
-              hint={tr(
-                '페어 HKX를 제작할 때 사용한 상대 스켈레톤입니다. 해당 계열만 대상으로 찾으며, 내보내기는 인간과 상대의 경로에 HKX를 함께 배치합니다.'
-              )}
-              value={pair.targetRig ?? 'character'}
-              initial="character"
-              change={targetRig => pp({targetRig})}
-              options={pairedRigs.map(r => [r.id, `${r.label} · ${r.id}`])}
-            />
-            {pairNumber('range', 'range', 10000)}
-            {pairNumber('angle', 'angle', 360)}
-            <AnglePreview angle={pair.angle} />
-            <Prop
-              id="target"
-              value={pair.target}
-              initial="nearest"
-              change={target => pp({target})}
-              options={[
-                ['nearest', t('detail.nearest')],
-                ...(p.start.mode === 'event' ? [['combatTarget', t('detail.combatTarget')] as [string, string]] : []),
-              ]}
-            />
-          </Category>
-          <Category
-            sectionId="pair-play"
-            group="playback"
-            title={t('node.pairedPlay')}
-            summary={t('row.lossBlend') + ' · ' + (pair.lossEnabled ? 'ON' : 'OFF')}
-          >
-            {pairCheck('lossBlend', 'lossEnabled')}
-            {pairNumber('blend', 'lossBlend', 5)}
-            {pairCheck('interruptOnThirdPartyHit', 'interruptOnThirdPartyHit')}
-            {pairCheck('enabled', 'effectsEnabled')}
-          </Category>
+          {!integrated && (
+            <Category
+              sectionId="pair-target"
+              group="playback"
+              title={t('node.findPartner')}
+              summary={`${pair.targetRig ?? 'character'} · ${pair.range} · ${pair.angle}°`}
+              advanced={
+                // Read from the HKX's start pose (graph/pairFacing.ts): a pair played from behind does not turn the two
+                // to face each other.
+                <DetailRow id="reorient">
+                  <span>{t(pair.reorientSupport ? 'detail.facingFront' : 'detail.facingBack')}</span>
+                </DetailRow>
+              }
+            >
+              <Prop
+                id="target"
+                label={tr('대상 스켈레톤')}
+                hint={tr(
+                  '페어 HKX를 제작할 때 사용한 상대 스켈레톤입니다. 해당 계열만 대상으로 찾으며, 내보내기는 인간과 상대의 경로에 HKX를 함께 배치합니다.'
+                )}
+                value={pair.targetRig ?? 'character'}
+                initial="character"
+                change={targetRig => pp({targetRig})}
+                options={pairedRigs.map(r => [r.id, `${r.label} · ${r.id}`])}
+              />
+              {pairNumber('range', 'range', 10000)}
+              {pairNumber('angle', 'angle', 360)}
+              <AnglePreview angle={pair.angle} />
+              <Prop
+                id="target"
+                value={pair.target}
+                initial="nearest"
+                change={target => pp({target})}
+                options={[
+                  ['nearest', t('detail.nearest')],
+                  ...(p.start.mode === 'event' ? [['combatTarget', t('detail.combatTarget')] as [string, string]] : []),
+                ]}
+              />
+            </Category>
+          )}
+          {!integrated && (
+            <Category
+              sectionId="pair-play"
+              group="playback"
+              title={t('node.pairedPlay')}
+              summary={t('row.lossBlend') + ' · ' + (pair.lossEnabled ? 'ON' : 'OFF')}
+            >
+              {pairCheck('lossBlend', 'lossEnabled')}
+              {pairNumber('blend', 'lossBlend', 5)}
+              {pairCheck('interruptOnThirdPartyHit', 'interruptOnThirdPartyHit')}
+              {pairCheck('enabled', 'effectsEnabled')}
+            </Category>
+          )}
           <CarryFields action={a} w={w} change={change} edit={edit} focused={!!focused} compact={integrated} />
           {pair.carry && (
             // Every carry fixes its target: at the lift's end unless a moment is given.
@@ -535,23 +604,20 @@ export function StateDetails({
           change={timeout => setCamera({...camera, timeout})}
         />
       </Category>
-      <Category
-        sectionId="safety"
-        group="playback"
-        title={integrated ? tr('고급 · 안전 설정') : tr('안전 설정')}
-        summary={p.safety + 's'}
-        advanced={<>{number('maxDuration', 'safety')}</>}
-      />
-      <Category sectionId="identifiers" group="info" title={tr('식별 정보')} initialOpen>
+      <Category sectionId="identifiers" group="info" title={tr('식별 정보')} summary={p.actionId} initialOpen>
         <Prop id="internalId" label="Action ID" value={p.actionId} change={actionId => patch({actionId})} />
-        {integrated && p.steps.length === 1 && (
-          <Prop
-            id="name"
-            label={tr('클립 표시 이름')}
-            value={p.steps[0].label}
-            change={label => patch({steps: [{...p.steps[0], label}]})}
-          />
-        )}
+        {integrated &&
+          p.steps
+            .filter(s => s.id === (stepId || p.entry))
+            .map(s => (
+              <Prop
+                key={s.id}
+                id="name"
+                label={tr('클립 표시 이름')}
+                value={s.label}
+                change={label => patch({steps: p.steps.map(x => (x.id === s.id ? {...x, label} : x))})}
+              />
+            ))}
         {p.steps
           .filter(s => !stepId || s.id === stepId)
           .map(s => (

@@ -60,6 +60,11 @@ export async function resolveHkx(paths: string[]): Promise<ResolvedHkx[]> {
   if (!isTauri()) throw new Error(t('drop.hkxNeedsDesktop'));
   return (await invoke<ResolvedHkx[]>('resolve_hkx', {paths})).map(r => ({...r, error: backendText(r.error)}));
 }
+/** Whether each path is a file now (a remembered source whose mod folder was renamed is not). */
+export async function filesExist(paths: string[]): Promise<boolean[]> {
+  if (!isTauri()) throw new Error(t('export.desktop'));
+  return invoke<boolean[]>('files_exist', {paths});
+}
 export async function checkAssets(
   files: {id: string; path: string; clip: string}[]
 ): Promise<{id: string; message: string}[]> {

@@ -4,7 +4,7 @@ import {putAction} from '../workspace.ts';
 import {timelineRows as rows, patch, trackOf, tracks, assignTrack, remove} from './model.ts';
 import {markerNames} from '../ui/details/markerCatalog.ts';
 import {sentEvent} from '../graph/annotations.ts';
-import {eventTargets, eventFroms, targetLabels, fromLabels} from '../eventRegistry.ts';
+import {pairRoles, pairRoleLabels} from '../eventRegistry.ts';
 import {GraphDetails} from '../graph/GraphDetails.tsx';
 import type {Meta} from './model.ts';
 import {DetailPanel, DetailCategory, DetailRow} from '../ui/details/DetailRow.tsx';
@@ -225,17 +225,10 @@ export function NotifyDetails({
           <>
             <Prop
               id="receiver"
-              label={tr('대상')}
+              label={tr('적용')}
               value={pt.role}
               change={role => pp({role})}
-              options={eventTargets.map(r => [r, targetLabels[r]])}
-            />
-            <Prop
-              id="sender"
-              label={tr('반응(누구의 클립 시각)')}
-              value={pt.source}
-              change={source => pp({source})}
-              options={eventFroms.map(r => [r, fromLabels[r]])}
+              options={pairRoles.map(r => [r, pairRoleLabels[r]])}
             />
           </>
         )}
@@ -268,6 +261,7 @@ export function NotifyDetails({
         {row.group && pair && (
           <EffectDetails
             timeline
+            pair
             effect={row.group.on}
             change={e =>
               change({
@@ -278,7 +272,7 @@ export function NotifyDetails({
                     x.id === e.id
                       ? e
                       : x.id === row.group!.off.id
-                        ? {...x, values: {...x.values, target: e.values.target, from: e.values.from}}
+                        ? {...x, values: {...x.values, target: e.values.target}}
                         : x
                   ),
                 },
@@ -290,7 +284,21 @@ export function NotifyDetails({
           <EffectDetails
             effect={row.effect}
             timeline
+            pair
             change={e => change({...action, pair: {...pair, effects: pair.effects.map(x => (x.id === e.id ? e : x))}})}
+          />
+        )}
+        {row.effect && !pair && (
+          <EffectDetails
+            effect={row.effect}
+            timeline
+            self
+            change={e =>
+              change({
+                ...action,
+                config: {...p, effects: (p.effects ?? []).map(x => (x.id === e.id ? e : x))},
+              })
+            }
           />
         )}
         <button onClick={() => edit(w => remove(w, action.uid, id))}>{t('timeline.remove')}</button>

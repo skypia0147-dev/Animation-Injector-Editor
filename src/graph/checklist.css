@@ -117,46 +117,21 @@
   background: #303333;
   width: 100%;
 }
+.checklist-add-menu > div button:disabled {
+  color: #7d7d7d;
+  background: #2a2c2c;
+  cursor: default;
+}
+/* A selecting action with no entry settings yet (docs/mockup-entry-settings). */
+.checklist-entry-empty {
+  margin: 0;
+  padding: 2px 0;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+}
 .checklist-row.active-item {
   outline: 1px solid #a8ccc4;
   outline-offset: 2px;
-}
-.checklist-event-dialog {
-  background: #212121;
-  color: #eee;
-  border: 1px solid #666;
-  border-radius: 10px;
-  padding: 0;
-  width: min(520px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
-  box-shadow: 0 16px 60px #0008;
-}
-.checklist-event-dialog::backdrop {
-  background: #0005;
-}
-.checklist-event-dialog header,
-.checklist-event-dialog footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-}
-.checklist-event-dialog header {
-  border-bottom: 1px solid #444;
-  justify-content: space-between;
-}
-.checklist-event-dialog footer {
-  border-top: 1px solid #444;
-  justify-content: flex-end;
-}
-.checklist-event-content {
-  max-height: calc(100vh - 180px);
-  overflow: auto;
-  padding: 16px;
-}
-.checklist-event-dialog > p {
-  padding: 0 16px;
-  color: #fbb;
 }
 .checklist-row {
   border-bottom: 1px solid #404040;
@@ -381,4 +356,286 @@
   font-size: var(--fs-sm);
   font-weight: 600;
   text-align: left;
+}
+/* The 활 발사 item: one row per moment it shoots (FireArrowShots.tsx, docs/mockup-fire-arrow-item). */
+.fire-shots {
+  display: grid;
+  gap: 8px;
+}
+.fire-shots-label {
+  font-size: var(--fs-xs);
+  color: var(--ue-dim);
+  letter-spacing: 0.04em;
+}
+.fire-shot {
+  display: grid;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid #36504b;
+  border-radius: 6px;
+  background: #213230;
+}
+.fire-shot.off {
+  opacity: 0.6;
+}
+.fire-shot-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.fire-shot-head label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fire-shot-what {
+  font-weight: 600;
+}
+.fire-shot-event {
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #3a3f2a;
+  color: #e8dfa8;
+  font-size: var(--fs-xs);
+}
+.fire-shot-when {
+  margin-left: auto;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fire-shot-when input,
+.fire-shot-line input {
+  width: 64px;
+}
+.fire-shot-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fire-shot-hint {
+  margin: 0;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+.p3-node .fire-shot-link,
+.fire-shot-link {
+  display: inline;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8fd3ff;
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.fire-shot-add {
+  display: grid;
+  gap: 4px;
+}
+.fire-shot-add > button {
+  justify-self: start;
+}
+.fire-shot-menu {
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #4b6b78;
+  border-radius: 6px;
+  background: #232727;
+}
+.fire-shot-menu button {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.fire-shot-menu button:hover {
+  background: #2f3e44;
+}
+.fire-shot-menu small {
+  color: var(--ue-dim);
+}
+
+/* Moment items edit in place (10-23, docs/mockup-inline-moments): a clip time, an event (a registered function,
+   global) or an HKX annotation command (read only). */
+.moment-fields {
+  display: grid;
+  gap: 7px;
+}
+.moment-line {
+  display: grid;
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
+  gap: 6px;
+  align-items: center;
+}
+.moment-label {
+  color: #cfcfcf;
+  font-size: var(--fs-sm);
+}
+.moment-inline {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.moment-inline input[type='number'] {
+  width: 76px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.moment-unit {
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+}
+.moment-seg {
+  display: inline-flex;
+  border: 1px solid #555;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+.moment-seg button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #b8b8b8;
+  padding: 3px 10px;
+  font-size: var(--fs-xs);
+}
+.moment-seg button + button {
+  border-left: 1px solid #555;
+}
+.moment-seg button[aria-pressed='true'] {
+  background: #3d4a48;
+  color: #f0f0f0;
+}
+.moment-seg button:disabled {
+  color: #666;
+}
+.moment-ruler {
+  position: relative;
+  height: 18px;
+  border-radius: 4px;
+  background: #1b1b1b;
+  border: 1px solid #3c3c3c;
+  cursor: pointer;
+}
+.moment-ruler .me,
+.moment-ruler .other {
+  position: absolute;
+  transform: translateX(-50%);
+  border-radius: 2px;
+}
+.moment-ruler .me {
+  top: -2px;
+  width: 9px;
+  height: 20px;
+  background: #e2c47c;
+}
+.moment-ruler .other {
+  top: 5px;
+  width: 6px;
+  height: 7px;
+  background: #6d6a4d;
+}
+.moment-ruler .len {
+  position: absolute;
+  right: 4px;
+  top: 1px;
+  font-size: 10px;
+  color: var(--ue-dim);
+  font-variant-numeric: tabular-nums;
+}
+.moment-sub {
+  padding: 0 4px 3px 22px;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.moment-global {
+  color: #f0c98a;
+  border: 1px solid #6b5a33;
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.moment-note {
+  margin: 0;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+.moment-note.global {
+  color: #f0c98a;
+}
+.moment-note.warn {
+  color: #f0904a;
+}
+.moment-lock {
+  color: #b7a6e6;
+  border: 1px solid #4d4470;
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.checklist-row.annotation-moment > .checklist-row-heading > button > span:first-child {
+  color: #b7a6e6;
+}
+.checklist-row.annotation-moment.bad > .checklist-row-heading > button > span:first-child {
+  color: #f0904a;
+}
+.moment-role {
+  font-size: var(--fs-xs);
+  border-radius: 9px;
+  padding: 0 6px;
+  margin-right: 3px;
+  white-space: nowrap;
+}
+.moment-role.initiator {
+  color: #f0b07a;
+  border: 1px solid #6b4d33;
+}
+.moment-role.receiver {
+  color: #8fc6f0;
+  border: 1px solid #335a6b;
+}
+.moment-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.moment-table th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--ue-dim);
+  padding: 0 6px 3px 0;
+}
+.moment-table td {
+  border-top: 1px solid #333;
+  padding: 3px 6px 3px 0;
+}
+
+/* An item an older project saved as 사용 안 함 (10-23: no checkbox to turn one off any more). */
+.checklist-off {
+  color: #c9a27a;
+  border: 1px solid #6b5a43;
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
 }

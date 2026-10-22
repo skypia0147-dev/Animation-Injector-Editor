@@ -10,6 +10,7 @@ import {setBranchTarget, deleteCondition, setConditionOperands} from './conditio
 import {reconnectEdge} from './disconnect.ts';
 import {playbackLink} from './playback.ts';
 import {branchId} from './conditions.ts';
+import {fanOf, fanOfBranch, fanState} from './conditionFans.ts';
 import {branchTest, parseNodeId} from './nodeRef.ts';
 import type {NodeRef} from './nodeRef.ts';
 import type {Workspace} from '../workspace.ts';
@@ -33,6 +34,7 @@ import {t} from '../i18n/index.ts';
 import {makeDraft, draftScope, draftWorkspace, attachDraft} from './drafts.ts';
 import {addAction} from '../workspace.ts';
 import {tr} from '../i18n/korean.ts';
+import {functionParts} from '../eventRegistry.ts';
 export type FlatNode = Omit<GraphNode, 'kind'> & {
   kind: string;
   scope: GraphRef;
@@ -43,6 +45,21 @@ export type FlatNode = Omit<GraphNode, 'kind'> & {
   neighbor?: boolean;
   /** An event's QTE (runtime 0.12.264): its partner pins are the pair partner's ("상대"), not the victim's. */
   eventQte?: boolean;
+  /** A fanned branch (graph/conditionFans.ts): its number, whether the order reaches it, whether its own fail
+   *  points back to an earlier branch, and whether its fail is connected or tries the next branch. */
+  fan?: {
+    index: number;
+    count: number;
+    parent: string;
+    reached: boolean;
+    back: boolean;
+    ownFail: boolean;
+    /** The place of the branch its own fail goes to, when that is a branch of the same fan. */
+    failTo?: number;
+    next?: string;
+  };
+  /** A condition whose pass fans out: how many branches. */
+  fanCount?: number;
 };
 export const flatId = (g: GraphRef, id: string) => (g.kind === 'root' ? id : `${graphId(g)}|${id}`);
 /** The project's event registry node (eventRegistry.ts): always present, never deleted or copied. */
@@ -84,14 +101,7 @@ export function flatGraph(w: Workspace) {
     if (settings?.nodeAuthored) {
       const hidden: string[] = [];
       if (!blendNodes(w).some(b => b.target === animId(settings.uid, 'outputPose'))) hidden.push('outputPose');
-      if (
-        !settings.config.weapon &&
-        !settings.config.requiredStamina &&
-        !settings.config.cooldown &&
-        !settings.config.blockWhileAttacking &&
-        settings.config.air === 'deny'
-      )
-        hidden.push('stateCondition');
+      if (!settings.config.cooldown && settings.config.air === 'deny') hidden.push('stateCondition');
       p.nodes = p.nodes.filter(n => !hidden.includes(n.kind));
       const kept = new Set(p.nodes.map(n => n.id));
       p.edges = p.edges.filter(e => kept.has(e.source) && kept.has(e.target));
@@ -169,7 +179,11 @@ export function flatGraph(w: Workspace) {
         notify: r.id,
         kind: 'notify',
         title: r.label,
-        summary: timingLabel(r.from) + (r.until ? ' → ' + timingLabel(r.until) : ''),
+        // A clip-time function says its settings too (a shake's strength and duration).
+        summary: [
+          timingLabel(r.from) + (r.until ? ' → ' + timingLabel(r.until) : ''),
+          ...(r.effect ? functionParts(r.effect.values) : []),
+        ].join(' · '),
         position: graphPosition(w, root, id, {x: 1300 + j * 260, y: y + 650}),
         inputs: ['trigger'],
         outputs: [],
@@ -326,9 +340,26 @@ export function flatGraph(w: Workspace) {
       const host = animId(a.uid, 'clip_' + a.config.entry);
       if (a.flow.tests.some(t => t.id === a.flow!.entry))
         for (const e of edges) if (e.target === host && e.pin === 'trigger') e.target = branchId(a.uid, a.flow.entry);
+      const fanned = new Map<string, NonNullable<FlatNode['fan']>>();
+      for (const fan of a.flow.fans ?? [])
+        for (const s of fanState(a.flow, fan))
+          fanned.set(s.id, {
+            index: s.index,
+            count: fan.branches.length,
+            parent: branchId(a.uid, fan.parent),
+            reached: s.reached,
+            back: s.back,
+            ownFail: s.ownFail,
+            failTo: s.failTo,
+            next: s.next && branchId(a.uid, s.next),
+          });
       for (const [i, test] of a.flow.tests.entries()) {
         const id = branchId(a.uid, test.id);
+        const fan = fanOf(a.flow, test.id),
+          member = fanOfBranch(a.flow, test.id);
         add({
+          ...(fanned.has(test.id) ? {fan: fanned.get(test.id)} : {}),
+          ...(fan ? {fanCount: fan.branches.length} : {}),
           id,
           kind: 'conditionBranch',
           scope: root,
@@ -344,6 +375,17 @@ export function flatGraph(w: Workspace) {
           }),
         });
         for (const port of ['pass', 'fail'] as const) {
+          // A fan's pass: a line to each branch in its order. A branch's empty fail tries the next branch: no line.
+          if (port === 'pass' && fan) {
+            fan.branches.forEach((b, rank) => {
+              const target = branchId(a.uid, b),
+                n = byId.get(target);
+              if (n && !n.inputs.includes('trigger')) n.inputs.push('trigger');
+              edges.push({id: `${id}:pass:${b}`, source: id, target, pin: 'pass', targetPin: 'trigger', rank});
+            });
+            continue;
+          }
+          if (port === 'fail' && member && !member.fan.fails[test.id]) continue;
           const end = test[port];
           if (!end) continue;
           const dest = 'action' in end ? w.actions.find(x => x.uid === end.action) : undefined;
@@ -534,7 +576,6 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
         const next = structuredClone(w),
           a = next.actions.find(a => a.uid === owner)!;
         a.config.graph = outputDraft.value.config.graph;
-        a.config.safety = outputDraft.value.config.safety;
         next.drafts = next.drafts!.filter(d => d.id !== target);
         next.blends = blendNodes(next).map(b => ({
           ...b,
@@ -647,10 +688,13 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
         if (port !== 'pass' && port !== 'fail') throw Error(tr('통과 또는 실패 핀에서 연결하세요.'));
         if (to.kind === 'branch') {
           if (to.owner !== owner) throw Error(tr('같은 진입 경로의 조건끼리 연결하세요.'));
-          return setBranchTarget(w, owner, key, port, {node: to.test});
+          // A pass already leading to a condition fans out onto the next one (graph/conditionFans.ts).
+          return setBranchTarget(w, owner, key, port, {node: to.test}, 'add');
         }
         const n = flatNode(w, target);
         if (n?.kind !== 'hkxPlay' || !n.action) throw Error(tr('조건 또는 HKX 재생에 연결하세요.'));
+        if (port === 'pass' && fanOf(w.actions.find(a => a.uid === owner)?.flow, key))
+          throw Error(tr('갈래가 여럿인 통과에는 조건만 더할 수 있습니다. 갈래 선을 끊거나 ▾ 목록에서 바꾸세요.'));
         return setBranchTarget(w, owner, key, port, {action: n.action});
       }
       return NEXT;
@@ -663,9 +707,32 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
       if (to.kind === 'branch') {
         const draft = w.drafts?.find(d => d.id === source && ['keyInput', 'markerReceive'].includes(d.kind));
         if (draft) {
-          const owner = to.owner,
-            r = attachDraft(w, draft, owner);
-          return connectFlat(r.workspace, flatId({kind: 'start', action: owner}, draft.kind), target, port);
+          // A start onto a loose condition of an action that already starts some other way: that condition
+          // becomes its own action (one start per action), e.g. a second hotkey's flow.
+          const split = splitCondition(w, to.owner, to.test),
+            owner = split?.action ?? to.owner,
+            r = attachDraft(split?.workspace ?? w, draft, owner);
+          // Named after its start ("Num0 시작"), not "새 일반 동작" like the HKX cards made beside it.
+          if (split) {
+            const q = draft.value.config,
+              made = r.workspace.actions.find(a => a.uid === owner)!;
+            const name =
+              q.start.mode === 'event'
+                ? q.start.event
+                : q.inputs.find(i => i.id === q.start.input)?.key || q.inputs[0]?.key;
+            if (name) made.config.name = tr('{name} 시작', {name});
+          }
+          // The start card stays where the key was drawn (as onto an HKX, draftNode).
+          return moveNodes(
+            connectFlat(
+              r.workspace,
+              flatId({kind: 'start', action: owner}, draft.kind),
+              split ? branchId(owner, to.test) : target,
+              port
+            ),
+            root,
+            {[flatId({kind: 'start', action: owner}, draft.kind)]: graphPosition(w, root, draft.id, {x: 500, y: 500})}
+          );
         }
         const owner = to.owner,
           key = to.test,
@@ -975,8 +1042,8 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
           if (input && !existing) to.config.inputs.push(structuredClone(input));
           to.config.start = structuredClone(from.config.start);
         } else {
-          const {weapon, air, blockWhileAttacking, cooldown, requiredStamina} = from.config;
-          Object.assign(to.config, {weapon, air, blockWhileAttacking, cooldown, requiredStamina});
+          const {air, cooldown} = from.config;
+          Object.assign(to.config, {air, cooldown});
           const shared = next.sharedRules?.find(g => g.kind === 'state' && g.members.includes(from.uid));
           if (shared && !shared.members.includes(to.uid)) shared.members.push(to.uid);
         }
@@ -1065,18 +1132,74 @@ export function addDetachedCondition(w: Workspace, action: string, position: {x:
   }
   return r;
 }
-export function makePlaybackAction(w: Workspace) {
-  const a = addAction(w);
+export function makePlaybackAction(w: Workspace, kind: 'single' | 'pair' = 'single') {
+  const a = addAction(w, kind);
   a.nodeAuthored = true;
   a.enterBlendEnabled = false;
   a.exitBlendEnabled = false;
-  a.config.weapon = false;
   a.config.steps[0].clip = '';
   a.config.steps[0].label = tr('새 HKX');
   // No start yet, so no start key: a start key added later brings its own input (no unused Num0 left behind).
   a.config.start = {...a.config.start, mode: 'none', input: ''};
   a.config.inputs = [];
   return a;
+}
+/** A condition not reached from its action's entry, of an action that already has a start, moved with the
+ *  conditions after it into a new action of its own (no HKX of its own: it only selects). Undefined when the
+ *  action has no start yet or the condition is on its entry's flow (a second start there stays refused). */
+export function splitCondition(w: Workspace, owner: string, test: string) {
+  const a = w.actions.find(a => a.uid === owner),
+    f = a?.flow;
+  if (!a || !f || a.config.start.mode === 'none') return;
+  const reach = (from: string[]) => {
+    const seen = new Set<string>(),
+      pending = [...from];
+    while (pending.length) {
+      const id = pending.pop()!,
+        t = f.tests.find(t => t.id === id);
+      if (!t || seen.has(id)) continue;
+      seen.add(id);
+      for (const e of [t.pass, t.fail]) if (e && 'node' in e) pending.push(e.node);
+      pending.push(...(t.operands ?? []));
+    }
+    return seen;
+  };
+  const kept = reach(f.entry ? [f.entry] : []);
+  if (kept.has(test)) return;
+  const moved = reach([test]);
+  if ([...moved].some(id => kept.has(id)))
+    throw Error(tr('이 조건은 시작 흐름의 조건으로 이어져 있어 새 동작으로 나눌 수 없습니다.'));
+  const rest = f.tests.filter(t => !moved.has(t.id));
+  if (
+    rest.some(
+      t => [t.pass, t.fail].some(e => e && 'node' in e && moved.has(e.node)) || t.operands?.some(o => moved.has(o))
+    )
+  )
+    throw Error(tr('다른 조건이 이 조건으로 이어져 있습니다. 그 연결을 먼저 끊으세요.'));
+  const places = new Map(flatGraph(w).nodes.map(n => [n.id, n.position]));
+  const next = structuredClone(w),
+    from = next.actions.find(x => x.uid === owner)!,
+    made = makePlaybackAction(next, a.pair ? 'pair' : 'single');
+  const fans = f.fans?.filter(x => moved.has(x.parent));
+  made.flow = {
+    entry: test,
+    selects: true,
+    tests: structuredClone(f.tests.filter(t => moved.has(t.id))),
+    ...(fans?.length ? {fans: structuredClone(fans)} : {}),
+  };
+  from.flow!.tests = from.flow!.tests.filter(t => !moved.has(t.id));
+  if (from.flow!.fans) {
+    from.flow!.fans = from.flow!.fans.filter(x => !moved.has(x.parent));
+    if (!from.flow!.fans.length) delete from.flow!.fans;
+  }
+  next.actions.push(made);
+  const positions = Object.fromEntries(
+    [...moved].flatMap(id => {
+      const p = places.get(branchId(owner, id));
+      return p ? [[branchId(made.uid, id), p]] : [];
+    })
+  );
+  return {workspace: moveNodes(next, root, positions), action: made.uid};
 }
 export function addFlat(w: Workspace, action: string, kind: string, position: {x: number; y: number}) {
   if (kind === 'qte') return addQte(w, position);

@@ -23,7 +23,7 @@ export const nodeCatalog = {
   },
   stateCondition: {
     layer: 'rule',
-    fields: ['config.weapon', 'config.air', 'config.blockWhileAttacking', 'config.cooldown', 'config.requiredStamina'],
+    fields: ['config.air', 'config.cooldown'],
     inputs: [],
     outputs: ['condition'],
   },
@@ -70,6 +70,6 @@ export const nodeCatalog = {
   carryFix: {layer: 'anim', fields: ['pair.carry.fix'], inputs: ['trigger'], outputs: []},
   suppress: {layer: 'anim', fields: ['config.suppress'], inputs: ['trigger'], outputs: []},
   carry: {layer: 'anim', fields: ['pair.carry'], inputs: ['trigger'], outputs: ['trigger']},
-  outputPose: {layer: 'anim', fields: ['config.graph', 'config.safety'], inputs: ['pose'], outputs: []},
+  outputPose: {layer: 'anim', fields: ['config.graph'], inputs: ['pose'], outputs: []},
 } as const;
 export type NodeKind = keyof typeof nodeCatalog;

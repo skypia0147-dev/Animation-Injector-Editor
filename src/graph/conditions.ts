@@ -56,7 +56,16 @@ export type BranchTest = {
   pass?: BranchTarget;
   fail?: BranchTarget;
 };
-export type BranchFlow = {entry: string; tests: BranchTest[]; detached?: boolean};
+export type BranchFlow = {
+  entry: string;
+  tests: BranchTest[];
+  detached?: boolean;
+  /** Fanned branches (editor only, graph/conditionFans.ts): written as the tests' chain. */
+  fans?: import('./conditionFans.ts').ConditionFan[];
+  /** The flow is its action's whole job (graph/flat.ts splitCondition): it has no HKX of its own and only selects,
+   *  even before any route leads anywhere. */
+  selects?: true;
+};
 // NOT is an editor property; the runtime still evaluates its three-valued Not node.
 export function foldNotConditions(w: Workspace): Workspace {
   for (const a of w.actions) {

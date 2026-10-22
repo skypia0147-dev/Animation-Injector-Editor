@@ -1,5 +1,5 @@
 import {HelpTip} from '../HelpTip.tsx';
-import {Children, cloneElement, createContext, isValidElement, useContext, useId, useState} from 'react';
+import {Children, cloneElement, createContext, isValidElement, useContext, useEffect, useId, useState} from 'react';
 import type {ReactElement, ReactNode} from 'react';
 import {t, useLanguage} from '../../i18n/index.ts';
 import {labelHelp, labelText} from '../../labels.ts';
@@ -10,6 +10,9 @@ export const DetailFocus = createContext('');
 export type InspectorGroup = 'playback' | 'features' | 'info';
 export const InspectorLayout = createContext<InspectorGroup | ''>('');
 export const NestedDetailPanel = createContext(false);
+/** Categories drawn as the HKX card's item rows (재생 설정, docs/mockup-playback-settings): name, summary and ▸ on
+ *  one line, opening in place. Each starts closed; allOpen opens or closes all of them (전체 펼치기). */
+export const CategoryRows = createContext<{allOpen?: boolean} | null>(null);
 export function DetailPanel({children}: {children: ReactNode}) {
   useLanguage();
   const [query, setQuery] = useState('');
@@ -100,15 +103,49 @@ export function DetailCategory({
   advanced?: ReactNode;
   initialOpen?: boolean;
 }) {
+  const rows = useContext(CategoryRows);
   const query = useContext(DetailSearch),
-    [open, setOpen] = useState(initialOpen),
+    [open, setOpen] = useState(rows ? false : initialOpen),
     [more, setMore] = useState(true),
     id = useId();
+  useEffect(() => {
+    if (rows?.allOpen !== undefined) setOpen(rows.allOpen);
+  }, [rows?.allOpen]);
   const focus = useContext(DetailFocus);
   const layout = useContext(InspectorLayout);
   if (layout && !query && group !== layout) return null;
   if (focus && title !== focus && !title.startsWith(focus + ' ·')) return null;
   const expanded = !!query || open || (!!focus && !layout);
+  const body = (
+    <DetailSearch.Provider value={query && title.toLocaleLowerCase().includes(query) ? '' : query}>
+      {children}
+      {advanced && (
+        <>
+          <button className="detail-advanced" aria-expanded={!!query || more} onClick={() => setMore(!more)}>
+            {more || query ? '▾' : '▸'} {t('row.advanced')}
+          </button>
+          {(more || query) && advanced}
+        </>
+      )}
+    </DetailSearch.Provider>
+  );
+  if (rows)
+    return (
+      <div className="checklist-row" data-category={title} data-section={sectionId}>
+        <div className="checklist-row-heading">
+          <button aria-expanded={expanded} aria-controls={id} onClick={() => setOpen(!open)}>
+            <span>{title}</span>
+            <small title={summary}>{summary === title ? '' : summary}</small>
+            <span>{expanded ? '▾' : '▸'}</span>
+          </button>
+        </div>
+        {expanded && (
+          <div id={id} className="checklist-fields">
+            {body}
+          </div>
+        )}
+      </div>
+    );
   return (
     <section className="detail-category" data-category={title} data-section={sectionId}>
       <button
@@ -126,21 +163,7 @@ export function DetailCategory({
           </small>
         )}
       </button>
-      {expanded && (
-        <div id={id}>
-          <DetailSearch.Provider value={query && title.toLocaleLowerCase().includes(query) ? '' : query}>
-            {children}
-            {advanced && (
-              <>
-                <button className="detail-advanced" aria-expanded={!!query || more} onClick={() => setMore(!more)}>
-                  {more || query ? '▾' : '▸'} {t('row.advanced')}
-                </button>
-                {(more || query) && advanced}
-              </>
-            )}
-          </DetailSearch.Provider>
-        </div>
-      )}
+      {expanded && <div id={id}>{body}</div>}
     </section>
   );
 }

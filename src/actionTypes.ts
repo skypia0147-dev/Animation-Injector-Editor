@@ -79,7 +79,6 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
       delete p.fireArrow;
       delete p.carryRelease;
       p.attack = '';
-      p.safety = Math.max(30, old.safety);
       for (const key of pairTrackKeys) {
         const t = pair.timeline[key];
         const from = key === 'cost' ? old.cost.at : old.slots[key].from;
@@ -111,11 +110,8 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
     'actionId',
     'inputs',
     'events',
-    'weapon',
     'air',
-    'blockWhileAttacking',
     'cooldown',
-    'requiredStamina',
     'enterBlend',
     'exitBlend',
     'exit',

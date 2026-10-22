@@ -624,8 +624,10 @@ function Editor() {
         ? importWorkspaceXml(saved!.body)
         : parseTemplate(doc.contents);
     // A restored block has no local paths when it was saved on another computer (localPaths.ts): HKX beside the
-    // XML are found from its mod folder, as for an XML without a block. Paths already set are left alone.
-    const sources = kind === 'xml' && isTauri() ? await connectXmlAssets(next, doc.path, io.resolveHkx) : null;
+    // XML are found from its mod folder, as for an XML without a block. A remembered path whose file is gone (the
+    // mod folder renamed) is found there again; one still there is left alone.
+    const sources =
+      kind === 'xml' && isTauri() ? await connectXmlAssets(next, doc.path, io.resolveHkx, io.filesExist) : null;
     if (sources) next = sources.workspace;
     adopt(next, {name: doc.name, fresh: !restored, xmlPath: kind === 'xml' ? doc.path : '', stamp: doc.stamp});
     if (kind === 'xml' && !restored) setArrangeRequest(value => value + 1);
@@ -633,7 +635,14 @@ function Editor() {
       kind === 'template'
         ? t('shell.templateOpened')
         : restored
-          ? t('shell.opened', {name: doc.name})
+          ? t('shell.opened', {name: doc.name}) +
+            (sources?.stale
+              ? ' ' +
+                tr('기억한 HKX 경로 {stale}개가 없어져 모드 폴더에서 다시 찾았습니다(찾음 {connected}개).', {
+                  stale: sources.stale,
+                  connected: sources.connected,
+                })
+              : '')
           : t('shell.imported') +
             (saved?.stale ? ' ' + t('shell.editorBlockStale') : '') +
             (sources && sources.connected + sources.missing > 0
@@ -1447,7 +1456,7 @@ function Editor() {
               pair: {
                 ...action.pair,
                 effectsEnabled: true,
-                effects: [...action.pair.effects, {id, values: {op: 'hide', at: '0.2', target: 'both'}}],
+                effects: [...action.pair.effects, {id, values: {op: 'hide', at: '0.2'}}],
               },
             });
             setSelectedEffect({action: action.uid, id});
@@ -2167,6 +2176,7 @@ function Editor() {
                         <DetailCategory title={t('detail.notify')} initialOpen>
                           <EffectDetails
                             effect={effect}
+                            pair
                             change={next =>
                               changeAction({
                                 ...effectAction,

@@ -2,6 +2,7 @@ import {featureValue, applyFeature} from './sharedFeatures.ts';
 import type {FeatureValue} from './sharedFeatures.ts';
 import {rows} from '../timeline/model.ts';
 import {selectsOnly, type Workspace, defaultCamera} from '../workspace.ts';
+import {clipEffects} from '../clipEffects.ts';
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {graphPosition} from './projection.ts';
@@ -29,16 +30,10 @@ export function ruleValue(w: Workspace, kind: SharedRule['kind'], member: string
   const [owner, id] = member.split('|'),
     a = w.actions.find(a => a.uid === owner);
   if (kind === 'state')
-    return a
-      ? Object.fromEntries(
-          ['weapon', 'air', 'cooldown', 'requiredStamina', 'blockWhileAttacking'].map(k => [
-            k,
-            a.config[k as keyof typeof a.config],
-          ])
-        )
-      : undefined;
+    return a ? Object.fromEntries(['air', 'cooldown'].map(k => [k, a.config[k as keyof typeof a.config]])) : undefined;
   if (kind === 'camera') return a?.cameraEnabled ? a.camera : undefined;
-  return a?.pair?.effectsEnabled ? a.pair.effects.find(e => e.id === id)?.values : undefined;
+  if (!a || (a.pair && !a.pair.effectsEnabled)) return undefined;
+  return clipEffects(a).find(e => e.id === id)?.values;
 }
 export function shareRules(w: Workspace): Workspace {
   const next = structuredClone(w),
@@ -58,15 +53,7 @@ export function shareRules(w: Workspace): Workspace {
     }
     if (a.pair) add('camera', a.uid);
   }
-  for (const a of w.actions)
-    if (
-      a.config.weapon ||
-      a.config.air !== 'deny' ||
-      a.config.cooldown > 0 ||
-      a.config.requiredStamina > 0 ||
-      a.config.blockWhileAttacking
-    )
-      add('state', a.uid);
+  for (const a of w.actions) if (a.config.air !== 'deny' || a.config.cooldown > 0) add('state', a.uid);
   next.sharedOutputPose = true;
   // Transition destinations belong to paths, so shared input settings omit them.
   const covered = new Set([...groups.values()].flatMap(g => g.members.map(m => ruleNode(g.kind, m, w))));
@@ -156,9 +143,9 @@ export function synchronizeRules(before: Workspace, next: Workspace): Workspace 
           if (a) a.camera = {...(a.camera ?? defaultCamera()), ...structuredClone(value)};
           continue;
         }
-        if (!a?.pair) continue;
+        if (!a) continue;
         {
-          const e = a.pair.effects.find(e => e.id === id);
+          const e = clipEffects(a).find(e => e.id === id);
           if (e) e.values = structuredClone(value) as Record<string, string>;
         }
       }

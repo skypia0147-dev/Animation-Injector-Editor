@@ -23,7 +23,8 @@ export const defaultPairTimeline = (): PairTimeline =>
         from: mark(key === 'cost' ? 0.05 : 0),
         until: mark(0.8),
         role: 'initiator',
-        source: 'initiator',
+        // Kept for older projects' shape; a clip time has no sender to filter (runtime 0.12.275).
+        source: 'any',
         stamina: 0,
         magicka: 0,
       },
@@ -36,7 +37,7 @@ const ops = {
   cost: ['cost'],
 } as const;
 
-// Keep authored effects untouched; timeline tracks compile to clip-time effects (role = target, source = from).
+// Keep authored effects untouched; timeline tracks compile to clip-time effects (role = target, both left out).
 export function pairTimelineEffects(pair: Pair): Effect[] {
   const result: Effect[] = [];
   const ids = new Set(pair.effects.map(e => e.id));
@@ -52,8 +53,7 @@ export function pairTimelineEffects(pair: Pair): Effect[] {
         id,
         values: {
           op,
-          target: t.role,
-          from: t.source,
+          ...(t.role && t.role !== 'both' ? {target: t.role} : {}),
           at: String(m.seconds),
           ...(key === 'cost' ? {stamina: String(t.stamina), magicka: String(t.magicka)} : {}),
         },

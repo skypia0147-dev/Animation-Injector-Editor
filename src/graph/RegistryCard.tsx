@@ -5,13 +5,11 @@ import {
   addFunction,
   bindSlot,
   groupUses,
-  eventFroms,
+  arrowModes,
   eventKey,
   eventOps,
   eventSlots,
-  eventTargets,
   fieldsOf,
-  fromLabels,
   functionSummary,
   isBooleanSetting,
   newEventName,
@@ -19,12 +17,9 @@ import {
   removeEventRow,
   renameEvent,
   setFunctions,
-  setEventValues,
-  splitValues,
   settingDefault,
   settingLabels,
   settingRange,
-  targetLabels,
   vanillaName,
   type EventOp,
   type RegistryEntry,
@@ -235,11 +230,6 @@ function chipsOf(e: RegistryEntry, senders: Sender[]) {
           {tr('종')}
         </span>
       )}
-      {!!e.row?.values?.length && (
-        <span className="registry-chip" title={e.row.values.map(v => `${e.name}|${v}`).join('\n')}>
-          {tr('값')} {e.row.values.length}
-        </span>
-      )}
       {!fns.length && !e.uses.length && (
         <span className="registry-chip none">
           {senders.length ? tr('그래프 등록만 · 기능·용도 없음') : tr('참조 없음 · 그래프 등록만')}
@@ -269,13 +259,6 @@ function RegistryRow({
   const ref = useRef<HTMLDivElement>(null);
   const [name, setName] = useState(entry.name);
   useEffect(() => setName(entry.name), [entry.name]);
-  const savedValues = (entry.row?.values ?? []).join(' ');
-  const [valuesText, setValuesText] = useState(savedValues);
-  useEffect(() => setValuesText(savedValues), [savedValues]);
-  const commitValues = () => {
-    if (valuesText.trim() !== savedValues)
-      attempt(() => edit(w => setEventValues(w, entry.name, splitValues(valuesText))));
-  };
   useEffect(() => {
     if (!flash) return;
     requestAnimationFrame(() => {
@@ -327,27 +310,6 @@ function RegistryRow({
               }}
             />
           </label>
-          <label className="registry-field-line">
-            <span>{tr('값')}</span>
-            <input
-              aria-label={tr('이벤트 값')}
-              placeholder={tr('예: 1.5|0.5 3.0|1.0')}
-              value={valuesText}
-              onChange={e => setValuesText(e.target.value)}
-              onBlur={commitValues}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitValues();
-              }}
-            />
-          </label>
-          <div className="registry-hint">
-            {tr('주석이')}{' '}
-            <b>
-              {entry.name}
-              {tr('|값')}
-            </b>{' '}
-            {tr('형태로 오면 그 값을 적어야 그래프에 등록되어 주석이 발생합니다. 여러 개는 공백으로 구분합니다.')}
-          </div>
           <div className="registry-sub-title">
             {tr('기능')} <span>{tr('전역 — 어느 애니메이션에서 오든 실행')}</span>
           </div>
@@ -457,8 +419,6 @@ function RegistryRow({
   );
 }
 
-// Run the function only with this much free space in a direction around the target (rarely used).
-const spaceKeys = ['space', 'minSpace', 'maxSpace'];
 /** One registered function: op, target and trigger on one line, the op's settings below. */
 export function FunctionEditor({
   fn,
@@ -492,19 +452,24 @@ export function FunctionEditor({
           {label}
         </label>
       );
-    if (key === 'space')
+    if (key === 'damage' && v.mode !== 'direct') return null;
+    if (key === 'mode')
       return (
         <label key={key}>
           {label}
-          <select value={v.space ?? ''} onChange={e => set('space', e.target.value)}>
-            {[
-              ['', tr('없음')],
-              ['front', tr('앞')],
-              ['back', tr('뒤')],
-              ['left', tr('왼쪽')],
-              ['right', tr('오른쪽')],
-              ['down', tr('아래')],
-            ].map(([value, text]) => (
+          <select
+            value={v.mode === 'direct' ? 'direct' : ''}
+            onChange={e => {
+              const values = {...v};
+              if (e.target.value) values.mode = e.target.value;
+              else {
+                delete values.mode;
+                delete values.damage;
+              }
+              change({...fn, values});
+            }}
+          >
+            {arrowModes().map(([value, text]) => (
               <option key={value} value={value}>
                 {text}
               </option>
@@ -532,7 +497,7 @@ export function FunctionEditor({
           aria-label={label}
           min={min}
           max={max}
-          step={0.05}
+          step={key === 'damage' ? 5 : 0.05}
           value={Number(v[key] ?? settingDefault[key] ?? 0)}
           change={value => set(key, String(value))}
         />
@@ -542,51 +507,15 @@ export function FunctionEditor({
   return (
     <div className="registry-fn">
       <div className="registry-fn-caption">
-        <span>{tr('기능')}</span>
-        <span>{tr('대상')}</span>
-        <span>{tr('반응(누구의 이벤트)')}</span>
+        {/* It changes the actor that sent the event (runtime 0.12.273): no target or sender filter to choose. */}
+        <span>{tr('기능 · 이벤트를 보낸 액터에게')}</span>
         <span />
       </div>
       <div className="registry-fn-top">
-        <select
-          aria-label={tr('기능')}
-          value={v.op}
-          onChange={e => {
-            // Settings belong to an op: a new op keeps only the target and trigger.
-            const values: Record<string, string> = {op: e.target.value};
-            if (v.target && (e.target.value !== 'fireArrow' || ['sender', 'player'].includes(v.target)))
-              values.target = v.target;
-            if (v.from) values.from = v.from;
-            change({...fn, values});
-          }}
-        >
+        <select aria-label={tr('기능')} value={v.op} onChange={e => change({...fn, values: {op: e.target.value}})}>
           {eventOps.map(op => (
             <option key={op} value={op}>
               {opInfo[op].label}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={tr('대상')}
-          value={v.target ?? 'sender'}
-          onChange={e => set('target', e.target.value === 'sender' ? '' : e.target.value)}
-        >
-          {eventTargets
-            .filter(x => v.op !== 'fireArrow' || x === 'sender' || x === 'player')
-            .map(x => (
-              <option key={x} value={x}>
-                {targetLabels[x]}
-              </option>
-            ))}
-        </select>
-        <select
-          aria-label={tr('반응')}
-          value={v.from ?? 'any'}
-          onChange={e => set('from', e.target.value === 'any' ? '' : e.target.value)}
-        >
-          {eventFroms.map(x => (
-            <option key={x} value={x}>
-              {fromLabels[x]}
             </option>
           ))}
         </select>
@@ -594,18 +523,7 @@ export function FunctionEditor({
           ✕
         </button>
       </div>
-      <div className="registry-fn-fields">
-        {fieldsOf(v.op)
-          .filter(k => !spaceKeys.includes(k))
-          .map(setting)}
-      </div>
-      <details className="registry-space" open={!!v.space}>
-        <summary>
-          {tr('공간 조건')}
-          {v.space ? ' · ' + v.space : ''}
-        </summary>
-        <div className="registry-fn-fields">{spaceKeys.map(setting)}</div>
-      </details>
+      <div className="registry-fn-fields">{fieldsOf(v.op).map(setting)}</div>
       {info?.lasting && (
         <div className="registry-note">
           {tr('켜 둠 — 짝 기능 "')}

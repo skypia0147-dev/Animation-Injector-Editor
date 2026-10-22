@@ -21,7 +21,10 @@ const folder = 'tests/generated/runtime-extensions';
 fs.mkdirSync(folder, {recursive: true});
 // The Dynamic Dodge Shot port (runtime test data, format 4).
 const source = `${runtimeSource}/tests/data/dynamic-dodge-shot.xml`;
-const raw = fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '';
+// The editor leaves Advanced safety out (10-23): the port without it is what an export means.
+const raw = (fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '')
+  .replace(/ safety="[^"]*"/g, '')
+  .replace(/^[ \t]*<Advanced\/>\r?\n/gm, '');
 const runtime = (...args) => {
   const r = spawnSync(checker, args, {encoding: 'utf8'});
   assert.equal(r.status, 0, r.stdout + r.stderr);
@@ -280,7 +283,7 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   const shot = w.eventRegistry.find(r => r.name === 'DodgeShotFire');
   assert.deepEqual(
     shot.functions.map(f => f.values),
-    [{op: 'fireArrow', from: 'player'}]
+    [{op: 'fireArrow'}]
   );
   let node = flatGraph(w).nodes.find(n => n.action === a.uid && n.kind === 'fireArrow');
   assert.ok(node);
@@ -308,9 +311,19 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   assert.match(xml, /<FireArrow\/>/);
   fs.writeFileSync(folder + '/fire-release.xml', xml);
   runtime(folder + '/fire-release.xml');
-  // Neither shot, or an event moment, is refused.
+  // Neither own shot (10-22): the item stays for the event shots and no <FireArrow> is written; the registry's event
+  // shot still is. An event moment on the action's own shot is refused.
   w.actions[1].config.fireArrow.onRelease = false;
-  assert.throws(() => compileWorkspace(w));
+  const eventOnly = compileWorkspace(w);
+  assert.doesNotMatch(eventOnly.slice(eventOnly.indexOf('id="BowDodge_B1"')).split('</Action>')[0], /<FireArrow/);
+  assert.match(eventOnly, /<Do op="fireArrow"\/>/);
+  fs.writeFileSync(folder + '/fire-event-only.xml', eventOnly);
+  runtime(folder + '/fire-event-only.xml');
+  assert.deepEqual(
+    parseWorkspace(JSON.stringify(captureGraph(w))).actions[1].config.fireArrow,
+    w.actions[1].config.fireArrow,
+    'the item is kept in the project'
+  );
   w.actions[1].config.fireArrow.at = {
     basis: 'event',
     seconds: 0,
@@ -353,6 +366,105 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   const opened = parseWorkspace(JSON.stringify(old));
   assert.deepEqual(opened.actions[0].config.fireArrow, {at: null, onRelease: true});
   assert.deepEqual(opened.eventRegistry, [
-    {id: 'event1', name: 'OldFire', functions: [{id: 'fn1', values: {op: 'fireArrow', from: 'player'}}]},
+    {id: 'event1', name: 'OldFire', functions: [{id: 'fn1', values: {op: 'fireArrow'}}]},
   ]);
 });
+
+test(
+  'a direct shot (runtime 0.12.268) round-trips on the action and on the registry, checked by the runtime',
+  needsRuntime,
+  () => {
+    let w = importWorkspaceXml(raw);
+    const a = w.actions[1];
+    a.config.fireArrow = {
+      at: {basis: 'seconds', seconds: 0.6, event: '', fallback: false, fallbackBasis: 'seconds'},
+      onRelease: false,
+      mode: 'direct',
+      damage: 80,
+    };
+    const shot = w.eventRegistry.find(r => r.name === 'DodgeShotFire');
+    shot.functions[0].values = {op: 'fireArrow', mode: 'direct', damage: '150'};
+    w = parseWorkspace(JSON.stringify(captureGraph(w)));
+    const xml = compileWorkspace(w);
+    assert.match(xml, /<FireArrow at="0.6" mode="direct" damage="80"\/>/);
+    assert.match(xml, /<Do op="fireArrow" mode="direct" damage="150"\/>/);
+    fs.writeFileSync(folder + '/fire-direct.xml', xml);
+    runtime(folder + '/fire-direct.xml');
+    const back = importWorkspaceXml(xml);
+    assert.deepEqual(back.actions[1].config.fireArrow, a.config.fireArrow);
+    assert.deepEqual(back.eventRegistry.find(r => r.name === 'DodgeShotFire').functions[0].values, {
+      op: 'fireArrow',
+      mode: 'direct',
+      damage: '150',
+    });
+    // 100% is the default and left out; the drawn shot writes no mode.
+    back.actions[1].config.fireArrow.damage = undefined;
+    delete back.actions[1].config.fireArrow.damage;
+    assert.match(compileWorkspace(back), /<FireArrow at="0.6" mode="direct"\/>/);
+    // A direct shot needs a time and has no release shot; damage is only for it.
+    back.actions[1].config.fireArrow.at = null;
+    assert.throws(() => compileWorkspace(back), /바로 발사/);
+    for (const bad of [
+      '<FireArrow mode="direct"/>',
+      '<FireArrow at="0.6" mode="direct" onRelease="true"/>',
+      '<FireArrow at="0.6" damage="80"/>',
+      '<FireArrow at="0.6" mode="direct" damage="0"/>',
+      '<FireArrow at="0.6" mode="full"/>',
+    ])
+      assert.throws(() => importWorkspaceXml(raw.replace('<FireArrow/>', bad)), bad);
+    const p = createProject('single');
+    p.fireArrow = {at: null, onRelease: true, damage: 80};
+    assert.throws(() => parseProject(JSON.stringify(p)), 'damage without a direct shot');
+  }
+);
+
+test(
+  'the Fire bow item lists every moment the HKX shoots, its event shots included (10-22)',
+  needsRuntime,
+  async () => {
+    const {sentEvents, eventShots, fireArrowSummary, setEventShot, addEventShot} =
+      await import('../src/graph/fireArrowMoments.ts');
+    const {clipKey} = await import('../src/graph/annotations.ts');
+    let w = importWorkspaceXml(raw);
+    const a = w.actions[1];
+    // The clip's annotations as the HKX gives them (desktop only).
+    const annotations = new Map(
+      w.actions
+        .filter(x => x.config.steps[0]?.clip)
+        .map(x => [
+          clipKey(x.config.steps[0].clip),
+          [
+            {time: 0.15, text: 'SoundPlay.WPNBowPullLPM'},
+            {time: 0.62, text: 'DodgeShotFire'},
+          ],
+        ])
+    );
+    let sent = sentEvents(w, a, annotations);
+    assert.deepEqual(
+      sent.map(s => [s.name, s.time]),
+      [
+        ['SoundPlay.WPNBowPullLPM', 0.15],
+        ['DodgeShotFire', 0.62],
+      ]
+    );
+    const shots = eventShots(w, sent);
+    assert.deepEqual(
+      shots.map(s => [s.name, s.time, s.senders]),
+      [['DodgeShotFire', 0.62, 6]]
+    );
+    assert.equal(fireArrowSummary(w, a, sent), 'DodgeShotFire 주석 · 버튼 떼기');
+    // A direct event shot, then removed; an annotation event added as a shot.
+    w = setEventShot(w, shots[0], {...shots[0].fn.values, mode: 'direct', damage: '80'});
+    assert.equal(fireArrowSummary(w, w.actions[1], sent), 'DodgeShotFire 주석 · 바로 80% · 버튼 떼기');
+    assert.match(compileWorkspace(w), /<Do op="fireArrow" mode="direct" damage="80"\/>/);
+    w = setEventShot(w, eventShots(w, sent)[0]);
+    assert.equal(eventShots(w, sent).length, 0);
+    w = addEventShot(w, 'SoundPlay.WPNBowPullLPM');
+    assert.deepEqual(
+      eventShots(w, sent).map(s => [s.name, s.fn.values]),
+      [['SoundPlay.WPNBowPullLPM', {op: 'fireArrow'}]]
+    );
+    fs.writeFileSync(folder + '/fire-moments.xml', compileWorkspace(w));
+    runtime(folder + '/fire-moments.xml');
+  }
+);
