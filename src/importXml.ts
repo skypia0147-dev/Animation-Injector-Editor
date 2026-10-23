@@ -8,7 +8,7 @@ import {createProject, fullBodyGraph, mark} from './model.ts';
 import type {Mark, Input} from './model.ts';
 import {gamepadFromXml} from './keys.ts';
 import {emptyWorkspace, wrap, defaultPair, addLink, arrange, validateWorkspace} from './workspace.ts';
-import {readDo, readRegistry} from './eventRegistry.ts';
+import {readDo, readEventValues, readRegistry, registryNumbersIssue} from './eventRegistry.ts';
 import {liftStartLimits} from './startLimits.ts';
 import type {EventRow} from './eventRegistry.ts';
 import type {Workspace, Action} from './workspace.ts';
@@ -185,6 +185,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'Effects',
         'Flow',
         'CarryRelease',
+        'EventValues',
       ]
     );
     if (!pair && n.children.some(c => ['Target', 'OnPartnerLost', 'Carry'].includes(c.name)))
@@ -466,6 +467,9 @@ export function importWorkspaceXml(text: string): Workspace {
         if (dos.length) a.config.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));
       }
     }
+    // The numbers its clip runs registered functions with (runtime 0.12.281), matched to the registry read above.
+    const values = one(n, 'EventValues');
+    if (values) readEventValues(values, rows, a);
     w.actions.push(a);
     source.set(a.uid, n);
     // Connect keys are this action's editor inputs too; read here, while `addInput` sees this action.
@@ -706,7 +710,7 @@ export function importWorkspaceXml(text: string): Workspace {
   readEventQtes(w, registryNode);
   if (rows.length) w.eventRegistry = rows;
   liftStartLimits(w);
-  const errors = validateWorkspace(w).filter(i => i.level === 'error');
+  const errors = validateWorkspace(w).filter(i => i.level === 'error' && !registryNumbersIssue(i));
   if (errors.length) throw new Error(errors.map(i => i.node + ': ' + i.message).join('\n'));
   return shareEventReceivers(arrange(foldNotConditions(w)));
 }

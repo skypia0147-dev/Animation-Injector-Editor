@@ -122,6 +122,27 @@ export function stripExtensions(value: any): unknown {
       fail();
     delete p.effects;
   }
+  // The numbers this HKX runs registered functions with (runtime 0.12.281): row/fn key -> op and numbers.
+  if (p?.eventValues !== undefined) {
+    const all = p.eventValues;
+    if (
+      !all ||
+      typeof all !== 'object' ||
+      Array.isArray(all) ||
+      Object.keys(all).length > 4096 ||
+      Object.entries(all).some(
+        ([k, v]: [string, any]) =>
+          k.length > 256 ||
+          !v ||
+          typeof v !== 'object' ||
+          Array.isArray(v) ||
+          typeof v.op !== 'string' ||
+          Object.values(v).some(x => typeof x !== 'string' || x.length > 1024)
+      )
+    )
+      fail();
+    delete p.eventValues;
+  }
   if (p?.extraEvents !== undefined) {
     events(p.extraEvents);
     delete p.extraEvents;

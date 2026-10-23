@@ -7,19 +7,8 @@ import {sentEvent} from '../src/graph/annotations.ts';
 import {emptyWorkspace, addAction, parseWorkspace, compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {add, rows, remove} from '../src/timeline/model.ts';
-import {
-  hkxMoments,
-  clipToEvent,
-  eventToClip,
-  moveFunction,
-  slotToEvent,
-  eventToSlot,
-  setSlotOff,
-  costToEvent,
-  eventToCost,
-  clipBlocked,
-} from '../src/graph/hkxMoments.ts';
-import {setFunctions, readDo} from '../src/eventRegistry.ts';
+import {hkxMoments, clipToEvent, slotToEvent, costToEvent} from '../src/graph/hkxMoments.ts';
+import {setFunctions, readDo, nodeValues} from '../src/eventRegistry.ts';
 import {parseXml} from '../src/xml.ts';
 import {checker, needsChecker} from './local.mjs';
 
@@ -143,32 +132,32 @@ test('an HKX card lists the registered functions its clip sends and its AI. comm
   assert.deepEqual(shake.bad, [{time: 9, text: 'AI.CamShake|2'}], 'a missing number is shown as not run');
   assert.deepEqual(hkxMoments(w, w.actions[0], undefined), {registry: [], commands: [], read: false});
 });
-test('a moment moves between a clip time and an event, and between events', () => {
+test('a clip-time moment becomes an event: the registry gets what it acts with, this node its numbers (0.12.281)', () => {
   let w = pairWorkspace();
   w = add(w, w.actions[0].uid, 'hide', 0.4).workspace;
   const effect = w.actions[0].pair.effects.at(-1);
   effect.values.target = 'receiver';
   w = clipToEvent(w, w.actions[0].uid, effect.id, 'Grapple_Stom');
   assert.equal(w.actions[0].pair.effects.length, 0);
-  const fns = w.eventRegistry.find(r => r.name === 'Grapple_Stom').functions;
+  const row = () => w.eventRegistry.find(r => r.name === 'Grapple_Stom');
   assert.deepEqual(
-    fns.map(f => f.values),
+    row().functions.map(f => f.values),
     [{op: 'spell', plugin: 'FH_Grapple.esp', form: '808'}, {op: 'hide'}],
     'an event function changes its sender: no time, no role'
   );
-  w = moveFunction(w, 'Grapple_Stom', fns[1].id, 'Grapple_Land');
-  assert.deepEqual(
-    w.eventRegistry.find(r => r.name === 'Grapple_Land').functions.map(f => f.values),
-    [{op: 'hide'}]
-  );
-  const moved = w.eventRegistry.find(r => r.name === 'Grapple_Land').functions[0];
-  w = eventToClip(w, w.actions[0].uid, 'Grapple_Land', moved.id, 1.25);
-  assert.deepEqual(w.eventRegistry.find(r => r.name === 'Grapple_Land').functions, []);
-  assert.deepEqual(
-    w.actions[0].pair.effects.map(e => e.values),
-    [{op: 'hide', at: '1.25'}]
-  );
+  w = add(w, w.actions[0].uid, 'shake', 0.6).workspace;
+  const shake = w.actions[0].pair.effects.at(-1);
+  shake.values.strength = '1.5';
+  shake.values.delay = '0.2';
+  w = clipToEvent(w, w.actions[0].uid, shake.id, 'Grapple_Stom');
+  const fn = row().functions.at(-1);
+  assert.deepEqual(fn.values, {op: 'shake'}, 'the registry holds no numbers');
+  assert.deepEqual(nodeValues(w.actions[0], row(), fn), {op: 'shake', strength: '1.5', delay: '0.2'});
   assert.equal(validateWorkspace(w).filter(i => i.level === 'error').length, 0);
+  assert.match(
+    compileWorkspace(w),
+    /<EventValues>\s*<Event name="Grapple_Stom">\s*<Do op="shake" strength="1.5" delay="0.2"\/>\s*<\/Event>\s*<\/EventValues>/
+  );
 });
 test('a pair clip-time effect names a role and no sender filter (runtime 0.12.275)', needsChecker, () => {
   // An older project: target and from as they were.
@@ -219,44 +208,23 @@ test('a window and a cost move between the clip and the registry; on and off are
     {time: 0.2, text: 'DodgeOn'},
     {time: 0.7, text: 'DodgeOff'},
   ];
-  // The window becomes the registry's on function; its off one is chosen on another event.
+  // The window becomes the registry's on function; its off one is registered on another event.
   w = slotToEvent(w, a.uid, 'iframe', 'DodgeOn');
   assert.equal(w.actions[0].config.slots.iframe.enabled, false);
   let [item] = hkxMoments(w, w.actions[0], sent).registry;
   assert.deepEqual([item.event, item.fn.values.op, item.off], ['DodgeOn', 'iframeOn', null]);
-  assert.equal(clipBlocked(w.actions[0], 'iframeOn'), undefined);
-  w = setSlotOff(w, 'iframe', undefined, 'DodgeOff');
+  w = setFunctions(w, 'DodgeOff', [{id: 'fn1', values: {op: 'iframeOff'}}]);
   const moments = hkxMoments(w, w.actions[0], sent).registry;
   assert.equal(moments.length, 1, 'the off function shows inside its on one');
   item = moments[0];
   assert.deepEqual([item.off.event, item.off.fn.values.op], ['DodgeOff', 'iframeOff']);
-  // Back to the clip at the times the events come.
-  w = eventToSlot(
-    w,
-    a.uid,
-    'iframe',
-    {event: item.event, fn: item.fn.id, time: 0.2},
-    {event: item.off.event, fn: item.off.fn.id, time: 0.7}
-  );
-  assert.deepEqual(
-    [
-      w.actions[0].config.slots.iframe.enabled,
-      w.actions[0].config.slots.iframe.from.seconds,
-      w.actions[0].config.slots.iframe.until.seconds,
-    ],
-    [true, 0.2, 0.7]
-  );
-  assert.equal(hkxMoments(w, w.actions[0], sent).registry.length, 0);
-  assert.match(clipBlocked(w.actions[0], 'iframeOn'), /이미/);
-  // The cost keeps its amounts both ways.
+  // The cost's amounts stay this node's numbers (runtime 0.12.281).
   w = costToEvent(w, a.uid, 'DodgeOn');
-  const [cost] = hkxMoments(w, w.actions[0], sent).registry;
-  assert.deepEqual(cost.fn.values, {op: 'cost', stamina: '20', magicka: '0'});
-  w = eventToCost(w, a.uid, cost.event, cost.fn, 0.2);
-  assert.deepEqual(
-    [w.actions[0].config.cost.enabled, w.actions[0].config.cost.at.seconds, w.actions[0].config.cost.stamina],
-    [true, 0.2, 20]
-  );
+  const cost = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'cost');
+  assert.deepEqual(cost.fn.values, {op: 'cost'});
+  const row = w.eventRegistry.find(r => r.name === 'DodgeOn');
+  assert.deepEqual(nodeValues(w.actions[0], row, cost.fn), {op: 'cost', stamina: '20', magicka: '0'});
+  assert.equal(w.actions[0].config.cost.enabled, false);
   assert.equal(validateWorkspace(w).filter(i => i.level === 'error').length, 0);
 });
 test('the clip bar drags like the timeline: the moment, an end, or the whole window within the clip', async () => {
@@ -280,7 +248,7 @@ test('the clip bar drags like the timeline: the moment, an end, or the whole win
   assert.deepEqual(rulerDrag('move', origin, -1, 2), {at: 0.5, from: 0, until: 0.7}, 'stops at the clip start');
 });
 test('the item a clip/event switch makes opens: its key is the one the card lists it under', async () => {
-  const {switchTo, lastEffect, openedBySwitch} = await import('../src/graph/momentOpen.ts');
+  const {switchTo, openedBySwitch} = await import('../src/graph/momentOpen.ts');
   let w = pairWorkspace();
   const uid = w.actions[0].uid,
     sent = [
@@ -291,18 +259,8 @@ test('the item a clip/event switch makes opens: its key is the one the card list
   const effect = w.actions[0].pair.effects.at(-1);
   // Clip -> event: the registered row of that event and function.
   w = switchTo(uid, {event: 'Grapple_Stom'})(clipToEvent(w, uid, effect.id, 'Grapple_Stom'));
-  let row = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'hide');
+  const row = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'hide');
   assert.ok(openedBySwitch(`${uid}|${row.key}`));
-  // To another event: the function has a new id there.
-  w = switchTo(uid, {event: 'Grapple_Land'})(moveFunction(w, row.event, row.fn.id, 'Grapple_Land'));
-  row = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'hide');
-  assert.equal(row.event, 'Grapple_Land');
-  assert.ok(openedBySwitch(`${uid}|${row.key}`));
-  // Event -> clip: the action's clip-time item.
-  w = switchTo(uid, {notify: lastEffect(uid)})(eventToClip(w, uid, row.event, row.fn.id, 1.5));
-  const item = rows(w, w.actions[0]).find(r => r.effect?.values.op === 'hide');
-  assert.ok(openedBySwitch(`${uid}|${item.id}`));
-  assert.equal(openedBySwitch(`${uid}|effect:none`), false);
 });
 test('the card lists items by when they happen: whole play and start blend, moments by trigger time, end blend', async () => {
   const {itemPlace, byPlace, markTime} = await import('../src/graph/momentOrder.ts');

@@ -1,16 +1,14 @@
 // What the HKX card's 활 발사 item shows (FireArrowShots.tsx, docs/mockup-fire-arrow-once, 10-23): one automatic
 // shot, at a clip time (the action's FireArrow at) or on an event the clip's annotations send (the registry's
-// fireArrow, which every HKX sending that event shares), changed in place; and the button's release as the drawn
-// shot's early release. A clip time and an event together, or two events, shoot twice: the item asks to keep one.
-import {putAction, selectsOnly, type Action, type Workspace} from '../workspace.ts';
+// fireArrow, run with this node's way and damage: runtime 0.12.281, docs/mockup-event-node-values); and the button's
+// release as the drawn shot's early release. A clip time and an event together, or two events, shoot twice.
+import {putAction, selectsOnly, type Action, type Effect, type Workspace} from '../workspace.ts';
 import {clipKey, sentEvent, type Annotation} from './annotations.ts';
-import {addFunction, eventKey, setFunctions} from '../eventRegistry.ts';
-import {mark} from '../model.ts';
-import {moveFunction} from './hkxMoments.ts';
+import {addFunction, eventKey, nodeValues, runValues, setNodeValues, type EventRow} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
 
 export type SentShotEvent = {key: string; name: string; time: number; senders: number};
-export type EventShot = {name: string; time: number; fn: {id: string; values: Record<string, string>}; senders: number};
+export type EventShot = {name: string; time: number; row: EventRow; fn: Effect; senders: number};
 
 const clipOf = (a: Action) => a.config.steps.find(s => s.id === a.config.entry)?.clip ?? a.config.steps[0]?.clip ?? '';
 
@@ -41,7 +39,7 @@ export function eventShots(w: Workspace, sent: SentShotEvent[]): EventShot[] {
     const row = w.eventRegistry?.find(r => eventKey(r.name) === s.key);
     return (row?.functions ?? [])
       .filter(f => f.values.op === 'fireArrow')
-      .map(fn => ({name: row!.name, time: s.time, fn, senders: s.senders}));
+      .map(fn => ({name: row!.name, time: s.time, row: row!, fn, senders: s.senders}));
   });
 }
 
@@ -58,6 +56,9 @@ export function fireTiming(w: Workspace, a: Action, sent: SentShotEvent[]): Fire
   return {kind: 'conflict', shots};
 }
 
+/** This node's way of an event shot: its mode and damage (the registry holds none). */
+export const shotWay = (a: Action, shot: EventShot) => runValues(a, shot.row, shot.fn);
+
 /** The item's summary ("DodgeShotFire 주석 · 당긴 만큼 · 버튼 먼저"). */
 export function fireArrowSummary(w: Workspace, a: Action | undefined, sent: SentShotEvent[], read = true): string {
   const f = a?.config.fireArrow;
@@ -70,7 +71,10 @@ export function fireArrowSummary(w: Workspace, a: Action | undefined, sent: Sent
     timing.kind === 'clip'
       ? [tr('{seconds}초', {seconds: f.at!.seconds}), way(f.mode, f.damage)]
       : timing.kind === 'event'
-        ? [tr('{name} 주석', {name: timing.shot.name}), way(timing.shot.fn.values.mode, timing.shot.fn.values.damage)]
+        ? [
+            tr('{name} 주석', {name: timing.shot.name}),
+            way(shotWay(a, timing.shot).mode, shotWay(a, timing.shot).damage),
+          ]
         : // Unread annotations may hold an event shot: unknown, not missing.
           [read ? tr('자동 발사 시점 없음') : tr('HKX 주석 미확인')];
   if (f.onRelease && !directShot(w, a, timing)) parts.push(tr('버튼 먼저'));
@@ -79,72 +83,41 @@ export function fireArrowSummary(w: Workspace, a: Action | undefined, sent: Sent
 /** Whether the item's automatic shot is direct (no draw: the button's early release does not apply). */
 export function directShot(_w: Workspace, a: Action, timing: FireTiming) {
   return timing.kind === 'event'
-    ? timing.shot.fn.values.mode === 'direct'
+    ? shotWay(a, timing.shot).mode === 'direct'
     : timing.kind === 'clip' && a.config.fireArrow?.mode === 'direct';
 }
 
-/** One event shot's values changed, or (no values) the shot removed from its event. */
-export function setEventShot(w: Workspace, shot: EventShot, values?: Record<string, string>): Workspace {
-  const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(shot.name));
-  if (!row) return w;
-  return setFunctions(
-    w,
-    row.name,
-    values
-      ? row.functions.map(fn => (fn.id === shot.fn.id ? {...fn, values} : fn))
-      : row.functions.filter(fn => fn.id !== shot.fn.id)
-  );
-}
-
-/** The player's shot on an event the clip sends (the registry's fireArrow, registering the event if needed). */
-export function addEventShot(w: Workspace, name: string, values: Record<string, string> = {op: 'fireArrow'}) {
-  const next = addFunction(w, name, 'fireArrow');
-  const row = next.eventRegistry!.find(r => eventKey(r.name) === eventKey(name))!;
-  const added = row.functions.at(-1)!;
-  return setFunctions(
-    next,
-    row.name,
-    row.functions.map(fn => (fn === added ? {...fn, values} : fn))
-  );
+/** This node's way of an event shot (mode, damage): other nodes sending the event keep theirs. */
+export function setShotWay(w: Workspace, action: string, shot: EventShot, values: Record<string, string>) {
+  const a = w.actions.find(x => x.uid === action),
+    kept = {...(a && nodeValues(a, shot.row, shot.fn)), ...values};
+  delete kept.mode;
+  delete kept.damage;
+  if (values.mode === 'direct') {
+    kept.mode = 'direct';
+    if (values.damage !== undefined && values.damage !== '100') kept.damage = values.damage;
+  }
+  return setNodeValues(w, action, shot.row, shot.fn, Object.keys(kept).some(k => k !== 'op') ? kept : undefined);
 }
 
 const withFire = (w: Workspace, action: string, fire: NonNullable<Action['config']['fireArrow']>) => {
   const a = w.actions.find(x => x.uid === action)!;
   return putAction(w, {...a, config: {...a.config, fireArrow: fire}});
 };
-/** The shot's way as an event function's values (the direct shot's damage written only when not 100). */
-const wayValues = (mode?: string, damage?: number | string): Record<string, string> =>
-  mode === 'direct'
-    ? {mode: 'direct', ...(damage !== undefined && String(damage) !== '100' ? {damage: String(damage)} : {})}
-    : {};
-/** The clip time becomes an event shot on `name` (global: every HKX sending it shoots), keeping the shot's way. */
+/** The clip time becomes a shot on `name` (the registry's fireArrow there, which every HKX sending it shoots), this
+ *  node keeping its way and damage. */
 export function fireToEvent(w: Workspace, action: string, name: string): Workspace {
   const f = w.actions.find(x => x.uid === action)!.config.fireArrow!;
-  const next = withFire(w, action, {at: null, onRelease: f.mode === 'direct' ? false : f.onRelease});
-  return addEventShot(next, name, {op: 'fireArrow', ...wayValues(f.mode, f.damage)});
+  let next = withFire(w, action, {at: null, onRelease: f.mode === 'direct' ? false : f.onRelease});
+  next = addFunction(next, name, 'fireArrow');
+  const row = next.eventRegistry!.find(r => eventKey(r.name) === eventKey(name))!;
+  const shot = {name: row.name, time: 0, row, fn: row.functions.at(-1)!, senders: 1};
+  return f.mode === 'direct'
+    ? setShotWay(next, action, shot, {mode: 'direct', ...(f.damage !== undefined ? {damage: String(f.damage)} : {})})
+    : next;
 }
-/** The event shot leaves its event (global) and shoots at `seconds` of this clip, keeping its way. */
-export function fireToClip(w: Workspace, action: string, shot: EventShot, seconds: number): Workspace {
-  const f = w.actions.find(x => x.uid === action)!.config.fireArrow!,
-    v = shot.fn.values,
-    direct = v.mode === 'direct',
-    damage = direct && v.damage !== undefined && v.damage !== '100' ? Number(v.damage) : undefined;
-  return withFire(setEventShot(w, shot), action, {
-    at: mark(Math.round(seconds * 1000) / 1000),
-    onRelease: direct ? false : f.onRelease,
-    ...(direct ? {mode: 'direct' as const} : {}),
-    ...(damage !== undefined ? {damage} : {}),
-  });
-}
-/** The event shot moves to another event this clip sends (global for both events). */
-export const fireToOtherEvent = (w: Workspace, shot: EventShot, to: string) =>
-  moveFunction(w, shot.name, shot.fn.id, to);
-/** Two timings (a clip time and an event, or two events): keep one, the others removed. */
-export function keepFireTiming(w: Workspace, action: string, keep: 'clip' | EventShot, shots: EventShot[]) {
-  let next = shots.filter(s => keep === 'clip' || s.fn.id !== keep.fn.id).reduce((n, s) => setEventShot(n, s), w);
-  if (keep !== 'clip') {
-    const {mode: _, damage: __, ...rest} = next.actions.find(x => x.uid === action)!.config.fireArrow!;
-    next = withFire(next, action, {...rest, at: null});
-  }
-  return next;
+/** A clip time beside an event shot shoots twice: the clip time goes (the event is the registry's). */
+export function dropClipTime(w: Workspace, action: string): Workspace {
+  const {mode: _, damage: __, ...rest} = w.actions.find(x => x.uid === action)!.config.fireArrow!;
+  return withFire(w, action, {...rest, at: null});
 }

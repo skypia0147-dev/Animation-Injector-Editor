@@ -697,7 +697,6 @@
   font-size: var(--fs-xs);
   white-space: nowrap;
 }
-.moment-global,
 .moment-own,
 .moment-tag {
   cursor: help;
@@ -708,13 +707,14 @@
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
-.moment-global {
-  color: #f0c98a;
-  border: 1px solid #6b5a33;
-  border-radius: 9px;
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  white-space: nowrap;
+/* A cost or a time scale with no numbers on this node does not run here (runtime 0.12.281). */
+.checklist-row.registry-moment.missing {
+  outline: 1px dashed #f0904a;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.checklist-row.registry-moment.missing > .moment-sub {
+  color: #f0904a;
 }
 .moment-note {
   margin: 0;

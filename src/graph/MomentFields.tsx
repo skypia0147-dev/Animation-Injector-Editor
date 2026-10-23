@@ -5,17 +5,11 @@ import type {Mark} from '../model.ts';
 import {clipEffects, setClipEffects} from '../clipEffects.ts';
 import {
   actionClip,
-  clipBlocked,
   clipToEvent,
   costToEvent,
-  eventToClip,
-  eventToCost,
-  eventToSlot,
   fmt,
   hkxMoments,
-  moveFunction,
   sentEvents,
-  setSlotOff,
   slotOfOp,
   slotToEvent,
   type CommandMoment,
@@ -31,16 +25,31 @@ import {barToMark, barToSeconds, markToBar, type BarTime} from './clipBar.ts';
 import {GraphDetails} from './GraphDetails.tsx';
 import type {FlatNode} from './flat.ts';
 import {useClipAnnotations, clipDurations, clipKey, roleLabel} from './annotations.ts';
-import {renderedRegistry} from './renderCache.ts';
 import {showRegistry} from './RegistryCard.tsx';
-import {eventKey, functionParts, opInfo, setFunctions, type EventOp} from '../eventRegistry.ts';
+import {
+  eventKey,
+  functionParts,
+  needsValues,
+  nodeValues,
+  opInfo,
+  ragdollLabels,
+  registryFields,
+  runValues,
+  setNodeValues,
+  settingLabels,
+  valueFields,
+  valuePart,
+  type EventOp,
+  type EventRow,
+} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
-import {lastEffect, openedBySwitch, switchTo} from './momentOpen.ts';
+import {openedBySwitch, switchTo} from './momentOpen.ts';
 
 // The HKX card's moment items edit in place (10-23, docs/mockup-inline-moments, docs/mockup-moment-timing): every
 // item starts with 시점 [클립 | 이벤트]. A clip time is the action's own; an event is the registry's (global) for a
 // clip-time function, a window, a cost and the shot, and the action's own for a move-key recovery and a vanilla
-// cancel. An HKX annotation command (AI.) is read only.
+// cancel. A registered function's numbers are this node's (runtime 0.12.281, docs/mockup-event-node-values). An HKX
+// annotation command (AI.) is read only.
 
 type Edit = (fn: (w: Workspace) => Workspace) => void;
 
@@ -329,37 +338,84 @@ const Roles = ({roles}: {roles: Set<'initiator' | 'receiver'>}) => (
   </>
 );
 
-/** The 「전역」 tag: what a registry function is, on hover (docs/mockup-event-help). */
-export const GlobalTag = () => (
-  <span
-    className="moment-global"
-    title={tr('이벤트 등록의 기능입니다. 이 이벤트를 보내는 모든 애니메이션에서, 이벤트를 보낸 액터에게 적용됩니다.')}
-  >
-    {tr('전역')}
-  </span>
+/** Where a registry function is shown from a card: the registry node, that event's row open. */
+export const RegistryLink = ({event, text = tr('등록에서 보기')}: {event: string; text?: string}) => (
+  <button type="button" className="moment-link" onClick={() => showRegistry(event)}>
+    {text} ↗
+  </button>
 );
-/** A registry function's last line: where its event is used, the registry, and one delete. */
-export function RegistryFooter({w, event, remove}: {w: Workspace; event: string; remove?: () => void}) {
-  const uses = renderedRegistry(w).find(e => eventKey(e.name) === eventKey(event))?.uses.length ?? 0;
+/** What a registry function acts with, as the registry sets it (a spell, a ragdoll's direction), read only here. */
+function RegistryPart({event, values}: {event: string; values: Record<string, string>}) {
+  const keys = registryFields(values.op);
+  if (!keys.length) return null;
+  const text =
+    values.op === 'ragdoll'
+      ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
+      : [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 마법이 없습니다');
   return (
-    <div className="moment-footer">
-      <span>
-        {tr('쓰는 곳 {n}개', {n: uses})} ·{' '}
-        <button type="button" className="moment-link" onClick={() => showRegistry(event)}>
-          {tr('이벤트 등록에서 보기')} ↗
-        </button>
+    <div className="moment-line">
+      <span className="moment-label">{values.op === 'ragdoll' ? settingLabels.direction : tr('마법')}</span>
+      <span className="moment-inline">
+        <code>{text}</code>
+        <RegistryLink event={event} text={tr('등록에서 바꾸기')} />
       </span>
-      {remove && (
-        <button type="button" onClick={remove}>
-          {tr('삭제')}
-        </button>
-      )}
     </div>
   );
 }
+/** One registry function's numbers on this node, and where to copy them from another node. */
+function NodeValueFields({
+  w,
+  action,
+  row,
+  fn,
+  edit,
+}: {
+  w: Workspace;
+  action: Action;
+  row: EventRow;
+  fn: Effect;
+  edit: Edit;
+}) {
+  const others = w.actions.filter(x => x.uid !== action.uid && nodeValues(x, row, fn));
+  return (
+    <>
+      <EffectDetails
+        effect={{id: fn.id, values: runValues(action, row, fn)}}
+        timeline
+        valuesOnly
+        change={next => edit(w => setNodeValues(w, action.uid, row, fn, next.values))}
+      />
+      {!!valueFields(fn.values.op).length && (
+        <div className="moment-footer">
+          <span />
+          {others.length ? (
+            <select
+              aria-label={tr('다른 노드 값 가져오기')}
+              value=""
+              onChange={e => {
+                const from = others.find(x => x.uid === e.target.value);
+                if (from) edit(w => setNodeValues(w, action.uid, row, fn, nodeValues(from, row, fn)));
+              }}
+            >
+              <option value="">{tr('다른 노드 값 가져오기…')}</option>
+              {others.map(x => (
+                <option key={x.uid} value={x.uid}>
+                  {x.config.name} · {functionParts(valuePart(nodeValues(x, row, fn)!)).join(' · ') || tr('기본값')}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="moment-note">{tr('가져올 다른 노드 값 없음')}</span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
-/** A registered function of an event this HKX sends: edited in place, but it is the registry's (global). A window's
- *  on function carries its off function (docs/mockup-moment-timing). */
+/** A registered function of an event this HKX sends (docs/mockup-event-node-values): the registry decides the event
+ *  and what it acts with; this node holds the numbers it runs with here. A window's on function carries its off
+ *  function (docs/mockup-moment-timing). */
 export function RegistryMomentRow({
   w,
   action,
@@ -372,130 +428,69 @@ export function RegistryMomentRow({
   edit: Edit;
 }) {
   const [open, setOpen] = useState(() => openedBySwitch(`${action.uid}|${item.key}`));
-  const events = useSentEvents(w, action);
+  const rowOf = (event: string) => w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event));
+  const row = rowOf(item.event),
+    offRow = item.off ? rowOf(item.off.event) : undefined;
+  if (!row) return null;
   const op = item.fn.values.op;
-  const slot = slotOfOp(op);
   const name = opInfo[op as EventOp]?.label ?? op;
-  const at = item.sent.times[0] ?? 0;
-  const change = (next: Effect) =>
-    edit(w => {
-      const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(item.event));
-      return row
-        ? setFunctions(
-            w,
-            row.name,
-            row.functions.map(f => (f.id === next.id ? next : f))
-          )
-        : w;
-    });
-  const removeFrom = (w: Workspace, event: string, fn: string) => {
-    const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event));
-    return row
-      ? setFunctions(
-          w,
-          row.name,
-          row.functions.filter(f => f.id !== fn)
-        )
-      : w;
-  };
-  const options = (
-    <>
-      {events.map(x => (
-        <option key={eventKey(x.name)} value={eventKey(x.name)}>
-          {x.name} · {x.times.map(t => fmt(t)).join(', ')}
-          {tr('초')}
-        </option>
-      ))}
-    </>
-  );
+  const run = runValues(action, row, item.fn);
+  // A cost or a time scale runs only with this node's numbers (runtime 0.12.281).
+  const missing = needsValues(op) && !nodeValues(action, row, item.fn);
+  const times = (s: {times: number[]}) => s.times.map(t => fmt(t)).join(', ') + tr('초');
   return (
-    <div className="checklist-row moment registry-moment">
+    <div className={'checklist-row moment registry-moment' + (missing ? ' missing' : '')}>
       <div className="checklist-row-heading">
         <button aria-expanded={open} onClick={() => setOpen(!open)}>
           <span>{name}</span>
           <small title={item.event}>
-            {slot ? item.event + ' → ' + (item.off ? item.off.event : tr('동작 끝')) : item.event}
+            {slotOfOp(op) ? item.event + ' → ' + (item.off ? item.off.event : tr('동작 끝')) : item.event}
           </small>
-          <GlobalTag />
           <span>{open ? '▾' : '▸'}</span>
         </button>
       </div>
-      {functionParts(item.fn.values).length > 0 && (
-        <div className="moment-sub">{functionParts(item.fn.values).join(' · ')}</div>
-      )}
+      <div className="moment-sub">
+        {missing ? tr('수치를 넣으세요') : functionParts(run).join(' · ') || tr('수치 없음')}
+      </div>
       {open && (
         <div className="checklist-fields moment-fields">
-          <WhenSwitch
-            clip={false}
-            disabled={{clip: clipBlocked(action, op)}}
-            choose={() =>
-              edit(w =>
-                switchTo(action.uid, {
-                  notify: next => (slot ? slot : op === 'cost' ? 'cost' : lastEffect(action.uid)(next)),
-                })(
-                  slot
-                    ? eventToSlot(
-                        w,
-                        action.uid,
-                        slot,
-                        {event: item.event, fn: item.fn.id, time: at},
-                        item.off
-                          ? {event: item.off.event, fn: item.off.fn.id, time: item.off.sent.times[0] ?? 0}
-                          : undefined
-                      )
-                    : op === 'cost'
-                      ? eventToCost(w, action.uid, item.event, item.fn, at)
-                      : eventToClip(w, action.uid, item.event, item.fn.id, at)
-                )
-              )
-            }
-          />
           <div className="moment-line">
-            <label className="moment-label" htmlFor={`ev-${item.key}`}>
-              {slot ? tr('켜는 이벤트') : tr('이벤트')}
-            </label>
-            <select
-              id={`ev-${item.key}`}
-              value={eventKey(item.event)}
-              onChange={e => {
-                const to = events.find(x => eventKey(x.name) === e.target.value)?.name;
-                if (to) edit(w => switchTo(action.uid, {event: to})(moveFunction(w, item.event, item.fn.id, to)));
-              }}
-            >
-              {options}
-            </select>
+            <span className="moment-label">{slotOfOp(op) ? tr('켜는 시점') : tr('시점')}</span>
+            <span className="moment-inline">
+              {tr('이벤트')} <code>{item.event}</code> <span className="moment-unit">· {times(item.sent)}</span>
+              <RegistryLink event={item.event} />
+            </span>
           </div>
-          {slot && (
+          {slotOfOp(op) && (
             <div className="moment-line">
-              <label className="moment-label" htmlFor={`off-${item.key}`}>
-                {tr('끄는 이벤트')}
-              </label>
-              <select
-                id={`off-${item.key}`}
-                value={item.off ? eventKey(item.off.event) : ''}
-                onChange={e => {
-                  const to = events.find(x => eventKey(x.name) === e.target.value)?.name;
-                  edit(w =>
-                    setSlotOff(w, slot, item.off ? {event: item.off.event, fn: item.off.fn.id} : undefined, to)
-                  );
-                }}
-              >
-                <option value="">{tr('없음 · 동작이 끝날 때 해제')}</option>
-                {options}
-              </select>
+              <span className="moment-label">{tr('끄는 시점')}</span>
+              <span className="moment-inline">
+                {item.off ? (
+                  <>
+                    {tr('이벤트')} <code>{item.off.event}</code>{' '}
+                    <span className="moment-unit">· {times(item.off.sent)}</span>
+                  </>
+                ) : (
+                  tr('동작이 끝날 때')
+                )}
+              </span>
             </div>
           )}
-          <EffectDetails effect={item.fn} timeline registry change={change} />
-          <RegistryFooter
-            w={w}
-            event={item.event}
-            remove={() =>
-              edit(w => {
-                const next = removeFrom(w, item.event, item.fn.id);
-                return item.off ? removeFrom(next, item.off.event, item.off.fn.id) : next;
-              })
-            }
-          />
+          <RegistryPart event={item.event} values={item.fn.values} />
+          <NodeValueFields w={w} action={action} row={row} fn={item.fn} edit={edit} />
+          {missing && (
+            <p className="moment-note warn">
+              {tr('수치가 비어 있으면 이 HKX에서 {event}가 와도 실행하지 않습니다.', {event: item.event})}
+            </p>
+          )}
+          {item.off && offRow && (
+            <>
+              <div className="moment-line">
+                <span className="moment-label">{opInfo[item.off.fn.values.op as EventOp]?.label}</span>
+              </div>
+              <NodeValueFields w={w} action={action} row={offRow} fn={item.off.fn} edit={edit} />
+            </>
+          )}
         </div>
       )}
     </div>

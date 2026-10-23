@@ -62,7 +62,9 @@ test('an older project moves its event functions into the registry once, renamin
   assert.deepEqual(rows.Shoot, [{op: 'fireArrow'}]);
   assert.deepEqual(rows.ArmorOn, [{op: 'armorOn'}]);
   assert.deepEqual(rows.ArmorOff, [{op: 'armorOff'}]);
-  assert.deepEqual(rows.Pay, [{op: 'cost', stamina: '5', magicka: '0'}]);
+  // The cost's amounts stay the action's numbers there (runtime 0.12.281).
+  assert.deepEqual(rows.Pay, [{op: 'cost'}]);
+  assert.deepEqual(Object.values(opened.actions[1].config.eventValues), [{op: 'cost', stamina: '5', magicka: '0'}]);
   assert.deepEqual(rows.Declared, []);
   const p = opened.actions[0].pair;
   assert.deepEqual(

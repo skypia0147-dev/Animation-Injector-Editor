@@ -5,7 +5,7 @@ Animation Injector(SKSE)의 동작(일반·페어)을 카드 그래프로 만들
 ## 필요 사항
 
 - Windows 10/11 x64, Microsoft Edge WebView2 런타임(Windows 11에는 기본 포함)
-- 게임에서 쓰려면 **Animation Injector 0.12.280 이상**([GitHub](https://github.com/skypia0147-dev/Animation-Injector))과 그 필수 모드
+- 게임에서 쓰려면 **Animation Injector 0.12.285 이상**([GitHub](https://github.com/skypia0147-dev/Animation-Injector))과 그 필수 모드
 - `AnimationInjectorXmlCheck.exe`를 `AnimationInjectorEditor.exe`와 같은 폴더에 둡니다(동봉). 저장할 때 게임의 런타임과 같은 검사를 해서, 게임이 통째로 무시할 XML은 쓰지 않습니다. 이 파일이 없으면 검사 없이 저장하고 경고를 보여 줍니다.
 
 Node.js·Rust·Python 같은 개발 도구는 필요 없습니다.

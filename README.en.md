@@ -5,7 +5,7 @@ A Windows program for building Animation Injector (SKSE) actions, ordinary and p
 ## Requirements
 
 - Windows 10/11 x64 with the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 0.12.280 or later** ([GitHub](https://github.com/skypia0147-dev/Animation-Injector)) and its requirements
+- In game: **Animation Injector 0.12.285 or later** ([GitHub](https://github.com/skypia0147-dev/Animation-Injector)) and its requirements
 - Keep `AnimationInjectorXmlCheck.exe` (included) in the same folder as `AnimationInjectorEditor.exe`. Saving runs the same check as the game's runtime, so the editor never writes an XML the game would skip entirely. Without it the editor saves unchecked and warns you.
 
 No development tools (Node.js, Rust, Python) are needed.

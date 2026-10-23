@@ -17,10 +17,10 @@
       <Do op="spell" plugin="FH_Grapple.esp" form="80B"/>
     </Event>
     <Event name="Grapple_Bodyfall">
-      <Do op="spell" plugin="FH_Grapple.esp" form="80A" delay="0.4"/>
+      <Do op="spell" plugin="FH_Grapple.esp" form="80A"/>
     </Event>
     <Event name="PIE.$Grapple_Bodyfall">
-      <Do op="spell" plugin="FH_Grapple.esp" form="80A" delay="0.4"/>
+      <Do op="spell" plugin="FH_Grapple.esp" form="80A"/>
     </Event>
     <Event name="Grapple_Ragdoll">
       <Do op="ragdoll" direction="down"/>

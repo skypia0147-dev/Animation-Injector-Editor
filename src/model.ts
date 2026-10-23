@@ -49,6 +49,10 @@ export type Project = {
   /** Clip-time functions on the actor playing it (runtime 0.12.274, clipEffects.ts): values as a pair effect's,
    *  without target or from. Absent = none. */
   effects?: {id: string; values: Record<string, string>}[];
+  /** The numbers this HKX runs the registry's functions with when its clip sends their event (runtime 0.12.281,
+   *  <EventValues>, docs/mockup-event-node-values), by registry row and function id (eventRegistry.ts valueKey):
+   *  op and that op's numbers. Absent = the defaults. */
+  eventValues?: Record<string, Record<string, string>>;
   attack: string;
   enterBlend: number;
   exitBlend: number;

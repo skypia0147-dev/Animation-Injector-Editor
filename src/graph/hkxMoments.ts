@@ -1,11 +1,18 @@
 import type {Action, Effect, Workspace} from '../workspace.ts';
 import {putAction, uid} from '../workspace.ts';
-import {clipEffects, ordinaryEffectOps, setClipEffects} from '../clipEffects.ts';
+import {clipEffects, setClipEffects} from '../clipEffects.ts';
 import {sentEvent, type Annotation} from './annotations.ts';
-import {eventKey, registryEntries, senderOnly, setFunctions} from '../eventRegistry.ts';
+import {
+  eventKey,
+  registryEntries,
+  registryPart,
+  senderOnly,
+  setFunctions,
+  setNodeValues,
+  valuePart,
+} from '../eventRegistry.ts';
 import {parseCommand} from '../annotationCommands.ts';
 import {stepSource} from '../view.ts';
-import {mark} from '../model.ts';
 import {tr} from '../i18n/korean.ts';
 
 // What an HKX card's moments are made of besides its clip-time functions (10-23, docs/mockup-inline-moments): the
@@ -35,9 +42,25 @@ export function sentEvents(list: Annotation[] | undefined, pair: boolean): Sent[
   return [...out.values()];
 }
 
-// ── clip time ↔ event ─────────────────────────────────────────────────────────────────────────────
-/** A clip-time function becomes the registered function of `event` (it then runs for every animation that sends
- *  it, on the sender). */
+// ── clip time → event (a registered function's numbers are the node's, runtime 0.12.281) ──────────
+/** Registers `values` on `event` (what it acts with) and gives this action its numbers there. */
+function toEvent(w: Workspace, action: string, event: string, values: Record<string, string>): Workspace {
+  const row0 = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event)),
+    fns = row0?.functions ?? [];
+  const fn = {
+    id: uid(
+      'fn',
+      fns.map(f => f.id)
+    ),
+    values: registryPart(values),
+  };
+  const next = setFunctions(w, row0?.name ?? event, [...fns, fn]);
+  const row = next.eventRegistry!.find(r => eventKey(r.name) === eventKey(event))!;
+  const own = valuePart(values);
+  return Object.keys(own).length > 1 ? setNodeValues(next, action, row, fn, own) : next;
+}
+/** A clip-time function becomes a registered function of `event` (it then runs for every animation that sends it,
+ *  on the sender); its numbers stay this action's. */
 export function clipToEvent(w: Workspace, action: string, effect: string, event: string): Workspace {
   const a = structuredClone(w.actions.find(x => x.uid === action)!);
   const e = clipEffects(a).find(x => x.id === effect);
@@ -48,73 +71,10 @@ export function clipToEvent(w: Workspace, action: string, effect: string, event:
   );
   const values = senderOnly({...e.values});
   delete values.at;
-  const next = putAction(w, a),
-    row = next.eventRegistry?.find(r => eventKey(r.name) === eventKey(event)),
-    fns = row?.functions ?? [];
-  return setFunctions(next, row?.name ?? event, [
-    ...fns,
-    {
-      id: uid(
-        'fn',
-        fns.map(f => f.id)
-      ),
-      values,
-    },
-  ]);
+  return toEvent(putAction(w, a), action, event, values);
 }
-/** A registered function leaves the registry and becomes this action's clip-time function at `at`. */
-export function eventToClip(w: Workspace, action: string, event: string, fn: string, at: number): Workspace {
-  const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event)),
-    f = row?.functions.find(x => x.id === fn);
-  if (!row || !f) return w;
-  const next = setFunctions(
-    w,
-    row.name,
-    row.functions.filter(x => x.id !== fn)
-  );
-  const a = structuredClone(next.actions.find(x => x.uid === action)!),
-    list = clipEffects(a);
-  setClipEffects(a, [
-    ...list,
-    {
-      id: uid(
-        'effect',
-        list.map(e => e.id)
-      ),
-      values: {...f.values, at: fmt(at)},
-    },
-  ]);
-  return putAction(next, a);
-}
-/** A registered function moves to another event. */
-export function moveFunction(w: Workspace, from: string, fn: string, to: string): Workspace {
-  if (eventKey(from) === eventKey(to)) return w;
-  const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(from)),
-    f = row?.functions.find(x => x.id === fn);
-  if (!row || !f) return w;
-  let next = setFunctions(
-    w,
-    row.name,
-    row.functions.filter(x => x.id !== fn)
-  );
-  const target = next.eventRegistry?.find(r => eventKey(r.name) === eventKey(to)),
-    fns = target?.functions ?? [];
-  next = setFunctions(next, target?.name ?? to, [
-    ...fns,
-    {
-      ...f,
-      id: uid(
-        'fn',
-        fns.map(x => x.id)
-      ),
-    },
-  ]);
-  return next;
-}
-/** Whether a function can run at a clip time of this action (an ordinary action's own list, a pair's but the shot). */
-export const clipCapable = (a: Action, op: string) => (a.pair ? op !== 'fireArrow' : ordinaryEffectOps.includes(op));
 
-// ── an action's windows and cost ↔ the registry (docs/mockup-moment-timing) ───────────────────────
+// ── an action's windows and cost → the registry (docs/mockup-moment-timing) ───────────────────────
 /** The registry's on/off functions of an ordinary action's windows (the runtime runs a window at clip times only:
  *  on an event it is the registry's, global). */
 export const slotOps = {
@@ -124,100 +84,33 @@ export const slotOps = {
 } as const;
 export type SlotKey = keyof typeof slotOps;
 export const slotOfOp = (op: string) => (Object.keys(slotOps) as SlotKey[]).find(k => slotOps[k][0] === op);
-function addFn(w: Workspace, event: string, values: Record<string, string>): Workspace {
-  const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event)),
-    fns = row?.functions ?? [];
-  return setFunctions(w, row?.name ?? event, [
-    ...fns,
-    {
-      id: uid(
-        'fn',
-        fns.map(f => f.id)
-      ),
-      values,
-    },
-  ]);
-}
-function removeFn(w: Workspace, event: string, fn: string): Workspace {
-  const row = w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event));
-  return row
-    ? setFunctions(
-        w,
-        row.name,
-        row.functions.filter(f => f.id !== fn)
-      )
-    : w;
-}
 const withConfig = (w: Workspace, action: string, f: (p: Action['config']) => void) => {
   const a = structuredClone(w.actions.find(x => x.uid === action)!);
   f(a.config);
   return putAction(w, a);
 };
-/** Why a registered function cannot go to this action's clip, or undefined when it can. */
-export function clipBlocked(a: Action, op: string): string | undefined {
-  const slot = slotOfOp(op);
-  if (slot || op === 'cost') {
-    if (a.pair) return tr('페어의 구간·소모는 페어 트랙에서 정합니다.');
-    if (slot ? a.config.slots[slot].enabled || (slot === 'rotate' && a.config.rotationLocked) : a.config.cost.enabled)
-      return tr('이 동작에 이미 같은 항목이 클립으로 있습니다.');
-    return undefined;
-  }
-  return clipCapable(a, op) ? undefined : tr('이 기능은 이 동작의 클립 시각에 둘 수 없습니다.');
-}
 /** A window becomes the registry's on function on `event` (it then turns off when the action ends). */
 export function slotToEvent(w: Workspace, action: string, key: SlotKey, event: string): Workspace {
-  return addFn(
+  return toEvent(
     withConfig(w, action, p => {
       p.slots[key].enabled = false;
     }),
+    action,
     event,
     {op: slotOps[key][0]}
   );
 }
-/** The registry's on (and off) functions become this action's window, at the times their events come. */
-export function eventToSlot(
-  w: Workspace,
-  action: string,
-  key: SlotKey,
-  on: {event: string; fn: string; time: number},
-  off?: {event: string; fn: string; time: number}
-): Workspace {
-  let next = removeFn(w, on.event, on.fn);
-  if (off) next = removeFn(next, off.event, off.fn);
-  return withConfig(next, action, p => {
-    p.slots[key] = {
-      enabled: true,
-      from: mark(Math.round(on.time * 1000) / 1000),
-      until: off && off.time > on.time ? mark(Math.round(off.time * 1000) / 1000) : mark(0, 'end'),
-    };
-  });
-}
-/** The window's off function: on `to`, or none (it turns off when the action ends). */
-export function setSlotOff(w: Workspace, key: SlotKey, current: {event: string; fn: string} | undefined, to?: string) {
-  const next = current ? removeFn(w, current.event, current.fn) : w;
-  return to ? addFn(next, to, {op: slotOps[key][1]}) : next;
-}
-/** The action's cost becomes the registry's cost on `event`. */
+/** The action's cost becomes the registry's cost on `event`, its amounts this action's numbers there. */
 export function costToEvent(w: Workspace, action: string, event: string): Workspace {
   const c = w.actions.find(x => x.uid === action)!.config.cost;
-  return addFn(
+  return toEvent(
     withConfig(w, action, p => {
       p.cost.enabled = false;
     }),
+    action,
     event,
     {op: 'cost', stamina: String(c.stamina), magicka: String(c.magicka)}
   );
-}
-/** The registry's cost becomes this action's cost at `time`. */
-export function eventToCost(w: Workspace, action: string, event: string, fn: Effect, time: number): Workspace {
-  return withConfig(removeFn(w, event, fn.id), action, p => {
-    p.cost = {
-      enabled: true,
-      at: mark(Math.round(time * 1000) / 1000),
-      stamina: Number(fn.values.stamina ?? 0) || 0,
-      magicka: Number(fn.values.magicka ?? 0) || 0,
-    };
-  });
 }
 
 export type RegistryMoment = {

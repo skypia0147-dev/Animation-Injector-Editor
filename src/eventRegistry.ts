@@ -326,6 +326,155 @@ export const settingDefault: Record<string, string> = {
   damage: '100',
 };
 
+// ── The numbers on the HKX nodes (runtime 0.12.281, docs/mockup-event-node-values) ────────────────
+// The registry says which functions an event runs and what they act with; each HKX node that sends the event
+// holds the numbers they run with there. An event from an animation without a node runs with the defaults.
+const spellOps = ['spell', 'stateOn', 'stateOff'];
+/** What a registered function acts with, set in the registry: a spell's plugin and form, a ragdoll's direction. */
+export const registryFields = (op: string): string[] =>
+  spellOps.includes(op) ? ['plugin', 'form'] : op === 'ragdoll' ? ['direction'] : [];
+/** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
+export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
+/** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
+export const needsValues = (op: string) => op === 'cost' || op === 'timeOn';
+/** The numbers an older registry function still holds (the runtime refuses them there since 0.12.281). */
+export const registryNumbers = (values: Record<string, string>) =>
+  valueFields(values.op).filter(k => values[k] !== undefined && values[k] !== '');
+const pick = (values: Record<string, string>, keys: string[]) =>
+  Object.fromEntries(keys.filter(k => values[k] !== undefined && values[k] !== '').map(k => [k, values[k]]));
+/** A registry function's own part: op and what it acts with. */
+export const registryPart = (values: Record<string, string>) => pick(values, ['op', ...registryFields(values.op)]);
+/** A node's part of a function: op and its numbers. */
+export const valuePart = (values: Record<string, string>) => pick(values, ['op', ...valueFields(values.op)]);
+/** Where a node keeps a registry function's numbers: by row and function id, which a rename keeps. */
+export const valueKey = (row: EventRow, fn: Effect) => `${row.id}/${fn.id}`;
+type Valued = {config: {eventValues?: Record<string, Record<string, string>>}};
+/** A node's numbers for a registry function, or undefined (the defaults). */
+export function nodeValues(a: Valued | undefined, row: EventRow, fn: Effect): Record<string, string> | undefined {
+  const v = a?.config.eventValues?.[valueKey(row, fn)];
+  return v && v.op === fn.values.op ? v : undefined;
+}
+/** The function a node runs: the registry's part with the node's numbers. */
+export const runValues = (a: Valued | undefined, row: EventRow, fn: Effect) => ({
+  ...registryPart(fn.values),
+  ...valuePart(nodeValues(a, row, fn) ?? {op: fn.values.op}),
+});
+/** Sets (or, with no values, clears) one node's numbers for a registry function. */
+export function setNodeValues(
+  w: Workspace,
+  action: string,
+  row: EventRow,
+  fn: Effect,
+  values?: Record<string, string>
+): Workspace {
+  const next = clone(w),
+    a = next.actions.find(x => x.uid === action);
+  if (!a) return w;
+  const all = {...(a.config.eventValues ?? {})};
+  if (values) all[valueKey(row, fn)] = valuePart({...values, op: fn.values.op});
+  else delete all[valueKey(row, fn)];
+  if (Object.keys(all).length) a.config.eventValues = all;
+  else delete a.config.eventValues;
+  return next;
+}
+/** Drops the numbers of functions the registry no longer has (or that now run another op). */
+function pruneValues(w: Workspace) {
+  const live = new Map<string, string>();
+  for (const row of w.eventRegistry ?? []) for (const f of row.functions) live.set(valueKey(row, f), f.values.op);
+  const prune = (a: Valued | undefined) => {
+    const all = a?.config.eventValues;
+    if (!all) return;
+    for (const [k, v] of Object.entries(all)) if (live.get(k) !== v.op) delete all[k];
+    if (!Object.keys(all).length) delete a!.config.eventValues;
+  };
+  for (const a of w.actions) prune(a);
+  for (const d of w.drafts ?? []) prune(d.value as Valued | undefined);
+}
+/** Values pair with an event's functions by op, in order (runtime EventValuesMatch.h): a node that gives numbers to
+ *  a later function of an op writes the earlier ones of that op too, with their defaults. */
+export function eventValuesXml(w: Workspace, a: Valued): Xml | undefined {
+  const events: Xml[] = [];
+  for (const row of w.eventRegistry ?? []) {
+    const given = row.functions.map(f => nodeValues(a, row, f));
+    if (!given.some(Boolean)) continue;
+    const last = new Map<string, number>();
+    given.forEach((v, i) => v && last.set(row.functions[i].values.op, i));
+    const dos = row.functions.flatMap((f, i) =>
+      i <= (last.get(f.values.op) ?? -1) ? [node('Do', doAttrs(valuePart(given[i] ?? {op: f.values.op})))] : []
+    );
+    events.push(node('Event', {name: row.name}, dos));
+  }
+  return events.length ? node('EventValues', {}, events) : undefined;
+}
+/** An action's <EventValues>, matched to the registry's functions by op in order; values for an event or a function
+ *  the registry does not hold are dropped, as the runtime drops them. */
+export function readEventValues(n: Xml, rows: EventRow[], a: Valued) {
+  shapeXml(n, [], ['Event']);
+  const out: Record<string, Record<string, string>> = {};
+  for (const e of n.children) {
+    shapeXml(e, ['name'], ['Do']);
+    const row = rows.find(r => eventKey(r.name) === eventKey(e.attrs.name ?? ''));
+    const seen = new Map<string, number>();
+    for (const d of e.children) {
+      shapeXml(d, ['op', ...valueKeysAll]);
+      const values = {...d.attrs};
+      if (!values.op) throw Error(tr('EventValues Do.op: 필수 값'));
+      const errors = valueErrors(values);
+      if (errors.length) throw Error(`EventValues Do(${values.op}): ${errors[0]}`);
+      const i = seen.get(values.op) ?? 0;
+      seen.set(values.op, i + 1);
+      const fn = row?.functions.filter(f => f.values.op === values.op)[i];
+      if (row && fn) out[valueKey(row, fn)] = valuePart(values);
+    }
+  }
+  if (Object.keys(out).length) a.config.eventValues = out;
+}
+const valueKeysAll = ['delay', 'stamina', 'magicka', 'strength', 'duration', 'factor', 'mode', 'damage', 'force'];
+/** Errors of a node's numbers for one function. */
+export function valueErrors(v: Record<string, string>): string[] {
+  const out: string[] = [];
+  if (!eventOps.includes(v.op as EventOp)) out.push(tr('기능을 선택하세요.'));
+  const allowed = new Set(valueFields(v.op));
+  for (const k of valueKeysAll)
+    if (v[k] !== undefined && v[k] !== '' && !allowed.has(k))
+      out.push(tr('{key}은(는) 이 기능의 수치가 아닙니다.', {key: settingLabels[k] ?? k}));
+  if (v.mode !== undefined && v.mode !== '' && !['drawn', 'direct'].includes(v.mode))
+    out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
+  if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
+    out.push(tr('피해 %는 바로 발사에서만 씁니다.'));
+  for (const [k, [min, max]] of Object.entries(numberRanges))
+    if (
+      v[k] !== undefined &&
+      v[k] !== '' &&
+      !(Number.isFinite(Number(v[k])) && Number(v[k]) >= min && Number(v[k]) <= max)
+    )
+      out.push(`${settingLabels[k]}: ${min}~${max}`);
+  if (v.op === 'cost' && !Number(v.stamina) && !Number(v.magicka)) out.push(tr('스태미나나 매지카를 넣으세요.'));
+  if (v.op === 'timeOn' && !(v.factor ?? '').trim()) out.push(tr('배율을 넣으세요.'));
+  return out;
+}
+/** Moves an older registry's numbers to the nodes whose HKX send each event (runtime 0.12.281). A node keeps the
+ *  numbers it already has; with no sender the numbers are dropped (the event then runs with the defaults). */
+export function numbersToNodes(w: Workspace, senders: (event: string) => string[], only?: string): Workspace {
+  let next = w;
+  for (const row of w.eventRegistry ?? []) {
+    if (only !== undefined && eventKey(row.name) !== eventKey(only)) continue;
+    for (const f of row.functions) {
+      if (!registryNumbers(f.values).length) continue;
+      for (const uid of senders(eventKey(row.name))) {
+        const a = next.actions.find(x => x.uid === uid);
+        if (a && !nodeValues(a, row, f)) next = setNodeValues(next, uid, row, f, valuePart(f.values));
+      }
+    }
+  }
+  return withRows(next, rows => {
+    for (const row of rows) {
+      if (only !== undefined && eventKey(row.name) !== eventKey(only)) continue;
+      for (const f of row.functions) f.values = registryPart(f.values);
+    }
+  });
+}
+
 const eventNameOk = (s: string) => !!s.trim() && s.length <= 256 && !/[|@\x00-\x1f]/.test(s);
 export const eventKey = (name: string) => name.toLowerCase();
 /** A registered function on a vanilla behavior event name runs across the whole game. An annotation
@@ -443,8 +592,16 @@ const isMark = (m: any): m is Mark => !!m && typeof m === 'object' && typeof m.b
 export function liftToRegistry(w: any) {
   if (!w || typeof w !== 'object') return;
   const rows: EventRow[] = Array.isArray(w.eventRegistry) ? w.eventRegistry : [];
-  const register = (name: unknown, values?: Record<string, string>) => {
-    if (typeof name === 'string' && name.trim()) registerIn(rows, name.trim(), values && senderOnly({...values}));
+  // What a function acts with goes to the registry; its numbers stay the owning action's (runtime 0.12.281).
+  const register = (name: unknown, values?: Record<string, string>, owner?: any) => {
+    if (typeof name !== 'string' || !name.trim()) return;
+    const v = values && senderOnly({...values}),
+      part = v && registryPart(v);
+    const row = registerIn(rows, name.trim(), part);
+    const own = v && valuePart(v);
+    if (!part || !own || Object.keys(own).length < 2 || !owner?.config || typeof owner.config !== 'object') return;
+    const fn = row.functions.find(f => JSON.stringify(doAttrs(f.values)) === JSON.stringify(doAttrs(part)));
+    if (fn) owner.config.eventValues = {...(owner.config.eventValues ?? {}), [valueKey(row, fn)]: own};
   };
   // A function saved with a target or a sender filter changes its sender now (runtime 0.12.273); payload
   // spellings and shake parameters are gone (0.12.274: AI.CamShake annotations carry the numbers).
@@ -482,11 +639,15 @@ export function liftToRegistry(w: any) {
         s.until = mark(0, 'end');
       }
       if (p.cost?.enabled && isMark(p.cost.at) && p.cost.at.basis === 'event') {
-        register(p.cost.at.event, {
-          op: 'cost',
-          stamina: String(p.cost.stamina ?? 0),
-          magicka: String(p.cost.magicka ?? 0),
-        });
+        register(
+          p.cost.at.event,
+          {
+            op: 'cost',
+            stamina: String(p.cost.stamina ?? 0),
+            magicka: String(p.cost.magicka ?? 0),
+          },
+          a
+        );
         p.cost.enabled = false;
         p.cost.at = mark(0.05);
       }
@@ -499,7 +660,7 @@ export function liftToRegistry(w: any) {
           if (!v || typeof v !== 'object') return true;
           liftKeys(v);
           if (v.name !== undefined && v.at === undefined) {
-            register(v.name, (({name, ...rest}) => rest)(v));
+            register(v.name, (({name, ...rest}) => rest)(v), a);
             return false;
           }
           delete v.name;
@@ -521,7 +682,7 @@ export function liftToRegistry(w: any) {
             from: t.source,
             ...(key === 'cost' ? {stamina: String(t.stamina), magicka: String(t.magicka)} : {}),
           };
-          if (m.basis === 'event') register(m.event, values);
+          if (m.basis === 'event') register(m.event, values, a);
           else {
             pair.effects = Array.isArray(pair.effects) ? pair.effects : [];
             pair.effects.push({
@@ -607,6 +768,13 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     out.push(tr('시각은 0~600초입니다.'));
   return out;
 }
+const numbersText = () =>
+  tr(
+    '등록에 수치가 있습니다. 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 이벤트 등록에서 「수치를 노드로 옮기기」를 누르세요.'
+  );
+/** An older file's registry numbers: an error to save, not to open (the registry node moves them to the nodes, which
+ *  needs the HKX annotations the open does not have). */
+export const registryNumbersIssue = (i: Issue) => i.node === 'eventRegistry' && i.message.endsWith(numbersText());
 export function registryIssues(w: Workspace): Issue[] {
   const out: Issue[] = [],
     rows = w.eventRegistry ?? [];
@@ -629,6 +797,8 @@ export function registryIssues(w: Workspace): Issue[] {
       out.push({level: 'error', node: 'eventRegistry', message: where(tr('기능은 64개까지입니다.'))});
     for (const f of r.functions)
       for (const m of functionErrors(f.values)) out.push({level: 'error', node: 'eventRegistry', message: where(m)});
+    if (r.functions.some(f => registryNumbers(f.values).length))
+      out.push({level: 'error', node: 'eventRegistry', message: where(numbersText())});
     if (r.functions.length && vanillaName(r.name))
       out.push({
         level: 'warning',
@@ -679,7 +849,8 @@ export function registryXml(w: Workspace): Xml | undefined {
       node(
         'Event',
         {name: r.name},
-        r.functions.map(f => node('Do', doAttrs(f.values)))
+        // The numbers are the nodes' (<EventValues>, runtime 0.12.281): an older function's are not written.
+        r.functions.map(f => node('Do', doAttrs(registryPart(f.values))))
       )
     )
   );
@@ -1018,6 +1189,7 @@ const withRows = (w: Workspace, fn: (rows: EventRow[]) => void): Workspace => {
   fn(rows);
   next.eventRegistry = rows.length ? rows : undefined;
   if (!next.eventRegistry) delete next.eventRegistry;
+  pruneValues(next);
   return next;
 };
 export function addEventRow(w: Workspace, name: string): Workspace {

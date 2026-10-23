@@ -322,6 +322,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Event.name: イベント名が無効です: ',
     'Event.name：事件名称无效：',
   ],
+  'EventValues Do.op: 필수 값': [
+    'EventValues Do.op: required',
+    'EventValues Do.op: 必須の値',
+    'EventValues Do.op：必填值',
+  ],
   'Events extra는 없어졌습니다: 그래프에 등록할 이벤트는 EventRegistry의 Event로 씁니다': [
     'Events extra was removed: events to register in the graph are written as Event in EventRegistry',
     'Events extra は廃止されました: グラフに登録するイベントは EventRegistry の Event で書きます',
@@ -1282,6 +1287,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{actionId}: ペアと運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
     '{actionId}：配对与搬运（含放下）仅以第三人称（view="third"）播放。',
   ],
+  '{key}은(는) 이 기능의 수치가 아닙니다.': [
+    '{key} is not a value of this function.',
+    '{key} はこの機能の数値ではありません。',
+    '{key} 不是此功能的数值。',
+  ],
   '{kind} 「{id}」은 예전 방식(상대 자리·상대 기준)입니다. 방향을 본인 기준으로 다시 고르세요.': [
     '{kind} "{id}" uses the older way (the partner\'s spot or heading). Pick its direction again on your own heading.',
     '{kind}「{id}」は旧方式（相手の位置・相手基準）です。方向を本人基準で選び直してください。',
@@ -1455,6 +1465,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '→ 갈래 {n}개 (①부터)': ['→ {n} branches (from ①)', '→ 分岐 {n} 個 (①から)', '→ {n} 个分支 (从①开始)'],
   '→ 전환': ['→ Transition', '→ 遷移', '→ 过渡'],
   '⚠ 게임 전체 적용': ['⚠ Applies game-wide', '⚠ ゲーム全体に適用', '⚠ 全游戏生效'],
+  '⚠ 등록에 수치가 있습니다({fns}). 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 보내는 HKX {n}개에 옮깁니다.':
+    [
+      '⚠ The registry holds values ({fns}). From runtime 0.12.281 values are set on the HKX nodes that send this event. They move to the {n} sending HKX.',
+      '⚠ 登録に数値があります ({fns})。ランタイム 0.12.281 から、数値はこのイベントを送る HKX ノードで入力します。送る HKX {n} 個に移します。',
+      '⚠ 注册中含有数值（{fns}）。自运行时 0.12.281 起，数值在发送此事件的 HKX 节点中填写。将移到 {n} 个发送的 HKX。',
+    ],
+  '⚠ 등록에 수치가 있습니다({fns}). 이 프로젝트에는 이 이벤트를 보내는 HKX가 없어 수치는 지워지고, 이벤트는 기본값으로 실행됩니다.':
+    [
+      '⚠ The registry holds values ({fns}). No HKX in this project sends this event, so the values are removed and the event runs with the defaults.',
+      '⚠ 登録に数値があります ({fns})。このプロジェクトにはこのイベントを送る HKX がないため、数値は消え、イベントは既定値で実行されます。',
+      '⚠ 注册中含有数值（{fns}）。本项目中没有发送此事件的 HKX，数值将被删除，事件以默认值执行。',
+    ],
   '⚠ 바닐라·흔한 이벤트 이름입니다. 기능을 붙이면 게임 전체 애니메이션에서 실행됩니다. 모드 고유 접두어(예: Grapple_)를 권장합니다.':
     [
       '⚠ Vanilla or common event name. Attaching a feature will execute it across all animations in the game. A unique mod prefix (e.g. Grapple_) is recommended.',
@@ -1475,6 +1497,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Middle button: rotate · Shift+Middle button: pan · Wheel: zoom · Ctrl+Wheel: field of view',
     '中ボタン: 回転 · Shift+中ボタン: 移動 · ホイール: 拡大/縮小 · Ctrl+ホイール: 視野角',
     '中键：旋转 · Shift+中键：平移 · 滚轮：缩放 · Ctrl+滚轮：视野角',
+  ],
+  '가져올 다른 노드 값 없음': [
+    'No other node values to copy',
+    '取り込める他のノードの値はありません',
+    '没有可复制的其他节点数值',
   ],
   가해자: ['Attacker', '加害者', '加害者'],
   '가해자 동작': ['Attacker action', '加害者アクション', '加害者动作'],
@@ -2002,6 +2029,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '기본 공격 데이터 사용': ['Use default attack data', '既定の攻撃データを使用', '使用默认攻击数据'],
   '기본 시점 복귀': ['Reset view', '既定の視点に戻す', '恢复默认视角'],
   '기본 인칭 형식 오류': ['Invalid default view format', '既定の視点形式エラー', '默认视角格式错误'],
+  기본값: ['Defaults', '既定値', '默认值'],
   '기본값: {v}': ['Default: {v}', '既定値: {v}', '默认值:{v}'],
   '기본값이면 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다. 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.':
     [
@@ -2032,7 +2060,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'オフのまま保存された項目です。設定は残っていて、XMLには書きません。',
     '此项以关闭状态保存。设置仍保留,不写入XML。',
   ],
-  '끄는 이벤트': ['Off event', 'オフにするイベント', '关闭事件'],
+  '끄는 시점': ['Off at', 'オフにする時点', '关闭时机'],
   '끄면 클립 전체에서 받습니다(XML에 Window를 쓰지 않음).': [
     'When off, receives throughout the entire clip (does not write Window in XML).',
     'オフにするとクリップ全体で受け付けます(XML に Window を記述しません)。',
@@ -2110,6 +2138,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '已随连招一起移除（格式 4）：请为每个 HKX 建立 <Action>，并用 <Connect to="下一个" key="…"> 连接',
   ],
   '다른 그룹으로 이동': ['Move to another group', '別のグループへ移動', '移动至其他组'],
+  '다른 노드 값 가져오기': ["Copy another node's values", '他のノードの値を取り込む', '复制其他节点的数值'],
+  '다른 노드 값 가져오기…': ["Copy another node's values…", '他のノードの値を取り込む…', '复制其他节点的数值…'],
   '다른 동작을 고르세요.': ['Select another action.', '別のアクションを選択してください。', '请选择其他动作。'],
   '다른 부채꼴의 갈래는 더할 수 없습니다.': [
     'A branch of another fan cannot be added.',
@@ -2313,6 +2343,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'アクションを 1 つ以上追加してください。',
     '请至少添加一个动作。',
   ],
+  '동작이 끝날 때': ['When the action ends', '動作が終わるとき', '动作结束时'],
   '두 선이 화면 끝에서 출발해 가운데서 만나기까지의 시간입니다. 만나는 순간이 정확한 입력 시점입니다.': [
     'The time it takes for two lines starting from the screen edges to meet in the center. The moment they meet is the exact input timing.',
     '2本の線が画面端から出発して中央で重なるまでの時間です。重なる瞬間が正確な入力タイミングです。',
@@ -2347,6 +2378,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   등: ['Back', '背中', '背部'],
   '등록 기능': ['Registered feature', '登録機能', '已注册功能'],
   '등록 기능 ID 오류': ['Invalid registered feature ID', '登録機能 ID エラー', '已注册功能 ID 错误'],
+  '등록에 마법이 없습니다': ['No spell in the registry', '登録に魔法がありません', '注册中没有法术'],
+  '등록에 수치가 있습니다. 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 이벤트 등록에서 「수치를 노드로 옮기기」를 누르세요.':
+    [
+      'The registry holds values. From runtime 0.12.281 values are set on the HKX nodes that send this event. Press "Move values to nodes" in the event registry.',
+      '登録に数値があります。ランタイム 0.12.281 から、数値はこのイベントを送る HKX ノードで入力します。イベント登録で「数値をノードへ移す」を押してください。',
+      '注册中含有数值。自运行时 0.12.281 起，数值在发送此事件的 HKX 节点中填写。请在事件注册中点击“将数值移到节点”。',
+    ],
+  '등록에서 바꾸기': ['Change in registry', '登録で変更', '在注册中更改'],
+  '등록에서 보기': ['View in registry', '登録で見る', '在注册中查看'],
   디자인: ['Design', 'デザイン', '设计'],
   '떨어뜨리기 등으로 운반이 끝날 때 들기 자세에서 이동 애니메이션으로 돌아가는 시간입니다. 내려놓기 동작으로 넘어갈 때는 그 동작의 시작 블렌드를 쓰고, 없으면 이 값을 씁니다.':
     [
@@ -2414,6 +2454,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请检查恢复混合或资源消耗范围。',
   ],
   리클링: ['Riekling', 'リークリング', '里客灵'],
+  마법: ['Spell', '魔法', '法术'],
   '마법 효과': ['Magic effect', '魔法効果', '魔法效果'],
   '마법 효과 보유': ['Has magic effect', '魔法効果を保持', '具有魔法效果'],
   '마법 효과(MGEF)의 로컬 16진수 ID입니다. 예: 82C. 스펠(SPEL) ID나 로드 순서 접두사는 넣지 마세요.': [
@@ -2612,7 +2653,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '发射方式只能是弓发射的「按拉弓程度」或「直接发射」。',
   ],
   '발사 없음': ['No fire', '発射なし', '无射击'],
-  '발사 이벤트': ['Shot event', '発射イベント', '发射事件'],
   발신자를: ['Set sender to', '送信元を', '将发送者设为'],
   '방어 중': ['Blocking', '防御中', '格挡中'],
   방향: ['Direction', '方向', '方向'],
@@ -2628,6 +2668,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   배시: ['Bash', 'バッシュ', '格挡重击'],
   배율: ['Scale', '倍率', '倍率'],
+  '배율을 넣으세요.': ['Enter a factor.', '倍率を入力してください。', '请输入倍率。'],
   '뱀파이어 로드': ['Vampire Lord', '吸血鬼の王', '吸血鬼大君'],
   '버튼 떼기 발사': ['Release on button up', 'ボタン離し発射', '松开按钮射击'],
   '버튼 뗄 때': ['On button release', 'ボタンを離したとき', '松开按钮时'],
@@ -2948,6 +2989,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '수영 중': ['Swimming', '遊泳中', '游泳中'],
   '수정할 조건이 없습니다.': ['No condition to modify.', '編集する条件がありません。', '没有可修改的条件。'],
   수치: ['Amount', '数値', '数值'],
+  '수치 없음': ['No values', '数値なし', '无数值'],
+  '수치 지우기': ['Remove values', '数値を消す', '删除数值'],
+  '수치가 비어 있으면 이 HKX에서 {event}가 와도 실행하지 않습니다.': [
+    'With no values, it does not run when {event} comes from this HKX.',
+    '数値が空だと、この HKX から {event} が来ても実行しません。',
+    '数值为空时，即使此 HKX 发出 {event} 也不会执行。',
+  ],
+  '수치를 넣으세요': ['Enter values', '数値を入力してください', '请输入数值'],
+  '수치를 노드로 옮기기': ['Move values to nodes', '数値をノードへ移す', '将数值移到节点'],
   '순서 / 규칙': ['Order / Rule', '順序 / ルール', '顺序 / 规则'],
   '순서 {v0}키': ['Sequence {v0} keys', 'シーケンス {v0} キー', '顺序 {v0} 键'],
   '순서 입력은 2~8개를 지정하세요.': [
@@ -3011,6 +3061,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '스태거 면역 해제': ['Disable stagger immunity', 'よろめき無効を解除', '解除硬直免疫'],
   스태미나: ['Stamina', 'スタミナ', '耐力'],
   '스태미나 ': ['Stamina ', 'スタミナ ', '耐力 '],
+  '스태미나나 매지카를 넣으세요.': [
+    'Enter stamina or magicka.',
+    'スタミナかマジカを入力してください。',
+    '请输入耐力或魔力。',
+  ],
   스프리건: ['Spriggan', 'スプリガン', '树精'],
   '스플라인 knot 간격이 0입니다.': [
     'Spline knot interval is 0.',
@@ -3236,7 +3291,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '不会执行。必须按 AI.CamShake|强度|时间 格式写全所有数字。',
   ],
   '실행하지 않음': ['Do not execute', '実行しない', '不执行'],
-  '쓰는 곳 {n}개': ['Used in {n} places', '使用箇所 {n}', '使用处 {n} 个'],
   '쓰이지 않던 값입니다': ['Unused value', '使用されていなかった値です', '未使用的值'],
   아래: ['Down', '下', '下'],
   '아래 사용 위치를 변경한 뒤 삭제하세요.': [
@@ -3338,11 +3392,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '없는 HKX 목적지': ['HKX destination not found', '存在しない HKX 遷移先', '不存在的 HKX 目标'],
   '없는 조건 목적지': ['Condition destination not found', '存在しない条件遷移先', '不存在的条件目标'],
   없음: ['None', 'なし', '无'],
-  '없음 · 동작이 끝날 때 해제': [
-    'None · off when the action ends',
-    'なし · アクション終了時に解除',
-    '无 · 动作结束时解除',
-  ],
   '없음 — 다른 프로젝트·모드의 애니메이션에서만 올 수 있습니다': [
     'None — can only arrive from animations in other projects or mods',
     'なし — 他のプロジェクトや MOD のアニメーションからのみ送信されます',
@@ -3821,11 +3870,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このグループの構成条件ではありません。',
     '不属于此组的组合条件。',
   ],
-  '이 기능은 이 동작의 클립 시각에 둘 수 없습니다.': [
-    'This function cannot run at a clip time of this action.',
-    'この機能はこの動作のクリップ時刻に置けません。',
-    '此功能不能放在此动作的片段时刻。',
-  ],
   '이 동작 자체로는 쏘지 않습니다. 이벤트 등록의 활 발사로만 쏩니다.': [
     'This action does not shoot on its own. It shoots only through Fire bow in the event registry.',
     'この動作自体では撃ちません。イベント登録の弓発射でのみ撃ちます。',
@@ -3840,11 +3884,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '이 동작 흐름만': ['This action flow only', 'このアクションフローのみ', '仅此动作流程'],
   '이 동작 흐름만 보기': ['View this action flow only', 'このアクションフローのみ表示', '仅查看此动作流程'],
   '이 동작만': ['This action only', 'このアクションのみ', '仅限此动作'],
-  '이 동작에 이미 같은 항목이 클립으로 있습니다.': [
-    'This action already has the same item on its clip.',
-    'このアクションには同じ項目がすでにクリップにあります。',
-    '此动作的片段上已有相同项目。',
-  ],
   '이 동작에는 문제가 없습니다.': [
     'This action has no problems.',
     'このアクションに問題はありません。',
@@ -3952,7 +3991,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'この項目を消すとエンジン既定のブレンドを使います。',
     '删除此项即使用引擎默认混合。',
   ],
-  '이것만 남기기': ['Keep only this', 'これだけ残す', '只保留这个'],
   '이동 입력 방향': ['Movement input direction', '移動入力方向', '移动输入方向'],
   '이동은 HKX의 AMR 주석(animmotion)으로만 합니다. 움직이지 않게 하려면 주석을 지우세요': [
     'Movement is driven solely by HKX AMR annotation (animmotion). To disable movement, remove the annotation',
@@ -4059,7 +4097,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '在事件注册卡片中查看此事件',
   ],
   '이벤트 등록 형식 오류': ['Invalid event registry format', 'イベント登録形式エラー', '事件注册格式错误'],
-  '이벤트 등록에서 보기': ['Show in event registry', 'イベント登録で見る', '在事件注册中查看'],
   '이벤트 등록에서 편집': ['Edit in the event registry', 'イベント登録で編集', '在事件注册中编辑'],
   '이벤트 등록은 4096개까지입니다.': [
     'Event registry limit is 4096 entries.',
@@ -4071,21 +4108,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'イベント登録はファイルあたり 4096 個までです',
     '每个文件最多 4096 个事件注册',
   ],
-  '이벤트 등록의 기능입니다. 이 이벤트를 보내는 모든 애니메이션에서, 이벤트를 보낸 액터에게 적용됩니다.': [
-    'A function of the event registry: it applies in every animation that sends this event, to the actor that sent it.',
-    'イベント登録の機能です。このイベントを送るすべてのアニメーションで、送ったアクターに適用されます。',
-    '这是事件注册的功能:在发送此事件的所有动画中,作用于发送该事件的角色。',
-  ],
   '이벤트 목록에 잘못되거나 중복된 이름이 있습니다.': [
     'Event list contains invalid or duplicate names.',
     'イベント一覧に無効または重複した名前があります。',
     '事件列表中包含无效或重复的名称。',
   ],
   '이벤트 미지정': ['No event', 'イベント未指定', '未指定事件'],
-  '이벤트 발사를 빼면 그 이벤트를 보내는 다른 HKX도 쏘지 않게 됩니다(전역).': [
-    'Removing an event shot stops the other HKX sending that event from shooting too (global).',
-    'イベント発射を外すと、そのイベントを送る他の HKX も撃たなくなります(グローバル)。',
-    '移除事件发射后，发送该事件的其他 HKX 也不再射击(全局)。',
+  '이벤트 발사는 이벤트 등록에서 뺍니다.': [
+    'An event shot is removed in the event registry.',
+    'イベント発射はイベント登録で外します。',
+    '事件发射需在事件注册中移除。',
+  ],
+  '이벤트 발사는 이벤트 등록의 기능입니다. 등록에서 빼야 클립 시각으로 정할 수 있습니다.': [
+    'An event shot is an event registry function. Remove it in the registry to use a clip time.',
+    'イベント発射はイベント登録の機能です。登録から外すとクリップ時刻にできます。',
+    '事件发射是事件注册的功能。需在注册中移除后才能改为剪辑时间。',
   ],
   '이벤트 발생': ['Fire Event', 'イベント発火', '触发事件'],
   '이벤트 발신자': ['Event sender', 'イベント送信元', '事件发送者'],
@@ -4331,10 +4368,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '自動発射のタイミングを選んでください。今はボタンを離したときだけ撃ちます。',
     '请选择自动发射时机。目前只在松开按钮时射击。',
   ],
-  '자동 발사 시점이 {n}개입니다. 한 번 재생에 여러 번 쏩니다. 하나만 남기세요.': [
-    'There are {n} automatic shot timings: one play shoots several times. Keep one.',
-    '自動発射のタイミングが{n}個あります。1回の再生で複数回撃ちます。1つだけ残してください。',
-    '有 {n} 个自动发射时机，一次播放会射击多次。请只保留一个。',
+  '자동 발사 시점이 {n}개입니다. 한 번 재생에 여러 번 쏩니다.': [
+    'There are {n} automatic shot times. One playback shoots more than once.',
+    '自動発射のタイミングが {n} 個あります。1 回の再生で複数回撃ちます。',
+    '有 {n} 个自动发射时机。一次播放会射出多次。',
   ],
   '자동 발사 전에 공격 버튼을 떼면 그때 쏩니다. 화살이 이미 나갔으면 자동 발사는 건너뜁니다.': [
     'Releasing the attack button before the automatic shot fires then. Once the arrow is gone, the automatic shot is skipped.',
@@ -4406,11 +4443,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '적용할 HKX 선택…': ['Select HKX to apply…', '適用する HKX を選択…', '选择要应用的 HKX…'],
   '전 구간 금지': ['Full lock', '全区間禁止', '全程锁定'],
-  전역: ['Global', '全体', '全局'],
-  '전역 — 어느 애니메이션에서 오든 실행': [
-    'Global — executes regardless of which animation it comes from',
-    'グローバル — どのアニメーションから来ても実行',
-    '全局 — 无论来自何种动画均会执行',
+  '전역 — 어느 애니메이션에서 오든 실행 · 수치는 보내는 HKX 카드에서': [
+    'Global — runs from any animation · values on the sending HKX cards',
+    'グローバル — どのアニメーションから来ても実行 · 数値は送る HKX カードで',
+    '全局 — 来自任何动画都会执行 · 数值在发送的 HKX 卡片中',
   ],
   '전역 값': ['Global value', 'グローバル値', '全局值'],
   '전역 값 비교': ['Compare global value', 'グローバル値を比較', '比较全局值'],
@@ -4995,7 +5031,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '有効化機能（{label}）の対となる機能（{label1}）が登録されていません。アクション終了・死亡・ラグドール・ロード時にのみ解除されます。',
     '保持启用的功能 ({label}) 的配对功能 ({label1}) 未注册。仅在动作结束、死亡、布娃娃状态或读档时才会解除。',
   ],
-  '켜는 이벤트': ['On event', 'オンにするイベント', '开启事件'],
+  '켜는 시점': ['On at', 'オンにする時点', '开启时机'],
   켬: ['On', 'オン', '开'],
   '크기 배율': ['Size scale', 'サイズ倍率', '大小倍率'],
   크리쳐: ['Creature', 'クリーチャー', '生物'],
@@ -5015,6 +5051,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '클립 끝': ['Clip end', 'クリップの終わり', '剪辑结束'],
   '클립 시각 {seconds}초': ['Clip time {seconds} s', 'クリップ時刻 {seconds}秒', '片段时间 {seconds} 秒'],
+  '클립 시각 빼기': ['Remove clip time', 'クリップ時刻を外す', '移除剪辑时间'],
   '클립 전체에서 전환을 허용합니다(시각·선입력 없음). 끄면 열림·닫힘 시각으로 정한 구간에서만 허용합니다.': [
     'Allows transitions across the entire clip (no timing or input buffer). If disabled, only allowed within the window defined by open and close times.',
     'クリップ全体で遷移を許可します（時刻・先行入力なし）。無効にすると開始・終了時刻で指定した区間内でのみ許可します。',
@@ -5260,11 +5297,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Only transitions from pair to separate ordinary actions can have a partner (victim) action.',
     'ペアから双方の一般アクションへ向かう遷移のみが相手（被害者）アクションを持てます。',
     '仅从配对过渡到双方普通动作时方可拥有搭档（受害者）动作。',
-  ],
-  '페어의 구간·소모는 페어 트랙에서 정합니다.': [
-    "A pair's windows and costs are set on its pair tracks.",
-    'ペアの区間・消費はペアトラックで決めます。',
-    '配对的区间与消耗在配对轨道中设置。',
   ],
   '페어의 시각 기능은 페어 연출에 둡니다.': [
     "A pair's clip-time functions belong to its pair effects.",

@@ -12,10 +12,12 @@ import {
   eventKey,
   eventOps,
   eventSlots,
-  fieldsOf,
   functionSummary,
   isBooleanSetting,
   newEventName,
+  numbersToNodes,
+  registryFields,
+  registryNumbers,
   opInfo,
   removeEventRow,
   renameEvent,
@@ -46,7 +48,7 @@ export const showRegistry = (name = '') => {
 };
 
 type Filter = 'all' | 'fn' | 'use' | 'none';
-type Sender = {label: string; time: number};
+type Sender = {label: string; time: number; uid: string};
 /** Where this project's HKX send each event (from their annotations; desktop only). */
 function useSenders(w: Workspace): Map<string, Sender[]> {
   const annotations = useClipAnnotations(w);
@@ -60,7 +62,7 @@ function useSenders(w: Workspace): Map<string, Sender[]> {
           const key = eventKey(e.name),
             list = out.get(key) ?? [];
           const role = e.role ? ' · ' + roleLabel[e.role] : '';
-          list.push({label: `${a.config.name} · ${s.label || s.id}${role}`, time: n.time});
+          list.push({label: `${a.config.name} · ${s.label || s.id}${role}`, time: n.time, uid: a.uid});
           out.set(key, list);
         }
     return out;
@@ -280,6 +282,9 @@ function RegistryRow({
     [w.eventRegistry]
   );
   const change = (next: Effect[]) => attempt(() => edit(w => setFunctions(w, entry.name, next)));
+  // An older registry's numbers (runtime 0.12.281 refuses them): to every node whose HKX sends this event.
+  const numbered = fns.filter(f => registryNumbers(f.values).length);
+  const nodes = [...new Set(senders.map(s => s.uid))];
   const rename = () => {
     if (name !== entry.name) attempt(() => edit(w => renameEvent(w, entry.name, name.trim())));
   };
@@ -314,7 +319,7 @@ function RegistryRow({
             />
           </label>
           <div className="registry-sub-title">
-            {tr('기능')} <span>{tr('전역 — 어느 애니메이션에서 오든 실행')}</span>
+            {tr('기능')} <span>{tr('전역 — 어느 애니메이션에서 오든 실행 · 수치는 보내는 HKX 카드에서')}</span>
           </div>
           {fns.map((f, i) => (
             <FunctionEditor
@@ -325,6 +330,25 @@ function RegistryRow({
               remove={() => change(fns.filter((_, j) => j !== i))}
             />
           ))}
+          {!!numbered.length && (
+            <div className="registry-warn">
+              {nodes.length
+                ? tr(
+                    '⚠ 등록에 수치가 있습니다({fns}). 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 보내는 HKX {n}개에 옮깁니다.',
+                    {fns: numbered.map(f => functionSummary(f.values)).join(', '), n: nodes.length}
+                  )
+                : tr(
+                    '⚠ 등록에 수치가 있습니다({fns}). 이 프로젝트에는 이 이벤트를 보내는 HKX가 없어 수치는 지워지고, 이벤트는 기본값으로 실행됩니다.',
+                    {fns: numbered.map(f => functionSummary(f.values)).join(', ')}
+                  )}{' '}
+              <button
+                className="registry-link"
+                onClick={() => attempt(() => edit(w => numbersToNodes(w, () => nodes, entry.name)))}
+              >
+                {nodes.length ? tr('수치를 노드로 옮기기') : tr('수치 지우기')}
+              </button>
+            </div>
+          )}
           {!fns.length && (
             <div className="registry-empty-line">
               {tr('기능 없음 — 그래프에 이름만 등록합니다(아래 용도나 다른 플러그인이 이 이벤트를 받음).')}
@@ -559,7 +583,8 @@ export function FunctionEditor({
           ✕
         </button>
       </div>
-      <div className="registry-fn-fields">{fieldsOf(v.op).map(setting)}</div>
+      {/* What it acts with only: the numbers are each HKX node's (runtime 0.12.281, docs/mockup-event-node-values). */}
+      {!!registryFields(v.op).length && <div className="registry-fn-fields">{registryFields(v.op).map(setting)}</div>}
       {info?.lasting && (
         <div
           className="registry-note"

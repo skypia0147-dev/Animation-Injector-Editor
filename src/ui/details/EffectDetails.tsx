@@ -6,6 +6,7 @@ import {
   pairRoleLabels,
   opInfo,
   fieldsOf,
+  valueFields,
   settingDefault,
   settingLabels,
   settingRange,
@@ -34,6 +35,7 @@ export function EffectDetails({
   registry = false,
   self = false,
   pair = false,
+  valuesOnly = false,
 }: {
   effect: Effect;
   change: (e: Effect) => void;
@@ -43,6 +45,8 @@ export function EffectDetails({
   self?: boolean;
   /** A pair's clip-time effect (runtime 0.12.275): one 적용 choice, for a function that changes an actor. */
   pair?: boolean;
+  /** A registered function's numbers on an HKX node (runtime 0.12.281): what it acts with is the registry's. */
+  valuesOnly?: boolean;
 }) {
   const v = effect.values,
     set = (key: string, value: string | undefined) => {
@@ -132,7 +136,7 @@ export function EffectDetails({
       />
     );
   };
-  const fields = fieldsOf(v.op);
+  const fields = valuesOnly ? valueFields(v.op) : fieldsOf(v.op);
   return (
     <>
       {!timeline && (

@@ -51,6 +51,8 @@ import {
   liftToRegistry,
   registryIssues,
   registryXml,
+  eventValuesXml,
+  valueErrors,
   functionErrors,
   doAttrs,
   pairRoles,
@@ -1003,6 +1005,9 @@ export function validateWorkspace(w: Workspace): Issue[] {
   for (const i of unpairableRoutes(w)) out.push({level: 'warning', ...i});
   for (const i of runtimeNameUses(w)) out.push({level: 'warning', ...i});
   out.push(...registryIssues(w));
+  // The numbers an HKX node runs registered functions with (<EventValues>, runtime 0.12.281).
+  for (const a of w.actions)
+    for (const v of Object.values(a.config.eventValues ?? {})) for (const m of valueErrors(v)) err(a.uid, m);
   out.push(...viewIssues(w));
   try {
     parseWorkspace(JSON.stringify(w));
@@ -1357,6 +1362,9 @@ export function compileWorkspace(w: Workspace): string {
           ...(a.config.effects ?? []).map(e => node('Do', doAttrs(e.values, true))),
         ])
       );
+    // The numbers its clip runs registered functions with (runtime 0.12.281).
+    const values = eventValuesXml(w, a);
+    if (values) out.children.push(values);
     // Transitions (Connect): no <Window> is the whole clip.
     for (const l of w.links.filter(l => l.from === a.uid)) {
       const target = w.actions.find(a => a.uid === l.to)!,

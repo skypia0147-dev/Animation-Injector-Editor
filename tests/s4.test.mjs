@@ -15,7 +15,7 @@ import {
   emptyWorkspace,
   operations,
 } from '../src/workspace.ts';
-import {eventOps, pairRoles, fieldsOf, doAttrs} from '../src/eventRegistry.ts';
+import {eventOps, pairRoles, fieldsOf, doAttrs, registryPart, valuePart} from '../src/eventRegistry.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {parseXml} from '../src/xml.ts';
 import {savedProject, withEditorBlock} from '../src/editorBlock.ts';
@@ -156,12 +156,17 @@ test('all role operations and supported parameters preserve parser semantics', n
   w.actions[0].camera = {reset: 'ResetCamera', restore: 'end', timeout: 10};
   p.interruptOnThirdPartyHit = true;
   p.effects = operations.map((op, i) => ({id: 'effect' + i, values: {...withSettings(op, i), at: String(i * 0.1)}}));
+  // A registered function changes its sender: no role (runtime 0.12.273). The registry holds what it acts with; the
+  // numbers are the node's (runtime 0.12.281).
+  const settings = eventOps.map((op, i) => (({target: _, ...v}) => v)(withSettings(op, i + 1)));
   w.eventRegistry = eventOps.map((op, i) => ({
     id: 'event' + i,
     name: 'Event' + i,
-    // A registered function changes its sender: no role (runtime 0.12.273).
-    functions: [{id: 'fn1', values: (({target: _, ...v}) => v)(withSettings(op, i + 1))}],
+    functions: [{id: 'fn1', values: registryPart(settings[i])}],
   }));
+  w.actions[0].config.eventValues = Object.fromEntries(
+    eventOps.map((op, i) => [`event${i}/fn1`, valuePart(settings[i])]).filter(([, v]) => Object.keys(v).length > 1)
+  );
   const a = resolve(dir, 'effects-v1.xml'),
     b = resolve(dir, 'effects-v2.xml');
   writeFileSync(a, compileWorkspace(w));
@@ -176,6 +181,9 @@ test('all role operations and supported parameters preserve parser semantics', n
     reread.eventRegistry.map(r => [r.name, r.functions.map(f => doAttrs(f.values))]),
     w.eventRegistry.map(r => [r.name, r.functions.map(f => doAttrs(f.values))])
   );
+  const values = w => compileWorkspace(w).match(/<EventValues>[\s\S]*?<\/EventValues>/)?.[0];
+  assert.ok(values(w)?.includes('<Do op="cost"'), 'the node holds the numbers');
+  assert.equal(values(reread), values(w), 'every op numbers on the node');
   for (const patch of [
     {at: 'NaN'},
     {form: '../bad'},

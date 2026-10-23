@@ -4,29 +4,25 @@ import {putAction} from '../workspace.ts';
 import {mark} from '../model.ts';
 import {clipKey, useClipAnnotations} from './annotations.ts';
 import {actionClip} from './hkxMoments.ts';
-import {eventKey} from '../eventRegistry.ts';
 import {
   directShot,
+  dropClipTime,
   fireArrowSummary,
   fireTiming,
-  fireToClip,
   fireToEvent,
-  fireToOtherEvent,
-  keepFireTiming,
   sentEvents,
-  setEventShot,
-  type EventShot,
+  setShotWay,
+  shotWay,
 } from './fireArrowMoments.ts';
-import {GlobalTag, RegistryFooter, WhenSwitch, useClipBar} from './MomentFields.tsx';
+import {RegistryLink, WhenSwitch, useClipBar} from './MomentFields.tsx';
 import {ClipBar} from './ClipBar.tsx';
 import {barToSeconds} from './clipBar.ts';
-import {showRegistry} from './RegistryCard.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {tr} from '../i18n/korean.ts';
 
 // The HKX card's 활 발사 item (docs/mockup-fire-arrow-once, 10-23): one automatic shot, at a clip time or on an event
-// this HKX sends, changed in place like the other moment items; the button's release fires the drawn arrow first.
-// What it shows comes from fireArrowMoments.ts.
+// this HKX sends; the button's release fires the drawn arrow first. An event shot is the registry's, its way and
+// damage this node's (runtime 0.12.281, docs/mockup-event-node-values). What it shows comes from fireArrowMoments.ts.
 function useSent(w: Workspace, a: Action | undefined) {
   const annotations = useClipAnnotations(w);
   return useMemo(() => sentEvents(w, a, annotations), [annotations, w.actions, w.eventRegistry, a]);
@@ -72,16 +68,16 @@ export function FireArrowShots({
       const current = w.actions.find(x => x.uid === a.uid)!;
       return putAction(w, {...current, config: {...current.config, fireArrow: next}});
     });
-  const changeShot = (shot: EventShot, values: Record<string, string>) => edit(w => setEventShot(w, shot, values));
   const noEvents = sent.length ? undefined : tr('이 HKX가 보내는 이벤트가 없습니다(HKX 원본을 연결하면 보입니다).');
 
-  // Two automatic timings (an older file, or an event shot added elsewhere): it shoots twice until one is kept.
+  // Two automatic timings (an older file, or an event shot registered later): it shoots twice. The events are the
+  // registry's; the clip time is this node's and can go.
   if (timing.kind === 'conflict')
     return (
       <div className="moment-fields">
         <div className="fire-shot bad">
           <p className="moment-note warn">
-            {tr('자동 발사 시점이 {n}개입니다. 한 번 재생에 여러 번 쏩니다. 하나만 남기세요.', {
+            {tr('자동 발사 시점이 {n}개입니다. 한 번 재생에 여러 번 쏩니다.', {
               n: timing.shots.length + (f.at ? 1 : 0),
             })}
           </p>
@@ -91,37 +87,44 @@ export function FireArrowShots({
                 {tr('이벤트')} <code className="fire-shot-event">{shot.name}</code>{' '}
                 {tr('{seconds}초', {seconds: shot.time.toFixed(2)})}
               </span>
-              <button onClick={() => edit(w => keepFireTiming(w, a.uid, shot, timing.shots))}>
-                {tr('이것만 남기기')}
-              </button>
+              <RegistryLink event={shot.name} />
             </div>
           ))}
           {f.at && (
             <div className="fire-shot-line">
               <span>{tr('클립 시각 {seconds}초', {seconds: f.at.seconds})}</span>
-              <button onClick={() => edit(w => keepFireTiming(w, a.uid, 'clip', timing.shots))}>
-                {tr('이것만 남기기')}
-              </button>
+              <button onClick={() => edit(w => dropClipTime(w, a.uid))}>{tr('클립 시각 빼기')}</button>
             </div>
           )}
-          <p className="moment-note">
-            {tr('이벤트 발사를 빼면 그 이벤트를 보내는 다른 HKX도 쏘지 않게 됩니다(전역).')}
-          </p>
+          <p className="moment-note">{tr('이벤트 발사는 이벤트 등록에서 뺍니다.')}</p>
         </div>
       </div>
     );
 
   const shot = timing.kind === 'event' ? timing.shot : undefined;
+  const way = shot ? shotWay(a, shot) : undefined;
   const direct = directShot(w, a, timing);
+  const setWay = (d: boolean, damage?: number) => {
+    if (shot)
+      edit(w => setShotWay(w, a.uid, shot, d ? {mode: 'direct', ...(damage ? {damage: String(damage)} : {})} : {}));
+    else {
+      const {mode: _, damage: __, ...rest} = f;
+      setFire(d ? {...rest, mode: 'direct', onRelease: false, ...(damage && damage !== 100 ? {damage} : {})} : rest);
+    }
+  };
   return (
     <div className="moment-fields">
       <WhenSwitch
         label={tr('자동 발사')}
         clip={timing.kind === 'clip' ? true : timing.kind === 'event' ? false : undefined}
-        disabled={{event: noEvents}}
+        disabled={{
+          event: noEvents,
+          clip: shot
+            ? tr('이벤트 발사는 이벤트 등록의 기능입니다. 등록에서 빼야 클립 시각으로 정할 수 있습니다.')
+            : undefined,
+        }}
         choose={clip => {
-          if (clip && shot) edit(w => fireToClip(w, a.uid, shot, shot.time));
-          else if (clip) setFire({...f, at: mark(0.5)});
+          if (clip) setFire({...f, at: mark(0.5)});
           // The clip time (or, in an older button-only item, nothing) becomes a shot on the first event it sends.
           else if (sent.length) edit(w => fireToEvent(w, a.uid, sent[0].name));
         }}
@@ -144,28 +147,14 @@ export function FireArrowShots({
         />
       )}
       {shot && (
-        <>
-          <div className="moment-line">
-            <span className="moment-label">{tr('이벤트')}</span>
-            <span className="moment-inline">
-              <select
-                aria-label={tr('발사 이벤트')}
-                value={eventKey(shot.name)}
-                onChange={e => {
-                  const to = sent.find(x => x.key === e.target.value)?.name;
-                  if (to) edit(w => fireToOtherEvent(w, shot, to));
-                }}
-              >
-                {sent.map(x => (
-                  <option key={x.key} value={x.key}>
-                    {x.name} · {tr('{seconds}초', {seconds: x.time.toFixed(2)})}
-                  </option>
-                ))}
-              </select>
-              <GlobalTag />
-            </span>
-          </div>
-        </>
+        <div className="moment-line">
+          <span className="moment-label">{tr('이벤트')}</span>
+          <span className="moment-inline">
+            <code>{shot.name}</code>
+            <span className="moment-unit">· {tr('{seconds}초', {seconds: shot.time.toFixed(2)})}</span>
+            <RegistryLink event={shot.name} />
+          </span>
+        </div>
       )}
       {timing.kind !== 'none' && (
         <div className="moment-line">
@@ -173,15 +162,9 @@ export function FireArrowShots({
           <ModeSeg
             direct={direct}
             change={d => {
-              if (shot) {
-                const {mode: _, damage: __, ...rest} = shot.fn.values;
-                changeShot(shot, d ? {...rest, mode: 'direct'} : rest);
-                // A direct shot has no draw to release first.
-                if (d && f.onRelease) setFire({...f, onRelease: false});
-              } else {
-                const {mode: _, damage: __, ...rest} = f;
-                setFire(d ? {...rest, mode: 'direct', onRelease: false} : rest);
-              }
+              setWay(d);
+              // A direct shot has no draw to release first.
+              if (d && shot && f.onRelease) setFire({...f, onRelease: false});
             }}
           />
         </div>
@@ -195,16 +178,8 @@ export function FireArrowShots({
               min={1}
               max={1000}
               step={5}
-              value={Number((shot ? shot.fn.values.damage : f.damage) ?? 100)}
-              change={value => {
-                if (shot) {
-                  const {damage: _, ...rest} = shot.fn.values;
-                  changeShot(shot, value === 100 ? rest : {...rest, damage: String(value)});
-                } else {
-                  const {damage: _, ...rest} = f;
-                  setFire(value === 100 ? rest : {...rest, damage: value});
-                }
-              }}
+              value={Number((shot ? way?.damage : f.damage) ?? 100)}
+              change={value => setWay(true, value)}
             />
             <span className="moment-unit">{tr('끝까지 당긴 피해에 곱함')}</span>
           </span>
@@ -240,7 +215,6 @@ export function FireArrowShots({
           </button>
         </span>
       </div>
-      {shot && <RegistryFooter w={w} event={shot.name} />}
     </div>
   );
 }
