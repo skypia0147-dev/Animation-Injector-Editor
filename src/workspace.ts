@@ -72,6 +72,7 @@ export const operations = [
   'timeOn',
   'timeOff',
   'stopVelocity',
+  'ragdoll',
 ] as const;
 /** Keys of a pair's clip-time effect: `at` and a function's (eventRegistry.ts). */
 export const effectKeys = timedKeys;
@@ -890,7 +891,28 @@ function checkLink(l: any) {
 }
 
 /** Phase 5. Canonical forms; checks that need them (QTE) run on the result. */
+/** Features no longer share settings (10-23, docs/mockup-card-cleanup ⑥): a group of them is dissolved on open, each
+ *  member keeping the values it has. Shared connections (keys, event receivers, conditions) stay. */
+export function keptSharing<T extends {kind: string; members: string[]}>(rules: T[], blendIds: Iterable<string>): T[] {
+  const blends = new Set(blendIds);
+  const feature = (m: string) =>
+    blends.has(m) ||
+    m.startsWith('notify:') ||
+    /\|(stateCondition|suppress|cameraRestore|fireArrow|carryRelease|carryFix)$/.test(m);
+  return rules.filter(
+    g => !['effect', 'feature', 'camera', 'state'].includes(g.kind) && !(g.kind === 'node' && g.members.some(feature))
+  );
+}
+function dissolveFeatureSharing(w: any) {
+  if (!Array.isArray(w.sharedRules)) return;
+  w.sharedRules = keptSharing(
+    w.sharedRules,
+    (w.blends ?? []).map((b: any) => b.id)
+  );
+  if (!w.sharedRules.length) delete w.sharedRules;
+}
 function normalizeWorkspace(w: any, configs: Project[]): Workspace {
+  dissolveFeatureSharing(w);
   if (Array.isArray(w.drafts))
     for (const d of w.drafts)
       d.value = parseWorkspace(JSON.stringify({...emptyWorkspace(), actions: [d.value]})).actions[0];

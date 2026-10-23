@@ -160,6 +160,7 @@ export const ko: Record<string, string> = {
   'notify.staminaCost': '스태미나 소모',
   'notify.moveCancel': '이동키 취소',
   'notify.spell': '주문 적용',
+  'notify.ragdoll': '래그돌',
   'notify.cameraShake': '카메라 흔들림',
   'notify.weaponHide': '무기 숨김',
   'notify.weaponShow': '무기 표시',

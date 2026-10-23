@@ -30,7 +30,7 @@ test('distinct cooldown and per-HKX feature attachment survive graph save and na
   w = playbackLink(w, 'a1', 'a2', {id: 'H', label: 'H', key: 'H', gamepad: 0}).workspace;
   w.actions[0] = setSourceWindow(w.actions[0], 'A1', {
     open: mark(0.3),
-    close: {...mark(0.1, 'end'), basis: 'event', event: 'Close', fallback: true},
+    close: {...mark(0.1, 'end'), basis: 'event', event: 'Close'},
     buffered: true,
   });
   w = parseWorkspace(JSON.stringify(captureGraph(w)));
@@ -42,8 +42,10 @@ test('distinct cooldown and per-HKX feature attachment survive graph save and na
   const re = importWorkspaceXml(compileWorkspace(w));
   assert.equal(re.actions[1].config.cooldown, 1.23);
   assert.equal(re.actions[1].config.slots.iframe.enabled, true);
-  assert.equal(re.links[0].close.fallbackBasis, 'end');
-  assert.equal(re.links[0].close.seconds, 0.1);
+  // An event close waits for its event only (runtime 0.12.278).
+  assert.equal(re.links[0].close.basis, 'event');
+  assert.equal(re.links[0].close.event, 'Close');
+  assert.equal(re.links[0].close.fallback, false);
 });
 
 test('two keys to the same HKX carry independent blends through graph, XML and the native parser', needsChecker, () => {

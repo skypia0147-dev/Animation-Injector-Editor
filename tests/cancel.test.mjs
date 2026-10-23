@@ -21,10 +21,10 @@ test('vanilla cancel survives current XML import, export and project save withou
   assert.deepEqual(parseWorkspace(JSON.stringify(w)).actions[0].cancels, expected);
   assert.ok(flatGraph(w).nodes.some(n => n.notify === 'cancel:cancel'));
 });
-test('cancel timing edit, end-relative fallback and deletion affect executable XML', () => {
+test('cancel timing edit, an event close and deletion affect executable XML', () => {
   let w = importWorkspaceXml(xml);
   w = patch(w, w.actions[0].uid, 'cancel:cancel', {from: mark(0.5)});
-  w.actions[0].cancels[0].close = {...mark(0.1, 'event'), event: 'Close', fallback: true, fallbackBasis: 'end'};
+  w.actions[0].cancels[0].close = {...mark(0, 'event'), event: 'Close'};
   for (const v of [1, 2])
     assert.deepEqual(importWorkspaceXml(compileWorkspace(w, v)).actions[0].cancels, w.actions[0].cancels);
   w = remove(w, w.actions[0].uid, 'cancel:cancel');

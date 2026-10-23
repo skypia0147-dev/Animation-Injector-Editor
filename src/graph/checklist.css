@@ -169,12 +169,6 @@
 }
 /* One list since 10-16: the moments (⏱) follow the whole-play items under a small divider, their time or event
    as a badge where the summary sits. */
-.checklist-moments {
-  font-size: var(--fs-xs);
-  color: var(--ue-dim);
-  padding: 8px 2px 2px;
-  letter-spacing: 0.02em;
-}
 .checklist-row.moment > .checklist-row-heading > button > span:first-child::before {
   content: '⏱ ';
   color: #e2c47c;
@@ -206,7 +200,7 @@
   min-width: 0;
 }
 .checklist-fields .detail-row {
-  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr) 0;
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
   gap: 6px;
 }
 .checklist-fields .detail-category-title {
@@ -506,7 +500,8 @@
   overflow: hidden;
   width: fit-content;
 }
-.moment-seg button {
+/* .shell button (a later sheet) would give each button its own frame: the seg is one frame with dividers. */
+.shell .moment-seg button {
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -514,49 +509,144 @@
   padding: 3px 10px;
   font-size: var(--fs-xs);
 }
-.moment-seg button + button {
+.shell .moment-seg button + button {
   border-left: 1px solid #555;
 }
-.moment-seg button[aria-pressed='true'] {
+.shell .moment-seg button[aria-pressed='true'] {
   background: #3d4a48;
   color: #f0f0f0;
 }
-.moment-seg button:disabled {
+.shell .moment-seg button:disabled {
   color: #666;
 }
-.moment-ruler {
+/* The one-line clip bar (docs/mockup-clip-bar): label, the clip with annotation ticks, the value as text. */
+.clip-bar {
+  display: grid;
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.clip-bar.no-track {
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
+}
+.clip-bar-track {
   position: relative;
-  height: 18px;
-  border-radius: 4px;
+  height: 20px;
+  border-radius: 5px;
   background: #1b1b1b;
   border: 1px solid #3c3c3c;
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
-.moment-ruler .me,
-.moment-ruler .other {
+.clip-bar-track .tick {
   position: absolute;
-  transform: translateX(-50%);
-  border-radius: 2px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #6b6a4d;
 }
-.moment-ruler .me {
-  top: -2px;
-  width: 9px;
-  height: 20px;
-  background: #e2c47c;
-}
-.moment-ruler .other {
-  top: 5px;
+.clip-bar-track .other {
+  position: absolute;
+  top: 6px;
   width: 6px;
   height: 7px;
+  border-radius: 2px;
   background: #6d6a4d;
+  transform: translateX(-50%);
 }
-.moment-ruler .len {
+.clip-bar-track .span {
   position: absolute;
-  right: 4px;
-  top: 1px;
-  font-size: 10px;
-  color: var(--ue-dim);
+  top: 4px;
+  height: 11px;
+  border-radius: 3px;
+  background: #6d8a52;
+  cursor: grab;
+}
+.clip-bar-track.dragging .span {
+  cursor: grabbing;
+}
+.clip-bar-track .edge,
+.clip-bar-track .me {
+  position: absolute;
+  top: -2px;
+  height: 22px;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+}
+.clip-bar-track .edge {
+  width: 6px;
+  background: #b9d99a;
+}
+.clip-bar-track .me {
+  width: 9px;
+  background: #e2c47c;
+}
+.clip-bar-track .edge:focus-visible,
+.clip-bar-track .me:focus-visible {
+  outline: 2px solid var(--ue-accent, #8fd3ff);
+  outline-offset: 1px;
+}
+.clip-bar-value {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
+}
+.clip-bar.no-track .clip-bar-value {
+  justify-self: start;
+}
+.shell .clip-bar-text {
+  border: 0;
+  border-bottom: 1px dotted #6f7775;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  padding: 0 1px;
+  font: inherit;
+  cursor: text;
+}
+.clip-bar-input {
+  width: 58px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.clip-bar-arrow {
+  color: var(--ue-dim);
+}
+/* A registry function's last line (docs/mockup-event-help): where its event is used, the registry, one delete. */
+.moment-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+}
+.shell .moment-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  color: #8fd3ff;
+  font: inherit;
+  cursor: pointer;
+}
+.moment-tag {
+  color: #cfcfcf;
+  border: 1px solid #555;
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.moment-global,
+.moment-own,
+.moment-tag {
+  cursor: help;
 }
 .moment-sub {
   padding: 0 4px 3px 22px;
@@ -583,6 +673,22 @@
 }
 .moment-note.warn {
   color: #f0904a;
+}
+/* An event a recovery or cancel waits for itself; a timed item's other fields. */
+.moment-own {
+  color: #9fd3b0;
+  border: 1px solid #3f6a52;
+  border-radius: 9px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.moment-rest {
+  display: grid;
+  gap: 6px;
+}
+.fire-shot.bad {
+  border-color: #8a5a3a;
 }
 .moment-lock {
   color: #b7a6e6;

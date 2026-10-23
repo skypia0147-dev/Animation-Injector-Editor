@@ -111,7 +111,8 @@ export function attachDraft(w: Workspace, d: DraftNode, action: string, step?: s
     for (const k of ['air', 'cooldown'] as const) Object.assign(p, {[k]: q[k]});
   } else if (d.kind === 'fireArrow') {
     if (a.pair || p.fireArrow) throw Error(tr('일반 동작에 활 발사 하나만 연결하세요.'));
-    p.fireArrow = structuredClone(q.fireArrow ?? defaultFireArrow());
+    // A new item shoots at a clip time of 0.5 s; an event instead is chosen in the item (docs/mockup-fire-arrow-once).
+    p.fireArrow = structuredClone(q.fireArrow ?? {...defaultFireArrow(), at: mark(0.5)});
   } else if (d.kind === 'carryRelease') {
     if (a.pair || p.carryRelease) throw Error(tr('한 사람 일반 동작에 대상 놓기 하나만 연결하세요.'));
     p.carryRelease = structuredClone(q.carryRelease ?? {at: mark(1)});

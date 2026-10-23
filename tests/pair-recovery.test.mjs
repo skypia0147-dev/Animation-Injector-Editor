@@ -13,7 +13,7 @@ const xml = at => `<AnimationSet version="4" id="PairRecovery"><Inputs><Input id
 ${at}<Exit at="end-0.05" blend="0.2"/></Pair>
 <Action id="Lower" clip="Animations/Lower.hkx"><CarryRelease at="0.8"/><Exit at="end-0.05"/></Action></AnimationSet>`;
 
-for (const at of ['at="0.25"', 'at="event:CarryReady"', 'at="event:CarryReady" fallback="1.5"'])
+for (const at of ['at="0.25"', 'at="event:CarryReady"'])
   test(`pair recovery survives graph/project/XML roundtrip: ${at}`, () => {
     const w = importWorkspaceXml(xml(`<Recovery ${at} blend="0.35"/>`));
     const saved = parseWorkspace(JSON.stringify(w));

@@ -1,7 +1,21 @@
 import type {ReactNode} from 'react';
 import {DetailRow} from './DetailRow.tsx';
 import type {LabelId} from '../../labels.ts';
-import {labelText} from '../../labels.ts';
+import {labelHelp, labelText} from '../../labels.ts';
+import {tr} from '../../i18n/korean.ts';
+
+// A details row (docs/mockup-layout-fixes ①): no reset button, which shifted the row whenever a value changed; the
+// default is said in the row's help instead.
+const defaultText = (initial: unknown, options?: [string, string][]) => {
+  if (initial === undefined || initial === null || typeof initial === 'object') return '';
+  const shown =
+    typeof initial === 'boolean'
+      ? initial
+        ? tr('켬')
+        : tr('끔')
+      : (options?.find(([v]) => v === String(initial))?.[1] ?? String(initial));
+  return shown === '' ? '' : tr('기본값: {v}', {v: shown});
+};
 import {NumberField} from './NumberField.tsx';
 export function Property({
   id,
@@ -30,15 +44,9 @@ export function Property({
   unit?: string;
   children?: ReactNode;
 }) {
-  const different = initial !== undefined && JSON.stringify(value) !== JSON.stringify(initial);
+  const help = [hint ?? labelHelp(id), defaultText(initial, options)].filter(Boolean).join(' ');
   return (
-    <DetailRow
-      id={id}
-      label={label}
-      hint={hint}
-      changed={different}
-      reset={initial !== undefined ? () => change(structuredClone(initial)) : undefined}
-    >
+    <DetailRow id={id} label={label} hint={help || undefined}>
       {children ??
         (options ? (
           <select aria-label={label ?? labelText(id)} value={String(value)} onChange={e => change(e.target.value)}>

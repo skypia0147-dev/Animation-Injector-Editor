@@ -50,20 +50,16 @@ function clock(raw: string, fallback = ''): Mark {
     if (/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)) return mark(Number(s));
     throw new Error(tr('시각 구문 오류: ') + s);
   };
-  const event = raw.startsWith('event:');
-  if (!event) {
-    if (fallback) throw new Error(tr('대체 시각은 이벤트에만 지정합니다.'));
-    return numeric(raw);
-  }
+  // An event moment waits for its event only (runtime 0.12.278): an older file's time for when it does not come is
+  // refused as the runtime refuses it.
+  if (fallback)
+    throw new Error(
+      tr('fallback(이벤트가 안 오면)은 없어졌습니다(런타임 0.12.278): 이벤트로 두면 그 이벤트가 올 때만 동작합니다.')
+    );
+  if (!raw.startsWith('event:')) return numeric(raw);
   const result = mark();
   result.basis = 'event';
   result.event = raw.slice(6);
-  if (fallback) {
-    const m = numeric(fallback);
-    result.fallback = true;
-    result.seconds = m.seconds;
-    result.fallbackBasis = m.basis === 'end' ? 'end' : 'seconds';
-  }
   return result;
 }
 /** A gamepad attribute (format 4: a button name or code:N); 0 when absent. */

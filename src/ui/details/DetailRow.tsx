@@ -10,6 +10,9 @@ export const DetailFocus = createContext('');
 export type InspectorGroup = 'playback' | 'features' | 'info';
 export const InspectorLayout = createContext<InspectorGroup | ''>('');
 export const NestedDetailPanel = createContext(false);
+/** The title of the card item these details fill: a category of the same name is the item itself and shows no
+ *  second title of its own (docs/mockup-layout-fixes ③). */
+export const ItemTitle = createContext('');
 /** Categories drawn as the HKX card's item rows (재생 설정, docs/mockup-playback-settings): name, summary and ▸ on
  *  one line, opening in place. Each starts closed; allOpen opens or closes all of them (전체 펼치기). */
 export const CategoryRows = createContext<{allOpen?: boolean} | null>(null);
@@ -38,15 +41,11 @@ export function DetailRow({
   label,
   hint,
   children,
-  reset,
-  changed = false,
 }: {
   id?: LabelId;
   label?: string;
   hint?: string;
   children: ReactNode;
-  reset?: () => void;
-  changed?: boolean;
 }) {
   useLanguage();
   const name = label ?? (id ? labelText(id) : ''),
@@ -68,13 +67,6 @@ export function DetailRow({
             : c
         )}
       </div>
-      <span className="detail-reset">
-        {reset && changed && (
-          <button aria-label={`${name} · ${t('row.reset')}`} title={t('row.reset')} onClick={reset}>
-            ↺
-          </button>
-        )}
-      </span>
     </>
   );
   // The row's help shows when the pointer rests on the row (no "?" button).
@@ -113,6 +105,7 @@ export function DetailCategory({
   }, [rows?.allOpen]);
   const focus = useContext(DetailFocus);
   const layout = useContext(InspectorLayout);
+  const item = useContext(ItemTitle);
   if (layout && !query && group !== layout) return null;
   if (focus && title !== focus && !title.startsWith(focus + ' ·')) return null;
   const expanded = !!query || open || (!!focus && !layout);
@@ -129,6 +122,15 @@ export function DetailCategory({
       )}
     </DetailSearch.Provider>
   );
+  // The item already says what this is and folds it: its fields only, categories inside it keep their titles.
+  if (item && (title === item || title.startsWith(item + ' ')) && !rows)
+    return (
+      <ItemTitle.Provider value="">
+        <section className="detail-category bare" data-category={title} data-section={sectionId}>
+          {body}
+        </section>
+      </ItemTitle.Provider>
+    );
   if (rows)
     return (
       <div className="checklist-row" data-category={title} data-section={sectionId}>

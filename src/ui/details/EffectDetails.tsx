@@ -11,6 +11,9 @@ import {
   settingRange,
   arrowModes,
   isBooleanSetting,
+  ragdollDirections,
+  ragdollForce,
+  ragdollLabels,
   type EventOp,
 } from '../../eventRegistry.ts';
 import type {LabelId} from '../../labels.ts';
@@ -64,6 +67,38 @@ export function EffectDetails({
     if (key === 'plugin' || key === 'form')
       return <Prop key={key} id={id} value={v[key] ?? ''} change={value => set(key, value || undefined)} />;
     if (key === 'damage' && v.mode !== 'direct') return null;
+    // A ragdoll's direction picks where the push comes from; its force defaults by direction (runtime 0.12.278).
+    if (key === 'direction')
+      return (
+        <DetailRow key={key} label={settingLabels.direction}>
+          <span className="moment-seg" role="group" aria-label={settingLabels.direction}>
+            {ragdollDirections.map(d => (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={(v.direction ?? 'down') === d}
+                onClick={() => set('direction', d === 'down' ? undefined : d)}
+              >
+                {ragdollLabels[d]}
+              </button>
+            ))}
+          </span>
+        </DetailRow>
+      );
+    if (key === 'force') {
+      const def = ragdollForce[v.direction ?? 'down'] ?? 1;
+      return (
+        <Prop
+          key={key}
+          id={id}
+          label={settingLabels.force}
+          value={v.force === undefined ? def : Number(v.force)}
+          initial={def}
+          max={20}
+          change={value => set('force', value === def ? undefined : String(value))}
+        />
+      );
+    }
     if (key === 'mode')
       return (
         <Prop
@@ -137,13 +172,22 @@ export function EffectDetails({
       )}
       {fields.filter(k => !advanced.includes(k)).map(field)}
       {info?.lasting && (
-        <p className="effect-note">
-          {tr('켜 둠 — 짝 기능 "')}
-          {opInfo[info.lasting].label}
-          {tr('", 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.')}
+        <p
+          className="effect-note"
+          title={tr('짝 기능 "{pair}", 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.', {
+            pair: opInfo[info.lasting].label,
+          })}
+        >
+          {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
         </p>
       )}
-      {info?.player && <p className="effect-note player">{tr('플레이어에게만 적용됩니다.')}</p>}
+      {info?.player && (
+        <p className="effect-note player">
+          <span className="moment-tag" title={tr('플레이어에게만 적용됩니다.')}>
+            {tr('플레이어만')}
+          </span>
+        </p>
+      )}
       <Category title={t('row.advanced')}>{advanced.map(field)}</Category>
     </>
   );

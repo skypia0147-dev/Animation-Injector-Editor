@@ -474,7 +474,7 @@ export function validate(p: Project, selecting = false): Issue[] {
 }
 export const timingLabel = (m: Mark) =>
   m.basis === 'event'
-    ? (m.event || tr('이벤트 미지정')) + (m.fallback ? tr(' · 대체값 있음') : '')
+    ? m.event || tr('이벤트 미지정')
     : m.basis === 'end'
       ? m.seconds
         ? tr('끝 − {seconds}초', {seconds: m.seconds})

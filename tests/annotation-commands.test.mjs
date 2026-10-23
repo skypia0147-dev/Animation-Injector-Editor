@@ -7,7 +7,18 @@ import {sentEvent} from '../src/graph/annotations.ts';
 import {emptyWorkspace, addAction, parseWorkspace, compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {add, rows, remove} from '../src/timeline/model.ts';
-import {hkxMoments, clipToEvent, eventToClip, moveFunction} from '../src/graph/hkxMoments.ts';
+import {
+  hkxMoments,
+  clipToEvent,
+  eventToClip,
+  moveFunction,
+  slotToEvent,
+  eventToSlot,
+  setSlotOff,
+  costToEvent,
+  eventToCost,
+  clipBlocked,
+} from '../src/graph/hkxMoments.ts';
 import {setFunctions, readDo} from '../src/eventRegistry.ts';
 import {parseXml} from '../src/xml.ts';
 import {checker, needsChecker} from './local.mjs';
@@ -192,4 +203,151 @@ test('a pair clip-time effect names a role and no sender filter (runtime 0.12.27
     op: 'hide',
     target: 'receiver',
   });
+});
+test('a window and a cost move between the clip and the registry; on and off are one item (docs/mockup-moment-timing)', () => {
+  let w = emptyWorkspace();
+  const a = addAction(w);
+  w.actions.push(a);
+  a.config.steps[0].clip = 'Animations\T\dodge.hkx';
+  a.config.slots.iframe = {
+    enabled: true,
+    from: {basis: 'seconds', seconds: 0.1, event: '', fallback: false, fallbackBasis: 'seconds'},
+    until: {basis: 'seconds', seconds: 0.8, event: '', fallback: false, fallbackBasis: 'seconds'},
+  };
+  a.config.cost = {...a.config.cost, enabled: true, stamina: 20};
+  const sent = [
+    {time: 0.2, text: 'DodgeOn'},
+    {time: 0.7, text: 'DodgeOff'},
+  ];
+  // The window becomes the registry's on function; its off one is chosen on another event.
+  w = slotToEvent(w, a.uid, 'iframe', 'DodgeOn');
+  assert.equal(w.actions[0].config.slots.iframe.enabled, false);
+  let [item] = hkxMoments(w, w.actions[0], sent).registry;
+  assert.deepEqual([item.event, item.fn.values.op, item.off], ['DodgeOn', 'iframeOn', null]);
+  assert.equal(clipBlocked(w.actions[0], 'iframeOn'), undefined);
+  w = setSlotOff(w, 'iframe', undefined, 'DodgeOff');
+  const moments = hkxMoments(w, w.actions[0], sent).registry;
+  assert.equal(moments.length, 1, 'the off function shows inside its on one');
+  item = moments[0];
+  assert.deepEqual([item.off.event, item.off.fn.values.op], ['DodgeOff', 'iframeOff']);
+  // Back to the clip at the times the events come.
+  w = eventToSlot(
+    w,
+    a.uid,
+    'iframe',
+    {event: item.event, fn: item.fn.id, time: 0.2},
+    {event: item.off.event, fn: item.off.fn.id, time: 0.7}
+  );
+  assert.deepEqual(
+    [
+      w.actions[0].config.slots.iframe.enabled,
+      w.actions[0].config.slots.iframe.from.seconds,
+      w.actions[0].config.slots.iframe.until.seconds,
+    ],
+    [true, 0.2, 0.7]
+  );
+  assert.equal(hkxMoments(w, w.actions[0], sent).registry.length, 0);
+  assert.match(clipBlocked(w.actions[0], 'iframeOn'), /이미/);
+  // The cost keeps its amounts both ways.
+  w = costToEvent(w, a.uid, 'DodgeOn');
+  const [cost] = hkxMoments(w, w.actions[0], sent).registry;
+  assert.deepEqual(cost.fn.values, {op: 'cost', stamina: '20', magicka: '0'});
+  w = eventToCost(w, a.uid, cost.event, cost.fn, 0.2);
+  assert.deepEqual(
+    [w.actions[0].config.cost.enabled, w.actions[0].config.cost.at.seconds, w.actions[0].config.cost.stamina],
+    [true, 0.2, 20]
+  );
+  assert.equal(validateWorkspace(w).filter(i => i.level === 'error').length, 0);
+});
+test('the clip bar drags like the timeline: the moment, an end, or the whole window within the clip', async () => {
+  const {rulerGrab, rulerDrag} = await import('../src/graph/hkxMoments.ts');
+  // A press near an end holds it; inside the window holds all of it; outside moves the nearer end there.
+  assert.equal(rulerGrab(0.5, undefined, 0.05), 'at');
+  assert.equal(rulerGrab(0.12, [0.1, 0.8], 0.05), 'from');
+  assert.equal(rulerGrab(0.78, [0.1, 0.8], 0.05), 'until');
+  assert.equal(rulerGrab(0.4, [0.1, 0.8], 0.05), 'move');
+  assert.equal(rulerGrab(1.2, [0.1, 0.8], 0.05), 'until');
+  const origin = {t: 0.4, at: 0.5, from: 0.1, until: 0.8};
+  assert.deepEqual(rulerDrag('at', origin, 1.234, 2), {at: 1.23, from: 0.1, until: 0.8});
+  assert.deepEqual(
+    rulerDrag('from', origin, 0.95, 2),
+    {at: 0.5, from: 0.8, until: 0.8},
+    'a start never passes the end'
+  );
+  assert.deepEqual(rulerDrag('until', origin, 1.5, 2), {at: 0.5, from: 0.1, until: 1.5});
+  assert.deepEqual(rulerDrag('move', origin, 0.7, 2), {at: 0.5, from: 0.4, until: 1.1}, 'moved whole, same length');
+  assert.deepEqual(rulerDrag('move', origin, 3, 2), {at: 0.5, from: 1.3, until: 2}, 'stops at the clip end');
+  assert.deepEqual(rulerDrag('move', origin, -1, 2), {at: 0.5, from: 0, until: 0.7}, 'stops at the clip start');
+});
+test('the item a clip/event switch makes opens: its key is the one the card lists it under', async () => {
+  const {switchTo, lastEffect, openedBySwitch} = await import('../src/graph/momentOpen.ts');
+  let w = pairWorkspace();
+  const uid = w.actions[0].uid,
+    sent = [
+      {time: 0.87, text: 'Grapple_Stom'},
+      {time: 1.5, text: 'Grapple_Land'},
+    ];
+  w = add(w, uid, 'hide', 0.4).workspace;
+  const effect = w.actions[0].pair.effects.at(-1);
+  // Clip -> event: the registered row of that event and function.
+  w = switchTo(uid, {event: 'Grapple_Stom'})(clipToEvent(w, uid, effect.id, 'Grapple_Stom'));
+  let row = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'hide');
+  assert.ok(openedBySwitch(`${uid}|${row.key}`));
+  // To another event: the function has a new id there.
+  w = switchTo(uid, {event: 'Grapple_Land'})(moveFunction(w, row.event, row.fn.id, 'Grapple_Land'));
+  row = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'hide');
+  assert.equal(row.event, 'Grapple_Land');
+  assert.ok(openedBySwitch(`${uid}|${row.key}`));
+  // Event -> clip: the action's clip-time item.
+  w = switchTo(uid, {notify: lastEffect(uid)})(eventToClip(w, uid, row.event, row.fn.id, 1.5));
+  const item = rows(w, w.actions[0]).find(r => r.effect?.values.op === 'hide');
+  assert.ok(openedBySwitch(`${uid}|${item.id}`));
+  assert.equal(openedBySwitch(`${uid}|effect:none`), false);
+});
+test('the card lists items by when they happen: whole play and start blend, moments by trigger time, end blend', async () => {
+  const {itemPlace, byPlace, markTime} = await import('../src/graph/momentOrder.ts');
+  const w = emptyWorkspace();
+  const a = addAction(w);
+  w.actions.push(a);
+  a.config.slots.iframe = {
+    enabled: true,
+    from: {basis: 'seconds', seconds: 0.3, event: '', fallback: false, fallbackBasis: 'seconds'},
+    until: {basis: 'seconds', seconds: 0.8, event: '', fallback: false, fallbackBasis: 'seconds'},
+  };
+  a.config.cost = {...a.config.cost, enabled: true, at: {...a.config.cost.at, seconds: 0.1}};
+  a.config.recovery = {
+    enabled: true,
+    at: {basis: 'event', seconds: 0.9, event: 'Ready', fallback: true, fallbackBasis: 'seconds'},
+    blend: 0.2,
+  };
+  const times = new Map([['ready', 0.5]]);
+  const place = (n, blend) => itemPlace(w, a, n, blend, times, 2);
+  // A registered function stands at its event's time like a clip-time one.
+  const list = byPlace([
+    {key: 'end blend', place: place({kind: 'blend'}, 'exit')},
+    {key: 'recovery (event at 0.5)', place: place({kind: 'notify', notify: 'recovery'})},
+    {key: 'iframe 0.3', place: place({kind: 'notify', notify: 'iframe'})},
+    {key: 'start limit', place: place({kind: 'stateCondition'})},
+    {key: 'registered at 0.2', place: {group: 1, t: 0.2}},
+    {key: 'cost 0.1', place: place({kind: 'notify', notify: 'cost'})},
+    {key: 'start blend', place: place({kind: 'blend'}, 'enter')},
+    {key: 'unknown time', place: {group: 1, t: Infinity}},
+  ]);
+  assert.deepEqual(
+    list.map(e => e.key),
+    [
+      'start limit',
+      'start blend',
+      'cost 0.1',
+      'registered at 0.2',
+      'iframe 0.3',
+      'recovery (event at 0.5)',
+      'unknown time',
+      'end blend',
+    ]
+  );
+  // An event that is not in the clip has no time (it waits for its event only); before the end needs the clip's length.
+  assert.equal(markTime({basis: 'event', event: 'Other', seconds: 0.7, fallback: false}, times), Infinity);
+  assert.equal(markTime({basis: 'end', seconds: 0.5}, times, 2), 1.5);
+  assert.equal(markTime({basis: 'end', seconds: 0.5}, times), Infinity);
 });

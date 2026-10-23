@@ -130,7 +130,8 @@ test('S4 sample covers single to pair, pair to pair and both ordinary roles usin
 const settingValue = {
   plugin: 'FH_Grapple.esp',
   form: '806',
-  releasePhysics: 'true',
+  direction: 'left',
+  force: '7',
   parameters: 'true',
   delay: '0.2',
   stamina: '10',

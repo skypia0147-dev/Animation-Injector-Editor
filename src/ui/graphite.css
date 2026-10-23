@@ -789,17 +789,6 @@
   gap: 4px;
   align-items: center;
 }
-.shell .detail-reset:empty {
-  display: none;
-}
-.shell .detail-reset:not(:empty) {
-  position: absolute;
-  right: 0;
-}
-.shell .detail-row:has(.detail-reset:not(:empty)) {
-  position: relative;
-  padding-right: 22px;
-}
 .shell .detail-value input:not([type='checkbox']),
 .shell .detail-value select {
   min-height: 32px;
@@ -1262,10 +1251,11 @@
   border-top: 1px solid #4a4a4a;
   margin-top: 4px;
 }
+/* The kind takes the width its word needs (가해자·피해자 broke into two lines in 36px, docs/mockup-layout-fixes ④). */
 .branch-route {
   position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 18px;
+  grid-template-columns: minmax(36px, max-content) minmax(0, 1fr) 18px;
   align-items: center;
   gap: 6px;
   height: 28px;
@@ -1281,6 +1271,7 @@
 .branch-route-kind {
   font-size: var(--fs-sm);
   font-weight: 600;
+  white-space: nowrap;
 }
 .branch-route.tone-pass .branch-route-kind {
   color: var(--route-pass);

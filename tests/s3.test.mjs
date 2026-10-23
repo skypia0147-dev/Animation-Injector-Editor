@@ -108,8 +108,10 @@ test('runtime timing limits block unsupported clocks and escaping preserves even
   p.slots.iframe.until = {...mark(0, 'event'), event: 'Off', fallback: true, fallbackBasis: 'end'};
   assert.throws(() => exportXml(p));
   p.slots.iframe.until = mark(0.3);
+  // An event moment waits for its event only (runtime 0.12.278): no fallback is written.
   p.exit = {...mark(0.05, 'event'), event: 'Off&Done', fallback: true, fallbackBasis: 'end'};
-  assert.match(exportXml(p), /at="event:Off&amp;Done" fallback="end-0.05"/);
+  assert.match(exportXml(p), /<Exit at="event:Off&amp;Done"\/>|<Exit at="event:Off&amp;Done" /);
+  assert.doesNotMatch(exportXml(p), /fallback=/);
   p.steps[0].clip = 'Animations//bad.hkx';
   assert.throws(() => exportXml(p));
 });

@@ -8,7 +8,7 @@ import {DetailPanel, DetailCategory, DetailRow, DetailFocus} from '../ui/details
 import {StateDetails} from '../ui/details/StateDetails.tsx';
 import {TransitionDetails} from '../ui/details/TransitionDetails.tsx';
 import {Property as Prop} from '../ui/details/Property.tsx';
-import {TimeField} from '../ui/details/TimeField.tsx';
+import {WindowFields} from '../ui/details/ClipWindowFields.tsx';
 import {EventPicker} from '../ui/details/EventPicker.tsx';
 import {markerNames} from '../ui/details/markerCatalog.ts';
 import {KeyField} from '../ui/details/KeyField.tsx';
@@ -227,22 +227,16 @@ export function GraphDetails({
         {['keyInput', 'markerReceive', 'detectionWindow'].includes(kind!) &&
           rule &&
           (l ? l.window && (!sharesSourceWindow(w, l) || l.ownWindow) : !a.nodeAuthored) && (
-            <>
-              {(['open', 'close'] as const).map(k => (
-                <DetailRow key={k} id={k}>
-                  <TimeField
-                    value={rule[k]}
-                    change={v => patchRule({[k]: v})}
-                    label={labelText(k)}
-                    // A transition between actions (Connect) closes after its start, before the end or on an event.
-                    bases={k === 'close' && l ? ['seconds', 'end', 'event'] : ['seconds', 'event']}
-                    // A transition's close may fall back to a time from the start or before the end (Connect).
-                    fallback={k === 'close' && l ? 'either' : 'seconds'}
-                  />
-                </DetailRow>
-              ))}
-              <Prop id="buffered" value={rule.buffered} change={buffered => patchRule({buffered})} />
-            </>
+            // The window as the other clip-time items (docs/mockup-clip-bar): a transition between actions closes after
+            // its start or at the end, an action's own key window after its start.
+            <WindowFields
+              w={w}
+              action={l ? w.actions.find(x => x.uid === l.from) : a}
+              value={{open: rule.open, close: rule.close, buffered: rule.buffered}}
+              events={markerNames(w)}
+              closeBasis={l ? 'either' : 'seconds'}
+              change={next => patchRule(next)}
+            />
           )}
         {kind === 'keyInput' && l && sharesSourceWindow(w, l) && !l.ownWindow && (
           <HelpNote label={tr('감지 구간')}>{tr('감지 구간과 선입력은 출발 HKX 재생 카드에서 설정하세요.')}</HelpNote>

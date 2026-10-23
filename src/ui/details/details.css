@@ -8,17 +8,6 @@
   flex: 1;
   align-items: center;
 }
-.number-drag {
-  cursor: ew-resize;
-  touch-action: none;
-  width: 20px;
-  min-width: 20px;
-  min-height: 25px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ue-dim);
-}
 .detail-search {
   width: 100%;
   margin: 0 0 10px !important;
@@ -46,7 +35,7 @@
 }
 .detail-row {
   display: grid;
-  grid-template-columns: minmax(80px, 34%) minmax(0, 1fr) 20px;
+  grid-template-columns: minmax(80px, 34%) minmax(0, 1fr);
   gap: 5px;
   align-items: start;
   padding: 5px 5px 5px 10px;
@@ -87,15 +76,6 @@
   gap: 5px;
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
-}
-.detail-reset button {
-  width: 20px;
-  height: 24px;
-  min-height: 24px;
-  padding: 0;
-  background: none;
-  border: 0;
-  color: var(--ue-select);
 }
 .detail-number,
 .time-main,
@@ -227,9 +207,6 @@
   width: 100%;
   min-width: 0;
   padding-inline: 4px;
-}
-.motion-key-table .number-drag {
-  display: none;
 }
 .shell .motion-key-table button {
   padding: 2px;

@@ -6,9 +6,9 @@ import {node} from './xml.ts';
 import type {Xml} from './xml.ts';
 const stamp = (m: Mark, basis = m.basis) =>
   basis === 'end' ? (m.seconds ? 'end-' + m.seconds : 'end') : String(m.seconds);
-export const clock2 = (name: string, m: Mark, fallback = name + 'Fallback') => ({
+// An event moment waits for its event only (runtime 0.12.278): no time for when it does not come.
+export const clock2 = (name: string, m: Mark) => ({
   [name]: m.basis === 'event' ? 'event:' + m.event : stamp(m),
-  ...(m.basis === 'event' && m.fallback ? {[fallback]: stamp(m, m.fallbackBasis)} : {}),
 });
 /** The attributes without those whose value is the runtime's omitted one (format 4: the omitted value is the
  *  editor's new value and the documented one, so the XML shows only what was chosen). */
@@ -68,7 +68,7 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
   );
   // The workspace drops a blend that is off (the graph's own transition then applies).
   add('Enter', {blend: p.enterBlend}, {}, true);
-  add('Exit', {...clock2('at', p.exit, 'fallback'), blend: p.exitBlend}, {at: 'end-0.05'}, true);
+  add('Exit', {...clock2('at', p.exit), blend: p.exitBlend}, {at: 'end-0.05'}, true);
   if (p.rotationLocked) add('Rotate', {locked: true});
   const names = {rotate: 'Rotate', iframe: 'IFrame', armor: 'HyperArmor'};
   for (const name of Object.keys(names) as (keyof typeof names)[]) {
@@ -77,11 +77,11 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
       add(names[name], {...clock2('from', s.from), ...clock2('until', s.until)}, {from: '0', until: 'end'}, true);
   }
   const recovery = p.steps[0]?.recovery ?? p.recovery;
-  if (recovery.enabled) add('Recovery', {...clock2('at', recovery.at, 'fallback'), blend: recovery.blend});
+  if (recovery.enabled) add('Recovery', {...clock2('at', recovery.at), blend: recovery.blend});
   if (p.cost.enabled)
     add(
       'Cost',
-      {...clock2('at', p.cost.at, 'fallback'), stamina: p.cost.stamina, magicka: p.cost.magicka},
+      {...clock2('at', p.cost.at), stamina: p.cost.stamina, magicka: p.cost.magicka},
       {at: '0', stamina: 0, magicka: 0},
       true
     );
@@ -92,15 +92,15 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
       'FireArrow',
       p.fireArrow.mode === 'direct'
         ? {
-            ...(p.fireArrow.at ? clock2('at', p.fireArrow.at, 'fallback') : {}),
+            ...(p.fireArrow.at ? clock2('at', p.fireArrow.at) : {}),
             mode: 'direct',
             damage: p.fireArrow.damage ?? 100,
           }
-        : {...(p.fireArrow.at ? clock2('at', p.fireArrow.at, 'fallback') : {}), onRelease: p.fireArrow.onRelease},
+        : {...(p.fireArrow.at ? clock2('at', p.fireArrow.at) : {}), onRelease: p.fireArrow.onRelease},
       {onRelease: true, damage: 100},
       true
     );
-  if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at, 'fallback'));
+  if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at));
   if (p.suppress)
     add('Suppress', {events: uniqueEvents(p.suppress.events).join(','), when: p.suppress.when}, {when: 'startable'});
   const attack = p.steps[0].attack || p.attack;

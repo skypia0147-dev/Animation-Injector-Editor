@@ -225,11 +225,15 @@ export function flatGraph(w: Workspace) {
   for (const a of w.actions) if (a.nodeAuthored && !authored.has(a.uid)) authored.set(a.uid, a);
   for (const b of blendNodes(w)) {
     let label = tr('연결 필요'),
+      title = t('row.blend'),
       action = byId.get(b.target)?.action || byId.get(b.source)?.action;
     try {
       const role = blendBinding(w, b);
       label = role.label;
       action = role.action;
+      // A card's start or end blend is named by where it plays, its time the summary (docs/mockup-card-cleanup ②).
+      if (role.kind === 'enter' && role.label === tr('시작')) title = tr('블렌드(시작)');
+      if (role.kind === 'exit') title = tr('블렌드(종료)');
     } catch {
       /* Incomplete drafts remain editable. */
     }
@@ -247,8 +251,8 @@ export function flatGraph(w: Workspace) {
     add({
       id: b.id,
       kind: 'blend',
-      title: t('row.blend'),
-      summary: `${b.seconds} s · ${label}`,
+      title,
+      summary: title === t('row.blend') ? `${b.seconds} s · ${label}` : b.seconds + tr('초'),
       scope: root,
       original: b.id,
       action,
@@ -1253,4 +1257,5 @@ export const notifyKinds = [
   'stopVelocity',
   'stateOn',
   'stateOff',
+  'ragdoll',
 ];

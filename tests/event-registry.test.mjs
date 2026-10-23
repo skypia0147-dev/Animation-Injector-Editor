@@ -181,10 +181,10 @@ test('the registry lists registrations and referenced names; rename, bind and un
   assert.ok(!registryEntries(n).some(e => e.name === 'MCO_WinOpen'));
   n = bindSlot(n, openKey, 'Swing');
   assert.equal(eventUses(n).get('swing').length, 1);
-  // The clip time stays as the fallback.
+  // The clip time is kept for a switch back; the event moment waits for its event only (runtime 0.12.278).
   assert.deepEqual(
     (({basis, event, fallback, seconds}) => ({basis, event, fallback, seconds}))(n.actions[0].clipWindows.A1.open),
-    {basis: 'event', event: 'Swing', fallback: true, seconds: 0.45}
+    {basis: 'event', event: 'Swing', fallback: false, seconds: 0.45}
   );
   assert.throws(() => removeEventRow(n, n.eventRegistry[0].id), /용도/);
   n = renameEvent(n, 'swing', 'Swing2');

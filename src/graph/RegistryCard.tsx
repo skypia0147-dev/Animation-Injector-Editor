@@ -6,6 +6,9 @@ import {
   bindSlot,
   groupUses,
   arrowModes,
+  ragdollDirections,
+  ragdollForce,
+  ragdollLabels,
   eventKey,
   eventOps,
   eventSlots,
@@ -477,6 +480,39 @@ export function FunctionEditor({
           </select>
         </label>
       );
+    // A ragdoll's direction, and its force defaulting by direction (runtime 0.12.278).
+    if (key === 'direction')
+      return (
+        <label key={key}>
+          {label}
+          <select
+            value={v.direction ?? 'down'}
+            onChange={e => set(key, e.target.value === 'down' ? undefined : e.target.value)}
+          >
+            {ragdollDirections.map(d => (
+              <option key={d} value={d}>
+                {ragdollLabels[d]}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    if (key === 'force') {
+      const def = ragdollForce[v.direction ?? 'down'] ?? 1;
+      return (
+        <label key={key}>
+          {label}
+          <NumberInput
+            aria-label={label}
+            min={0}
+            max={20}
+            step={0.5}
+            value={v.force === undefined ? def : Number(v.force)}
+            change={value => set(key, value === def ? undefined : String(value))}
+          />
+        </label>
+      );
+    }
     if (key === 'plugin' || key === 'form')
       return (
         <label key={key}>
@@ -525,13 +561,23 @@ export function FunctionEditor({
       </div>
       <div className="registry-fn-fields">{fieldsOf(v.op).map(setting)}</div>
       {info?.lasting && (
-        <div className="registry-note">
-          {tr('켜 둠 — 짝 기능 "')}
-          {opInfo[info.lasting].label}"{registeredOps.has(info.lasting) ? '' : tr('(등록 없음 ⚠)')}
-          {tr(', 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.')}
+        <div
+          className="registry-note"
+          title={tr('짝 기능 "{pair}", 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.', {
+            pair: opInfo[info.lasting].label,
+          })}
+        >
+          {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
+          {registeredOps.has(info.lasting) ? '' : tr('(등록 없음 ⚠)')}
         </div>
       )}
-      {info?.player && <div className="registry-note player">{tr('플레이어에게만 적용됩니다.')}</div>}
+      {info?.player && (
+        <div className="registry-note player">
+          <span className="moment-tag" title={tr('플레이어에게만 적용됩니다.')}>
+            {tr('플레이어만')}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

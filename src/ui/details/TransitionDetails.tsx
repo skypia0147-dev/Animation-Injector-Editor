@@ -3,7 +3,8 @@ import {mark} from '../../model.ts';
 import {t} from '../../i18n/index.ts';
 import {DetailPanel, DetailCategory as Category} from './DetailRow.tsx';
 import {Property as Prop} from './Property.tsx';
-import {TimeField} from './TimeField.tsx';
+import {WindowFields} from './ClipWindowFields.tsx';
+import {markerNames} from './markerCatalog.ts';
 import {labelText} from '../../labels.ts';
 import {sharesSourceWindow} from '../../graph/playback.ts';
 import {sourceWindow} from '../../graph/clipWindows.ts';
@@ -93,26 +94,14 @@ export function TransitionDetails({w, l, change}: {w: Workspace; l: Link; change
           <HelpNote label={tr('감지 구간')}>{tr('감지 구간과 선입력은 출발 HKX 재생 카드에서 설정하세요.')}</HelpNote>
         )}
         {l.window && !managed && (
-          <>
-            {(['open', 'close'] as const).map(key => (
-              <Prop
-                key={key}
-                id={key}
-                value={l[key]}
-                initial={mark(key === 'open' ? 0.3 : 1.5)}
-                change={v => change({...l, [key]: v})}
-              >
-                <TimeField
-                  value={l[key]}
-                  label={labelText(key)}
-                  bases={key === 'close' ? ['seconds', 'end', 'event'] : ['seconds', 'event']}
-                  fallback={key === 'close' ? 'either' : 'seconds'}
-                  change={v => change({...l, [key]: v})}
-                />
-              </Prop>
-            ))}
-            <Prop id="buffered" value={l.buffered} initial={true} change={buffered => change({...l, buffered})} />
-          </>
+          <WindowFields
+            w={w}
+            action={source}
+            value={{open: l.open, close: l.close, buffered: l.buffered}}
+            events={markerNames(w)}
+            closeBasis="either"
+            change={next => change({...l, ...next})}
+          />
         )}
       </Category>
       <Category title={t('node.result')}>

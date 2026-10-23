@@ -172,6 +172,7 @@ export const en: Record<string, string> = {
   'notify.staminaCost': 'Stamina Cost',
   'notify.moveCancel': 'Cancel by Movement',
   'notify.spell': 'Cast Spell',
+  'notify.ragdoll': 'Ragdoll',
   'notify.cameraShake': 'Camera Shake',
   'notify.weaponHide': 'Hide Weapon',
   'notify.weaponShow': 'Show Weapon',

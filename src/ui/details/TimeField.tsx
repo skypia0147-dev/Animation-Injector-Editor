@@ -9,20 +9,15 @@ export function TimeField({
   change,
   label,
   bases = ['seconds', 'event'],
-  fallback = 'seconds',
-  allowFallback = true,
   events = [],
 }: {
   value: Mark;
   change: (m: Mark) => void;
   label: string;
   bases?: Mark['basis'][];
-  /** The fallback's basis; 'either' lets the author choose (a transition closes before the end or at a time). */
-  fallback?: Mark['fallbackBasis'] | 'either';
-  allowFallback?: boolean;
   events?: string[];
 }) {
-  const fallbackBasis = fallback === 'either' ? value.fallbackBasis : fallback;
+  // An event moment waits for its event only (runtime 0.12.278): no time for when it does not come.
   return (
     <div className="time-field">
       <div className="time-main">
@@ -39,7 +34,7 @@ export function TimeField({
         <select
           aria-label={label + ' · ' + t('detail.mode')}
           value={value.basis}
-          onChange={e => change({...value, basis: e.target.value as Mark['basis'], fallbackBasis})}
+          onChange={e => change({...value, basis: e.target.value as Mark['basis'], fallback: false})}
         >
           {bases.map(b => (
             <option key={b} value={b}>
@@ -58,47 +53,6 @@ export function TimeField({
               change={event => change({...value, event})}
             />
           </HelpTip>
-          {allowFallback && (
-            <div className="time-fallback">
-              <HelpTip
-                label={label + tr(' 대체 시각')}
-                help={t(value.fallback ? 'time.fallbackHelp' : 'time.eventOnlyHelp')}
-              >
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={value.fallback}
-                    onChange={e => change({...value, fallback: e.target.checked, fallbackBasis})}
-                  />
-                  <span className="help-tip-label">{t('time.fallback')}</span>
-                </label>
-              </HelpTip>
-              {value.fallback && (
-                <>
-                  <NumberInput
-                    aria-label={label + ' · ' + t('time.fallback')}
-                    min={0}
-                    max={600}
-                    step={0.05}
-                    value={value.seconds}
-                    change={seconds => change({...value, seconds})}
-                  />
-                  {fallback === 'either' ? (
-                    <select
-                      aria-label={label + ' · ' + t('time.fallbackBasis')}
-                      value={value.fallbackBasis}
-                      onChange={e => change({...value, fallbackBasis: e.target.value as Mark['fallbackBasis']})}
-                    >
-                      <option value="seconds">{t('time.afterStart')}</option>
-                      <option value="end">{t('time.beforeEnd')}</option>
-                    </select>
-                  ) : (
-                    <span>{t(fallback === 'end' ? 'time.beforeEnd' : 'time.afterStart')}</span>
-                  )}
-                </>
-              )}
-            </div>
-          )}
         </>
       )}
     </div>

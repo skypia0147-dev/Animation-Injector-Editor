@@ -34,6 +34,7 @@ export const eventOps = [
   'rotateOff',
   'cancel',
   'fireArrow',
+  'ragdoll',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
 /** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
@@ -91,7 +92,7 @@ export const opInfo: Record<EventOp, OpInfo> = {
     get label() {
       return tr('주문 적용');
     },
-    fields: ['plugin', 'form', 'releasePhysics'],
+    fields: ['plugin', 'form'],
   },
   stateOn: {
     get label() {
@@ -193,11 +194,20 @@ export const opInfo: Record<EventOp, OpInfo> = {
     // How the arrow leaves the bow (runtime 0.12.268): drawn (absent) or direct, and the direct shot's damage %.
     fields: ['mode', 'damage'],
   },
+  ragdoll: {
+    get label() {
+      return tr('래그돌');
+    },
+    // The engine's ragdoll from a point beside the actor (runtime 0.12.278, docs/mockup-ragdoll): a direction and
+    // a force; a pair's role first leaves the pair's physics hold, and its get-up is watched.
+    fields: ['direction', 'force'],
+  },
 };
 export const settingKeys = [
   'plugin',
   'form',
-  'releasePhysics',
+  'direction',
+  'force',
   'stamina',
   'magicka',
   'strength',
@@ -233,8 +243,11 @@ export const settingLabels: Record<string, string> = {
   get form() {
     return tr('폼 ID');
   },
-  get releasePhysics() {
-    return tr('페어 물리 풀기(래그돌용)');
+  get direction() {
+    return tr('방향');
+  },
+  get force() {
+    return tr('힘');
   },
   get stamina() {
     return tr('스태미나');
@@ -266,7 +279,30 @@ export const arrowModes = (): [string, string][] => [
   ['', tr('당긴 만큼')],
   ['direct', tr('바로 발사')],
 ];
-const booleanKeys = new Set(['releasePhysics']);
+/** A ragdoll's directions (runtime 0.12.278) and each one's default force, as FH_Grapple's GrapplePush had them. */
+export const ragdollDirections = ['down', 'up', 'forward', 'backward', 'left', 'right'] as const;
+export const ragdollForce: Record<string, number> = {down: 1, up: 2, forward: 5, backward: 5, left: 5, right: 5};
+export const ragdollLabels: Record<string, string> = {
+  get down() {
+    return tr('아래');
+  },
+  get up() {
+    return tr('위');
+  },
+  get forward() {
+    return tr('앞');
+  },
+  get backward() {
+    return tr('뒤');
+  },
+  get left() {
+    return tr('왼쪽');
+  },
+  get right() {
+    return tr('오른쪽');
+  },
+};
+const booleanKeys = new Set<string>();
 export const isBooleanSetting = (key: string) => booleanKeys.has(key);
 const commonFields = ['delay'];
 export const fieldsOf = (op: string) => [...(opInfo[op as EventOp]?.fields ?? []), ...commonFields];
@@ -278,13 +314,14 @@ const numberRanges: Record<string, [number, number]> = {
   duration: [0, 30],
   factor: [0.05, 5],
   damage: [1, 1000],
+  force: [0, 20],
 };
 export const settingRange = (key: string) => numberRanges[key];
 export const settingDefault: Record<string, string> = {
   strength: '1',
   duration: '0.5',
   factor: '1',
-  releasePhysics: 'false',
+  direction: 'down',
   delay: '0',
   damage: '100',
 };
@@ -330,8 +367,11 @@ export function functionParts(values: Record<string, string>): string[] {
     parts.push(tr('세기 {s} · {d}초', {s: values.strength || '1', d: values.duration || '0.5'}));
   if (values.op === 'fireArrow' && values.mode === 'direct')
     parts.push(tr('바로 발사 · 피해 {damage}%', {damage: values.damage || '100'}));
+  if (values.op === 'ragdoll') {
+    const d = values.direction || 'down';
+    parts.push(ragdollLabels[d] ?? d, tr('힘 {f}', {f: values.force || String(ragdollForce[d] ?? 1)}));
+  }
   if (values.delay && Number(values.delay)) parts.push(tr('지연 ') + values.delay + tr('초'));
-  if (values.releasePhysics === 'true') parts.push(tr('물리 풀기'));
   return parts;
 }
 export const lastingOp = (op: string) => !!opInfo[op as EventOp]?.lasting;
@@ -543,6 +583,12 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
   if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
     out.push(tr('피해 %는 바로 발사에서만 씁니다.'));
+  if (
+    v.direction !== undefined &&
+    !(v.op === 'ragdoll' && (ragdollDirections as readonly string[]).includes(v.direction))
+  )
+    out.push(tr('방향은 래그돌의 아래·위·앞·뒤·왼쪽·오른쪽입니다.'));
+  if (v.force !== undefined && v.force !== '' && v.op !== 'ragdoll') out.push(tr('힘은 래그돌에서만 씁니다.'));
   if (['spell', 'stateOn', 'stateOff'].includes(v.op)) {
     if (!v.plugin || /[\\/:]/.test(v.plugin)) out.push(tr('플러그인 파일 이름을 입력하세요.'));
     if (!/^(?:0x)?[\da-f]{1,8}$/i.test(v.form ?? '')) out.push(tr('16진수 폼 ID를 입력하세요.'));
@@ -651,6 +697,8 @@ export function readDo(n: Xml, timed: boolean): Record<string, string> {
     if (role === 'both') delete n.attrs.target;
     else n.attrs.target = role;
   }
+  if (n.attrs.releasePhysics !== undefined)
+    throw Error(tr('Do.releasePhysics는 없어졌습니다(런타임 0.12.278): 래그돌은 래그돌 기능(op="ragdoll")을 씁니다.'));
   shapeXml(n, timed ? timedKeys : eventDoAttrs);
   const values = {...n.attrs};
   if (!values.op) throw Error(tr('Do.op: 필수 값'));
@@ -931,11 +979,9 @@ export function bindSlot(w: Workspace, key: string, name: string): Workspace {
   if (!slot) throw Error(tr('항목을 찾지 못했습니다.'));
   const m = slot.mark;
   if (name) {
-    // The clip time it had stays as the fallback: without the event the moment is unchanged.
-    if (m.basis !== 'event') {
-      m.fallbackBasis = m.basis === 'end' ? 'end' : 'seconds';
-      m.fallback = true;
-    }
+    // The clip time it had is kept for a switch back (an event moment waits for its event only).
+    if (m.basis !== 'event') m.fallbackBasis = m.basis === 'end' ? 'end' : 'seconds';
+    m.fallback = false;
     m.basis = 'event';
     m.event = name;
   } else {

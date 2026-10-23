@@ -48,7 +48,6 @@ const entries: Record<string, [string, string]> = {
   'detail.delay': ['Delay', '실행 지연'],
   'detail.plugin': ['Plugin file', '플러그인 파일'],
   'detail.form': ['Form ID (hex)', 'Form ID (16진수)'],
-  'detail.releasePhysics': ['Release physics', '물리 제어 해제'],
   'detail.strength': ['Strength', '세기'],
   'detail.duration': ['Duration (s)', '시간(초)'],
   'detail.factor': ['Time scale', '시간 배율'],
@@ -148,10 +147,6 @@ const entries: Record<string, [string, string]> = {
   'tip.spell': [
     'Plugin filename and local hexadecimal form ID.',
     '플러그인 파일명과 로컬 16진수 Form ID를 지정합니다.',
-  ],
-  'tip.physics': [
-    'Release paired physics before casting the spell.',
-    '주문을 적용하기 전에 페어 물리 제어를 해제합니다.',
   ],
   'tip.shake': ['Player camera shake strength and duration.', '플레이어 카메라 흔들림의 세기와 시간입니다.'],
   'tip.factor': [

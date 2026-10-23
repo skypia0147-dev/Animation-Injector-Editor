@@ -48,7 +48,6 @@ export const labels = {
   delay: ['detail.delay', 'tip.delay'],
   plugin: ['detail.plugin', 'tip.spell'],
   form: ['detail.form', 'tip.spell'],
-  releasePhysics: ['detail.releasePhysics', 'tip.physics'],
   strength: ['detail.strength', 'tip.shake'],
   duration: ['detail.duration', 'tip.shake'],
   factor: ['detail.factor', 'tip.factor'],

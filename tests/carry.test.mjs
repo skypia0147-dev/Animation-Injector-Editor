@@ -193,19 +193,20 @@ test('individual connection removal suppresses carry or diagnoses a missing putd
   assert.throws(() => compileWorkspace(disconnectEdge(w, outgoing)), /내려놓기/);
 });
 test('the putdown release moment: XML, project, timeline and the runtime parser', needsChecker, () => {
-  const source = carryXml(undefined, '<CarryRelease at="event:PutDownRelease" fallback="0.9"/>');
+  // An event moment waits for its event only (runtime 0.12.278): an older file's fallback is refused.
+  assert.throws(
+    () => importWorkspaceXml(carryXml(undefined, '<CarryRelease at="event:PutDownRelease" fallback="0.9"/>')),
+    /0\.12\.278/
+  );
+  const source = carryXml(undefined, '<CarryRelease at="event:PutDownRelease"/>');
   let w = importWorkspaceXml(source);
   const lower = w.actions[1];
-  assert.deepEqual(lower.config.carryRelease.at, {
-    basis: 'event',
-    seconds: 0.9,
-    event: 'PutDownRelease',
-    fallback: true,
-    fallbackBasis: 'seconds',
-  });
+  assert.equal(lower.config.carryRelease.at.basis, 'event');
+  assert.equal(lower.config.carryRelease.at.event, 'PutDownRelease');
+  assert.equal(lower.config.carryRelease.at.fallback, false);
   assert.deepEqual(parseWorkspace(JSON.stringify(w)).actions[1].config.carryRelease, lower.config.carryRelease);
   const xml = compileWorkspace(w);
-  assert.match(xml, /<CarryRelease at="event:PutDownRelease" fallback="0.9"\/>/);
+  assert.match(xml, /<CarryRelease at="event:PutDownRelease"\/>/);
   mkdirSync('tests/generated/carry', {recursive: true});
   writeFileSync('tests/generated/carry/putdown-source.xml', source);
   writeFileSync('tests/generated/carry/putdown-editor.xml', xml);

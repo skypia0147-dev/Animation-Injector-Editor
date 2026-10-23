@@ -36,6 +36,8 @@ export type ChecklistItem = {
   toggleable: boolean;
   scope: string;
   category: 'feature' | 'event';
+  /** A blend item's role: the start blend leads the card's list, the end blend closes it (graph/momentOrder.ts). */
+  blend?: 'enter' | 'exit';
 };
 /** `raw` is the workspace's flat graph (graph/renderCache.ts passes the one it already has). */
 export function checklistModel(w: Workspace, raw = flatGraph(w)) {
@@ -63,12 +65,14 @@ export function checklistModel(w: Workspace, raw = flatGraph(w)) {
     let eligible =
       (!!n.notify && !['transition', 'keyInput', 'markerReceive'].includes(n.kind)) || internalKinds.has(n.kind);
     let inherited: string[] = [];
+    let blend: 'enter' | 'exit' | undefined;
     if (n.kind === 'blend')
       try {
         const b = blends.get(n.id);
         if (b) {
           const role = blendBinding(w, b);
           eligible = ['enter', 'exit'].includes(role.kind);
+          if (role.kind === 'enter' || role.kind === 'exit') blend = role.kind;
           if (role.kind === 'enter') inherited = entryBlendActions(w, role.action);
         }
       } catch {}
@@ -103,6 +107,7 @@ export function checklistModel(w: Workspace, raw = flatGraph(w)) {
               ? tr('동작 공통 · {length}클립', {length: parents.length})
               : tr('이 클립'),
         category: eventItem(n) ? 'event' : 'feature',
+        ...(blend ? {blend} : {}),
       });
     }
   }

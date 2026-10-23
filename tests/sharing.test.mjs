@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {s4sample} from '../src/s4sample.ts';
 import {shareRules, synchronizeRules, compactGraph, ruleValue} from '../src/graph/sharing.ts';
 import {flatGraph} from '../src/graph/flat.ts';
-import {compileWorkspace, parseWorkspace} from '../src/workspace.ts';
+import {compileWorkspace, keptSharing, parseWorkspace} from '../src/workspace.ts';
 import {captureGraph} from '../src/graph/document.ts';
 
 function sample() {
@@ -24,7 +24,13 @@ test('shared effects preserve XML, persist membership, edit all members and deta
     w = shareRules(base);
   assert.ok(w.sharedRules.length);
   assert.equal(compileWorkspace(w), compileWorkspace(base));
-  assert.deepEqual(parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules, w.sharedRules);
+  assert.deepEqual(
+    parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules ?? [],
+    keptSharing(
+      w.sharedRules,
+      (w.blends ?? []).map(b => b.id)
+    )
+  );
   const group = w.sharedRules.find(g => g.kind === 'effect');
   assert.ok(group);
   const [owner, id] = group.members[0].split('|'),

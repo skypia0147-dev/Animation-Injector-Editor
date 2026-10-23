@@ -419,51 +419,83 @@ test(
 );
 
 test(
-  'the Fire bow item lists every moment the HKX shoots, its event shots included (10-22)',
+  'the Fire bow item has one automatic shot, a clip time or an event, changed in place (10-23)',
   needsRuntime,
   async () => {
-    const {sentEvents, eventShots, fireArrowSummary, setEventShot, addEventShot} =
+    const {sentEvents, fireTiming, fireArrowSummary, fireToClip, fireToEvent, fireToOtherEvent, keepFireTiming} =
       await import('../src/graph/fireArrowMoments.ts');
+    const {hkxMoments} = await import('../src/graph/hkxMoments.ts');
     const {clipKey} = await import('../src/graph/annotations.ts');
     let w = importWorkspaceXml(raw);
-    const a = w.actions[1];
+    const uid = w.actions[1].uid;
+    const one = [
+      {time: 0.15, text: 'SoundPlay.WPNBowPullLPM'},
+      {time: 0.62, text: 'DodgeShotFire'},
+    ];
     // The clip's annotations as the HKX gives them (desktop only).
     const annotations = new Map(
-      w.actions
-        .filter(x => x.config.steps[0]?.clip)
-        .map(x => [
-          clipKey(x.config.steps[0].clip),
-          [
-            {time: 0.15, text: 'SoundPlay.WPNBowPullLPM'},
-            {time: 0.62, text: 'DodgeShotFire'},
-          ],
-        ])
+      w.actions.filter(x => x.config.steps[0]?.clip).map(x => [clipKey(x.config.steps[0].clip), one])
     );
-    let sent = sentEvents(w, a, annotations);
+    const a = () => w.actions.find(x => x.uid === uid);
+    const sent = () => sentEvents(w, a(), annotations);
     assert.deepEqual(
-      sent.map(s => [s.name, s.time]),
+      sent().map(s => [s.name, s.time, s.senders]),
       [
-        ['SoundPlay.WPNBowPullLPM', 0.15],
-        ['DodgeShotFire', 0.62],
+        ['SoundPlay.WPNBowPullLPM', 0.15, 6],
+        ['DodgeShotFire', 0.62, 6],
       ]
     );
-    const shots = eventShots(w, sent);
-    assert.deepEqual(
-      shots.map(s => [s.name, s.time, s.senders]),
-      [['DodgeShotFire', 0.62, 6]]
+    // DDS: the button first, else DodgeShotFire. Its registry shot is the item's, not a second registry row.
+    assert.equal(fireTiming(w, a(), sent()).kind, 'event');
+    assert.equal(fireArrowSummary(w, a(), sent()), 'DodgeShotFire 주석 · 당긴 만큼 · 버튼 먼저');
+    assert.equal(
+      hkxMoments(w, a(), one).registry.some(r => r.fn.values.op === 'fireArrow'),
+      false,
+      'no registry row for the item own shot'
     );
-    assert.equal(fireArrowSummary(w, a, sent), 'DodgeShotFire 주석 · 버튼 떼기');
-    // A direct event shot, then removed; an annotation event added as a shot.
-    w = setEventShot(w, shots[0], {...shots[0].fn.values, mode: 'direct', damage: '80'});
-    assert.equal(fireArrowSummary(w, w.actions[1], sent), 'DodgeShotFire 주석 · 바로 80% · 버튼 떼기');
+    // Another event, then a clip time at the event's moment, keeping the way.
+    w = fireToOtherEvent(w, fireTiming(w, a(), sent()).shot, 'SoundPlay.WPNBowPullLPM');
+    let t = fireTiming(w, a(), sent());
+    assert.deepEqual([t.kind, t.shot.name], ['event', 'SoundPlay.WPNBowPullLPM']);
+    w = fireToClip(w, uid, t.shot, t.shot.time);
+    assert.equal(fireTiming(w, a(), sent()).kind, 'clip');
+    assert.equal(a().config.fireArrow.at.seconds, 0.15);
+    assert.equal(fireArrowSummary(w, a(), sent()), '0.15초 · 당긴 만큼 · 버튼 먼저');
+    // A direct clip shot moves to an event with its damage; the button cannot fire first.
+    w.actions = w.actions.map(x =>
+      x.uid === uid
+        ? {
+            ...x,
+            config: {...x.config, fireArrow: {...x.config.fireArrow, mode: 'direct', damage: 80, onRelease: false}},
+          }
+        : x
+    );
+    w = fireToEvent(w, uid, 'DodgeShotFire');
+    t = fireTiming(w, a(), sent());
+    assert.deepEqual([t.kind, t.shot.fn.values], ['event', {op: 'fireArrow', mode: 'direct', damage: '80'}]);
+    assert.equal(a().config.fireArrow.at, null);
+    assert.equal(fireArrowSummary(w, a(), sent()), 'DodgeShotFire 주석 · 바로 발사 80%');
     assert.match(compileWorkspace(w), /<Do op="fireArrow" mode="direct" damage="80"\/>/);
-    w = setEventShot(w, eventShots(w, sent)[0]);
-    assert.equal(eventShots(w, sent).length, 0);
-    w = addEventShot(w, 'SoundPlay.WPNBowPullLPM');
-    assert.deepEqual(
-      eventShots(w, sent).map(s => [s.name, s.fn.values]),
-      [['SoundPlay.WPNBowPullLPM', {op: 'fireArrow'}]]
+    // A clip time with an event shot shoots twice: keep one.
+    w.actions = w.actions.map(x =>
+      x.uid === uid
+        ? {
+            ...x,
+            config: {
+              ...x.config,
+              fireArrow: {
+                ...x.config.fireArrow,
+                at: {basis: 'seconds', seconds: 0.5, event: '', fallback: false, fallbackBasis: 'seconds'},
+              },
+            },
+          }
+        : x
     );
+    t = fireTiming(w, a(), sent());
+    assert.equal(t.kind, 'conflict');
+    assert.equal(fireArrowSummary(w, a(), sent()), '자동 발사 시점 2개');
+    w = keepFireTiming(w, uid, 'clip', t.shots);
+    assert.equal(fireTiming(w, a(), sent()).kind, 'clip');
     fs.writeFileSync(folder + '/fire-moments.xml', compileWorkspace(w));
     runtime(folder + '/fire-moments.xml');
   }

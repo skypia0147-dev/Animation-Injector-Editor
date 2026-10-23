@@ -21,7 +21,7 @@ import {EventPicker} from './EventPicker.tsx';
 import {StepFiles, ViewFields, type ViewRow} from './ViewFields.tsx';
 import {KeyField} from './KeyField.tsx';
 import {markerNames} from './markerCatalog.ts';
-import {ClipWindowFields} from './ClipWindowFields.tsx';
+import {ClipWindowFields, ExitField} from './ClipWindowFields.tsx';
 import {AnglePreview} from './AnglePreview.tsx';
 import {AttackDataField} from './AttackDataField.tsx';
 import {exitSummary, setSingleAttack} from './inspectorModel.ts';
@@ -84,23 +84,16 @@ export function StateDetails({
   const number = (id: any, key: keyof Project, max = 600) => (
     <Prop id={id} value={p[key]} initial={d[key]} change={v => patch({[key]: v})} max={max} />
   );
-  const pairNumber = (id: any, key: keyof Pair, max = 600) => (
-    <Prop id={id} value={pair?.[key]} initial={dp[key]} change={v => pp({[key]: v})} max={max} />
+  // A distance or an angle steps by whole units (the wheel's notch, docs/mockup-layout-fixes ①); seconds by 0.05.
+  const pairNumber = (id: any, key: keyof Pair, max = 600, step = 0.05) => (
+    <Prop id={id} value={pair?.[key]} initial={dp[key]} change={v => pp({[key]: v})} max={max} step={step} />
   );
   const pairCheck = (id: any, key: keyof Pair) => (
     <Prop id={id} value={pair?.[key]} initial={dp[key]} change={v => pp({[key]: v})} />
   );
-  const clock = (id: 'exitTime', value: Project['exit'], change: (m: Project['exit']) => void) => (
-    <Prop id={id} value={value} initial={d.exit} change={change}>
-      <TimeField
-        value={value}
-        change={change}
-        label={labelText(id)}
-        bases={['end', 'event']}
-        fallback="end"
-        events={markerNames(w)}
-      />
-    </Prop>
+  // The end trigger's own lines (시점, 종료), not inside another named row (docs/mockup-layout-fixes ②).
+  const clock = (_id: 'exitTime', value: Project['exit'], change: (m: Project['exit']) => void) => (
+    <ExitField w={w} action={a} value={value} change={change} events={markerNames(w)} />
   );
   return (
     <DetailPanel>
@@ -155,7 +148,7 @@ export function StateDetails({
               value={s.label}
               change={label => patch({steps: p.steps.map(x => (x.id === s.id ? {...x, label} : x))})}
             />
-            {!pair && <ClipWindowFields action={a} step={s.id} change={change} events={markerNames(w)} />}
+            {!pair && <ClipWindowFields w={w} action={a} step={s.id} change={change} events={markerNames(w)} />}
           </Category>
         ))}
       {integrated && !pair && (
@@ -165,7 +158,7 @@ export function StateDetails({
           title={tr('입력 감지')}
           summary={tr('선택한 HKX의 연결 키에 적용')}
         >
-          <ClipWindowFields action={a} step={stepId || p.entry} change={change} events={markerNames(w)} />
+          <ClipWindowFields w={w} action={a} step={stepId || p.entry} change={change} events={markerNames(w)} />
         </Category>
       )}
       {integrated && (
@@ -467,8 +460,8 @@ export function StateDetails({
                 change={targetRig => pp({targetRig})}
                 options={pairedRigs.map(r => [r.id, `${r.label} · ${r.id}`])}
               />
-              {pairNumber('range', 'range', 10000)}
-              {pairNumber('angle', 'angle', 360)}
+              {pairNumber('range', 'range', 10000, 1)}
+              {pairNumber('angle', 'angle', 360, 5)}
               <AnglePreview angle={pair.angle} />
               <Prop
                 id="target"
@@ -518,7 +511,6 @@ export function StateDetails({
                     change={at => pp({carry: {...pair.carry!, fix: {at}}})}
                     label={t('carryFix.time')}
                     bases={['seconds']}
-                    allowFallback={false}
                   />
                 </DetailRow>
               )}

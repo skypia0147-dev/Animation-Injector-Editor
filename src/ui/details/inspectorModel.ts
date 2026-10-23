@@ -2,13 +2,14 @@ import {selectsOnly, type Action, type Workspace} from '../../workspace.ts';
 import type {FlatNode} from '../../graph/flat.ts';
 import {blendBinding, blendNodes, entryBlendActions} from '../../graph/blends.ts';
 import {ruleNode} from '../../graph/sharing.ts';
+import {barText, exitToBar} from '../../graph/clipBar.ts';
 import {tr} from '../../i18n/korean.ts';
 
 export function exitSummary(a: Action): string {
   const v = a.config.exit;
-  if (v.basis === 'event')
-    return `${v.event || tr('이벤트 미지정')} · ${v.fallback ? tr('대체 있음') : tr('이벤트만')}`;
-  return `${tr('클립 끝')} −${v.seconds}s`;
+  if (v.basis === 'event') return v.event || tr('이벤트 미지정');
+  // At 「끝」 the trigger keeps 0.05 s before the clip's end (docs/mockup-clip-bar); an older value is end − n.
+  return barText(exitToBar(v));
 }
 
 export function playbackNode(nodes: FlatNode[], action: Action, step?: string) {

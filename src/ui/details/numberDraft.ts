@@ -13,3 +13,20 @@ export function shownNumber(value: number, draft: string | null, preview: number
   if (draft !== null) return draft;
   return Number.isFinite(value) ? String(value) : '';
 }
+
+// One wheel notch on a focused number box: its step (×10 with Shift) up or down, rounded off the float noise and
+// kept within its range (docs/mockup-layout-fixes ①).
+export function wheelStep(
+  value: number,
+  direction: 1 | -1,
+  step: number,
+  shift: boolean,
+  min?: number | string,
+  max?: number | string
+): number {
+  const from = Number.isFinite(value) ? value : 0;
+  let next = Math.round((from + direction * step * (shift ? 10 : 1)) * 1e6) / 1e6;
+  if (min !== undefined && min !== '' && Number.isFinite(Number(min))) next = Math.max(Number(min), next);
+  if (max !== undefined && max !== '' && Number.isFinite(Number(max))) next = Math.min(Number(max), next);
+  return next;
+}

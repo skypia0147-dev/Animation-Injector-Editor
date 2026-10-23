@@ -10,15 +10,12 @@ import {ConditionExpressionEditor} from './ConditionExpressionEditor.tsx';
 import {ConditionTableDetails} from './ConditionTableDetails.tsx';
 import {GraphDetails} from './GraphDetails.tsx';
 import {BlendDetails} from './BlendDetails.tsx';
-import {NotifyDetails} from '../timeline/Details.tsx';
 import {StateDetails} from '../ui/details/StateDetails.tsx';
 import {StepFiles, ViewFields, type ViewRow} from '../ui/details/ViewFields.tsx';
-import {NestedDetailPanel, InspectorLayout, CategoryRows} from '../ui/details/DetailRow.tsx';
-import {detachInspectorNode, sharedNodeMembers} from '../ui/details/inspectorModel.ts';
+import {NestedDetailPanel, InspectorLayout, CategoryRows, ItemTitle} from '../ui/details/DetailRow.tsx';
+import {detachInspectorNode} from '../ui/details/inspectorModel.ts';
 import {switchPlaybackKind, playbackKind, playbackKinds, actionKindLabels} from '../actionTypes.ts';
 import {duplicate, rows} from '../timeline/model.ts';
-import {nodeSettings} from './nodeSettings.ts';
-import {shareNodeSettings} from './sharing.ts';
 import {setChecklistEnabled, type ChecklistItem, checklistModel} from './checklist.ts';
 import {DraftDetails} from './DraftDetails.tsx';
 import {addEntrySetting, attachDraft} from './drafts.ts';
@@ -29,7 +26,10 @@ import {useClipAnnotations, clipKey, sentEvent, roleLabel} from './annotations.t
 import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName} from '../eventRegistry.ts';
 import {commandSummary} from '../annotationCommands.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
-import {MomentFields, useHkxMoments, RegistryMomentRow, CommandMomentRow} from './MomentFields.tsx';
+import {MomentFields, useHkxMoments, RegistryMomentRow, CommandMomentRow, useClipLength} from './MomentFields.tsx';
+import {byPlace, itemPlace, type Place} from './momentOrder.ts';
+import {actionClip, sentEvents as hkxSentEvents} from './hkxMoments.ts';
+import {openedBySwitch} from './momentOpen.ts';
 import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
 import {stepSource} from '../view.ts';
@@ -133,27 +133,21 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
       ? node.id
       : (model.raw.nodes.find(n => n.action === node.action && n.kind === 'hkxPlay')?.id ?? node.id);
   const options = action ? contextualAdds(w, settingsTarget, model.raw) : [];
-  // Without a blend item the engine's own blend plays (10-23): the menu says so where one can be added.
-  const internal = options
-    .map(o => (o.kind === 'blend' ? {...o, note: tr('지금 엔진 기본값')} : o))
-    .filter(o => {
-      if (['keyInput', 'markerReceive', 'playNode', 'conditionBranch', 'qte'].includes(o.kind)) return false;
-      if (!action?.pair && o.kind.startsWith('notify:')) {
-        const kind = o.kind.slice(7);
-        // A clip-time function may come several times (0.12.274); a slot is the action's once.
-        if (
-          !ordinaryEffectOps.includes(kind) &&
-          items.some(i => i.node.notify === kind || i.node.notify === `${kind}:${node.step}`)
-        )
-          return false;
-      }
+  const internal = options.filter(o => {
+    if (['keyInput', 'markerReceive', 'playNode', 'conditionBranch', 'qte'].includes(o.kind)) return false;
+    if (!action?.pair && o.kind.startsWith('notify:')) {
+      const kind = o.kind.slice(7);
+      // A clip-time function may come several times (0.12.274); a slot is the action's once.
       if (
-        o.kind === 'blend' &&
-        items.some(i => i.node.kind === 'blend' && i.node.summary.includes(o.before ? tr('시작') : tr('종료')))
+        !ordinaryEffectOps.includes(kind) &&
+        items.some(i => i.node.notify === kind || i.node.notify === `${kind}:${node.step}`)
       )
         return false;
-      return true;
-    });
+    }
+    if (o.kind === 'blend' && items.some(i => i.node.kind === 'blend' && i.blend === (o.before ? 'enter' : 'exit')))
+      return false;
+    return true;
+  });
   useEffect(() => {
     if (ctx.selected !== node.id && model.owners.get(ctx.selected)?.includes(node.id)) setExpanded(true);
   }, [ctx.selected]);
@@ -188,10 +182,7 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
             const disabled =
               option.kind === 'blend' &&
               storedItems.find(
-                i =>
-                  !i.enabled &&
-                  i.node.kind === 'blend' &&
-                  i.node.summary.includes(option.before ? tr('시작') : tr('종료'))
+                i => !i.enabled && i.node.kind === 'blend' && i.blend === (option.before ? 'enter' : 'exit')
               );
             return disabled
               ? setChecklistEnabled(w, disabled, true)
@@ -313,7 +304,7 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
               <ChecklistSection
                 owner={node.id}
                 items={items.filter(i => i.category === 'feature')}
-                moments={byMoment(items.filter(i => i.category === 'event'))}
+                moments={items.filter(i => i.category === 'event')}
                 sent={sent}
                 action={action}
                 allOpen={allOpen}
@@ -371,18 +362,9 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
     </div>
   );
 }
-/** A moment item's time in seconds when its summary is one ("3.067초"); an event-named one sorts after. */
-const momentSeconds = (i: ChecklistItem) => {
-  const m = /^(\d+(?:\.\d+)?)\s*초/.exec(i.node.summary ?? '');
-  return m ? Number(m[1]) : Infinity;
-};
-const byMoment = (items: ChecklistItem[]) =>
-  items
-    .map((item, index) => ({item, index}))
-    .sort((a, b) => momentSeconds(a.item) - momentSeconds(b.item) || a.index - b.index)
-    .map(x => x.item);
-// One list (10-16, docs/mockup-feature-merge): what applies to the whole play first, then what happens at a moment
-// (⏱, by time). They differed only in when they apply and how they are edited; both stay as they were per row.
+// One list (10-16, docs/mockup-feature-merge), ordered by when each happens (10-23, graph/momentOrder.ts): the whole
+// play and the start blend first, then every moment by its trigger time whether on the clip or an event, the end
+// blend last. What happens at a moment is marked ⏱.
 function ChecklistSection({
   owner,
   items,
@@ -402,6 +384,13 @@ function ChecklistSection({
 }) {
   const {w, selected, edit} = useContext(ChecklistContext)!;
   const extra = (sent?.registry.length ?? 0) + (sent?.commands.length ?? 0);
+  // Ordered by when each happens (graph/momentOrder.ts): an item keeps its place on the clip or an event.
+  const annotations = useClipAnnotations(w).get(clipKey(action ? actionClip(w, action) : ''));
+  const length = useClipLength(w, action);
+  const eventTimes = useMemo(
+    () => new Map(hkxSentEvents(annotations, !!action?.pair).map(e => [eventKey(e.name), e.times[0] ?? Infinity])),
+    [annotations, action?.pair]
+  );
   // The list is open when its card opens; each item in it starts closed (10-23).
   const [open, setOpen] = useFold(`checklist:section:${w.id}:${owner}:feature`, true);
   useEffect(() => {
@@ -415,13 +404,34 @@ function ChecklistSection({
         </button>
         {open && <button onClick={toggleAll}>{allOpen ? tr('전체 접기') : tr('전체 펼치기')}</button>}
       </div>
-      {open && items.map(item => <ChecklistRow key={item.node.id} item={item} owner={owner} allOpen={allOpen} />)}
-      {open && moments.length + extra > 0 && <div className="checklist-moments">{tr('특정 순간')}</div>}
-      {open && moments.map(item => <ChecklistRow key={item.node.id} item={item} owner={owner} moment />)}
       {open &&
-        action &&
-        sent?.registry.map(r => <RegistryMomentRow key={r.key} w={w} action={action} item={r} edit={edit} />)}
-      {open && sent?.commands.map(c => <CommandMomentRow key={c.key} item={c} />)}
+        byPlace([
+          ...[...items, ...moments].map(item => {
+            const place = action
+              ? itemPlace(w, action, item.node, item.blend, eventTimes, length)
+              : ({group: 0, t: 0} as Place);
+            return {
+              place,
+              key: item.node.id,
+              // What happens at a moment is marked ⏱, on the clip or an event alike.
+              el: (moment: boolean) => (
+                <ChecklistRow key={item.node.id} item={item} owner={owner} allOpen={allOpen} moment={moment} />
+              ),
+            };
+          }),
+          ...(action
+            ? (sent?.registry ?? []).map(r => ({
+                place: {group: 1, t: r.sent.times[0] ?? Infinity} as Place,
+                key: r.key,
+                el: () => <RegistryMomentRow key={r.key} w={w} action={action} item={r} edit={edit} />,
+              }))
+            : []),
+          ...(sent?.commands ?? []).map(c => ({
+            place: {group: 1, t: c.rows[0]?.time ?? c.bad[0]?.time ?? Infinity} as Place,
+            key: c.key,
+            el: () => <CommandMomentRow key={c.key} item={c} />,
+          })),
+        ]).map(entry => entry.el(entry.place.group === 1))}
     </section>
   );
 }
@@ -441,7 +451,11 @@ function ChecklistRow({
   const {w, edit, status, select, model} = ctx;
   const n = item.node,
     a = w.actions.find(a => a.uid === n.action)!;
-  const [open, setOpen] = useFold(`checklist:${w.id}:${owner}:${n.id}`);
+  // An item a clip/event switch just made opens (MomentFields.tsx openAfterSwitch).
+  const [open, setOpen] = useFold(
+    `checklist:${w.id}:${owner}:${n.id}`,
+    !!n.notify && openedBySwitch(`${n.action}|${n.notify}`)
+  );
   const [error, setError] = useState('');
   const rowRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -453,8 +467,7 @@ function ChecklistRow({
       requestAnimationFrame(() => rowRef.current?.scrollIntoView({block: 'nearest', inline: 'nearest'}));
     }
   }, [ctx.selected]);
-  const members = sharedNodeMembers(w, n.id),
-    settings = nodeSettings(w, n.id);
+  const {title, summary} = n;
   // The 활 발사 item says every moment it shoots, its registry event shots included (FireArrowShots.tsx).
   const fireSummary = useFireArrowSummary(w, n.kind === 'fireArrow' ? a : undefined);
   const attempt = (fn: () => void) => {
@@ -465,20 +478,6 @@ function ChecklistRow({
       setError(String(e));
     }
   };
-  const candidates = useMemo(
-    () =>
-      open
-        ? model.raw.nodes.filter(v => {
-            if (v.id === n.id || !settings) return false;
-            try {
-              return nodeSettings(w, v.id)?.kind === settings.kind;
-            } catch {
-              return false;
-            }
-          })
-        : [],
-    [open, model, n.id, settings?.kind]
-  );
   return (
     <div
       ref={rowRef}
@@ -501,11 +500,11 @@ function ChecklistRow({
             select(owner);
           }}
         >
-          <span>{n.title}</span>
-          <small title={n.summary}>
+          <span>{title}</span>
+          <small title={summary}>
             {/* A summary that only repeats the title ("상태 조건 · 상태 조건") is left out. */}
             {item.enabled
-              ? fireSummary || (n.summary === n.title ? '' : n.summary)
+              ? fireSummary || (summary === title ? '' : summary)
               : n.kind === 'blend'
                 ? tr('엔진 기본값 사용')
                 : ''}
@@ -515,12 +514,6 @@ function ChecklistRow({
         </button>
       </div>
       {open && item.scope !== tr('이 클립') && <span className="checklist-shared">{item.scope}</span>}
-      {members.length > 1 && (
-        <span className="checklist-shared" title={members.join('\n')}>
-          {tr('공유 ·')} {members.length}
-          {tr('개 항목')}
-        </span>
-      )}
       {open && !item.enabled && item.toggleable && n.kind !== 'blend' && (
         <div className="checklist-fields">
           <p className="moment-note">{tr('꺼 둔 채 저장된 항목입니다. 설정은 남아 있고 XML에는 쓰지 않습니다.')}</p>
@@ -537,48 +530,36 @@ function ChecklistRow({
       {open && (item.enabled || n.kind === 'blend') && (
         <div className="checklist-fields">
           <NestedDetailPanel.Provider value={true}>
-            {n.kind === 'fireArrow' && a ? (
-              <FireArrowShots w={w} action={a} edit={edit} />
-            ) : item.category === 'event' ? (
-              <MomentFields w={w} action={a} node={n} edit={edit} status={status} globalSettings={ctx.globalSettings} />
-            ) : n.notify ? (
-              <NotifyDetails w={w} action={a} id={n.notify} edit={edit} />
-            ) : n.kind === 'blend' ? (
-              <BlendDetails w={w} id={n.id} edit={edit} status={status} />
-            ) : (
-              <GraphDetails
-                w={w}
-                graph={n.scope}
-                node={n.original}
-                edit={edit}
-                status={status}
-                open={() => select(owner)}
-                selectedAsset=""
-                onGlobalSettings={ctx.globalSettings}
-              />
-            )}
+            <ItemTitle.Provider value={title}>
+              {n.kind === 'fireArrow' && a ? (
+                <FireArrowShots w={w} action={a} edit={edit} />
+              ) : item.category === 'event' || n.notify ? (
+                // Moments and timed features alike: 시점 [클립 | 이벤트] first (docs/mockup-moment-timing).
+                <MomentFields
+                  w={w}
+                  action={a}
+                  node={n}
+                  edit={edit}
+                  status={status}
+                  globalSettings={ctx.globalSettings}
+                />
+              ) : n.kind === 'blend' ? (
+                <BlendDetails w={w} id={n.id} edit={edit} status={status} />
+              ) : (
+                <GraphDetails
+                  w={w}
+                  graph={n.scope}
+                  node={n.original}
+                  edit={edit}
+                  status={status}
+                  open={() => select(owner)}
+                  selectedAsset=""
+                  onGlobalSettings={ctx.globalSettings}
+                />
+              )}
+            </ItemTitle.Provider>
           </NestedDetailPanel.Provider>
           <div className="checklist-row-actions">
-            {members.length > 1 && (
-              <button onClick={() => edit(w => detachInspectorNode(w, n.id))}>{tr('이 동작만 분리')}</button>
-            )}
-            {settings && (
-              <select
-                aria-label={tr('공유 설정 사용')}
-                value=""
-                onChange={e => {
-                  const id = e.target.value;
-                  if (id) attempt(() => edit(w => shareNodeSettings(w, id, n.id)));
-                }}
-              >
-                <option value="">{tr('공유 설정 사용…')}</option>
-                {candidates.map(v => (
-                  <option key={v.id} value={v.id}>
-                    {w.actions.find(a => a.uid === v.action)?.config.name} · {v.title}
-                  </option>
-                ))}
-              </select>
-            )}
             {item.category === 'event' && n.notify && (
               <button
                 onClick={() =>
@@ -657,8 +638,8 @@ function AddItemMenu({
                     }}
                   >
                     {o.label
-                      .replace(tr('앞에 블렌드 추가'), tr('시작 블렌드'))
-                      .replace(tr('뒤에 블렌드 추가'), tr('종료 블렌드'))
+                      .replace(tr('앞에 블렌드 추가'), tr('블렌드(시작)'))
+                      .replace(tr('뒤에 블렌드 추가'), tr('블렌드(종료)'))
                       .replace(/ 추가$/, '')}
                     {o.disabled && <small> · {o.disabled}</small>}
                     {!o.disabled && o.note && <small> · {o.note}</small>}

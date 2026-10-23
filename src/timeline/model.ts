@@ -33,6 +33,7 @@ export const names: Record<string, string> = {
   hide: 'notify.weaponHide',
   show: 'notify.weaponShow',
   spell: 'notify.spell',
+  ragdoll: 'notify.ragdoll',
   shake: 'notify.cameraShake',
   cancel: 'notify.pairCancel',
   timeOn: 'notify.timeScale',

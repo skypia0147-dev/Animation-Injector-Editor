@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {s4sample} from '../src/s4sample.ts';
 import {shareRules, synchronizeRules, compactGraph} from '../src/graph/sharing.ts';
 import {flatGraph, connectFlat, deleteFlat, addFlat} from '../src/graph/flat.ts';
-import {compileWorkspace, parseWorkspace} from '../src/workspace.ts';
+import {compileWorkspace, keptSharing, parseWorkspace} from '../src/workspace.ts';
 import {captureGraph} from '../src/graph/document.ts';
 import {blendNodes, blendBinding, animId} from '../src/graph/blends.ts';
 import {actionFlow} from '../src/graph/navigation.ts';
@@ -14,7 +14,15 @@ test('identical active state conditions share edits, retain XML and detach on de
     g = w.sharedRules.find(g => g.kind === 'state');
   assert.equal(g.members.length, base.actions.length);
   assert.equal(compileWorkspace(w), compileWorkspace(base));
-  assert.deepEqual(parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules, w.sharedRules);
+  // Features no longer share settings: a project opens with each keeping its own (docs/mockup-card-cleanup ⑥).
+  assert.deepEqual(
+    parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules ?? [],
+    keptSharing(
+      w.sharedRules,
+      (w.blends ?? []).map(b => b.id)
+    )
+  );
+  assert.ok(!(parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules ?? []).some(g => g.kind === 'state'));
   assert.equal(compactGraph(w, flatGraph(w)).nodes.filter(n => n.kind === 'stateCondition').length, 1);
   const next = structuredClone(w);
   next.actions[0].config.cooldown = 0.9;

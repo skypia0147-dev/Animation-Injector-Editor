@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {s4sample} from '../src/s4sample.ts';
 import {shareRules, synchronizeRules, compactGraph, ruleNode} from '../src/graph/sharing.ts';
 import {flatGraph, deleteFlat} from '../src/graph/flat.ts';
-import {compileWorkspace, parseWorkspace} from '../src/workspace.ts';
+import {compileWorkspace, keptSharing, parseWorkspace} from '../src/workspace.ts';
 import {captureGraph} from '../src/graph/document.ts';
 function sample() {
   const w = s4sample(),
@@ -35,7 +35,13 @@ test('locked rotation and armor share without changing XML; edits and deletion r
   const removed = deleteFlat(w, 'notify:' + a.uid + '|armor');
   synchronizeRules(w, removed);
   assert.equal(removed.actions.find(x => x.uid === b.uid).config.slots.armor.enabled, true);
-  assert.deepEqual(parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules, w.sharedRules);
+  assert.deepEqual(
+    parseWorkspace(JSON.stringify(captureGraph(w))).sharedRules ?? [],
+    keptSharing(
+      w.sharedRules,
+      (w.blends ?? []).map(b => b.id)
+    )
+  );
 });
 test('different events and fallback timings cannot merge', () => {
   const {w, a, b} = sample();
