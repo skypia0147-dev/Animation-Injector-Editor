@@ -55,7 +55,11 @@ test('unreachable drafts are excluded but deleted entries and broken reachable r
     f = r.workspace.actions[0].flow;
   f.tests[1].kind = 'magicEffect';
   assert.equal(compileWorkspace(r.workspace), compileWorkspace(first.workspace));
-  assert.throws(() => compileWorkspace(deleteCondition(r.workspace, 'a1', f.entry)), /시작 조건/);
+  // Its first condition deleted, the start goes nowhere: a warning, and the action is written without it.
+  const cut = deleteCondition(r.workspace, 'a1', f.entry);
+  assert.ok(validateWorkspace(cut).some(i => i.level === 'warning' && /이어진 곳이 없어/.test(i.message)));
+  const own = compileWorkspace(cut).split(/<\/(?:Action|Pair)>/)[0];
+  assert.doesNotMatch(own, /<Start|<Flow/);
   f.tests[0].fail = {node: f.tests[1].id};
   assert.throws(() => compileWorkspace(r.workspace), /Form ID/);
   f.tests[0].fail = {node: 'Missing'};

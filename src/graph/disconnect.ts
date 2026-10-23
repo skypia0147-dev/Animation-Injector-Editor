@@ -37,6 +37,28 @@ export function disconnectEdge(w: Workspace, e: GraphEdge): Workspace {
     const nodes = new Map(flatGraph(w).nodes.map(n => [n.id, n]));
     return binding.reduce((next, b) => cutQte(next, b, nodes.get(b.source)?.action), w);
   }
+  // A start's line into a condition is cut in the document (docs/mockup-free-conditions ⑥): the start goes
+  // nowhere and the conditions it reached are loose, not a hidden cut that kept them its own.
+  const starts = binding.flatMap(b => {
+    // The start card, or its enter blend card on the way (anim:<uid>:|blendIn).
+    const m = /^start:([^|]+)\|(?:keyInput|markerReceive)$/.exec(b.source) ?? /^anim:([^:]+):\|blendIn$/.exec(b.source);
+    // Into a condition card, or into its action (drawn at the action's first condition or the one it follows).
+    const f = m && w.actions.find(a => a.uid === m[1])?.flow,
+      judged = !!f && (!!f.follow || f.tests.some(t => t.id === f.entry));
+    return m && (parseNodeId(b.target).kind === 'branch' || (b.target === m[1] && judged)) ? [m[1]] : [];
+  });
+  if (starts.length === binding.length) {
+    const n = structuredClone(w);
+    for (const uid of starts) {
+      const f = n.actions.find(a => a.uid === uid)?.flow;
+      if (!f) continue;
+      delete f.follow;
+      delete f.detached;
+      f.entry = '';
+      f.unlinked = true;
+    }
+    return n;
+  }
   const n = structuredClone(w);
   n.disconnections ??= [];
   if (!n.disconnections.some(c => c.source === e.source && c.target === e.target && c.pin === e.pin))

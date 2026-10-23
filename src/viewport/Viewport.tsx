@@ -232,71 +232,39 @@ export function Viewport({
           </div>
         </details>
       </div>
-      <div className="viewport-stage">
-        <div className="viewport-camera-tools">
-          <button
-            title={tr('현재 포즈 화면 맞춤')}
-            aria-label={tr('현재 포즈 화면 맞춤')}
-            onClick={() => setCameraCommand(c => ({serial: (c?.serial ?? 0) + 1, kind: 'fit'}))}
-          >
-            <Icon name="fit" />
-          </button>
-          <button
-            title={tr('기본 시점 복귀')}
-            aria-label={tr('기본 시점 복귀')}
-            onClick={() => setCameraCommand(c => ({serial: (c?.serial ?? 0) + 1, kind: 'home'}))}
-          >
-            <Icon name="rotate" />
-          </button>
-          {hasCamera && (
-            <button
-              className={preset === 'camera' ? 'active' : ''}
-              title={t('viewport.camera')}
-              aria-label={t('viewport.camera')}
-              aria-pressed={preset === 'camera'}
-              onClick={() =>
-                setOptions(value => ({...value, [presetKey]: preset === 'camera' ? 'perspective' : 'camera'}))
+      {/* Scene above, the asset list under it when open, then one line with the controls help and the camera
+          buttons (docs/mockup-layout-audit ④): a short panel scrolls the list instead of stacking them. */}
+      <div className={'viewport-stage' + (assetsOpen ? ' assets-open' : '')}>
+        <div className="viewport-main">
+          {viewer.data && !sceneError ? (
+            <Suspense
+              fallback={
+                <div className="viewport-message" role="status">
+                  {tr('3D 뷰어 준비 중…')}
+                </div>
               }
             >
-              <Icon name="camera" />
-            </button>
+              <ViewportScene
+                cameraCommand={cameraCommand}
+                data={viewer.data}
+                frame={frame}
+                options={visibleOptions}
+                skinPaths={skinPaths}
+                onSceneError={setSceneError}
+                onSkinStatus={setSkinStatus}
+              />
+            </Suspense>
+          ) : (
+            <div className={'viewport-message' + (viewer.error || sceneError ? ' error' : '')} role="status">
+              {viewer.loading ? t('viewport.loading') : sceneError || viewer.error || emptyMessage}
+            </div>
+          )}
+          {skinStatus.length > 0 && (
+            <div className="viewport-warning" role="status">
+              {skinStatus.join('\n')}
+            </div>
           )}
         </div>
-        {viewer.data && !sceneError ? (
-          <Suspense
-            fallback={
-              <div className="viewport-message" role="status">
-                {tr('3D 뷰어 준비 중…')}
-              </div>
-            }
-          >
-            <ViewportScene
-              cameraCommand={cameraCommand}
-              data={viewer.data}
-              frame={frame}
-              options={visibleOptions}
-              skinPaths={skinPaths}
-              onSceneError={setSceneError}
-              onSkinStatus={setSkinStatus}
-            />
-          </Suspense>
-        ) : (
-          <div className={'viewport-message' + (viewer.error || sceneError ? ' error' : '')} role="status">
-            {viewer.loading ? t('viewport.loading') : sceneError || viewer.error || emptyMessage}
-          </div>
-        )}
-        <HelpTip
-          label={tr('뷰어 조작')}
-          help={preset === 'camera' ? t('viewport.cameraHelp') : viewerHelp()}
-          className="viewport-help"
-        >
-          <span className="help-tip-label">{tr('조작법')}</span>
-        </HelpTip>
-        {skinStatus.length > 0 && (
-          <div className="viewport-warning" role="status">
-            {skinStatus.join('\n')}
-          </div>
-        )}
         {assetsOpen && (
           <div className="viewport-assets" data-testid="viewport-assets">
             <b>{clip || t('viewport.noClip')}</b>
@@ -319,15 +287,18 @@ export function Viewport({
                       title={value}
                     >
                       <span>{kind === 'skeletons' ? 'HKX' : 'GLB'}</span>
-                      <code>
-                        {value
-                          ? baseName(value)
-                          : kind === 'skeletons'
-                            ? t('viewport.dropSkeleton')
-                            : t('viewport.dropSkin')}
+                      {/* The row's HKX/GLB head says what it takes: short words keep a narrow row on one line. */}
+                      <code title={value || t(kind === 'skeletons' ? 'viewport.dropSkeleton' : 'viewport.dropSkin')}>
+                        {value ? baseName(value) : t('viewport.dropHere')}
                       </code>
-                      <button onClick={() => pick(kind, actor)}>
-                        {t(kind === 'skeletons' ? 'viewport.pickSkeleton' : 'viewport.pickSkin')}
+                      <button
+                        title={t(kind === 'skeletons' ? 'viewport.pickSkeleton' : 'viewport.pickSkin')}
+                        aria-label={
+                          t(kind === 'skeletons' ? 'viewport.pickSkeleton' : 'viewport.pickSkin') + ' A' + (actor + 1)
+                        }
+                        onClick={() => pick(kind, actor)}
+                      >
+                        {t('viewport.pick')}
                       </button>
                       {explicit && (
                         <button
@@ -344,6 +315,44 @@ export function Viewport({
             ))}
           </div>
         )}
+        <div className="viewport-foot">
+          <HelpTip
+            label={tr('뷰어 조작')}
+            help={preset === 'camera' ? t('viewport.cameraHelp') : viewerHelp()}
+            className="viewport-help"
+          >
+            <span className="help-tip-label">{tr('조작법')}</span>
+          </HelpTip>
+          <div className="viewport-camera-tools">
+            <button
+              title={tr('현재 포즈 화면 맞춤')}
+              aria-label={tr('현재 포즈 화면 맞춤')}
+              onClick={() => setCameraCommand(c => ({serial: (c?.serial ?? 0) + 1, kind: 'fit'}))}
+            >
+              <Icon name="fit" />
+            </button>
+            <button
+              title={tr('기본 시점 복귀')}
+              aria-label={tr('기본 시점 복귀')}
+              onClick={() => setCameraCommand(c => ({serial: (c?.serial ?? 0) + 1, kind: 'home'}))}
+            >
+              <Icon name="rotate" />
+            </button>
+            {hasCamera && (
+              <button
+                className={preset === 'camera' ? 'active' : ''}
+                title={t('viewport.camera')}
+                aria-label={t('viewport.camera')}
+                aria-pressed={preset === 'camera'}
+                onClick={() =>
+                  setOptions(value => ({...value, [presetKey]: preset === 'camera' ? 'perspective' : 'camera'}))
+                }
+              >
+                <Icon name="camera" />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

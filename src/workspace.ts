@@ -5,7 +5,15 @@ import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarry
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
 import {lowerDisconnected} from './graph/disconnect.ts';
 import {sourceLinks} from './graph/playback.ts';
-import {checkFlows, flowXml, lowerFlowDrafts, foldNotConditions, unpairableRoutes} from './graph/conditions.ts';
+import {
+  branchId,
+  checkFlows,
+  flowXml,
+  lowerFlowDrafts,
+  foldNotConditions,
+  olderSpaceCheck,
+  unpairableRoutes,
+} from './graph/conditions.ts';
 import {checkFans} from './graph/conditionFans.ts';
 import {lowerGraph} from './graph/document.ts';
 import type {ActionKind, ActionVariant} from './actionTypes.ts';
@@ -759,6 +767,12 @@ function checkAction(a: any): Project {
       typeof flow.entry !== 'string' ||
       (flow.detached !== undefined && typeof flow.detached !== 'boolean') ||
       (flow.selects !== undefined && flow.selects !== true) ||
+      (flow.unlinked !== undefined && flow.unlinked !== true) ||
+      (flow.follow !== undefined &&
+        (!flow.follow ||
+          typeof flow.follow.owner !== 'string' ||
+          typeof flow.follow.test !== 'string' ||
+          Object.keys(flow.follow).length !== 2)) ||
       !checkFans(flow) ||
       !Array.isArray(flow.tests) ||
       flow.tests.some(
@@ -956,10 +970,36 @@ export function validateWorkspace(w: Workspace): Issue[] {
   const out: Issue[] = [],
     err = (node: string, message: string) => out.push({level: 'error', node, message});
   const drafts = lowerFlowDrafts(w);
-  w = drafts.workspace;
   for (const id of drafts.omitted)
-    out.push({level: 'warning', node: id, message: tr('진입 경로에 연결되지 않은 조건은 XML에 포함되지 않습니다.')});
+    out.push({
+      level: 'warning',
+      node: id,
+      message: tr('어떤 시작과도 이어져 있지 않아 판단되지 않는 조건입니다. XML에는 쓰지 않습니다.'),
+    });
+  for (const uid of drafts.idle)
+    out.push({
+      level: 'warning',
+      node: uid,
+      message: tr('시작 「{start}」이 이어진 곳이 없어 이 동작을 시작하지 않습니다.', {
+        start: (a => (a?.config.start.mode === 'event' ? a.config.start.event : a?.config.start.input) ?? '')(
+          w.actions.find(a => a.uid === uid)
+        ),
+      }),
+    });
+  w = drafts.workspace;
   for (const message of checkFlows(w)) err('Flow', message);
+  // Room checks made before 0.12.280 measured at the partner's spot or from its heading (docs/mockup-space-sentence).
+  for (const a of w.actions)
+    for (const t of a.flow?.tests ?? [])
+      if (olderSpaceCheck(t))
+        out.push({
+          level: 'warning',
+          node: branchId(a.uid, t.id),
+          message: tr('{kind} 「{id}」은 예전 방식(상대 자리·상대 기준)입니다. 방향을 본인 기준으로 다시 고르세요.', {
+            kind: t.kind === 'ground' ? tr('지면 확보') : tr('공간 확보'),
+            id: t.label || t.id,
+          }),
+        });
   for (const i of unpairableRoutes(w)) out.push({level: 'warning', ...i});
   for (const i of runtimeNameUses(w)) out.push({level: 'warning', ...i});
   out.push(...registryIssues(w));
@@ -1083,9 +1123,10 @@ export function validateWorkspace(w: Workspace): Issue[] {
       a.config.cost.enabled
     )
       err(a.uid, tr('페어는 RootBehaviorGraph의 단일 HKX와 역할별 연출을 사용합니다.'));
+    // The target is a start's (written on <Start>): an action not started by itself has none to check.
     if (
       !['nearest', 'combatTarget'].includes(p.target) ||
-      (p.target === 'combatTarget' && a.config.start.mode !== 'event')
+      (p.target === 'combatTarget' && !['event', 'none'].includes(a.config.start.mode))
     )
       err(a.uid, tr('전투 대상 연결은 이벤트 시작에만 사용하세요.'));
     if (
@@ -1186,6 +1227,8 @@ export function validateWorkspace(w: Workspace): Issue[] {
  */
 export function selectsOnly(a: Action): boolean {
   const f = a.flow;
+  // A start that follows another's condition, made for it (graph/flat.ts startIntoCondition), only selects.
+  if (f?.follow || (f?.unlinked && f.selects)) return f.selects === true;
   if (!f?.tests.some(t => t.id === f.entry)) return false;
   const ends = f.tests.flatMap(t => [t.pass, t.fail]).flatMap(e => (e && 'action' in e ? [e.action] : []));
   // With no destination yet only a flow made to select (graph/flat.ts splitCondition) selects: a new HKX card

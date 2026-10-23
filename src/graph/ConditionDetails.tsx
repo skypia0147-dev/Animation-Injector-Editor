@@ -8,6 +8,7 @@ import {useState} from 'react';
 import {setConditionOperands} from './conditionCommands.ts';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
+import {olderSpaceCheck, selfDirections} from './conditions.ts';
 import {DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 export function ConditionFields({
@@ -62,10 +63,11 @@ export function ConditionFields({
               ...(kind === 'global' ? {subject: 'self', equals: test.equals ?? 1} : {}),
               ...(['space', 'ground'].includes(kind) && !test.space
                 ? {
+                    subject: 'self' as const,
                     space: {
                       candidate: a?.pair ? owner : '',
                       distance: kind === 'ground' ? 0 : 200,
-                      direction: 'partnerForward',
+                      direction: 'selfForward' as const,
                     },
                   }
                 : {}),
@@ -174,7 +176,8 @@ export function ConditionFields({
           </div>
         </DetailRow>
       )}
-      {!['all', 'any', 'global'].includes(test.kind) && (
+      {/* A room check is always measured at the actor's own spot (docs/mockup-space-sentence): no target field. */}
+      {!['all', 'any', 'global', 'space', 'ground'].includes(test.kind) && (
         <DetailRow
           label={tr('검사 대상')}
           hint={tr(
@@ -243,44 +246,27 @@ export function ConditionFields({
       )}
       {(test.kind === 'space' || test.kind === 'ground') && (
         <>
+          {/* Where it measures is no field (docs/mockup-free-conditions ⑤): the pair the pass leads to, at save. */}
           <DetailRow
-            label={tr('검사할 동작')}
+            label={tr('방향')}
             hint={
-              test.kind === 'ground'
-                ? tr(
+              tr(
+                '통과하면 할 페어가 시작될 때 본인이 설 자리에서, 본인이 바라볼 방향을 기준으로 잽니다. 다음 동작은 통과·실패 선이 정합니다.'
+              ) +
+              (test.kind === 'ground'
+                ? ' ' +
+                  tr(
                     '예상 배치 높이를 기준으로 25단위 이하 간격마다 중심과 주변 4점을 검사합니다. 작은 틈을 모두 감지하거나 착지를 보장하지는 않습니다. 동적 물체 등 불명확한 결과는 실패로 보냅니다.'
                   )
-                : tr(
-                    '이 페어의 예상 시작 위치에서 정적 장애물을 검사합니다. 지면은 지면 확보 조건으로 따로 연결하세요.'
-                  )
+                : '')
             }
           >
             <select
-              value={test.space?.candidate ?? ''}
+              value={olderSpaceCheck(test) ? 'older' : (test.space?.direction ?? 'selfForward')}
               onChange={e =>
-                change({space: {distance: 200, direction: 'partnerForward', ...test.space, candidate: e.target.value}})
-              }
-            >
-              <option value="">{tr('페어 HKX 선택')}</option>
-              {w.actions
-                .filter(x => x.pair && x.config.kind === 'single')
-                .map(x => (
-                  <option key={x.uid} value={x.uid}>
-                    {x.config.actionId}
-                  </option>
-                ))}
-            </select>
-          </DetailRow>
-          <DetailRow
-            label={tr('방향')}
-            hint={tr(
-              '배치 전 상대의 방향을 기준으로 합니다. 본인/상대 선택은 검사 시작 위치를 지정하며 방향 기준은 같습니다.'
-            )}
-          >
-            <select
-              value={test.space?.direction ?? 'partnerForward'}
-              onChange={e =>
+                e.target.value !== 'older' &&
                 change({
+                  subject: 'self',
                   space: {
                     candidate: '',
                     distance: 200,
@@ -290,9 +276,27 @@ export function ConditionFields({
                 })
               }
             >
-              {(['partnerForward', 'partnerBack', 'partnerLeft', 'partnerRight'] as const).map((d, i) => (
+              {/* An older check (the partner's spot or heading) shows what it is until a direction is chosen. */}
+              {olderSpaceCheck(test) && (
+                <option value="older" disabled>
+                  {tr('예전: {who} 자리 · {side}', {
+                    who: test.subject === 'partner' ? tr('상대') : tr('본인'),
+                    side: {
+                      partnerForward: tr('상대 기준 앞'),
+                      partnerBack: tr('상대 기준 뒤'),
+                      partnerLeft: tr('상대 기준 왼쪽'),
+                      partnerRight: tr('상대 기준 오른쪽'),
+                      selfForward: tr('본인 기준 앞'),
+                      selfBack: tr('본인 기준 뒤'),
+                      selfLeft: tr('본인 기준 왼쪽'),
+                      selfRight: tr('본인 기준 오른쪽'),
+                    }[test.space?.direction ?? 'partnerForward'],
+                  })}
+                </option>
+              )}
+              {selfDirections.map((d, i) => (
                 <option key={d} value={d}>
-                  {[tr('상대 기준 앞'), tr('상대 기준 뒤'), tr('상대 기준 왼쪽'), tr('상대 기준 오른쪽')][i]}
+                  {[tr('본인 기준 앞'), tr('본인 기준 뒤'), tr('본인 기준 왼쪽'), tr('본인 기준 오른쪽')][i]}
                 </option>
               ))}
             </select>
@@ -308,7 +312,7 @@ export function ConditionFields({
               value={test.space?.distance ?? 200}
               onChange={e =>
                 change({
-                  space: {candidate: '', direction: 'partnerForward', ...test.space, distance: Number(e.target.value)},
+                  space: {candidate: '', direction: 'selfForward', ...test.space, distance: Number(e.target.value)},
                 })
               }
             />

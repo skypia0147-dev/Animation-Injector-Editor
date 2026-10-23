@@ -575,10 +575,13 @@ export function StateDetails({
           </Prop>
         ) : (
           <DetailRow id="restoreMarker">
-            <span>{w.globals.cameraReset}</span>
-            <button onClick={onGlobalSettings} title={t('detail.restoreSettings')}>
-              ↗
-            </button>
+            {/* The project's event, read only here: its name and a link to where it is set, on one line. */}
+            <span className="detail-inline">
+              <span>{w.globals.cameraReset}</span>
+              <button className="moment-link" onClick={onGlobalSettings} title={t('detail.restoreSettings')}>
+                ↗
+              </button>
+            </span>
           </DetailRow>
         )}
         <Prop

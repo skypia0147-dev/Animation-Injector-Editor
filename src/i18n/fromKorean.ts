@@ -1282,6 +1282,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{actionId}: ペアと運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
     '{actionId}：配对与搬运（含放下）仅以第三人称（view="third"）播放。',
   ],
+  '{kind} 「{id}」은 예전 방식(상대 자리·상대 기준)입니다. 방향을 본인 기준으로 다시 고르세요.': [
+    '{kind} "{id}" uses the older way (the partner\'s spot or heading). Pick its direction again on your own heading.',
+    '{kind}「{id}」は旧方式（相手の位置・相手基準）です。方向を本人基準で選び直してください。',
+    '{kind}“{id}”是旧方式（对方位置·以对方为准）。请以本人为准重新选择方向。',
+  ],
   '{label} 검색': ['Search {label}', '{label} を検索', '搜索 {label}'],
   '{label} 검색…': ['Search {label}…', '{label} を検索…', '搜索 {label}…'],
   '{label} 블렌드가 충돌합니다 ({v1}). 같은 동작의 진입 블렌드 시간은 공유됩니다.': [
@@ -1362,6 +1367,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{size} 個のアクション · {length} 件のルール · {v2} · {speed}×',
     '{size} 个动作 · {length} 条规则 · {v2} · {speed}×',
   ],
+  '{starts} 때 판단': ['Judged on {starts}', '{starts} で判定', '{starts} 时判定'],
   '{v0} → {v1} 추가': ['Add {v0} → {v1}', '{v0} → {v1} を追加', '添加 {v0} → {v1}'],
   '{v0} → {v1}: 인칭이 맞지 않아 이어지지 않을 수 있습니다({v2} → {v3}).': [
     '{v0} → {v1}: Mismatched views may prevent continuity ({v2} → {v3}).',
@@ -1597,11 +1603,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '同じエントリールートの条件グループに接続してください。',
     '请连接到相同入口路径的条件组。',
   ],
-  '같은 진입 경로의 조건끼리 연결하세요.': [
-    'Connect conditions within the same entry path.',
-    '同じエントリパスの条件同士を接続してください。',
-    '请连接同一入口路径下的条件。',
-  ],
   '같은 진입 경로의 조건을 고르세요.': [
     'Select condition in the same entry path.',
     '同じエントリパスの条件を選択してください。',
@@ -1705,7 +1706,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '判定する攻撃状態を選択してください。',
     '请选择要检查的攻击状态。',
   ],
-  '검사할 동작': ['Action to check', '検査するアクション', '要检查的动作'],
   '검사할 손': ['Hand', 'Hand', 'Hand'],
   '검사할 손과 장착 종류를 선택하세요.': [
     'Select a hand and equipment type to test.',
@@ -1818,17 +1818,22 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '空間チェックは相手検索の基準を持つ Pair に宣言してください',
     '请在具有搭档搜索条件的 Pair 上声明空间检查',
   ],
-  '공간 검사는 페어 분기에서 검사할 페어 HKX를 지정하세요.': [
-    'For space check, specify the pair HKX to test in pair branch.',
-    '空間判定ではペア分岐で判定するペア HKX を指定してください。',
-    '空间检查请在配对分支中指定要检查的配对 HKX。',
-  ],
   '공간 설정은 공간 조건에서만 사용하세요.': [
     'Use space settings only in space conditions.',
     '空間設定は空間条件でのみ使用してください。',
     '空间设置仅可在空间条件中使用。',
   ],
   '공간 확보': ['Clearance', '空間確保', '空间检测'],
+  '공간 확보: 통과 쪽에 페어가 없어 잴 자리가 없습니다. 통과를 페어로 이으세요.': [
+    'Room check: no pair on the pass side, so there is nowhere to measure. Link the pass to a pair.',
+    '空間確保：通過側にペアがなく測る位置がありません。通過をペアにつないでください。',
+    '空间检查：通过一侧没有配对，无处可测。请将通过连接到配对。',
+  ],
+  '공간 확보는 페어를 고르는 조건에서만 쓸 수 있습니다.': [
+    'Room checks are only for conditions that choose a pair.',
+    '空間確保はペアを選ぶ条件でのみ使えます。',
+    '空间检查只能用于选择配对的条件。',
+  ],
   '공개 설정 범위 안의 숫자가 필요합니다.': [
     'A number within the exposed setting range is required.',
     '公開設定範囲内の数値が必要です。',
@@ -1951,6 +1956,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '그래프 전체 보기': ['Zoom to fit graph', 'グラフ全体を表示', '缩放以适应图表'],
   '그래프 편집': ['Edit graph', 'グラフの編集', '编辑图表'],
+  '그룹 {n}': ['Group {n}', 'グループ {n}', '组 {n}'],
   '그룹 구성 조건의 통과·실패 연결을 해제하세요.': [
     'Disconnect pass and fail links on group component conditions.',
     'グループ構成条件の通過・失敗リンクを解除してください。',
@@ -1958,6 +1964,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '그룹 접기': ['Collapse group', 'グループを折りたたむ', '折叠组'],
   '그룹 펼치기': ['Expand group', 'グループを展開', '展开组'],
+  그룹끼리: ['Between groups', 'グループ同士', '组之间'],
+  '그룹끼리 조합': ['Combine groups', 'グループ同士の組み合わせ', '组之间的组合'],
   '그룹으로 이동…': ['Move to group…', 'グループへ移動…', '移动至组…'],
   '글자 크기 {n}%': ['Text size {n}%', '文字サイズ {n}%', '文字大小 {n}%'],
   기능: ['Feature', '機能', '功能'],
@@ -2117,11 +2125,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Remove references from other conditions before deleting.',
     '他の条件が使用している項目は先に参照を解除してください。',
     '被其他条件引用的项目请先解除引用。',
-  ],
-  '다른 조건이 이 조건으로 이어져 있습니다. 그 연결을 먼저 끊으세요.': [
-    'Another condition leads into this one. Cut that connection first.',
-    '別の条件がこの条件につながっています。先にその接続を切ってください。',
-    '另一个条件连接到此条件。请先断开该连接。',
   ],
   '다른 파일의 목적지는 관련 동작을 같은 XML에 넣은 후 가져오세요.': [
     'For destinations in other files, place related actions in the same XML before importing.',
@@ -2625,11 +2628,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   배시: ['Bash', 'バッシュ', '格挡重击'],
   배율: ['Scale', '倍率', '倍率'],
-  '배치 전 상대의 방향을 기준으로 합니다. 본인/상대 선택은 검사 시작 위치를 지정하며 방향 기준은 같습니다.': [
-    "Relative to the partner's facing before placement. Self/Partner selects the start position of the check, while the facing reference remains the same.",
-    '配置前の相手の向きを基準にします。自分/相手の選択は検査開始位置を指定するもので、向きの基準は共通です。',
-    '以放置前搭档的朝向为基准。自身/搭档选择决定检查的起始位置，朝向基准相同。',
-  ],
   '뱀파이어 로드': ['Vampire Lord', '吸血鬼の王', '吸血鬼大君'],
   '버튼 떼기 발사': ['Release on button up', 'ボタン離し発射', '松开按钮射击'],
   '버튼 뗄 때': ['On button release', 'ボタンを離したとき', '松开按钮时'],
@@ -2691,6 +2689,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   본인: ['Self', '自分', '自身'],
   '본인 · ': ['Self · ', '自分 · ', '自身 · '],
+  '본인 기준 뒤': ['Own back', '本人基準の後ろ', '以本人为准·后'],
+  '본인 기준 앞': ['Own front', '本人基準の前', '以本人为准·前'],
+  '본인 기준 오른쪽': ['Own right', '本人基準の右', '以本人为准·右'],
+  '본인 기준 왼쪽': ['Own left', '本人基準の左', '以本人为准·左'],
   '본인과 상대 기준 위치의 높이 차이 절댓값입니다. 바닥 탐색이나 본 위치 검사는 아닙니다.': [
     'Absolute height difference between origin positions of self and partner. Does not check ground surface or bone positions.',
     '自身と相手の基準位置の高低差の絶対値です。床面の探索やボーン位置の判定ではありません。',
@@ -3149,8 +3151,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   시작: ['Start', '開始', '开始'],
   '시작 HKX가 없습니다.': ['No starting HKX.', '開始 HKX がありません。', '缺少起始 HKX。'],
+  '시작 {n}개 때 판단': ['Judged on {n} starts', '{n} 個の開始で判定', '{n} 个开始时判定'],
   '시작 · ': ['Start · ', '開始 · ', '开始 · '],
   '시작 · 역할 · 결과': ['Start · Role · Result', '開始 · 役割 · 結果', '开始 · 角色 · 结果'],
+  '시작 「{start}」이 이어진 곳이 없어 이 동작을 시작하지 않습니다.': [
+    'Start "{start}" leads nowhere, so it does not start this action.',
+    '開始「{start}」のつながる先がないため、この動作を開始しません。',
+    '开始“{start}”没有连接到任何地方，因此不会开始此动作。',
+  ],
   '시작 방법 없음': ['No way to start', '開始方法なし', '无开始方式'],
   '시작 시점 오류': ['Invalid start time', '開始時点エラー', '起始时刻错误'],
   '시작 이벤트': ['Start event', '開始イベント', '开始事件'],
@@ -3162,6 +3170,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '시작 이벤트 추가': ['Add start event', '開始イベントを追加', '添加开始事件'],
   '시작 이벤트·결과로 찾기': ['Find by start event·result', '開始イベント·結果で検索', '按开始事件·结果查找'],
   '시작 입력': ['Start input', '開始入力', '起始输入'],
+  '시작 입력·이벤트 카드에서 조건으로 연결하세요.': [
+    'Connect to a condition from a start key or event card.',
+    '開始入力・イベントカードから条件へつないでください。',
+    '请从开始输入·事件卡片连接到条件。',
+  ],
   '시작 입력·조건 분기가 없는 한 사람 일반 동작(내려놓기 동작) HKX에 연결하세요.': [
     'Connect to a single-person ordinary action (putdown action) HKX without start input or condition branch.',
     '開始入力や条件分岐のない一人用一般アクション（下ろしアクション）の HKX に接続してください。',
@@ -3177,9 +3190,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '시작 제한 추가': ['Add start limits', '開始制限を追加', '添加开始限制'],
   '시작 클립을 선택하세요.': ['Select entry clip.', '開始クリップを選択してください。', '请选择起始剪辑。'],
   '시작 클립이 없습니다.': ['No starting clip.', '開始クリップがありません。', '缺少起始片段。'],
+  '시작 키': ['Start key', '開始キー', '开始键'],
   '시작 키 입력 추가': ['Add start key input', '開始キー入力を追加', '添加开始按键输入'],
   '시작 트리거': ['Start trigger', '開始トリガー', '启动触发器'],
   '시작 트리거 · {name}': ['Start trigger · {name}', '開始トリガー · {name}', '启动触发器 · {name}'],
+  '시작(이벤트·키)에서 선이 이어지지 않아 판단하지 않습니다. XML에는 쓰지 않습니다.': [
+    'No line comes from a start (event or key), so it is never judged. It is left out of the XML.',
+    '開始（イベント・キー）から線が来ていないため判定されません。XML には書きません。',
+    '没有从开始（事件·按键）连来的线，因此不会判定。不写入 XML。',
+  ],
+  '시작과 연결 안 됨': ['Not linked to a start', '開始と未接続', '未连接到开始'],
   '시작에서 참조하는 입력은 삭제할 수 없습니다.': [
     'Inputs referenced by start cannot be deleted.',
     '開始で参照されている入力は削除できません。',
@@ -3307,6 +3327,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '어느 손이든': ['Either hand', 'どちらの手でも', '任意一只手'],
   '어느 역할이든': ['Any role', 'どの役割でも', '无论何种角色'],
   '어느 쪽이든': ['Either side', 'どちらでも', '任意一方'],
+  '어떤 시작과도 이어져 있지 않아 판단되지 않는 조건입니다. XML에는 쓰지 않습니다.': [
+    'This condition is linked to no start, so it is never judged. It is left out of the XML.',
+    'どの開始ともつながっていないため判定されない条件です。XML には書きません。',
+    '该条件未连接任何开始，因此不会判定。不写入 XML。',
+  ],
   어린이: ['Child', '子供', '儿童'],
   언데드: ['Undead', 'アンデッド', '不死族'],
   '얼음 망령': ['Ice Wraith', 'アイス・レイス', '冰怨灵'],
@@ -3474,6 +3499,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '予想配置高さを基準に 25 単位以下の間隔で中心と周囲 4 点を検査します。小さな隙間をすべて検出したり着地を保証するものではありません。動的オブジェクトなどの不明確な結果は失敗となります。',
       '以预计放置高度为基准，按不超过 25 个单位的间隔检查中心及周围 4 个点。无法检测所有微小缝隙，也不保证平稳着陆。动态物体等不明确结果均作失败处理。',
     ],
+  '예전: {who} 자리 · {side}': ["Older: {who}'s spot · {side}", '旧: {who}の位置 · {side}', '旧：{who}的位置 · {side}'],
   '오류 {n}개가 있어 게임용 내용은 비워 두고 편집 정보만 저장했습니다: {path}. 게임은 오류를 고쳐 다시 저장할 때까지 이 파일을 건너뜁니다.':
     [
       "With {n} errors, the part the game reads was left empty and only the editor's data was saved: {path}. The game skips this file until you fix the errors and save again.",
@@ -3869,11 +3895,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'この条件では使用できないプロパティ: ',
     '此条件中不可使用的属性: ',
   ],
-  '이 조건은 시작 흐름의 조건으로 이어져 있어 새 동작으로 나눌 수 없습니다.': [
-    'This condition leads into the conditions of the start flow, so it cannot become a new action.',
-    'この条件は開始フローの条件につながっているため、新しい動作に分けられません。',
-    '此条件连接到开始流程的条件，无法拆分为新动作。',
-  ],
   '이 조건을 공유할 동작 고르기': [
     'Choose an action to share this condition',
     'この条件を共有するアクションを選択',
@@ -3886,11 +3907,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '이 카드로 이동': ['Go to this card', 'このカードへ移動', '转到此卡片'],
   '이 클립': ['This clip', 'このクリップ', '此片段'],
-  '이 페어의 예상 시작 위치에서 정적 장애물을 검사합니다. 지면은 지면 확보 조건으로 따로 연결하세요.': [
-    'Checks for static obstacles at the predicted start location of this pair. Connect ground clearance condition separately for ground checks.',
-    'このペアの開始予測位置で静的な障害物を検査します。地面は地面確保条件で別途接続してください。',
-    '在此配对的预计启动位置检查静态障碍物。地面检测请单独连接地面检测条件。',
-  ],
   '이 프로젝트에서 쓰는 이벤트를 전부 여기 등록합니다.': [
     'Register all events used in this project here.',
     'このプロジェクトで使用するすべてのイベントをここに登録します。',
@@ -4523,6 +4539,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '条件共享中存在循环引用。',
   ],
   '조건 규칙 추가': ['Add condition rule', '条件ルールを追加', '添加条件规则'],
+  '조건 그룹에 연결하세요.': ['Connect to a condition group.', '条件グループにつないでください。', '请连接到条件组。'],
   '조건 그룹에 추가하세요.': ['Add to a condition group.', '条件グループに追加してください。', '请添加到条件组。'],
   '조건 그룹을 순환 연결할 수 없습니다.': [
     'Cannot cyclically connect condition groups.',
@@ -4751,11 +4768,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '직접 입력…': ['Type a name…', '直接入力…', '手动输入…'],
   '직접 지정': ['Custom', '個別指定', '手动指定'],
   '진영 소속': ['Faction membership', '所属派閥', '阵营归属'],
-  '진입 경로에 연결되지 않은 조건은 XML에 포함되지 않습니다.': [
-    'Conditions not connected to an entry path will not be included in the XML.',
-    'エントリパスに接続されていない条件は XML に含まれません。',
-    '未连接到入口路径的条件不会包含在 XML 中。',
-  ],
   '진입 공통 설정': ['Common entry settings', '共通エントリ設定', '通用入口设置'],
   '진입 또는 분기 경로의 조건은 비활성화할 수 없습니다. 구성 조건에서 제외하세요.': [
     'Conditions on entry or branch paths cannot be disabled. Remove them from component conditions.',
@@ -5075,6 +5087,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '通過が条件ひとつにつながっているときに分岐を追加できます。',
     '通过连接到一个条件时才能添加分支。',
   ],
+  '통과하면 할 페어가 시작될 때 본인이 설 자리에서, 본인이 바라볼 방향을 기준으로 잽니다. 다음 동작은 통과·실패 선이 정합니다.':
+    [
+      'Measured from where you will stand, and the way you will face, when the pair the pass leads to starts. The next action is set by the pass and fail lines.',
+      '通過したら行うペアが始まるとき本人が立つ位置から、本人が向く方向を基準に測ります。次の動作は通過・失敗の線が決めます。',
+      '以通过后将进行的配对开始时本人站立的位置和本人朝向为基准测量。下一个动作由通过·失败线决定。',
+    ],
   '통합 그래프': ['Integrated graph', '統合グラフ', '整合图表'],
   '트랙 개수가 너무 큽니다.': ['Track count is too large.', 'トラック数が大きすぎます。', '轨道数量过大。'],
   트롤: ['Troll', 'トロール', '巨魔'],
@@ -5130,7 +5148,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请检查包设置或大小限制。',
   ],
   페어: ['Pair', 'ペア', '配对'],
-  '페어 HKX 선택': ['Select pair HKX', 'ペア HKX を選択', '选择配对 HKX'],
   '페어 HKX를 제작할 때 사용한 상대 스켈레톤입니다. 해당 계열만 대상으로 찾으며, 내보내기는 인간과 상대의 경로에 HKX를 함께 배치합니다.':
     [
       'The partner skeleton used when authoring the pair HKX. Searches only targets of this family, and export places the HKX in both human and partner paths.',

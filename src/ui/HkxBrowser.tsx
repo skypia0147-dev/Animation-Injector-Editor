@@ -49,8 +49,14 @@ function HkxBrowserPanel({
         <span>{e.name}</span>
         <small>{e.users.length ? e.users.map(names).join(', ') : t('hkx.unused')}</small>
       </button>
-      <span className={'st ' + (e.localPath ? 'ok' : 'warn')}>
-        {e.localPath ? t('hkx.sourceOk') : t('hkx.sourceMissing')}
+      {/* The state as its mark only, the words as its help: the file's name keeps the row (docs/mockup-layout-audit ⑦). */}
+      <span
+        className={'st ' + (e.localPath ? 'ok' : 'warn')}
+        role="img"
+        aria-label={e.localPath ? t('hkx.sourceOk') : t('hkx.sourceMissing')}
+        title={e.localPath ? t('hkx.sourceOk') : t('hkx.sourceMissing')}
+      >
+        {e.localPath ? '✓' : '⚠'}
       </span>
       {e.registered && !e.users.length && (
         <button

@@ -5,6 +5,7 @@ import {compileWorkspace, selectsOnly} from '../src/workspace.ts';
 import {addFlat, connectFlat, flatGraph} from '../src/graph/flat.ts';
 import {addEntrySetting, makeDraft} from '../src/graph/drafts.ts';
 import {checklistModel, checklistProjection, deleteChecklistNode} from '../src/graph/checklist.ts';
+import {conditionStarts} from '../src/graph/conditionBinding.ts';
 
 // A second hotkey's flow (10-21): a condition card added while another action was chosen belongs to that action;
 // a key input linked to it makes it an action of its own instead of a second start on that action.
@@ -55,14 +56,30 @@ test('a key linked to a loose condition of a started action makes it an action o
   assert.match(xml, new RegExp(`<(Action|Pair) id="${made.config.actionId}">`));
 });
 
-test('a key onto the start flow stays refused; a loose condition another one leads into is not split', () => {
+// docs/mockup-free-conditions ④⑥: a key onto a condition another start judges follows it; a loose condition
+// another loose one leads into moves, that route emptied.
+test('a key onto the start flow follows it; a loose condition another one leads into moves', () => {
   const {w, owner, key} = scene();
-  assert.throws(() => connectFlat(w, key, `flow:${owner}:Condition1`, 'trigger'), /이미 시작 입력/);
+  // Its condition plays its own action: written split at save (graph/conditions.ts splitSelfJudgements).
+  const followed = connectFlat(w, key, `flow:${owner}:Condition1`, 'trigger'),
+    made = followed.actions.at(-1);
+  assert.deepEqual(made.flow.follow, {owner, test: 'Condition1'});
+  assert.equal(
+    conditionStarts(followed).get(`flow:${owner}:Condition1`).length,
+    conditionStarts(w).get(`flow:${owner}:Condition1`).length + 1
+  );
+  const xml = compileWorkspace(followed),
+    copy = xml.slice(xml.indexOf(`id="${made.config.actionId}"`)).split(/<\/(Action|Pair)>/)[0];
+  assert.match(copy, /<Flow entry="Condition1">/);
   const fed = structuredClone(w);
   fed.actions
     .find(a => a.uid === owner)
     .flow.tests.push({id: 'Feeder', kind: 'air', subject: 'self', minimum: 0, pass: {node: 'Condition2'}});
-  assert.throws(() => connectFlat(fed, key, `flow:${owner}:Condition2`, 'trigger'), /다른 조건이 이 조건으로/);
+  const moved = connectFlat(fed, key, `flow:${owner}:Condition2`, 'trigger'),
+    left = moved.actions.find(a => a.uid === owner).flow;
+  assert.equal(left.tests.find(t => t.id === 'Feeder').pass, undefined);
+  assert.ok(!left.tests.some(t => t.id === 'Condition2'));
+  assert.ok(moved.actions.at(-1).flow.tests.some(t => t.id === moved.actions.at(-1).flow.entry));
 });
 
 test('a split action is named after its start and takes entry settings on its first condition', () => {

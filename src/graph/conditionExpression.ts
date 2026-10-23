@@ -98,6 +98,39 @@ function prune(f: BranchFlow, candidates: Set<string>) {
     });
   }
 }
+/** A group left with one condition after a delete is that condition again (docs/mockup-self-check ⑤): it takes the
+ *  group's place, id and routes, and a NOT on the group turns the condition's NOT over so the result stays. A lone
+ *  switched-off condition keeps its group (that is the empty-group warning, not a condition). */
+function dissolve(f: BranchFlow, id: string) {
+  const g = f.tests.find(t => t.id === id);
+  if (!g || !['all', 'any'].includes(g.kind) || g.operands?.length !== 1) return;
+  const only = f.tests.find(t => t.id === g.operands![0]);
+  if (!only || only.enabled === false) return;
+  const {pass, fail, label, enabled} = g,
+    negate = !!g.negate !== !!only.negate;
+  const {id: _id, pass: _pass, fail: _fail, label: inner, enabled: _enabled, negate: _negate, ...rest} = only;
+  Object.keys(g).forEach(k => delete (g as any)[k]);
+  Object.assign(g, {
+    id,
+    ...rest,
+    ...((label ?? inner) !== undefined ? {label: label ?? inner} : {}),
+    ...(enabled !== undefined ? {enabled} : {}),
+    ...(negate ? {negate: true} : {}),
+    ...(pass ? {pass} : {}),
+    ...(fail ? {fail} : {}),
+  });
+  f.tests = f.tests.filter(t => t !== only);
+}
+/** Groups side by side (docs/mockup-self-check ⑥): the top condition holds only groups, two or more. */
+export function sideBySide(f: BranchFlow, id: string) {
+  const t = f.tests.find(t => t.id === id);
+  return (
+    !!t &&
+    ['all', 'any'].includes(t.kind) &&
+    (t.operands?.length ?? 0) >= 2 &&
+    t.operands!.every(c => ['all', 'any'].includes(f.tests.find(t => t.id === c)?.kind ?? ''))
+  );
+}
 function descendants(f: BranchFlow, id: string, out = new Set<string>()) {
   if (out.has(id)) return out;
   out.add(id);
@@ -108,7 +141,8 @@ export type ExpressionCommand =
   | {type: 'add'; parent: string; group?: boolean; expression?: Expression}
   | {type: 'remove'; parent: string; id: string}
   | {type: 'move'; parent: string; id: string; to: string; index: number}
-  | {type: 'wrap'; id: string; mode: 'all' | 'any'};
+  | {type: 'wrap'; id: string; mode: 'all' | 'any'}
+  | {type: 'group'; id: string};
 export function editExpression(w: Workspace, owner: string, command: ExpressionCommand): Workspace {
   const n = structuredClone(w),
     f = n.actions.find(a => a.uid === owner)?.flow;
@@ -118,6 +152,37 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
     if (!t) throw Error(tr('조건을 찾지 못했습니다.'));
     return t;
   };
+  // 「＋ 조건 그룹」 at the bottom: a lone condition becomes group 1; one group gets an empty group beside it, the two
+  // joined by OR; groups side by side get one more.
+  if (command.type === 'group') {
+    const t = find(command.id);
+    const empty = () => insertExpression(f, {settings: {kind: 'all', subject: 'self', minimum: 0}, children: []});
+    if (!['all', 'any'].includes(t.kind)) return editExpression(w, owner, {type: 'wrap', id: command.id, mode: 'all'});
+    if (sideBySide(f, t.id)) {
+      t.operands = [...t.operands!, empty()];
+      return n;
+    }
+    // One group: its conditions move into group 1 (fresh ids, the old ones pruned); this test keeps its id and
+    // routes and becomes the OR that joins group 1 and a new empty group 2.
+    const inner = descendants(f, t.id);
+    inner.delete(t.id);
+    const first = insertExpression(f, readExpression(f, t.id));
+    const {id, pass, fail, label, enabled} = t;
+    Object.keys(t).forEach(k => delete (t as any)[k]);
+    Object.assign(t, {
+      id,
+      ...(label !== undefined ? {label} : {}),
+      ...(enabled !== undefined ? {enabled} : {}),
+      kind: 'any',
+      subject: 'self',
+      minimum: 0,
+      operands: [first, empty()],
+      ...(pass ? {pass} : {}),
+      ...(fail ? {fail} : {}),
+    });
+    prune(f, inner);
+    return n;
+  }
   if (command.type === 'wrap') {
     const t = find(command.id);
     if (['all', 'any'].includes(t.kind)) {
@@ -158,6 +223,7 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
     const removed = descendants(f, command.id);
     p.operands = p.operands.filter(id => id !== command.id);
     prune(f, removed);
+    dissolve(f, p.id);
     return n;
   }
   const target = find(command.to);

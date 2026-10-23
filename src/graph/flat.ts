@@ -10,6 +10,7 @@ import {setBranchTarget, deleteCondition, setConditionOperands} from './conditio
 import {reconnectEdge} from './disconnect.ts';
 import {playbackLink} from './playback.ts';
 import {branchId} from './conditions.ts';
+import {isLoose, reachTests, startInUse, transplant} from './conditionBinding.ts';
 import {fanOf, fanOfBranch, fanState} from './conditionFans.ts';
 import {branchTest, parseNodeId} from './nodeRef.ts';
 import type {NodeRef} from './nodeRef.ts';
@@ -342,7 +343,21 @@ export function flatGraph(w: Workspace) {
   for (const a of w.actions)
     if (a.flow) {
       const host = animId(a.uid, 'clip_' + a.config.entry);
-      if (a.flow.tests.some(t => t.id === a.flow!.entry))
+      // A start that goes nowhere draws no line (docs/mockup-free-conditions ⑥); one that follows another start's
+      // condition draws its line there.
+      const own = (e: GraphEdge) => e.source.startsWith(`start:${a.uid}|`) || e.source === animId(a.uid, 'blendIn');
+      if (a.flow.unlinked || (!a.flow.entry && !a.flow.detached && !a.flow.follow)) {
+        const kept = edges.filter(e => !((e.target === host || e.target === a.uid) && e.pin === 'trigger' && own(e)));
+        edges.length = 0;
+        edges.push(...kept);
+      } else if (a.flow.follow) {
+        const to = branchId(a.flow.follow.owner, a.flow.follow.test);
+        if (
+          byId.has(to) ||
+          w.actions.find(x => x.uid === a.flow!.follow!.owner)?.flow?.tests.some(t => t.id === a.flow!.follow!.test)
+        )
+          for (const e of edges) if ((e.target === host || e.target === a.uid) && e.pin === 'trigger') e.target = to;
+      } else if (a.flow.tests.some(t => t.id === a.flow!.entry))
         for (const e of edges) if (e.target === host && e.pin === 'trigger') e.target = branchId(a.uid, a.flow.entry);
       const fanned = new Map<string, NonNullable<FlatNode['fan']>>();
       for (const fan of a.flow.fans ?? [])
@@ -680,20 +695,23 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
             to.kind === 'branch'
               ? w.actions.find(a => a.uid === owner)?.flow?.tests.find(t => t.id === to.test)
               : undefined;
-          if (to.kind !== 'branch' || owner !== to.owner || !group)
-            throw Error(tr('같은 진입 경로의 조건 그룹에 연결하세요.'));
+          if (to.kind !== 'branch') throw Error(tr('조건 그룹에 연결하세요.'));
+          const j = joinOwners(w, owner, key, to.owner, to.test),
+            g = j.workspace.actions.find(a => a.uid === j.owner)!.flow!.tests.find(t => t.id === j.to)!;
+          if (!['all', 'any', 'not'].includes(g.kind)) throw Error(tr('조건 그룹에 연결하세요.'));
           return setConditionOperands(
-            w,
-            owner,
-            to.test,
-            group.kind === 'not' ? [key] : [...(group.operands ?? []), key]
+            j.workspace,
+            j.owner,
+            j.to,
+            g.kind === 'not' ? [j.from] : [...(g.operands ?? []), j.from]
           );
         }
         if (port !== 'pass' && port !== 'fail') throw Error(tr('통과 또는 실패 핀에서 연결하세요.'));
         if (to.kind === 'branch') {
-          if (to.owner !== owner) throw Error(tr('같은 진입 경로의 조건끼리 연결하세요.'));
+          // Conditions of two flows meet in one (docs/mockup-free-conditions ⑥): the loose side joins the other.
+          const j = joinOwners(w, owner, key, to.owner, to.test);
           // A pass already leading to a condition fans out onto the next one (graph/conditionFans.ts).
-          return setBranchTarget(w, owner, key, port, {node: to.test}, 'add');
+          return setBranchTarget(j.workspace, j.owner, j.from, port, {node: j.to}, 'add');
         }
         const n = flatNode(w, target);
         if (n?.kind !== 'hkxPlay' || !n.action) throw Error(tr('조건 또는 HKX 재생에 연결하세요.'));
@@ -711,32 +729,51 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
       if (to.kind === 'branch') {
         const draft = w.drafts?.find(d => d.id === source && ['keyInput', 'markerReceive'].includes(d.kind));
         if (draft) {
-          // A start onto a loose condition of an action that already starts some other way: that condition
-          // becomes its own action (one start per action), e.g. a second hotkey's flow.
-          const split = splitCondition(w, to.owner, to.test),
-            owner = split?.action ?? to.owner,
-            r = attachDraft(split?.workspace ?? w, draft, owner);
-          // Named after its start ("Num0 시작"), not "새 일반 동작" like the HKX cards made beside it.
-          if (split) {
+          // A new start card onto a condition (docs/mockup-free-conditions): it becomes the start of an action of
+          // its own that only selects (one start per action), which takes the condition if it is loose or follows
+          // it if another start already judges it. An action that only selects and starts no other way takes the
+          // card itself.
+          const holder = w.actions.find(a => a.uid === to.owner)!,
+            reuse = !startInUse(w, holder) && !holder.config.steps.some(s => s.clip) && isLoose(w, to.owner, to.test);
+          let base = w,
+            owner = to.owner;
+          if (!reuse) {
+            base = structuredClone(w);
+            const reached = reachTests(holder.flow, [to.test]),
+              pair = holder.flow!.tests.some(
+                t =>
+                  reached.has(t.id) &&
+                  [t.pass, t.fail].some(e => e && 'action' in e && w.actions.find(x => x.uid === e.action)?.pair)
+              );
+            const made = makePlaybackAction(base, pair || holder.pair ? 'pair' : 'single');
+            made.flow = {entry: '', tests: [], selects: true, unlinked: true};
             const q = draft.value.config,
-              made = r.workspace.actions.find(a => a.uid === owner)!;
-            const name =
-              q.start.mode === 'event'
-                ? q.start.event
-                : q.inputs.find(i => i.id === q.start.input)?.key || q.inputs[0]?.key;
-            if (name) made.config.name = tr('{name} 시작', {name});
+              name =
+                q.start.mode === 'event'
+                  ? q.start.event
+                  : q.inputs.find(i => i.id === q.start.input)?.key || q.inputs[0]?.key;
+            // Named after its start ("Num0 시작"), not "새 일반 동작" like the HKX cards made beside it; its XML id
+            // too ("Num0_Select", docs/mockup-free-conditions ④).
+            if (name) {
+              made.config.name = tr('{name} 시작', {name});
+              const stem = (/^[A-Za-z]/.test(name) ? name : 'Start_' + name)
+                  .replace(/[^A-Za-z0-9_]/g, '_')
+                  .slice(0, 50),
+                taken = new Set(base.actions.map(a => a.config.actionId.toLowerCase()));
+              let id = stem + '_Select',
+                i = 2;
+              while (taken.has(id.toLowerCase())) id = `${stem}_Select${i++}`;
+              made.config.actionId = id;
+            }
+            base.actions.push(made);
+            owner = made.uid;
           }
+          const r = attachDraft(base, draft, owner),
+            card = flatId({kind: 'start', action: owner}, draft.kind);
           // The start card stays where the key was drawn (as onto an HKX, draftNode).
-          return moveNodes(
-            connectFlat(
-              r.workspace,
-              flatId({kind: 'start', action: owner}, draft.kind),
-              split ? branchId(owner, to.test) : target,
-              port
-            ),
-            root,
-            {[flatId({kind: 'start', action: owner}, draft.kind)]: graphPosition(w, root, draft.id, {x: 500, y: 500})}
-          );
+          return moveNodes(startIntoCondition(r.workspace, owner, to.owner, to.test), root, {
+            [card]: graphPosition(w, root, draft.id, {x: 500, y: 500}),
+          });
         }
         const owner = to.owner,
           key = to.test,
@@ -759,17 +796,17 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
           return edited;
         }
         const n = flatNode(w, source);
-        if (
-          (source === 'entry' && a.config.start.mode !== 'none') ||
-          (source !== 'entry' &&
-            !(n?.action === owner && n.scope.kind === 'start' && ['keyInput', 'markerReceive'].includes(n.kind)))
-        )
-          throw Error(tr('해당 동작의 시작 입력 또는 진입 카드에서 연결하세요.'));
-        const next = structuredClone(w),
-          f = next.actions.find(a => a.uid === owner)!.flow!;
-        f.entry = key;
-        delete f.detached;
-        return next;
+        if (source === 'entry') {
+          if (a.config.start.mode !== 'none') throw Error(tr('해당 동작의 시작 입력 또는 진입 카드에서 연결하세요.'));
+          const next = structuredClone(w),
+            f = next.actions.find(a => a.uid === owner)!.flow!;
+          f.entry = key;
+          delete f.detached;
+          return next;
+        }
+        if (!(n?.action && n.scope.kind === 'start' && ['keyInput', 'markerReceive'].includes(n.kind)))
+          throw Error(tr('시작 입력·이벤트 카드에서 조건으로 연결하세요.'));
+        return startIntoCondition(w, n.action, owner, key);
       }
       return NEXT;
     },
@@ -909,6 +946,35 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
     name: 'requireNodes',
     run: c => {
       if (!c.sourceNode || !c.targetNode) throw Error(tr('연결할 카드를 찾지 못했습니다.'));
+      return NEXT;
+    },
+  },
+  {
+    // A start whose line went nowhere or into a condition, drawn to its own HKX again: it plays the HKX directly
+    // and its conditions are left loose (docs/mockup-free-conditions ⑥).
+    name: 'startToOwnPlay',
+    run: c => {
+      const {w} = c;
+      const s = c.sourceNode!,
+        d = c.targetNode!;
+      if (
+        s.scope.kind === 'start' &&
+        ['keyInput', 'markerReceive'].includes(s.kind) &&
+        d.kind === 'hkxPlay' &&
+        s.action &&
+        s.action === d.action
+      ) {
+        const next = structuredClone(w),
+          a = next.actions.find(a => a.uid === s.action)!;
+        if (!a.flow) return NEXT;
+        const f = a.flow;
+        f.entry = '';
+        f.detached = true;
+        delete f.unlinked;
+        delete f.follow;
+        if (!f.tests.length) delete a.flow;
+        return next;
+      }
       return NEXT;
     },
   },
@@ -1126,6 +1192,75 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
   }
   throw Error(tr('이 핀 조합은 연결할 수 없습니다. 전환은 HKX 출력에서 다른 HKX 입력으로 연결하세요.'));
 }
+/** A start's line into a condition (docs/mockup-free-conditions ②④⑥). Its own: that condition becomes its first.
+ *  A loose one: the conditions from it on move to the start's action. One another start already judges: this start
+ *  follows it (two starts, one judgement). Either way the start's old first condition, if any, is left loose. */
+export function startIntoCondition(w: Workspace, action: string, owner: string, key: string): Workspace {
+  const next = structuredClone(w),
+    a = next.actions.find(x => x.uid === action)!;
+  // The start's own line is the one being drawn: any earlier cut of it is over.
+  if (next.disconnections) {
+    next.disconnections = next.disconnections
+      .map(c => ({...c, bindings: c.bindings.filter(b => !b.source.startsWith(`start:${action}|`))}))
+      .filter(c => c.bindings.length);
+    if (!next.disconnections.length) delete next.disconnections;
+  }
+  const settle = (entry: string) => {
+    const f = a.flow!;
+    f.entry = entry;
+    delete f.detached;
+    delete f.unlinked;
+    delete f.follow;
+  };
+  if (owner === action) {
+    settle(key);
+    return next;
+  }
+  if (isLoose(w, owner, key)) {
+    const ids = transplant(next, owner, key, action);
+    settle(ids.get(key)!);
+    // The cards stay where they were drawn.
+    const places = new Map(flatGraph(w).nodes.map(n => [n.id, n.position])),
+      positions: Record<string, {x: number; y: number}> = {};
+    for (const [old, id] of ids) {
+      const p = places.get(branchId(owner, old));
+      if (p) positions[branchId(action, id)] = p;
+    }
+    return moveNodes(next, root, positions);
+  }
+  a.flow ??= {entry: '', tests: [], detached: true};
+  const f = a.flow;
+  f.entry = '';
+  delete f.detached;
+  delete f.unlinked;
+  f.follow = {owner, test: key};
+  return next;
+}
+/** Two conditions to link that sit in different flows: the loose one (and what follows it) moves to the other's
+ *  flow; with both judged by starts, the target's part is copied to the source's flow. Same flow: as they are. */
+function joinOwners(w: Workspace, owner: string, from: string, targetOwner: string, to: string) {
+  if (owner === targetOwner) return {workspace: w, owner, from, to};
+  const next = structuredClone(w),
+    places = new Map(flatGraph(w).nodes.map(n => [n.id, n.position])),
+    keep = (ids: Map<string, string>, a: string, b: string) =>
+      moveNodes(
+        next,
+        root,
+        Object.fromEntries(
+          [...ids].flatMap(([old, id]) => {
+            const p = places.get(branchId(a, old));
+            return p ? [[branchId(b, id), p]] : [];
+          })
+        )
+      );
+  if (isLoose(w, owner, from)) {
+    const ids = transplant(next, owner, from, targetOwner);
+    return {workspace: keep(ids, owner, targetOwner), owner: targetOwner, from: ids.get(from)!, to};
+  }
+  const loose = isLoose(w, targetOwner, to),
+    ids = transplant(next, targetOwner, to, owner, !loose);
+  return {workspace: keep(ids, targetOwner, owner), owner, from, to: ids.get(to)!};
+}
 export function addDetachedCondition(w: Workspace, action: string, position: {x: number; y: number}) {
   const r = addFlat(w, action, 'conditionBranch', position);
   const flow = r.workspace.actions.find(a => a.uid === action)!.flow!;
@@ -1147,63 +1282,6 @@ export function makePlaybackAction(w: Workspace, kind: 'single' | 'pair' = 'sing
   a.config.start = {...a.config.start, mode: 'none', input: ''};
   a.config.inputs = [];
   return a;
-}
-/** A condition not reached from its action's entry, of an action that already has a start, moved with the
- *  conditions after it into a new action of its own (no HKX of its own: it only selects). Undefined when the
- *  action has no start yet or the condition is on its entry's flow (a second start there stays refused). */
-export function splitCondition(w: Workspace, owner: string, test: string) {
-  const a = w.actions.find(a => a.uid === owner),
-    f = a?.flow;
-  if (!a || !f || a.config.start.mode === 'none') return;
-  const reach = (from: string[]) => {
-    const seen = new Set<string>(),
-      pending = [...from];
-    while (pending.length) {
-      const id = pending.pop()!,
-        t = f.tests.find(t => t.id === id);
-      if (!t || seen.has(id)) continue;
-      seen.add(id);
-      for (const e of [t.pass, t.fail]) if (e && 'node' in e) pending.push(e.node);
-      pending.push(...(t.operands ?? []));
-    }
-    return seen;
-  };
-  const kept = reach(f.entry ? [f.entry] : []);
-  if (kept.has(test)) return;
-  const moved = reach([test]);
-  if ([...moved].some(id => kept.has(id)))
-    throw Error(tr('이 조건은 시작 흐름의 조건으로 이어져 있어 새 동작으로 나눌 수 없습니다.'));
-  const rest = f.tests.filter(t => !moved.has(t.id));
-  if (
-    rest.some(
-      t => [t.pass, t.fail].some(e => e && 'node' in e && moved.has(e.node)) || t.operands?.some(o => moved.has(o))
-    )
-  )
-    throw Error(tr('다른 조건이 이 조건으로 이어져 있습니다. 그 연결을 먼저 끊으세요.'));
-  const places = new Map(flatGraph(w).nodes.map(n => [n.id, n.position]));
-  const next = structuredClone(w),
-    from = next.actions.find(x => x.uid === owner)!,
-    made = makePlaybackAction(next, a.pair ? 'pair' : 'single');
-  const fans = f.fans?.filter(x => moved.has(x.parent));
-  made.flow = {
-    entry: test,
-    selects: true,
-    tests: structuredClone(f.tests.filter(t => moved.has(t.id))),
-    ...(fans?.length ? {fans: structuredClone(fans)} : {}),
-  };
-  from.flow!.tests = from.flow!.tests.filter(t => !moved.has(t.id));
-  if (from.flow!.fans) {
-    from.flow!.fans = from.flow!.fans.filter(x => !moved.has(x.parent));
-    if (!from.flow!.fans.length) delete from.flow!.fans;
-  }
-  next.actions.push(made);
-  const positions = Object.fromEntries(
-    [...moved].flatMap(id => {
-      const p = places.get(branchId(owner, id));
-      return p ? [[branchId(made.uid, id), p]] : [];
-    })
-  );
-  return {workspace: moveNodes(next, root, positions), action: made.uid};
 }
 export function addFlat(w: Workspace, action: string, kind: string, position: {x: number; y: number}) {
   if (kind === 'qte') return addQte(w, position);

@@ -3,7 +3,7 @@ import {useState, useEffect} from 'react';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
 import {ConditionFields} from './ConditionDetails.tsx';
-import {conditionNames, editExpression, readExpression, expressionSummary} from './conditionExpression.ts';
+import {conditionNames, editExpression, readExpression, expressionSummary, sideBySide} from './conditionExpression.ts';
 import type {Expression, ExpressionCommand} from './conditionExpression.ts';
 import './conditionEditor.css';
 import {tr} from '../i18n/korean.ts';
@@ -63,7 +63,7 @@ export function ConditionExpressionEditor({
       );
       return n;
     });
-  const row = (key: string, parent?: string, depth = 0): React.ReactNode => {
+  const row = (key: string, parent?: string, depth = 0, title?: string): React.ReactNode => {
     const t = f.tests.find(t => t.id === key);
     if (!t || depth > 80) return null;
     const group = ['all', 'any'].includes(t.kind),
@@ -77,7 +77,9 @@ export function ConditionExpressionEditor({
     return (
       <div
         key={key}
-        className={'condition-expression-row' + (t.enabled === false ? ' is-disabled' : '')}
+        className={
+          'condition-expression-row' + (t.enabled === false ? ' is-disabled' : '') + (title ? ' is-group-box' : '')
+        }
         data-condition={key}
       >
         <div
@@ -118,6 +120,7 @@ export function ConditionExpressionEditor({
               {folded ? '▸' : '▾'}
             </button>
           )}
+          {title && <b className="condition-group-title">{title}</b>}
           {parent && (
             <input
               type="checkbox"
@@ -262,12 +265,36 @@ export function ConditionExpressionEditor({
     <section className="condition-expression-editor" aria-label={tr('복합조건 편집')}>
       {error && <p role="status">{error}</p>}
       <small>{expressionSummary(f, root)}</small>
-      {row(root)}
-      {!['all', 'any'].includes(test.kind) && (
-        <div className="condition-expression-tools">
-          <button onClick={() => command({type: 'wrap', id: root, mode: 'all'})}>{tr('＋ 조건 그룹')}</button>
-        </div>
-      )}
+      {/* Groups side by side (docs/mockup-self-check ⑥): one box per group, one 그룹끼리 AND/OR between them. */}
+      {sideBySide(f, root)
+        ? (test.operands ?? []).map((c, i) => (
+            <div key={c}>
+              {i > 0 && (
+                <div className="condition-join">
+                  <span>{tr('그룹끼리')}</span>
+                  <select
+                    aria-label={tr('그룹끼리 조합')}
+                    value={test.kind}
+                    onChange={e => patch(root, {kind: e.target.value as 'all' | 'any'})}
+                  >
+                    <option value="any">OR</option>
+                    <option value="all">AND</option>
+                  </select>
+                  {test.negate && (
+                    <label title={tr('참·거짓을 반전합니다. 검사 불능은 반전하지 않습니다.')}>
+                      <input type="checkbox" checked onChange={() => patch(root, {negate: false})} />
+                      NOT
+                    </label>
+                  )}
+                </div>
+              )}
+              {row(c, root, 1, tr('그룹 {n}', {n: i + 1}))}
+            </div>
+          ))
+        : row(root)}
+      <div className="condition-expression-tools">
+        <button onClick={() => command({type: 'group', id: root})}>{tr('＋ 조건 그룹')}</button>
+      </div>
       {/* On the canvas the card's route rows show where each route goes (FlatGraph BranchRoutes). */}
       {!embedded && (
         <div className="condition-expression-routes">

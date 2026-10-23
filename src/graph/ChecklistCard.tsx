@@ -21,6 +21,7 @@ import {DraftDetails} from './DraftDetails.tsx';
 import {addEntrySetting, attachDraft} from './drafts.ts';
 import {FireArrowShots, useFireArrowSummary} from './FireArrowShots.tsx';
 import './checklist.css';
+import {conditionStarts} from './conditionBinding.ts';
 import './registry.css';
 import {useClipAnnotations, clipKey, sentEvent, roleLabel} from './annotations.ts';
 import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName} from '../eventRegistry.ts';
@@ -208,10 +209,16 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
     >
       {node.kind === 'conditionBranch' ? (
         <>
+          <ConditionStarts w={w} id={node.id} />
           <button className="checklist-summary" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
             {expanded ? '▾' : '▸'} {node.summary || tr('조건 편집')}
           </button>
-          {expanded && <ConditionExpressionEditor embedded focus={ctx.selected} w={w} id={node.id} edit={edit} />}
+          {/* Inside a card the editor is part of it: no details-panel search box (docs/mockup-self-check ①). */}
+          {expanded && (
+            <NestedDetailPanel.Provider value={true}>
+              <ConditionExpressionEditor embedded focus={ctx.selected} w={w} id={node.id} edit={edit} />
+            </NestedDetailPanel.Provider>
+          )}
         </>
       ) : node.kind === 'conditionTable' ? (
         <>
@@ -219,66 +226,74 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
             {expanded ? '▾' : '▸'} {node.summary}
           </button>
           {expanded && (
-            <ConditionTableDetails
-              embedded
-              focus={ctx.selected}
-              w={w}
-              owner={node.action ?? node.id.slice('conditionTable:'.length)}
-              edit={edit}
-              status={status}
-            />
+            <NestedDetailPanel.Provider value={true}>
+              <ConditionTableDetails
+                embedded
+                focus={ctx.selected}
+                w={w}
+                owner={node.action ?? node.id.slice('conditionTable:'.length)}
+                edit={edit}
+                status={status}
+              />
+            </NestedDetailPanel.Provider>
           )}
         </>
       ) : (
         action && (
           <>
-            {clip && (
-              <StepFiles
-                w={w}
-                action={action}
-                step={clip}
-                library={library}
-                status={status}
-                edit={edit}
-                scopeKey={`${w.id}:${node.id}`}
-                row={cardRow}
-                change={(value, localPath) =>
-                  edit(w => ({
-                    ...w,
-                    actions: w.actions.map(a =>
-                      a.uid === action.uid
-                        ? {
-                            ...a,
-                            config: {
-                              ...a.config,
-                              steps: a.config.steps.map(s => (s.id === node.step ? {...s, clip: value, localPath} : s)),
-                            },
-                          }
-                        : a
-                    ),
-                  }))
-                }
-              />
-            )}
-            <label className="checklist-file">
-              {tr('유형')}
-              <select
-                aria-label={tr('동작 유형')}
-                value={playbackKind(action)}
-                onChange={e =>
-                  attempt(() =>
-                    edit(w => switchPlaybackKind(w, action.uid, e.target.value as (typeof playbackKinds)[number]))
-                  )
-                }
-              >
-                {playbackKinds.map(k => (
-                  <option key={k} value={k}>
-                    {actionKindLabels[k]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <ViewFields w={w} action={action} edit={edit} row={cardRow} />
+            {/* The header rows share one label column (docs/mockup-layout-audit ①): every control starts at the same
+                place whatever the longest label is. */}
+            <div className="checklist-head">
+              {clip && (
+                <StepFiles
+                  w={w}
+                  action={action}
+                  step={clip}
+                  library={library}
+                  status={status}
+                  edit={edit}
+                  scopeKey={`${w.id}:${node.id}`}
+                  row={cardRow}
+                  change={(value, localPath) =>
+                    edit(w => ({
+                      ...w,
+                      actions: w.actions.map(a =>
+                        a.uid === action.uid
+                          ? {
+                              ...a,
+                              config: {
+                                ...a.config,
+                                steps: a.config.steps.map(s =>
+                                  s.id === node.step ? {...s, clip: value, localPath} : s
+                                ),
+                              },
+                            }
+                          : a
+                      ),
+                    }))
+                  }
+                />
+              )}
+              <label className="checklist-file">
+                {tr('유형')}
+                <select
+                  aria-label={tr('동작 유형')}
+                  value={playbackKind(action)}
+                  onChange={e =>
+                    attempt(() =>
+                      edit(w => switchPlaybackKind(w, action.uid, e.target.value as (typeof playbackKinds)[number]))
+                    )
+                  }
+                >
+                  {playbackKinds.map(k => (
+                    <option key={k} value={k}>
+                      {actionKindLabels[k]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ViewFields w={w} action={action} edit={edit} row={cardRow} />
+            </div>
             {/* 재생 설정 is item rows as 기능 (docs/mockup-playback-settings): the name, the end, the attack data and an
                 ordinary action's input detection. */}
             <section className="checklist-section checklist-playback">
@@ -592,6 +607,26 @@ function ChecklistRow({
   );
 }
 
+/** Which starts judge this condition, from the lines (docs/mockup-free-conditions ②③): or that none does. */
+function ConditionStarts({w, id}: {w: Workspace; id: string}) {
+  const starts = conditionStarts(w).get(id);
+  if (!starts?.length)
+    return (
+      <span
+        className="condition-binding loose"
+        title={tr('시작(이벤트·키)에서 선이 이어지지 않아 판단하지 않습니다. XML에는 쓰지 않습니다.')}
+      >
+        {tr('시작과 연결 안 됨')}
+      </span>
+    );
+  return (
+    <span className="condition-binding" title={starts.join(', ')}>
+      {starts.length > 2
+        ? tr('시작 {n}개 때 판단', {n: starts.length})
+        : tr('{starts} 때 판단', {starts: starts.join(' · ')})}
+    </span>
+  );
+}
 function AddItemMenu({
   groups,
   label,

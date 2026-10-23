@@ -169,7 +169,8 @@ test('condition links support serial fallback, diagnose cycles and delete only o
   assert.equal(deleted.actions.length, 2);
   assert.equal(deleted.actions[0].flow.tests.length, 1);
   assert.equal(deleted.actions[0].flow.tests[0].fail, undefined);
-  assert.equal(deleteFlat(deleted, id).actions[0].flow, undefined);
+  // The first condition gone, the start goes nowhere (docs/mockup-free-conditions ⑥).
+  assert.deepEqual(deleteFlat(deleted, id).actions[0].flow, {entry: '', tests: [], unlinked: true});
 });
 
 test('nested AND OR NOT groups round trip and reject cycles and branching operands', needsChecker, () => {

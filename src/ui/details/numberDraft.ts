@@ -30,3 +30,18 @@ export function wheelStep(
   if (max !== undefined && max !== '' && Number.isFinite(Number(max))) next = Math.min(Number(max), next);
   return next;
 }
+
+// The same notch on any focused field that holds a number (ui/wheelGuard.ts): its text stepped, or undefined when it
+// holds no number (「끝」), which the wheel then leaves alone.
+export function wheelText(
+  text: string,
+  direction: 1 | -1,
+  step: number,
+  shift: boolean,
+  min?: number | string,
+  max?: number | string
+): string | undefined {
+  const value = text.trim() ? Number(text) : 0;
+  if (!Number.isFinite(value)) return undefined;
+  return String(wheelStep(value, direction, step, shift, min, max));
+}

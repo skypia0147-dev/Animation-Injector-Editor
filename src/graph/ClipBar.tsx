@@ -68,6 +68,8 @@ export function ClipBar({
         <input
           className="clip-bar-input"
           aria-label={label}
+          data-wheel-step={0.05}
+          min={0}
           autoFocus
           value={typing.text}
           onChange={e => setTyping({key, text: e.target.value})}

@@ -5,7 +5,7 @@ Animation Injector（SKSE）のアクション（通常・ペア）をカード�
 ## 必要なもの
 
 - Windows 10/11 x64、Microsoft Edge WebView2 ランタイム（Windows 11 には標準で含まれます）
-- ゲームで使うには **Animation Injector 0.12.278 以降**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）とその必須 MOD
+- ゲームで使うには **Animation Injector 0.12.280 以降**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）とその必須 MOD
 - 同梱の `AnimationInjectorXmlCheck.exe` を `AnimationInjectorEditor.exe` と同じフォルダに置いてください。保存時にゲームのランタイムと同じ検査を行い、ゲームが丸ごと無視する XML は書き込みません。このファイルがない場合は検査なしで保存し、警告を表示します。
 
 Node.js・Rust・Python などの開発ツールは不要です。

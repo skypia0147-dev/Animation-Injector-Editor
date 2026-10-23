@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {emptyWorkspace, compileWorkspace, parseWorkspace} from '../src/workspace.ts';
 import {addFlat, flatGraph, connectFlat} from '../src/graph/flat.ts';
 import {compactGraph, shareRules, synchronizeRules} from '../src/graph/sharing.ts';
-import {editExpression, readExpression, activeConditionFlow} from '../src/graph/conditionExpression.ts';
+import {editExpression, readExpression, activeConditionFlow, sideBySide} from '../src/graph/conditionExpression.ts';
 import {copyNodes, pasteNodes} from '../src/graph/clipboard.ts';
 import {beginFocus, retainFocus} from '../src/graph/focusSession.ts';
 import {disconnectEdge, visibleEdges} from '../src/graph/disconnect.ts';
@@ -208,4 +208,89 @@ test('editing a shared condition expression updates settings while keeping both 
     assert.equal(e.children[1].settings.negate, true);
   }
   assert.doesNotThrow(() => compileWorkspace(next));
+});
+// docs/mockup-self-check ⑤: a delete that leaves one condition in a group gives the condition back.
+test('a group left with one condition after a delete becomes that condition, NOT and routes kept', () => {
+  let w = sample(),
+    a = w.actions[0];
+  w = editExpression(w, a.uid, {type: 'wrap', id: 'Root', mode: 'all'});
+  w = editExpression(w, a.uid, {
+    type: 'add',
+    parent: 'Root',
+    expression: {settings: {kind: 'combat', subject: 'self', minimum: 0}, children: []},
+  });
+  let root = w.actions[0].flow.tests.find(t => t.id === 'Root');
+  const [air, combat] = root.operands;
+  w = editExpression(w, a.uid, {type: 'remove', parent: 'Root', id: combat});
+  const f = w.actions[0].flow;
+  root = f.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'air');
+  assert.equal(root.negate, true);
+  assert.equal(root.operands, undefined);
+  assert.equal(root.pass.action, a.uid);
+  assert.deepEqual(
+    f.tests.map(t => t.id),
+    ['Root']
+  );
+  assert.ok(!f.tests.some(t => t.id === air));
+  // A NOT on the group turns the remaining condition's NOT over.
+  w = editExpression(w, a.uid, {type: 'wrap', id: 'Root', mode: 'all'});
+  w.actions[0].flow.tests.find(t => t.id === 'Root').negate = true;
+  w = editExpression(w, a.uid, {type: 'add', parent: 'Root'});
+  const added = w.actions[0].flow.tests.find(t => t.id === 'Root').operands[1];
+  w = editExpression(w, a.uid, {type: 'remove', parent: 'Root', id: added});
+  root = w.actions[0].flow.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'air');
+  assert.equal(!!root.negate, false);
+});
+test('a switched-off last condition keeps its group', () => {
+  let w = sample(),
+    a = w.actions[0];
+  w = editExpression(w, a.uid, {type: 'wrap', id: 'Root', mode: 'all'});
+  w = editExpression(w, a.uid, {type: 'add', parent: 'Root'});
+  const [first, second] = w.actions[0].flow.tests.find(t => t.id === 'Root').operands;
+  w.actions[0].flow.tests.find(t => t.id === first).enabled = false;
+  w = editExpression(w, a.uid, {type: 'remove', parent: 'Root', id: second});
+  const root = w.actions[0].flow.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'all');
+  assert.deepEqual(root.operands, [first]);
+});
+// docs/mockup-self-check ⑥: 「＋ 조건 그룹」 puts groups side by side.
+test('the bottom group button makes group 1, then groups side by side joined by OR', () => {
+  let w = sample(),
+    a = w.actions[0];
+  w = editExpression(w, a.uid, {type: 'group', id: 'Root'});
+  let f = w.actions[0].flow,
+    root = f.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'all');
+  assert.equal(root.operands.length, 1);
+  assert.equal(sideBySide(f, 'Root'), false);
+  w = editExpression(w, a.uid, {type: 'add', parent: 'Root'});
+  w = editExpression(w, a.uid, {type: 'group', id: 'Root'});
+  f = w.actions[0].flow;
+  root = f.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'any');
+  assert.equal(root.pass.action, a.uid);
+  assert.equal(sideBySide(f, 'Root'), true);
+  const [g1, g2] = root.operands.map(id => f.tests.find(t => t.id === id));
+  assert.equal(g1.kind, 'all');
+  assert.equal(g1.operands.length, 2);
+  assert.deepEqual(g2.operands, []);
+  // The old conditions moved into group 1 with new ids: nothing is left behind.
+  const reachable = new Set();
+  const walk = id => {
+    reachable.add(id);
+    for (const c of f.tests.find(t => t.id === id).operands ?? []) walk(c);
+  };
+  walk('Root');
+  assert.equal(f.tests.length, reachable.size);
+  w = editExpression(w, a.uid, {type: 'group', id: 'Root'});
+  assert.equal(w.actions[0].flow.tests.find(t => t.id === 'Root').operands.length, 3);
+  // Deleting groups down to one leaves that group in the top's place.
+  for (const id of w.actions[0].flow.tests.find(t => t.id === 'Root').operands.slice(1))
+    w = editExpression(w, a.uid, {type: 'remove', parent: 'Root', id});
+  root = w.actions[0].flow.tests.find(t => t.id === 'Root');
+  assert.equal(root.kind, 'all');
+  assert.equal(root.operands.length, 2);
+  assert.equal(root.pass.action, a.uid);
 });

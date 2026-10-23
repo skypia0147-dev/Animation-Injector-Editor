@@ -70,6 +70,18 @@
   margin: 5px 0;
   accent-color: var(--ue-blue);
 }
+.detail-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.detail-inline > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .detail-value label {
   display: flex;
   align-items: center;
@@ -216,8 +228,8 @@
   min-width: 22px;
 }
 .shell .motion-key-table input {
-  min-height: 28px;
-  height: 28px;
+  min-height: var(--control-h);
+  height: var(--control-h);
 }
 .motion-fields > button {
   margin-block: 6px;

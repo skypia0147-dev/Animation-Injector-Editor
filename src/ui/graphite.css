@@ -17,9 +17,15 @@
   --ue-pin-trigger: #bbb;
   --ue-node: #3b3b3b;
   --ue-node-head: #474747;
-  --control-h: 34px;
-  --control-sm: 28px;
-  --ui-radius: 8px;
+  /* Thin-outline controls (docs/mockup-control-style A): every field, menu and button takes the clip|event seg's
+     height and weight, a 26px frame with no fill. */
+  --control-h: 26px;
+  --control-sm: 26px;
+  --ui-radius: 6px;
+  --control-line: #4d4d4d;
+  --control-line-hover: #6d6d6d;
+  --control-focus: #d8d8d8;
+  --control-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a0a0a0' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --ui-gap: 8px;
   --hkx-fill: #334a47;
   --hkx-head: #45645e;
@@ -104,7 +110,7 @@
 .shell input:not([type='checkbox']):not([type='range']),
 .shell textarea {
   border-radius: var(--ui-radius);
-  border: 1px solid var(--ue-line2);
+  border: 1px solid var(--control-line);
   box-sizing: border-box;
   font: inherit;
 }
@@ -113,13 +119,43 @@
 .shell input:not([type='checkbox']):not([type='range']) {
   min-height: var(--control-h);
 }
+.shell select,
+.shell input:not([type='checkbox']):not([type='range']) {
+  height: var(--control-h);
+}
 .shell button {
-  padding: 6px 10px;
-  background: #262626;
+  padding: 0 10px;
+  background: transparent;
+  color: #d6d6d6;
 }
 .shell button:hover:not(:disabled) {
-  background: #383838;
-  border-color: #5b5b5b;
+  background: #ffffff0d;
+  border-color: var(--control-line-hover);
+}
+.shell select {
+  appearance: none;
+  padding: 0 26px 0 9px;
+  background: var(--control-chevron) no-repeat right 9px center;
+}
+/* Room for the chevron whatever padding a panel gives its menus. */
+.shell select:not([multiple]) {
+  padding-right: 26px !important;
+}
+.shell select option {
+  background: #2a2a2a;
+  color: var(--ue-strong);
+}
+.shell input:not([type='checkbox']):not([type='range']):not([type='color']) {
+  padding: 0 9px;
+}
+.shell :is(input, select, textarea):hover:not(:disabled):not(:focus) {
+  border-color: var(--control-line-hover);
+}
+.shell :is(input:not([type='checkbox']):not([type='range']), select, textarea):focus {
+  border-color: var(--control-focus);
+}
+.shell :is(input:not([type='checkbox']):not([type='range']), select, textarea):focus-visible {
+  outline: none;
 }
 .shell button:disabled {
   opacity: 0.4;
@@ -129,8 +165,13 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-.shell :is(input, select, textarea) {
-  background: #242424;
+.shell input:not([type='checkbox']):not([type='range']),
+.shell textarea {
+  background: transparent;
+  color: var(--ue-strong);
+}
+.shell select {
+  background-color: transparent;
   color: var(--ue-strong);
 }
 .shell input[type='checkbox'] {
@@ -324,9 +365,11 @@
 }
 .flat-toolbar {
   gap: 8px;
-  min-height: 50px;
+  min-height: 42px;
   padding: 8px 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-width: 0;
   background: #212121;
   border-bottom: 1px solid var(--ue-line);
 }
@@ -342,6 +385,15 @@
 .flat-toolbar > span {
   color: #999;
   font-size: var(--fs-sm);
+}
+.flat-toolbar > * {
+  flex-shrink: 0;
+}
+.flat-toolbar > .flat-toolbar-info {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .graph-organize {
   position: relative;
@@ -757,7 +809,7 @@
 }
 .shell .detail-search {
   margin-bottom: 16px !important;
-  background: #242424 !important;
+  background: transparent !important;
 }
 .shell .detail-category {
   border: 0;
@@ -791,9 +843,12 @@
 }
 .shell .detail-value input:not([type='checkbox']),
 .shell .detail-value select {
-  min-height: 32px;
+  min-height: var(--control-h);
   font-size: var(--fs-sm);
-  padding: 5px 8px;
+  padding: 0 9px;
+}
+.shell .detail-value select {
+  padding-right: 26px;
 }
 .shell .detail-advanced {
   background: transparent;
@@ -1024,10 +1079,10 @@
   flex-shrink: 0;
 }
 .shell .notify-tools :is(button, select) {
-  height: 26px;
-  min-height: 26px;
-  padding: 2px 6px;
-  border-radius: 5px;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 8px;
+  border-radius: var(--ui-radius);
   font-size: var(--fs-sm);
   line-height: 20px;
 }
@@ -1055,10 +1110,10 @@
   background: #212121;
 }
 .graphite-dock .viewport-toolbar > button {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: var(--control-h);
+  min-width: var(--control-h);
+  height: var(--control-h);
+  min-height: var(--control-h);
   padding: 0;
   display: grid;
   place-items: center;
@@ -1126,10 +1181,17 @@
   margin-bottom: 3px;
 }
 .shell .viewport-options-body :is(button, select) {
-  min-height: 30px;
-  height: 30px;
+  min-height: var(--control-h);
+  height: var(--control-h);
   width: auto;
   font-size: var(--fs-sm);
+}
+/* The menus take the width left, not the toolbar's fixed 82px (docs/mockup-layout-audit ⑨: 「perspective」 cut). */
+.shell .viewport-options-body select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
 }
 .shell .viewport-toggle.active,
 .shell .viewport-assets-button.active {
@@ -1144,22 +1206,46 @@
   font-size: var(--fs-sm);
   grid-column: 1/-1;
 }
-.viewport-camera-tools {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  z-index: 3;
-  display: grid;
-  gap: 7px;
+/* The stage is a column (docs/mockup-layout-audit ④): the scene or its message, the asset list when open, and one
+   line with the controls help and the camera buttons. Nothing floats over anything else. */
+.viewport-stage {
+  display: flex;
+  flex-direction: column;
 }
-.viewport-camera-tools button {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
+.viewport-main {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.viewport-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 2px 8px;
+  border-top: 1px solid var(--ue-line);
+  background: #1d1d1d;
+}
+.shell .viewport-foot .viewport-help {
+  position: static;
+  text-shadow: none;
+  font-size: var(--fs-xs);
+  color: #9fb4c7;
+}
+.viewport-camera-tools {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.shell .viewport-camera-tools button {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
   padding: 0;
   display: grid;
   place-items: center;
-  background: #2d2d2de8;
 }
 .viewport-camera-tools button.active {
   background: #3a4a46e8;
@@ -1172,24 +1258,69 @@
   background: #212121;
   color: #aaa;
 }
-.viewport-assets {
-  background: #262626f5;
-  border: 1px solid #494949;
-  border-radius: 10px;
-  max-height: calc(100% - 12px);
+.shell .viewport-assets {
+  position: static;
+  width: auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 60%;
   overflow: auto;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--ue-line);
+  border-radius: 0;
+  box-shadow: none;
+  background: #1d1d1d;
+}
+/* No scene yet: its message shrinks to one line above the list, which takes the rest. */
+.viewport-stage.assets-open .viewport-main:has(> .viewport-message) {
+  flex: none;
+}
+.viewport-stage.assets-open .viewport-message {
+  height: auto;
+  display: block;
+  padding: 5px 9px;
+  text-align: left;
+  background: none;
+  font-size: var(--fs-xs);
+}
+.viewport-stage.assets-open .viewport-main:has(> .viewport-message) + .viewport-assets {
+  flex: 1 1 auto;
+  max-height: none;
 }
 .viewport-asset-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
 }
-.viewport-resource-drop {
-  flex-wrap: wrap;
+.shell .viewport-resource-drop {
+  height: 26px;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  padding: 0 2px 0 6px;
+  border: 1px dashed #4d4d4d;
+  border-radius: var(--ui-radius);
+  background: none;
 }
 .viewport-resource-drop code {
   min-width: 0;
   max-width: 100%;
+}
+.shell .viewport-resource-drop button {
+  min-height: 20px;
+  height: 20px;
+  padding: 0 7px;
+}
+/* A narrow panel stacks a role's HKX and GLB. */
+@container viewport (max-width: 380px) {
+  .viewport-asset-row {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .viewport-asset-row > .viewport-resource-drop + .viewport-resource-drop {
+    grid-column: 2;
+  }
 }
 .shell ::-webkit-scrollbar {
   width: 9px;

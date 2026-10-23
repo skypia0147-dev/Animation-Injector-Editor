@@ -23,6 +23,7 @@ import {
 } from './model.ts';
 import type {Row, Meta} from './model.ts';
 import {useMetadata} from './metadata.ts';
+import {rulerTicks} from './ruler.ts';
 import {t, useLanguage} from '../i18n/index.ts';
 import {useEditorMenu} from '../ContextMenu.tsx';
 import {tr} from '../i18n/korean.ts';
@@ -86,6 +87,17 @@ export function Timeline({
     [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   dragRef.current = drag;
+  // The ruler's width picks its step (ruler.ts); the lane is measured, not guessed.
+  const rulerRef = useRef<HTMLDivElement>(null),
+    [rulerWidth, setRulerWidth] = useState(0);
+  useEffect(() => {
+    const lane = rulerRef.current;
+    if (!lane) return;
+    const observer = new ResizeObserver(() => setRulerWidth(lane.clientWidth));
+    observer.observe(lane);
+    setRulerWidth(lane.clientWidth);
+    return () => observer.disconnect();
+  }, [!action]);
   const chosen = selectedStep ?? localChosen,
     cursor = playhead ?? localCursor,
     setCursor = (time: number) => (onScrub ? onScrub(time) : setLocalCursor(time));
@@ -335,6 +347,7 @@ export function Timeline({
       </div>
     );
   };
+  const ruler = rulerTicks(start, limit, rulerWidth);
   return (
     <div
       className="notify-timeline"
@@ -370,14 +383,15 @@ export function Timeline({
             ))}
           </select>
         )}
-        <span>
-          {t(meta ? 'timeline.actual' : 'timeline.estimated')}: {duration.toFixed(3)} s
+        {/* One line (docs/mockup-layout-audit ③): the short name, the whole one as the help. */}
+        <span title={`${t(meta ? 'timeline.actual' : 'timeline.estimated')}: ${duration.toFixed(3)} s`}>
+          {t(meta ? 'timeline.actualShort' : 'timeline.estimatedShort')} {duration.toFixed(2)} s
         </span>
         <button title={t('timeline.reload')} onClick={() => setRevision(v => v + 1)}>
           ↻
         </button>
         <button onClick={() => setZoom(1)}>100%</button>
-        <span>{cursor.toFixed(2)} s</span>
+        <span className="notify-cursor">{cursor.toFixed(2)} s</span>
       </div>
       <div className="notify-meta">
         {!externalMeta && state.loading ? t('timeline.reading') : externalMeta ? '' : (state.error ?? '')}
@@ -387,7 +401,7 @@ export function Timeline({
       ) : (
         <div
           className="notify-scroll"
-          style={{'--playhead': ((cursor - start) / limit) * 100 + '%'} as CSSProperties}
+          style={{'--playhead': ((cursor - start) / limit) * 100 + '%', '--tick': ruler.step + '%'} as CSSProperties}
           onWheel={e => {
             if (e.ctrlKey) {
               e.preventDefault();
@@ -398,6 +412,7 @@ export function Timeline({
           <div className="notify-row">
             <div className="notify-label">{t('timeline.trackLabel')}</div>
             <div
+              ref={rulerRef}
               className="notify-lane ruler"
               onPointerDown={e => {
                 if (e.button !== 0) return;
@@ -411,9 +426,9 @@ export function Timeline({
                 setCursor(scrubTime(e.clientX, r.left, r.width, start, limit, duration));
               }}
             >
-              {Array.from({length: 11}, (_, i) => (
-                <span key={i} style={{left: i * 10 + '%'}}>
-                  {(start + (limit * i) / 10).toFixed(2)}
+              {ruler.ticks.map(tick => (
+                <span key={tick.text} className={tick.end ? 'end' : undefined} style={{left: tick.left + '%'}}>
+                  {tick.text}
                 </span>
               ))}
             </div>

@@ -19,7 +19,7 @@ import {
 import type {LabelId} from '../../labels.ts';
 import {t} from '../../i18n/index.ts';
 import {Property as Prop} from './Property.tsx';
-import {DetailCategory as Category, DetailRow} from './DetailRow.tsx';
+import {DetailRow} from './DetailRow.tsx';
 import {tr} from '../../i18n/korean.ts';
 
 const advanced = ['delay'];
@@ -188,7 +188,8 @@ export function EffectDetails({
           </span>
         </p>
       )}
-      <Category title={t('row.advanced')}>{advanced.map(field)}</Category>
+      {/* 지연 is one field: a row like the others, not a folded 고급 (docs/mockup-layout-audit ⑪). */}
+      {advanced.map(field)}
     </>
   );
 }

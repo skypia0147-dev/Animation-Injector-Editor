@@ -245,8 +245,17 @@ select:focus-visible {
   color: var(--ue-strong);
   background: var(--ue-tab-on);
 }
+.ptab > span:not(.who),
+.ptab > button.tab,
+.ptab .close {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* Tab names stay whole; the action's name at the right end gives way (docs/mockup-layout-audit ⑧). */
 .ptab .who {
   margin-left: auto;
+  min-width: 0;
+  padding-left: 10px;
   align-self: center;
   color: var(--ue-dim);
   font-size: var(--fs-sm);
@@ -977,13 +986,26 @@ button.res:hover {
   background: #0070e022;
   pointer-events: none;
 }
+/* The rows fill the dialog in two columns, one when it is narrow (docs/mockup-layout-audit ⑥). */
 .shortcuts {
-  border-collapse: collapse;
+  display: block;
+  width: 100%;
   font-size: var(--fs-sm);
+}
+.shortcuts tbody {
+  display: block;
+  columns: 2 280px;
+  column-gap: 28px;
+}
+.shortcuts tr {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+  break-inside: avoid;
+  border-bottom: 1px solid var(--ue-line2);
 }
 .shortcuts td {
   padding: 6px 14px 6px 0;
-  border-bottom: 1px solid var(--ue-line2);
   color: var(--ue-text);
 }
 .shortcuts kbd {

@@ -10,8 +10,10 @@ import './viewport/viewport.css';
 import './ui/finish.css';
 import './ui/graphite.css';
 import {applyUiScale, storedUiScale} from './ui/uiScale.ts';
+import {installWheelGuard} from './ui/wheelGuard.ts';
 
 applyUiScale(storedUiScale(), false);
+installWheelGuard();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

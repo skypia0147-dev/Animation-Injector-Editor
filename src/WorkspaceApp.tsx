@@ -1810,7 +1810,13 @@ function Editor() {
                   </button>
                 )}
                 <span>{t('panel.viewport')}</span>
-                <span className="who">
+                <span
+                  className="who"
+                  title={
+                    (timelineAction?.config.name ?? t('timeline.selectState')) +
+                    (previewStep ? ' · ' + previewStep.label : '')
+                  }
+                >
                   {timelineAction?.config.name ?? t('timeline.selectState')}
                   {previewStep ? ' · ' + previewStep.label : ''}
                 </span>
@@ -1918,7 +1924,9 @@ function Editor() {
                     {tr('HKX 뷰어')}
                   </button>
                 )}
-                <span className="who">{timelineAction?.config.name ?? t('timeline.selectState')}</span>
+                <span className="who" title={timelineAction?.config.name ?? t('timeline.selectState')}>
+                  {timelineAction?.config.name ?? t('timeline.selectState')}
+                </span>
                 {closeButton('bottom')}
               </div>
               {bottomTab !== 'results' ? (

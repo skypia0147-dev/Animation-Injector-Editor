@@ -11,19 +11,34 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  flex-wrap: wrap;
   padding: 5px 9px;
   border-bottom: 1px solid #444;
+  white-space: nowrap;
+  min-width: 0;
+}
+/* The play time keeps the right end of the one tools line (docs/mockup-layout-audit ③). */
+.notify-cursor {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.notify-tools > span:not(.notify-cursor) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notify-tools {
+  overflow: hidden;
+}
+/* The menus and buttons keep their size; the 범위 words give way first (docs/mockup-self-check ③). */
+.notify-tools > select,
+.notify-tools > button {
+  flex: none;
 }
 .notify-tools select {
   width: auto;
   max-width: 220px;
-  min-height: 25px;
+  min-width: 0;
   font-size: var(--fs-sm);
-}
-.notify-tools button {
-  min-height: 25px;
-  padding: 2px 9px;
 }
 .notify-meta {
   font-size: var(--fs-xs);
@@ -51,7 +66,12 @@
   min-width: 0;
   position: relative;
   overflow: hidden;
-  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), #333 10%);
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(var(--tick, 10%) - 1px),
+    #333 var(--tick, 10%)
+  );
 }
 .notify-lane.ruler {
   cursor: crosshair;
@@ -60,9 +80,13 @@
   position: absolute;
   top: 8px;
   font-size: var(--fs-xs);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  padding-left: 3px;
 }
-.ruler > span:last-child {
+.ruler > span.end {
   transform: translateX(-100%);
+  padding: 0 3px 0 0;
 }
 .notify-item {
   position: absolute;

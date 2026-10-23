@@ -62,7 +62,7 @@
 }
 .shell .hkx-inspector input:not([type='checkbox']),
 .shell .hkx-inspector select {
-  min-height: 28px;
+  min-height: var(--control-h);
   max-width: 100%;
 }
 .shell .hkx-inspector .detail-advanced {

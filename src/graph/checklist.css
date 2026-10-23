@@ -12,27 +12,20 @@
   text-align: left;
   white-space: normal;
 }
+/* Fields, menus and buttons take the shared thin-outline look (ui/graphite.css); a card only sizes them. */
 .checklist-body button,
 .checklist-body input,
 .checklist-body select {
   font: inherit;
-  min-height: 28px;
   box-sizing: border-box;
 }
 .checklist-body button {
-  padding: 4px 7px;
-  border-radius: 5px;
   text-align: left;
 }
 .checklist-body select,
 .checklist-body input:not([type='checkbox']) {
   max-width: 100%;
   min-width: 0;
-  background: #202020;
-  border: 1px solid #555;
-  border-radius: 5px;
-  color: #eee;
-  padding: 4px 6px;
 }
 .checklist-body input[type='checkbox'] {
   min-height: 0;
@@ -54,6 +47,16 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
+}
+.checklist-head {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.checklist-head > .checklist-file {
+  display: contents;
 }
 .checklist-file select {
   flex: 1;
@@ -199,9 +202,39 @@
   margin: 4px 0;
   min-width: 0;
 }
-.checklist-fields .detail-row {
-  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
-  gap: 6px;
+.checklist-body {
+  /* Every row in a card starts its control at one place (docs/mockup-layout-audit ⑩⑪, docs/mockup-self-check ②): a
+     fixed label column, conditions and QTEs included. */
+  --row-label: 72px;
+}
+.shell .checklist-body .detail-row {
+  grid-template-columns: var(--row-label) minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 0;
+  min-height: 0;
+  border: 0;
+}
+.shell .checklist-body .detail-row .detail-name {
+  line-height: 18px;
+}
+/* A checkbox row puts the box and its name in the control column: no long name squeezed into the label one. */
+.checklist-body .detail-row.is-check > .detail-label-help,
+.checklist-body .detail-row.is-check > .detail-value {
+  grid-column: 2;
+  grid-row: 1;
+}
+.checklist-body .detail-row.is-check > .detail-label-help {
+  padding-left: 22px;
+}
+.checklist-body .detail-row.is-check .detail-name {
+  cursor: pointer;
+}
+.checklist-body .detail-row.is-check > .detail-value {
+  justify-self: start;
+}
+/* A row named as its item (이름 · 이름) keeps its column but not the second name. */
+.checklist-body .detail-row.repeats-title .detail-name {
+  visibility: hidden;
 }
 .checklist-fields .detail-category-title {
   white-space: normal;
@@ -212,9 +245,28 @@
 }
 .checklist-row-actions {
   display: flex;
+  justify-content: flex-end;
+  align-items: center;
   gap: 5px;
   flex-wrap: wrap;
   margin-top: 8px;
+}
+.checklist-row-actions:empty {
+  display: none;
+}
+.checklist-row-actions > .moment-note {
+  flex: 1;
+}
+/* An item's own actions (복제, 삭제) stay quiet until pointed at (docs/mockup-control-style A). */
+.shell .checklist-row-actions > button,
+.shell .moment-footer > button:not(.moment-link) {
+  border-color: transparent;
+  color: var(--ue-dim);
+}
+.shell .checklist-row-actions > button:hover:not(:disabled),
+.shell .moment-footer > button:not(.moment-link):hover:not(:disabled) {
+  border-color: var(--control-line);
+  color: var(--ue-strong);
 }
 .checklist-row-actions select {
   flex: 1;
@@ -272,14 +324,14 @@
   line-height: 16px;
 }
 .graph-workspace .p3-node .checklist-body button {
-  min-height: 26px;
-  padding: 3px 6px;
+  min-height: var(--control-h);
+  padding: 0 8px;
 }
 .graph-workspace .p3-node .checklist-body input:not([type='checkbox']),
 .graph-workspace .p3-node .checklist-body select {
-  min-height: 28px;
-  height: 28px;
-  padding: 3px 6px;
+  min-height: var(--control-h);
+  height: var(--control-h);
+  padding: 0 8px;
 }
 .graph-workspace .p3-node .checklist-row-heading > button {
   min-height: 28px;
@@ -341,7 +393,7 @@
   height: auto;
   min-height: 30px;
 }
-.checklist-inspector .checklist-fields .detail-row {
+.checklist-inspector .checklist-body .detail-row {
   grid-template-columns: minmax(70px, 1fr) minmax(0, 1.5fr);
 }
 .checklist-section-title > button:first-child {
@@ -469,8 +521,8 @@
 }
 .moment-line {
   display: grid;
-  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
-  gap: 6px;
+  grid-template-columns: var(--row-label, 72px) minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
 }
 .moment-label {
@@ -506,7 +558,9 @@
   border-radius: 0;
   background: transparent;
   color: #b8b8b8;
-  padding: 3px 10px;
+  padding: 0 10px;
+  min-height: calc(var(--control-h) - 2px);
+  height: calc(var(--control-h) - 2px);
   font-size: var(--fs-xs);
 }
 .shell .moment-seg button + button {
@@ -522,12 +576,12 @@
 /* The one-line clip bar (docs/mockup-clip-bar): label, the clip with annotation ticks, the value as text. */
 .clip-bar {
   display: grid;
-  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr) auto;
-  gap: 8px;
+  grid-template-columns: var(--row-label, 72px) minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
 }
 .clip-bar.no-track {
-  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1.3fr);
+  grid-template-columns: var(--row-label, 72px) minmax(0, 1fr);
 }
 .clip-bar-track {
   position: relative;
@@ -744,4 +798,26 @@
   padding: 0 6px;
   font-size: var(--fs-xs);
   white-space: nowrap;
+}
+
+/* Which starts judge a condition card, from the lines (docs/mockup-free-conditions): or a warning that none does. */
+.condition-binding {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0 0 6px;
+  padding: 0 7px;
+  border: 1px solid #5d4f73;
+  border-radius: 9px;
+  background: #2a2433;
+  color: #cdb9ef;
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.condition-binding.loose {
+  border-color: #6a5a38;
+  background: #2e2818;
+  color: #f0c98a;
 }

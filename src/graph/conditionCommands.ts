@@ -1,6 +1,7 @@
 import type {Workspace} from '../workspace.ts';
 import type {BranchTarget} from './conditions.ts';
 import {tr} from '../i18n/korean.ts';
+import {isLoose, judgementRoot} from './conditionBinding.ts';
 import {addFanBranch, applyFans, dropFan, fanOf, fanOfBranch, setFanFail} from './conditionFans.ts';
 
 /** `mode` 'add': a line drawn from a pass that already leads to a condition, onto another condition, fans out
@@ -33,7 +34,14 @@ export function setBranchTarget(
     }
   } else if (target) {
     const destination = w.actions.find(a => a.uid === target.action);
-    if (!destination || (!action.pair && destination.pair) || (destination.flow && destination.uid !== owner))
+    // A loose condition is no action's yet (docs/mockup-free-conditions ⑥): pair or not is checked once a start
+    // reaches it. A destination with a judgement of its own is written split (graph/conditions.ts
+    // splitSelfJudgements); one that only selects has no HKX to play.
+    if (
+      !destination ||
+      (!action.pair && destination.pair && !isLoose(w, owner, key)) ||
+      (destination.uid !== owner && judgementRoot(w, destination) && !destination.config.steps.some(s => s.clip))
+    )
       throw Error(tr('다른 분기가 없는 HKX로 연결하세요. 페어 목적지는 페어 분기에서 선택합니다.'));
   }
   const current = flow.tests.find(t => t.id === key)![port];
@@ -96,10 +104,21 @@ export function deleteCondition(w: Workspace, owner: string, key: string): Works
       if (target && 'node' in target && target.node === key) delete test[port];
     }
   }
-  if (!action.flow!.tests.length) delete action.flow;
-  else {
-    if (action.flow!.entry === key) action.flow!.entry = '';
-    applyFans(action.flow!);
+  // The first condition gone: the start goes nowhere and what followed it is loose (docs/mockup-free-conditions
+  // ⑥). A start that followed this condition from another action goes nowhere too.
+  const first = action.flow!.entry === key;
+  if (first) {
+    action.flow!.entry = '';
+    action.flow!.unlinked = true;
+    delete action.flow!.detached;
   }
+  for (const other of next.actions)
+    if (other.flow?.follow?.owner === owner && other.flow.follow.test === key) {
+      delete other.flow.follow;
+      other.flow.entry = '';
+      other.flow.unlinked = true;
+    }
+  if (!action.flow!.tests.length && !first) delete action.flow;
+  else applyFans(action.flow!);
   return next;
 }

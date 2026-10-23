@@ -11,8 +11,24 @@ import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 import type {Workspace} from '../workspace.ts';
 import {node} from '../xml.ts';
 import {tr} from '../i18n/korean.ts';
+import {reachTests} from './conditionBinding.ts';
 export type BranchTarget = {node: string} | {action: string};
-export type SpaceDirection = 'partnerForward' | 'partnerBack' | 'partnerRight' | 'partnerLeft';
+/** Room and ground checks turn from the actor's own heading on its start mark (self*, runtime 0.12.280); partner* is
+ *  the older form, still read and written as it was until changed (docs/mockup-space-sentence). */
+export type SpaceDirection =
+  | 'selfForward'
+  | 'selfBack'
+  | 'selfRight'
+  | 'selfLeft'
+  | 'partnerForward'
+  | 'partnerBack'
+  | 'partnerRight'
+  | 'partnerLeft';
+export const selfDirections = ['selfForward', 'selfBack', 'selfLeft', 'selfRight'] as const;
+/** An older room check: measured at the partner's spot or turned from the partner's heading. */
+export const olderSpaceCheck = (t: Pick<BranchTest, 'kind' | 'subject' | 'space'>) =>
+  (t.kind === 'space' || t.kind === 'ground') &&
+  (t.subject === 'partner' || !!t.space?.direction.startsWith('partner'));
 export type BranchTest = {
   id: string;
   label?: string;
@@ -65,6 +81,12 @@ export type BranchFlow = {
   /** The flow is its action's whole job (graph/flat.ts splitCondition): it has no HKX of its own and only selects,
    *  even before any route leads anywhere. */
   selects?: true;
+  /** The action's own start goes nowhere: its line into a condition was cut or that condition deleted
+   *  (graph/conditionBinding.ts). Its tests stay, loose. Written without a start. */
+  unlinked?: true;
+  /** The action's start judges another action's condition and what follows it (two starts, one judgement):
+   *  written as a copy of that part of the other flow. */
+  follow?: {owner: string; test: string};
 };
 // NOT is an editor property; the runtime still evaluates its three-valued Not node.
 export function foldNotConditions(w: Workspace): Workspace {
@@ -107,14 +129,154 @@ export function foldNotConditions(w: Workspace): Workspace {
   return w;
 }
 export const branchId = (owner: string, id: string) => `flow:${owner}:${id}`;
+/** Where a space or ground check measures (docs/mockup-free-conditions ⑤): the pair its pass leads to, not a
+ *  field. Following passes first; then any route from its pass; '' when no pair is reached. */
+export function spaceCandidate(w: Workspace, f: BranchFlow, t: BranchTest): string {
+  const pair = (uid: string) => {
+    const a = w.actions.find(a => a.uid === uid);
+    return !!a?.pair && a.config.kind === 'single';
+  };
+  const seen = new Set<string>();
+  for (let e = t.pass; e;) {
+    if ('action' in e) {
+      if (pair(e.action)) return e.action;
+      break;
+    }
+    if (seen.has(e.node)) break;
+    seen.add(e.node);
+    e = f.tests.find(x => x.id === (e as {node: string}).node)?.pass;
+  }
+  const queue = [t.pass],
+    visited = new Set<string>();
+  while (queue.length) {
+    const e = queue.shift();
+    if (!e) continue;
+    if ('action' in e) {
+      if (pair(e.action)) return e.action;
+      continue;
+    }
+    if (visited.has(e.node)) continue;
+    visited.add(e.node);
+    const n = f.tests.find(x => x.id === e.node);
+    if (n) queue.push(n.pass, n.fail);
+  }
+  return '';
+}
+function resolveSpaceCandidates<A extends {flow?: BranchFlow}>(w: Workspace, a: A): A {
+  const f = a.flow!;
+  return {
+    ...a,
+    flow: {
+      ...f,
+      tests: f.tests.map(t =>
+        t.kind === 'space' || t.kind === 'ground'
+          ? {
+              ...t,
+              space: {
+                distance: 200,
+                direction: 'selfForward' as const,
+                ...t.space,
+                candidate: spaceCandidate(w, f, t),
+              },
+            }
+          : t
+      ),
+    },
+  };
+}
+/** An action with its own judgement (a start, conditions and its HKX) that another judgement also plays: the
+ *  runtime plays no action that has a Flow, so its start and conditions are written as a selecting action of their
+ *  own (no clip, `<id>_Select`) and the action keeps its HKX alone. Two starts sharing a condition that plays the
+ *  first start's own action come here through their copies (docs/mockup-free-conditions ④). Transitions into the
+ *  action go to the selecting one, so they are still judged. */
+function splitSelfJudgements(w: Workspace): Workspace {
+  const played = new Set<string>();
+  for (const a of w.actions)
+    for (const t of a.flow?.tests ?? [])
+      for (const e of [t.pass, t.fail]) if (e && 'action' in e && e.action !== a.uid) played.add(e.action);
+  const targets = w.actions.filter(
+    a => played.has(a.uid) && a.flow?.tests.some(t => t.id === a.flow!.entry) && a.config.steps.some(s => s.clip)
+  );
+  if (!targets.length) return w;
+  const ids = new Set(w.actions.map(a => a.config.actionId.toLowerCase())),
+    uids = new Set(w.actions.map(a => a.uid)),
+    selects = new Map<string, string>(),
+    made: Workspace['actions'] = [];
+  for (const a of targets) {
+    let id = a.config.actionId + '_Select',
+      i = 2;
+    while (ids.has(id.toLowerCase())) id = `${a.config.actionId}_Select${i++}`;
+    ids.add(id.toLowerCase());
+    let uid = a.uid + '_select';
+    while (uids.has(uid)) uid += '_';
+    uids.add(uid);
+    selects.set(a.uid, uid);
+    const s = structuredClone(a);
+    s.uid = uid;
+    s.config.actionId = id;
+    s.config.name = id;
+    s.config.steps = s.config.steps.map(x => ({...x, clip: ''}));
+    s.flow = {...s.flow!, selects: true};
+    s.cancels = [];
+    made.push(s);
+  }
+  const actions = w.actions.map(a => {
+    if (!selects.has(a.uid)) return a;
+    const {flow, ...rest} = a,
+      config = {...a.config, start: {...a.config.start, mode: 'none' as const}};
+    delete config.suppress;
+    return {...rest, config};
+  });
+  // Each selecting action goes right after its action, so the file reads as before.
+  const ordered = actions.flatMap(a => (selects.has(a.uid) ? [a, made.find(m => m.uid === selects.get(a.uid))!] : [a]));
+  return {
+    ...w,
+    actions: ordered,
+    links: w.links.map(l => (selects.has(l.to) ? {...l, to: selects.get(l.to)!} : l)),
+  };
+}
+/** Two starts, one judgement: a following flow is written as its own copy of the part it follows. A follow whose
+ *  condition is gone leaves the start going nowhere. */
+function lowerFollows(w: Workspace): Workspace {
+  if (!w.actions.some(a => a.flow?.follow)) return w;
+  return {
+    ...w,
+    actions: w.actions.map(a => {
+      const follow = a.flow?.follow;
+      if (!follow) return a;
+      const f = w.actions.find(x => x.uid === follow.owner)?.flow;
+      if (!f?.tests.some(t => t.id === follow.test)) return {...a, flow: {entry: '', tests: [], unlinked: true}};
+      const part = reachTests(f, [follow.test]),
+        fans = f.fans?.filter(x => part.has(x.parent));
+      return {
+        ...a,
+        flow: {
+          entry: follow.test,
+          tests: structuredClone(f.tests.filter(t => part.has(t.id))),
+          ...(fans?.length ? {fans: structuredClone(fans)} : {}),
+          ...(a.flow!.selects ? {selects: true as const} : {}),
+        },
+      };
+    }),
+  };
+}
 // Detached authoring nodes stay in the project but never become runtime conditions.
 // A missing entry on a previously connected flow remains a compilation error.
-export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: string[]} {
+export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: string[]; idle: string[]} {
+  w = lowerFollows(w);
   w = {...w, actions: w.actions.map(a => (a.flow ? {...a, flow: activeConditionFlow(a.flow)} : a))};
-  const omitted: string[] = [];
-  const actions = w.actions.map(a => {
+  const omitted: string[] = [],
+    idle: string[] = [];
+  const actions: Workspace['actions'] = w.actions.map(a => {
     const f = a.flow;
     if (!f) return a;
+    // A start that goes nowhere (its line cut, its first condition deleted): written without it, its tests loose.
+    if (f.unlinked || (!f.entry && f.detached !== true)) {
+      omitted.push(...f.tests.map(t => branchId(a.uid, t.id)));
+      if (a.config.start.mode !== 'none') idle.push(a.uid);
+      const {flow, ...rest} = a;
+      return {...rest, config: {...a.config, start: {...a.config.start, mode: 'none' as const}}};
+    }
     if (!f.entry && f.detached === true) {
       omitted.push(...f.tests.map(t => branchId(a.uid, t.id)));
       const {flow, ...rest} = a;
@@ -137,7 +299,24 @@ export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: s
     omitted.push(...f.tests.filter(t => !reachable.has(t.id)).map(t => branchId(a.uid, t.id)));
     return {...a, flow: {...f, tests}};
   });
-  return {workspace: omitted.length ? {...w, actions} : w, omitted};
+  // A selecting action whose start goes nowhere has nothing left to write (no HKX of its own): it leaves the XML
+  // unless something still plays it.
+  const used = new Set(
+    actions.flatMap(a =>
+      (a.flow?.tests ?? []).flatMap(t => [t.pass, t.fail].flatMap(e => (e && 'action' in e ? [e.action] : [])))
+    )
+  );
+  for (const l of w.links) used.add(l.to);
+  const split = splitSelfJudgements({
+    ...w,
+    actions: actions.filter(
+      a => !(idle.includes(a.uid) && !a.flow && !a.config.steps.some(s => s.clip) && !used.has(a.uid))
+    ),
+  });
+  const kept = split.actions.map(a =>
+    a.flow?.tests.some(t => t.kind === 'space' || t.kind === 'ground') ? resolveSpaceCandidates(split, a) : a
+  );
+  return {workspace: {...split, actions: kept}, omitted, idle};
 }
 export function checkFlows(w: Workspace): string[] {
   const errors: string[] = [];
@@ -236,15 +415,16 @@ export function checkFlows(w: Workspace): string[] {
         if (t.kind === 'space' || t.kind === 'ground') {
           const s = t.space,
             candidate = w.actions.find(x => x.uid === s?.candidate);
-          if (!a.pair || !candidate?.pair || candidate.config.kind !== 'single')
-            errors.push(tr('공간 검사는 페어 분기에서 검사할 페어 HKX를 지정하세요.'));
+          if (!candidate?.pair || candidate.config.kind !== 'single')
+            errors.push(tr('공간 확보: 통과 쪽에 페어가 없어 잴 자리가 없습니다. 통과를 페어로 이으세요.'));
+          else if (!a.pair) errors.push(tr('공간 확보는 페어를 고르는 조건에서만 쓸 수 있습니다.'));
           if (
             !s ||
             !Number.isFinite(s.distance) ||
             s.distance < 0 ||
             (s.distance === 0 && t.kind === 'space') ||
             s.distance > 2000 ||
-            !['partnerForward', 'partnerBack', 'partnerRight', 'partnerLeft'].includes(s.direction)
+            ![...selfDirections, 'partnerForward', 'partnerBack', 'partnerRight', 'partnerLeft'].includes(s.direction)
           )
             errors.push(tr('검사 방향과 거리(지면 0 이상, 공간 0 초과, 최대 2000)를 확인하세요.'));
           if (t.kind === 'ground' && t.ground) {

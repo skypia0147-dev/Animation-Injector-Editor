@@ -1671,6 +1671,16 @@ function FlatGraphPanel({
           <div className="graph-workspace">
             <div className="flat-toolbar">
               <b>{tr('통합 그래프')}</b>
+              {/* One line (docs/mockup-layout-audit ⑤): the add button first, 주변 맞춤 as its icon, the flow and
+                  card count last, cut by what is left. */}
+              <HelpTip
+                label={tr('그래프 편집')}
+                help={tr(
+                  'HKX를 놓고 입력으로 연결하세요. 재생 카드끼리 연결하면 전환이 됩니다. 빈 곳을 우클릭하면 카드를 추가할 수 있습니다.'
+                )}
+              >
+                <button onClick={addPlay}>{tr('＋ HKX 재생')}</button>
+              </HelpTip>
               {selectedEdge && (
                 <button
                   onClick={() => removeEdge(selectedEdge)}
@@ -1682,10 +1692,10 @@ function FlatGraphPanel({
               <button
                 disabled={!selectedNode}
                 onClick={() => fitNeighbors(visibleSelected)}
-                title={tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
+                aria-label={tr('주변 맞춤')}
+                title={tr('주변 맞춤') + ' · ' + tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
               >
                 <Icon name="fit" />
-                {tr('주변 맞춤')}
               </button>
               <button
                 disabled={!focusAction && !selectedNode?.action}
@@ -1734,23 +1744,15 @@ function FlatGraphPanel({
                   ))}
                 </select>
               )}
-              {focusAction && (
-                <span>
-                  {tr('흐름:')} {w.actions.find(a => a.uid === focusAction)?.config.name}
-                </span>
-              )}
-              <span>
+              <span className="flat-toolbar-info">
+                {focusAction && (
+                  <>
+                    {tr('흐름:')} {w.actions.find(a => a.uid === focusAction)?.config.name} ·{' '}
+                  </>
+                )}
                 {bare ? 0 : projection.nodes.length} {tr('카드')}
               </span>
               <UnassignedSettings />
-              <HelpTip
-                label={tr('그래프 편집')}
-                help={tr(
-                  'HKX를 놓고 입력으로 연결하세요. 재생 카드끼리 연결하면 전환이 됩니다. 빈 곳을 우클릭하면 카드를 추가할 수 있습니다.'
-                )}
-              >
-                <button onClick={addPlay}>{tr('＋ HKX 재생')}</button>
-              </HelpTip>
             </div>
             <div
               ref={region}

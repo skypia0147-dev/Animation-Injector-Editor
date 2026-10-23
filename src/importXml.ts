@@ -618,8 +618,17 @@ export function importWorkspaceXml(text: string): Workspace {
                     direction: choice(
                       n,
                       'direction',
-                      ['partnerForward', 'partnerBack', 'partnerRight', 'partnerLeft'],
-                      'partnerForward'
+                      [
+                        'selfForward',
+                        'selfBack',
+                        'selfRight',
+                        'selfLeft',
+                        'partnerForward',
+                        'partnerBack',
+                        'partnerRight',
+                        'partnerLeft',
+                      ],
+                      'selfForward'
                     ),
                   },
                 }

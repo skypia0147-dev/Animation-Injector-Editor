@@ -163,7 +163,11 @@ test(
     }
     for (const field of ['flow', 'start', 'release']) {
       const w = importWorkspaceXml(carryXml());
-      if (field === 'flow') w.actions[1].flow = {entry: '', tests: []};
+      if (field === 'flow')
+        w.actions[1].flow = {
+          entry: 'C',
+          tests: [{id: 'C', kind: 'air', subject: 'self', minimum: 0, pass: {action: w.actions[1].uid}}],
+        };
       if (field === 'start') {
         w.actions[1].config.start.mode = 'input';
         w.actions[1].config.start.input = 'use';
