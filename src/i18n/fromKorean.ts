@@ -2752,11 +2752,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'アタッチボーンに固定する対象のボーン（ラグドールボディ）名です。空欄にすると持ち上げ終了時にアタッチボーンに最も近いボディを選択します。例: ニワトリは Neck2（首を掴む）。',
       '附着到附着骨骼上的目标骨骼（布娃娃刚体）名称。留空则在抬起结束时选择距离附着骨骼最近的刚体。例如：鸡使用 Neck2（抓颈部）。',
     ],
-  '분기 블렌드는 서로 다른 단일 일반 동작 사이에서 사용하세요.': [
-    'Use branch blend between different single ordinary actions.',
-    '分岐ブレンドは異なる単一一般アクション間で使用してください。',
-    '分支混合请在不同的单一普通动作之间使用。',
-  ],
   '분기 진입 공통': ['Branch entry shared', '分岐エントリ共通', '分支入口共享'],
   붙여넣기: ['Paste', '貼り付け', '粘贴'],
   "붙여넣었습니다. 공통 설정 {unassigned}개는 '미배정 설정'에서 적용할 HKX를 선택하세요.": [
@@ -2856,6 +2851,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Partner (victim) action can only be specified for transitions exiting a pair.',
     '相手（被害者）アクションはペアから出る遷移にのみ指定できます。',
     '搭档（受害者）动作仅可在退出配对的过渡中指定。',
+  ],
+  '상대(피해자) 동작이 있는 전환은 페어에서 나가는 HKX만 이어받을 수 있습니다.': [
+    'A transition with a partner (victim) action can only be taken over by an HKX leaving a pair.',
+    '相手(被害者)動作がある遷移は、ペアから出るHKXだけが引き継げます。',
+    '带有对方(受害者)动作的转换只能由离开配对的 HKX 继承。',
   ],
   '상대는 현재 페어 상대 또는 실행 요청에서 확정한 대상입니다. 페어 시작 전에는 연결된 재생 후보의 대상 범위에서 선택하고, 일반 동작은 전투 대상을 사용합니다. 상대가 없으면 검사 불능으로 실패 경로를 따릅니다.':
     [
@@ -3255,6 +3255,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '没有从开始（事件·按键）连来的线，因此不会判定。不写入 XML。',
   ],
   '시작과 연결 안 됨': ['Not linked to a start', '開始と未接続', '未连接到开始'],
+  '시작도 이어진 조건도 없는 고르기 동작입니다. XML에는 쓰지 않습니다.': [
+    'A selecting action with no start and no linked condition. It is not written to the XML.',
+    '開始もつながった条件もない選択動作です。XML には書きません。',
+    '既没有开始也没有连接条件的选择动作。不会写入 XML。',
+  ],
   '시작에서 참조하는 입력은 삭제할 수 없습니다.': [
     'Inputs referenced by start cannot be deleted.',
     '開始で参照されている入力は削除できません。',
@@ -4522,6 +4527,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '遷移キーの出力を遷移先の別の HKX に接続してください。',
     '请将过渡键的输出连接到目标 HKX。',
   ],
+  '전환이 들어오는 고르기 동작에 이어진 조건이 없습니다. 시작 카드에서 조건 분기로 선을 이으세요.': [
+    'A transition enters this selecting action, but no condition is connected to it. Draw a line from its start card to a condition branch.',
+    '遷移が入る選択動作に、つながった条件がありません。開始カードから条件分岐へ線をつないでください。',
+    '有转换进入此选择动作,但没有连接任何条件。请从开始卡片向条件分支连线。',
+  ],
   '절대 경로가 필요합니다.': ['Absolute path is required.', '絶対パスが必要です。', '需要绝对路径。'],
   '접근 시간 (초)': ['Approach time (s)', '接近時間 (秒)', '接近时间 (秒)'],
   접기: ['Collapse', '折りたたむ', '折叠'],
@@ -4608,6 +4618,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '조건 분기 추가': ['Add condition branch', '条件分岐を追加', '添加条件分支'],
   '조건 분기 펼치기': ['Expand condition branch', '条件分岐を展開', '展开条件分支'],
   '조건 분기 형식 오류': ['Invalid condition branch format', '条件分岐形式エラー', '条件分支格式错误'],
+  '조건 분기를 거치는 전환에는 블렌드를 둘 수 없습니다(런타임 미지원). 전환의 블렌드를 지우거나 조건을 떼어 내세요.': [
+    "A transition that goes through a condition branch cannot have a blend of its own (not supported by the runtime). Remove the transition's blend or detach the condition.",
+    '条件分岐を通る遷移にはブレンドを置けません(ランタイム未対応)。遷移のブレンドを削除するか、条件を切り離してください。',
+    '经过条件分支的转换不能带有自己的混合(运行时不支持)。请删除该转换的混合或断开条件。',
+  ],
   '조건 분기를 선택하세요.': ['Select a condition branch.', '条件分岐を選択してください。', '请选择条件分支。'],
   '조건 분기를 순환 연결할 수 없습니다.': [
     'Cannot cyclically connect condition branches.',

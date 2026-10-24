@@ -29,7 +29,9 @@ export function applyFans(f: BranchFlow) {
   const test = (id: string) => f.tests.find(t => t.id === id);
   for (const fan of f.fans) {
     fan.branches = fan.branches.filter((id, i, all) => test(id) && all.indexOf(id) === i && id !== fan.parent);
-    for (const id of Object.keys(fan.fails)) if (!fan.branches.includes(id)) delete fan.fails[id];
+    // A fail kept for a branch that left, or into a condition that is gone (deleted, moved to another flow).
+    for (const [id, to] of Object.entries(fan.fails))
+      if (!fan.branches.includes(id) || ('node' in to && !test(to.node))) delete fan.fails[id];
   }
   const kept: ConditionFan[] = [];
   for (const fan of f.fans) {
@@ -55,8 +57,10 @@ export function applyFans(f: BranchFlow) {
 }
 /** The chain rewritten after a change: refused when a fail now loops back (the runtime rejects the whole flow,
  *  ConditionFlow.h kCycle), e.g. ③ moved before ① while ①'s fail goes to ③. */
-function settle(f: BranchFlow) {
+function settle(f: BranchFlow, cut = false) {
   applyFans(f);
+  // A cut is never refused (free editing): a loop it leaves is reported by validation (checkFlows) until mended.
+  if (cut) return;
   const state = new Map<string, number>();
   const visit = (id: string): boolean => {
     if (state.get(id) === 2) return true;
@@ -119,7 +123,7 @@ export function removeFanBranch(w: Workspace, owner: string, parent: string, bra
   if (t) setFail(t, fan.fails[branch]);
   fan.branches = fan.branches.filter(id => id !== branch);
   delete fan.fails[branch];
-  settle(f);
+  settle(f, true);
   return n;
 }
 
@@ -142,7 +146,7 @@ export function setFanFail(f: BranchFlow, branch: string, target?: BranchTarget)
   if (!found) return false;
   if (target) found.fan.fails[branch] = {...target};
   else delete found.fan.fails[branch];
-  settle(f);
+  settle(f, !target);
   return true;
 }
 

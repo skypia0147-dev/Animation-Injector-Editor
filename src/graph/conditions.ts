@@ -194,9 +194,9 @@ function splitSelfJudgements(w: Workspace): Workspace {
   for (const a of w.actions)
     for (const t of a.flow?.tests ?? [])
       for (const e of [t.pass, t.fail]) if (e && 'action' in e && e.action !== a.uid) played.add(e.action);
-  const targets = w.actions.filter(
-    a => played.has(a.uid) && a.flow?.tests.some(t => t.id === a.flow!.entry) && a.config.steps.some(s => s.clip)
-  );
+  // An HKX of its own: its file, or not marked as selecting (a new card whose file is still to be chosen).
+  const own = (a: Workspace['actions'][number]) => a.config.steps.some(s => s.clip) || !a.flow!.selects;
+  const targets = w.actions.filter(a => played.has(a.uid) && a.flow?.tests.some(t => t.id === a.flow!.entry) && own(a));
   if (!targets.length) return w;
   const ids = new Set(w.actions.map(a => a.config.actionId.toLowerCase())),
     uids = new Set(w.actions.map(a => a.uid)),
@@ -233,6 +233,15 @@ function splitSelfJudgements(w: Workspace): Workspace {
     ...w,
     actions: ordered,
     links: w.links.map(l => (selects.has(l.to) ? {...l, to: selects.get(l.to)!} : l)),
+    // A transition's own blend goes with it to the selecting action (validation then says it cannot hold one).
+    ...(w.blends
+      ? {
+          blends: w.blends.map(b => {
+            const link = w.links.find(l => selects.has(l.to) && b.source.startsWith(`link:${l.id}|`));
+            return link ? {...b, target: selects.get(link.to)!} : b;
+          }),
+        }
+      : {}),
   };
 }
 /** Two starts, one judgement: a following flow is written as its own copy of the part it follows. A follow whose
@@ -262,11 +271,18 @@ function lowerFollows(w: Workspace): Workspace {
 }
 // Detached authoring nodes stay in the project but never become runtime conditions.
 // A missing entry on a previously connected flow remains a compilation error.
-export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: string[]; idle: string[]} {
+export function lowerFlowDrafts(w: Workspace): {
+  workspace: Workspace;
+  omitted: string[];
+  idle: string[];
+  dropped: string[];
+  stranded: string[];
+} {
   w = lowerFollows(w);
   w = {...w, actions: w.actions.map(a => (a.flow ? {...a, flow: activeConditionFlow(a.flow)} : a))};
   const omitted: string[] = [],
-    idle: string[] = [];
+    idle: string[] = [],
+    nowhere: string[] = [];
   const actions: Workspace['actions'] = w.actions.map(a => {
     const f = a.flow;
     if (!f) return a;
@@ -274,6 +290,8 @@ export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: s
     if (f.unlinked || (!f.entry && f.detached !== true)) {
       omitted.push(...f.tests.map(t => branchId(a.uid, t.id)));
       if (a.config.start.mode !== 'none') idle.push(a.uid);
+      // A selecting one has nothing left (an HKX card, its file chosen or not, still plays it).
+      if (f.selects) nowhere.push(a.uid);
       const {flow, ...rest} = a;
       return {...rest, config: {...a.config, start: {...a.config.start, mode: 'none' as const}}};
     }
@@ -300,23 +318,29 @@ export function lowerFlowDrafts(w: Workspace): {workspace: Workspace; omitted: s
     return {...a, flow: {...f, tests}};
   });
   // A selecting action whose start goes nowhere has nothing left to write (no HKX of its own): it leaves the XML
-  // unless something still plays it.
+  // unless something still plays it, its start card kept or deleted (10-24: deleting it left an empty action that
+  // asked for an HKX).
   const used = new Set(
     actions.flatMap(a =>
       (a.flow?.tests ?? []).flatMap(t => [t.pass, t.fail].flatMap(e => (e && 'action' in e ? [e.action] : [])))
     )
   );
-  for (const l of w.links) used.add(l.to);
-  const split = splitSelfJudgements({
-    ...w,
-    actions: actions.filter(
-      a => !(idle.includes(a.uid) && !a.flow && !a.config.steps.some(s => s.clip) && !used.has(a.uid))
-    ),
-  });
+  for (const l of w.links) {
+    used.add(l.to);
+    used.add(l.from);
+  }
+  const empty = (a: Workspace['actions'][number]) =>
+    nowhere.includes(a.uid) && !a.flow && !a.config.steps.some(s => s.clip) && !used.has(a.uid);
+  const dropped = actions.filter(a => empty(a) && !idle.includes(a.uid)).map(a => a.uid);
+  // One a transition still plays has no condition to pick with: the user's to reconnect, not an HKX to fill.
+  const stranded = actions
+    .filter(a => nowhere.includes(a.uid) && !a.flow && !a.config.steps.some(s => s.clip) && used.has(a.uid))
+    .map(a => a.uid);
+  const split = splitSelfJudgements({...w, actions: actions.filter(a => !empty(a))});
   const kept = split.actions.map(a =>
     a.flow?.tests.some(t => t.kind === 'space' || t.kind === 'ground') ? resolveSpaceCandidates(split, a) : a
   );
-  return {workspace: {...split, actions: kept}, omitted, idle};
+  return {workspace: {...split, actions: kept}, omitted, idle, dropped, stranded};
 }
 export function checkFlows(w: Workspace): string[] {
   const errors: string[] = [];
@@ -458,18 +482,7 @@ export function checkFlows(w: Workspace): string[] {
         done.add(id);
       };
       for (const t of f.tests) visit(t.id);
-      for (const l of w.links.filter(l => l.to === a.uid && l.blend !== undefined)) {
-        const source = w.actions.find(x => x.uid === l.from);
-        if (
-          source?.pair ||
-          f.tests.some(t =>
-            [t.pass, t.fail].some(
-              e => e && 'action' in e && (e.action === l.from || w.actions.find(x => x.uid === e.action)?.pair)
-            )
-          )
-        )
-          errors.push(tr('분기 블렌드는 서로 다른 단일 일반 동작 사이에서 사용하세요.'));
-      }
+      // A transition's own blend into a flow is refused in workspace.ts (the runtime has none).
     }
   return [...new Set(errors)];
 }

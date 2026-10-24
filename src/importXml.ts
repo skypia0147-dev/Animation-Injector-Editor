@@ -653,6 +653,9 @@ export function importWorkspaceXml(text: string): Workspace {
             fail: target(n.attrs.fail),
           })),
       };
+      // Written without a clip, it selects (workspace.ts selectsOnly): it stays so when edits leave its flow
+      // with no destination for a while, rather than turning into an HKX card asking for its file.
+      if (!a.config.steps.some(s => s.clip)) a.flow.selects = true;
     }
     const keys = connectKeys.get(a.uid)!;
     for (const [index, n] of source

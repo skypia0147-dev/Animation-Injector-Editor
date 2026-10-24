@@ -244,7 +244,11 @@ export function compactGraph(w: Workspace, graph: {nodes: FlatNode[]; edges: Gra
   for (const e of graph.edges) {
     const sourceAction = actionById.get(e.source),
       targetAction = actionById.get(e.target);
-    if (sourceAction?.flow && e.target === `flow:${sourceAction.uid}:${sourceAction.flow.entry}`) continue;
+    // An action's own wire into its judgement (its first condition, or the one its start follows) is no line.
+    const judged = sourceAction?.flow?.follow
+      ? `flow:${sourceAction.flow.follow.owner}:${sourceAction.flow.follow.test}`
+      : sourceAction?.flow && `flow:${sourceAction.uid}:${sourceAction.flow.entry}`;
+    if (judged && e.target === judged) continue;
     const source = resolve(e.source),
       target = targetAction?.flow?.tests.some(t => t.id === targetAction.flow!.entry)
         ? `flow:${targetAction.uid}:${targetAction.flow.entry}`

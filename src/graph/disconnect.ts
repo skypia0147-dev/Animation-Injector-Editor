@@ -140,6 +140,8 @@ export function visibleEdges(w: Workspace, edges: GraphEdge[]): GraphEdge[] {
 }
 // Keep disconnected node data in the authoring document. Only the compiler
 // adapter removes the corresponding runtime binding.
+/** The action an HKX card (or its state node) stands for. */
+const actionOf = (id: string) => /^anim:([^:]+):\|clip_/.exec(id)?.[1] ?? id;
 export function lowerDisconnected(w: Workspace): Workspace {
   if (!w.disconnections?.length) return w;
   let n = structuredClone(w);
@@ -250,7 +252,13 @@ export function lowerDisconnected(w: Workspace): Workspace {
           if (e.pin === 'partner') l.partnerTo = '';
           else {
             n.links = n.links.filter(l => l.id !== id);
-            n.blends = blendNodes(n).filter(b => !inScope(b.source, {kind: 'link', link: id}));
+            // Its blend goes with it: behind its card, or drawn straight between its two HKX when no other
+            // transition joins them (graph/reuseBlend.ts).
+            const between = (b: {source: string; target: string}) =>
+              actionOf(b.source) === l.from &&
+              actionOf(b.target) === l.to &&
+              !n.links.some(x => x.from === l.from && x.to === l.to);
+            n.blends = blendNodes(n).filter(b => !inScope(b.source, {kind: 'link', link: id}) && !between(b));
           }
         }
         continue;

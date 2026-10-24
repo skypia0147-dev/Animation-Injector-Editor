@@ -4,9 +4,11 @@ import {pasteNodes} from './clipboard.ts';
 import {blendNodes} from './blends.ts';
 import {ruleNode} from './sharing.ts';
 import {layoutKey} from './projection.ts';
+import {handOverFollowed} from './conditionBinding.ts';
 
 /** Retire the runtime owner, retaining independently editable definitions as drafts. */
 export function retirePlayback(w: Workspace, owner: string, preserveFeatures = true): Workspace {
+  w = handOverFollowed(w, owner);
   const action = w.actions.find(a => a.uid === owner);
   if (!action) return w;
   const graph = flatGraph(w),
@@ -99,6 +101,9 @@ export function retirePlayback(w: Workspace, owner: string, preserveFeatures = t
       }
       if (test.space?.candidate === owner) test.space.candidate = '';
     }
+    // A fan's kept fail into it too: the fan rewrites the chain from these (graph/conditionFans.ts applyFans).
+    for (const fan of a.flow?.fans ?? [])
+      for (const [id, to] of Object.entries(fan.fails)) if ('action' in to && to.action === owner) delete fan.fails[id];
     if (a.pair?.carry?.putdownAction === owner) a.pair.carry.putdownAction = '';
   }
   for (const d of next.drafts ?? [])

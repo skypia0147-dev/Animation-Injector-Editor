@@ -1,6 +1,7 @@
 import type {Workspace, Action} from '../workspace.ts';
 import type {BranchFlow, BranchTest} from './conditions.ts';
 import {branchId} from './conditions.ts';
+import {applyFans} from './conditionFans.ts';
 import {tr} from '../i18n/korean.ts';
 
 // Conditions belong to the lines (docs/mockup-free-conditions): a condition is judged when a start (or a key/event
@@ -19,6 +20,8 @@ export function reachTests(f: BranchFlow | undefined, roots: string[]): Set<stri
     seen.add(id);
     for (const e of [t.pass, t.fail]) if (e && 'node' in e) pending.push(e.node);
     pending.push(...(t.operands ?? []));
+    // A fan's branches are each a line from its parent, a later one too when an earlier fail leaves the chain.
+    pending.push(...(f?.fans?.find(x => x.parent === id)?.branches ?? []));
   }
   return seen;
 }
@@ -120,11 +123,71 @@ export function transplant(w: Workspace, from: string, test: string, to: string,
     if (f.fans) {
       f.fans = f.fans.filter(x => !gone.has(x.parent));
       for (const x of f.fans) x.branches = x.branches.filter(b => !gone.has(b));
-      if (!f.fans.length) delete f.fans;
+      // A fan left with one branch is a plain route again; its kept fails into what left are dropped.
+      applyFans(f);
     }
     if (gone.has(f.entry)) f.entry = '';
-    // A flow left with nothing of its own: only a start that goes nowhere keeps it (its unlinked mark).
-    if (!f.tests.length && !f.unlinked && !f.follow) delete source.flow;
+    // Starts that followed what moved follow it where it went; the one it went to judges it as its own.
+    for (const a of w.actions) {
+      const follow = a.flow?.follow;
+      if (follow?.owner !== from || !gone.has(follow.test)) continue;
+      if (a.uid !== to) a.flow!.follow = {owner: to, test: ids.get(follow.test)!};
+      else {
+        delete a.flow!.follow;
+        a.flow!.entry ||= ids.get(follow.test)!;
+      }
+    }
+    // A flow left with nothing of its own: only a start that goes nowhere keeps it (its unlinked mark). A selecting
+    // action (no HKX) keeps that mark too: with no flow it would read as an HKX card with its file missing. An HKX
+    // card, its file chosen or not, is just itself again.
+    if (!f.tests.length && !f.unlinked && !f.follow) {
+      if (!f.selects) delete source.flow;
+      else source.flow = {entry: '', tests: [], unlinked: true, selects: true};
+    }
   }
   return ids;
+}
+
+/** Before `owner` goes: the conditions another start follows in its flow are that start's own now (its line still
+ *  reaches them), and later starts following the same ones follow it there. What stays is `owner`'s alone. */
+export function handOverFollowed(w: Workspace, owner: string): Workspace {
+  if (!w.actions.some(a => a.uid !== owner && a.flow?.follow?.owner === owner)) return w;
+  const n = structuredClone(w),
+    source = n.actions.find(a => a.uid === owner);
+  if (!source?.flow) return w;
+  const moved: {to: string; ids: Map<string, string>}[] = [];
+  for (const a of n.actions) {
+    const follow = a.flow?.follow;
+    if (a.uid === owner || follow?.owner !== owner) continue;
+    const prior = moved.find(m => m.ids.has(follow.test));
+    if (prior) {
+      a.flow!.follow = {owner: prior.to, test: prior.ids.get(follow.test)!};
+      continue;
+    }
+    if (!source.flow.tests.some(t => t.id === follow.test)) continue;
+    const ids = transplant(n, owner, follow.test, a.uid, true),
+      f = a.flow!;
+    f.entry = ids.get(follow.test)!;
+    delete f.follow;
+    delete f.detached;
+    delete f.unlinked;
+    moved.push({to: a.uid, ids});
+  }
+  const handed = new Set(moved.flatMap(m => [...m.ids.keys()])),
+    f = source.flow;
+  f.tests = f.tests.filter(t => !handed.has(t.id));
+  for (const t of f.tests) {
+    for (const port of ['pass', 'fail'] as const) {
+      const e = t[port];
+      if (e && 'node' in e && handed.has(e.node)) delete t[port];
+    }
+    if (t.operands) t.operands = t.operands.filter(o => !handed.has(o));
+  }
+  if (f.fans) {
+    f.fans = f.fans.filter(x => !handed.has(x.parent));
+    for (const x of f.fans) x.branches = x.branches.filter(b => !handed.has(b));
+    applyFans(f);
+  }
+  if (handed.has(f.entry)) f.entry = '';
+  return n;
 }

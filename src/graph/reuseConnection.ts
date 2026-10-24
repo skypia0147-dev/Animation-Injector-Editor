@@ -30,6 +30,8 @@ export function reuseConnection(w: Workspace, s: FlatNode | undefined, t: FlatNo
     const n = structuredClone(w),
       a = n.actions.find(a => a.uid === play.action)!,
       from = w.actions.find(a => a.uid === link.from)!;
+    if (link.partnerTo && !a.pair)
+      throw Error(tr('상대(피해자) 동작이 있는 전환은 페어에서 나가는 HKX만 이어받을 수 있습니다.'));
     let i = 1;
     while (n.links.some(l => l.id === 'sharedLink' + i)) i++;
     const next = {...structuredClone(link), id: 'sharedLink' + i, from: a.uid};

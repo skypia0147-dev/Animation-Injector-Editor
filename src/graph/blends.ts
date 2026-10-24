@@ -64,6 +64,15 @@ function endpoint(w: Workspace, id: string) {
 }
 export function blendBinding(w: Workspace, b: BlendNode) {
   if (!b.source || !b.target) throw Error(tr('블렌드 양쪽을 연결하세요.'));
+  // Behind a start card that is gone: behind the one that replaced it (a key start swapped for an event one), or,
+  // with none (deleted, moved to a selecting action), the action is entered from elsewhere, as blendNodes reads it.
+  const started = /^start:([^|]+)\|/.exec(b.source)?.[1],
+    mode = started && w.actions.find(a => a.uid === started)?.config.start.mode;
+  if (mode)
+    b = {
+      ...b,
+      source: mode === 'none' ? 'entry' : `start:${started}|${mode === 'event' ? 'markerReceive' : 'keyInput'}`,
+    };
   const target = endpoint(w, b.target),
     source = endpoint(w, b.source);
   for (const a of w.actions) {

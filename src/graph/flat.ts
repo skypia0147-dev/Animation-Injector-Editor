@@ -785,6 +785,8 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
             f = next.actions.find(a => a.uid === owner)!.flow!;
           f.entry = key;
           delete f.detached;
+          delete f.unlinked;
+          delete f.follow;
           // The graph projects entry playback through its condition flow. Store the
           // same canonical endpoint as an input connected before that flow.
           const edited = editBlend(next, blend.id, {target: animId(owner, 'clip_' + a.config.entry)});
@@ -1028,6 +1030,15 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
         const ready = structuredClone(w);
         ready.actions.find(a => a.uid === old.uid)!.config.start.mode = 'none';
         const r = playbackLink(ready, s.action, old.uid, input);
+        // Blends behind the start card now sit behind the transition's card, which replaced it; the start's own
+        // blend card is the transition's now and is named so (disconnect.ts reads anim:<uid>:|blendIn as the start's).
+        const linkBlend = `blend:${r.id.replace(/\|.*$/, '')}`;
+        for (const b of r.workspace.blends ?? [])
+          if (b.source === d.id) {
+            b.source = r.id;
+            if (b.id === animId(old.uid, 'blendIn') && !r.workspace.blends!.some(x => x.id === linkBlend))
+              b.id = linkBlend;
+          }
         return moveNodes(r.workspace, root, {[r.id]: graphPosition(w, root, d.id, {x: 500, y: 500})});
       }
       return NEXT;
@@ -1058,6 +1069,19 @@ const CONNECT_RULES: {name: string; run: (c: ConnectCase) => Workspace | typeof 
           }
           const left = flatNode(next, b.source),
             right = flatNode(next, b.target);
+          // Behind a transition's card, drawn to another HKX: the transition goes there, as its card would.
+          const linkId = /^link:([^|]+)\|/.exec(b.source)?.[1],
+            link = linkId ? next.links.find(l => l.id === linkId) : undefined;
+          if (link && right?.kind === 'hkxPlay' && right.action && right.action !== link.to) {
+            if (right.action === link.from) throw Error(tr('같은 동작으로의 연결은 아직 지원하지 않습니다.'));
+            next = structuredClone(next);
+            const moved = next.links.find(l => l.id === link.id)!;
+            moved.to = right.action;
+            if (next.actions.find(a => a.uid === right.action)?.pair) moved.partnerTo = '';
+            // Every blend behind that card goes with it (as linkToPlay moves them).
+            for (const x of next.blends ?? [])
+              if (x.source.startsWith(`link:${link.id}|`) && x.target) x.target = b.target;
+          }
           if (
             left?.kind === 'state' &&
             right?.kind === 'state' &&

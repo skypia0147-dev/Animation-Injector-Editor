@@ -169,3 +169,50 @@ test('room checks write self directions; older partner ones are kept and flagged
   assert.match(compileWorkspace(bound), /subject="partner"[^>]*direction="partnerBack"/, 'kept as written');
   assert.ok(validateWorkspace(bound).some(i => i.level === 'warning' && /예전 방식/.test(i.message)));
 });
+
+// 10-24 (Dynamic Dodge Shot): a selecting action's start line cut, its conditions drawn into another start's flow and
+// its start card deleted left an action with no HKX, no start and no conditions, which asked for an HKX path.
+test('a selecting action emptied of its start and its conditions leaves the XML, with or without its start card', async () => {
+  const {importWorkspaceXml} = await import('../src/importXml.ts');
+  const {disconnectEdge} = await import('../src/graph/disconnect.ts');
+  const w0 = importWorkspaceXml(`<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="4" id="Pick">
+  <Action id="Right">
+    <Start key="Mouse2"/>
+    <Flow entry="sneak">
+      <Test id="sneak" kind="sneaking" subject="self" pass="p1"/>
+      <Play id="p1" action="A"/>
+    </Flow>
+  </Action>
+  <Action id="A" clip="Animations\\T\\a.hkx"/>
+  <Action id="B" clip="Animations\\T\\b.hkx"/>
+  <Action id="EKey">
+    <Start key="E"/>
+    <Flow entry="back">
+      <Test id="back" kind="movementDirection" subject="self" option="back" pass="p2"/>
+      <Play id="p2" action="B"/>
+    </Flow>
+  </Action>
+</AnimationSet>`);
+  const right = w0.actions.find(a => a.config.actionId === 'Right'),
+    e = w0.actions.find(a => a.config.actionId === 'EKey');
+  const first = `flow:${e.uid}:back`;
+  const line = compactGraph(w0, flatGraph(w0)).edges.find(
+    x => x.target === first && x.source.startsWith(`start:${e.uid}`)
+  );
+  let w = disconnectEdge(w0, line);
+  w = connectFlat(w, `flow:${right.uid}:sneak`, first, 'fail');
+  assert.ok(!validateWorkspace(w).some(i => i.level === 'error'), 'its start card still there');
+  w = deleteFlat(w, flatGraph(w).nodes.find(n => n.id.startsWith(`start:${e.uid}|`)).id);
+  const issues = validateWorkspace(w);
+  assert.deepEqual(
+    issues.filter(i => i.level === 'error'),
+    [],
+    'its start card deleted'
+  );
+  assert.ok(issues.some(i => i.node === e.uid && /고르기 동작입니다/.test(i.message)));
+  const xml = compileWorkspace(w);
+  assert.doesNotMatch(xml, /id="EKey"/);
+  assert.match(xml, /<Test id="sneak"[^>]*fail="back"/);
+  assert.match(xml, /<Play [^>]*action="B"/);
+});

@@ -1,9 +1,11 @@
 import {addTableRow} from './conditionTables.ts';
+import {setBranchTarget} from './conditionCommands.ts';
+import {fanOf} from './conditionFans.ts';
 import type {Workspace} from '../workspace.ts';
 import {addFlat, connectFlat, flatGraph, flatNode, notifyKinds} from './flat.ts';
 import {compactGraph} from './sharing.ts';
 import {blendNodes, animId} from './blends.ts';
-import {title} from '../timeline/model.ts';
+import {rows, slots, title} from '../timeline/model.ts';
 import {branchTest, parseNodeId} from './nodeRef.ts';
 import {tr} from '../i18n/korean.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
@@ -69,9 +71,15 @@ export function addConnected(w: Workspace, source: string, option: AddOption, po
   }
   const result = addFlat(structuredClone(w), node.action ?? '', option.kind, position);
   let next = result.workspace;
-  if (prior && option.kind === 'conditionBranch') {
+  // A condition added on a connected pin goes in between: it takes that line and passes on to where it led. On a
+  // fanned pass it is one more branch instead (graph/conditionFans.ts), so it leads nowhere yet.
+  const between =
+    !!prior &&
+    option.kind === 'conditionBranch' &&
+    !(option.port === 'pass' && fanOf(w.actions.find(a => a.uid === node.action)?.flow, branch!.id));
+  if (between) {
     const key = branchTest(result.id)!;
-    next.actions.find(a => a.uid === node.action)!.flow!.tests.find(t => t.id === key)!.pass = {...prior};
+    next.actions.find(a => a.uid === node.action)!.flow!.tests.find(t => t.id === key)!.pass = {...prior!};
   }
   if (option.entry) {
     const a = next.actions.find(a => a.uid === node.action)!,
@@ -79,8 +87,15 @@ export function addConnected(w: Workspace, source: string, option: AddOption, po
     const key = branchTest(result.id)!;
     if (previous) a.flow!.tests.find(t => t.id === key)!.pass = {node: previous};
     a.flow!.entry = key;
+    // The start goes to it now: a start cut off from its conditions, or following another's, is its own again.
     delete a.flow!.detached;
-  } else next = connectFlat(next, option.before ? result.id : source, option.before ? source : result.id, option.port);
+    delete a.flow!.unlinked;
+    delete a.flow!.follow;
+  } else if (between)
+    next = setBranchTarget(next, node.action!, branch!.id, option.port as 'pass' | 'fail', {
+      node: branchTest(result.id)!,
+    });
+  else next = connectFlat(next, option.before ? result.id : source, option.before ? source : result.id, option.port);
   const graph = compactGraph(next, flatGraph(next));
   const added = graph.nodes.find(n => n.id === result.id) ?? graph.nodes.find(n => !oldIds.has(n.id));
   if (!added || !graph.edges.some(e => e.source === added.id || e.target === added.id))
@@ -124,7 +139,14 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
         ? k !== 'vanillaCancel'
         : ['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k)
     ))
-      options.push({label: title(kind) + tr(' 추가'), kind: 'notify:' + kind});
+      options.push({
+        label: title(kind) + tr(' 추가'),
+        kind: 'notify:' + kind,
+        // A slot, the cost and the recovery are an action's once (graph/drafts.ts attachDraft, timeline/model.ts add).
+        ...(a && [...slots, 'cost', 'recovery'].includes(kind) && rows(w, a).some(r => r.kind === kind)
+          ? {disabled: tr('이미 있음')}
+          : {}),
+      });
   } else if (node.kind === 'conditionBranch') {
     for (const port of ['pass', 'fail'])
       for (const kind of ['conditionBranch', 'playNode'])
@@ -137,8 +159,14 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
           port,
         });
   } else if (['keyInput', 'markerReceive', 'stateCondition', 'blend'].includes(node.kind)) {
-    options.push({label: tr('다음 동작 추가'), kind: 'playNode'});
-    if (['keyInput', 'markerReceive'].includes(node.kind)) options.push({label: tr('블렌드 추가'), kind: 'blend'});
+    // From a blend, a next action is where what comes before it goes: a loose key or event, a transition (which then
+    // goes there), or nothing yet. Behind an action's own start it would leave that start; after an HKX it ends it.
+    const before = node.kind === 'blend' ? (blendNodes(w).find(b => b.id === id)?.source ?? '') : '';
+    if (!before || before === 'entry' || before.startsWith('draft:') || before.startsWith('link:'))
+      options.push({label: tr('다음 동작 추가'), kind: 'playNode'});
+    // A key or event card not on an HKX yet has nothing to blend into.
+    if (['keyInput', 'markerReceive'].includes(node.kind) && !id.startsWith('draft:'))
+      options.push({label: tr('블렌드 추가'), kind: 'blend'});
   }
   return options
     .sort((a, b) => Number(b.kind === 'blend') - Number(a.kind === 'blend'))

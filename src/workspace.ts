@@ -15,6 +15,7 @@ import {
   unpairableRoutes,
 } from './graph/conditions.ts';
 import {checkFans} from './graph/conditionFans.ts';
+import {handOverFollowed} from './graph/conditionBinding.ts';
 import {lowerGraph} from './graph/document.ts';
 import type {ActionKind, ActionVariant} from './actionTypes.ts';
 import {lowerBlends} from './graph/blends.ts';
@@ -311,9 +312,21 @@ export function removeAction(w: Workspace, id: string): Workspace {
     throw new Error(tr('이 동작을 참조하는 연결을 먼저 삭제하세요.'));
   const owned = (s: string) =>
     s === id || s.startsWith(`anim:${id}:`) || s.startsWith(`start:${id}|`) || s.startsWith(`transition:${id}:`);
+  w = handOverFollowed(w, id);
+  // Routes that played it lead nowhere now (the user picks another destination).
+  const actions = structuredClone(w.actions.filter(a => a.uid !== id));
+  for (const a of actions)
+    for (const t of a.flow?.tests ?? [])
+      for (const port of ['pass', 'fail'] as const) {
+        const e = t[port];
+        if (e && 'action' in e && e.action === id) delete t[port];
+      }
+  for (const a of actions)
+    for (const fan of a.flow?.fans ?? [])
+      for (const [k, to] of Object.entries(fan.fails)) if ('action' in to && to.action === id) delete fan.fails[k];
   return {
     ...w,
-    actions: w.actions.filter(a => a.uid !== id),
+    actions,
     ...(w.blends ? {blends: w.blends.filter(b => !owned(b.source) && !owned(b.target))} : {}),
   };
 }
@@ -978,6 +991,14 @@ export function validateWorkspace(w: Workspace): Issue[] {
       node: id,
       message: tr('어떤 시작과도 이어져 있지 않아 판단되지 않는 조건입니다. XML에는 쓰지 않습니다.'),
     });
+  for (const uid of drafts.dropped)
+    out.push({
+      level: 'warning',
+      node: uid,
+      message: tr('시작도 이어진 조건도 없는 고르기 동작입니다. XML에는 쓰지 않습니다.'),
+    });
+  for (const uid of drafts.stranded)
+    err(uid, tr('전환이 들어오는 고르기 동작에 이어진 조건이 없습니다. 시작 카드에서 조건 분기로 선을 이으세요.'));
   for (const uid of drafts.idle)
     out.push({
       level: 'warning',
@@ -1052,7 +1073,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(a.uid, tr('동작 ID가 중복되었거나 잘못되었습니다.'));
     uids.add(a.uid);
     ids.add(a.config.actionId.toLowerCase());
-    for (const e of validate(a.config, selectsOnly(a)))
+    for (const e of validate(a.config, selectsOnly(a) || drafts.stranded.includes(a.uid)))
       // Named as the user sees the action (its display name), not by its XML id.
       out.push({...e, node: a.uid, message: (a.config.name.trim() || a.config.actionId) + ': ' + e.message});
     if (a.pair && a.config.fireArrow) err(a.uid, tr('페어에는 활 발사를 사용할 수 없습니다.'));
@@ -1185,13 +1206,22 @@ export function validateWorkspace(w: Workspace): Issue[] {
       (!number(l.blend, 0, 5) || a.pair || b.pair || a.config.steps.length !== 1 || b.config.steps.length !== 1)
     )
       err(l.id, tr('경로별 블렌드는 단일 일반 HKX 사이에서만 지원합니다.'));
+    // The runtime picks the played action by the destination's conditions after the transition (0.12.244).
+    else if (l.blend !== undefined && b.flow)
+      err(
+        l.id,
+        tr(
+          '조건 분기를 거치는 전환에는 블렌드를 둘 수 없습니다(런타임 미지원). 전환의 블렌드를 지우거나 조건을 떼어 내세요.'
+        )
+      );
     if (l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
       err(l.id, tr('양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.'));
     if (!['input', 'event'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
     if (l.mode === 'event') {
       if (!eventOk(l.event)) err(l.id, tr('연결 이벤트 이름을 입력하세요.'));
       const s = a.uid + ':event:' + l.event;
-      if (signatures.has(s)) err(l.id, tr('같은 출발 이벤트의 연결이 중복됩니다.'));
+      // Two new transitions not named yet are not the same one: each is told to take a name above.
+      if (l.event && signatures.has(s)) err(l.id, tr('같은 출발 이벤트의 연결이 중복됩니다.'));
       signatures.add(s);
     } else {
       const input = a.config.inputs.find(i => i.id === l.input);

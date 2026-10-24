@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {emptyWorkspace, compileWorkspace, parseWorkspace, addLink} from '../src/workspace.ts';
+import {emptyWorkspace, compileWorkspace, parseWorkspace, addLink, validateWorkspace} from '../src/workspace.ts';
 import {addFlat, connectFlat, deleteFlat, flatGraph} from '../src/graph/flat.ts';
 import {animId} from '../src/graph/blends.ts';
 import {captureGraph} from '../src/graph/document.ts';
@@ -224,7 +224,9 @@ test('nested AND OR NOT groups round trip and reject cycles and branching operan
   assert.ok(checkFlows(deleted).length);
 });
 
-test('conditional ordinary link retains explicit blend through editor XML', () => {
+// The runtime refuses a Connect's own blend into an action with a Flow (XmlV2: 「Flow 목적지의 명시적 Connect
+// blend」): the editor says so on the transition instead of writing a file the runtime skips.
+test('a transition through conditions holds no blend of its own', () => {
   let {workspace: w} = sample();
   w = addFlat(w, '', 'playNode', {x: 900, y: 300}).workspace;
   w.actions[2].config.steps[0].clip = 'animations\\third.hkx';
@@ -235,8 +237,12 @@ test('conditional ordinary link retains explicit blend through editor XML', () =
   link.blend = 0.7;
   w.links.push(link);
   assert.deepEqual(checkFlows(w), []);
-  const restored = importWorkspaceXml(compileWorkspace(w, 2));
-  assert.equal(restored.links[0].blend, 0.7);
-  host.flow.tests[0].fail = {action: w.actions[1].uid};
-  assert.ok(checkFlows(w).length);
+  assert.ok(
+    validateWorkspace(w).some(
+      i => i.level === 'error' && i.node === link.id && /조건 분기를 거치는 전환/.test(i.message)
+    )
+  );
+  assert.throws(() => compileWorkspace(w, 2));
+  delete link.blend;
+  assert.ok(!validateWorkspace(w).some(i => i.level === 'error'));
 });

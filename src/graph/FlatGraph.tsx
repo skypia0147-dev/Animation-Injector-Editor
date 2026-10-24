@@ -1591,16 +1591,18 @@ function FlatGraphPanel({
           ]
         : []),
       ...(id
-        ? contextualAdds(w, id, rawProjection).map(option => ({
-            label: option.label,
-            run: () =>
-              attempt(() => {
-                const position = visibleNodePosition(screenToFlowPosition, {x: x + 24, y: y + 24});
-                const r = executeGraphCommand(w, {type: 'addConnected', source: id, option, position});
-                edit(() => r.workspace);
-                select(r.id ?? '');
-              }),
-          }))
+        ? contextualAdds(w, id, rawProjection)
+            .filter(option => !option.disabled)
+            .map(option => ({
+              label: option.label,
+              run: () =>
+                attempt(() => {
+                  const position = visibleNodePosition(screenToFlowPosition, {x: x + 24, y: y + 24});
+                  const r = executeGraphCommand(w, {type: 'addConnected', source: id, option, position});
+                  edit(() => r.workspace);
+                  select(r.id ?? '');
+                }),
+            }))
         : kinds.map(kind => ({
             label:
               kind === 'conditionBranch'
