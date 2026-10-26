@@ -4,6 +4,7 @@ import {useSyncExternalStore} from 'react';
 import {invoke, isTauri} from './backend.ts';
 import {t} from './i18n/index.ts';
 import {tr} from './i18n/korean.ts';
+import {errorText} from './errorText.ts';
 
 type State = {path: string; time: number; duration: number};
 let state: State = {path: '', time: 0, duration: 0};
@@ -45,7 +46,7 @@ export async function toggleSound(path: string) {
   } catch (e) {
     // A file that will not play leaves no ■ behind (the app's CSP allows blob: media since 10-26).
     if (audio === player) stopSound();
-    throw new Error(tr('소리를 재생하지 못했습니다: {error}', {error: String(e)}));
+    throw new Error(tr('소리를 재생하지 못했습니다: {error}', {error: errorText(e)}));
   }
 }
 

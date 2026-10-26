@@ -1,22 +1,28 @@
 import {createContext, useContext, useState, useEffect, useRef, useMemo} from 'react';
 import {useUpdateNodeInternals} from '@xyflow/react';
+import {createPortal} from 'react-dom';
 import type {Action, Workspace} from '../workspace.ts';
 import {putAction} from '../workspace.ts';
 import {assetLibrary} from '../assets.ts';
 import type {FlatNode} from './flat.ts';
 import {addConnected, contextualAdds} from './contextAdd.ts';
-import {ConditionCardBody, StartCardFields, TransitionFields} from './CardDetails.tsx';
-import {parseNodeId} from './nodeRef.ts';
 import {deleteFlat} from './flat.ts';
 import {GraphDetails} from './GraphDetails.tsx';
 import {BlendDetails} from './BlendDetails.tsx';
 import {StateDetails} from '../ui/details/StateDetails.tsx';
-import {StepFiles, ViewFields, type ViewRow} from '../ui/details/ViewFields.tsx';
-import {NestedDetailPanel, InspectorLayout, CategoryRows, ItemTitle, DetailRow} from '../ui/details/DetailRow.tsx';
+import {StepFiles, ViewFields, viewName, type ViewRow} from '../ui/details/ViewFields.tsx';
+import {
+  NestedDetailPanel,
+  InspectorLayout,
+  CategoryRows,
+  ItemTitle,
+  DetailRow,
+  OnlySection,
+} from '../ui/details/DetailRow.tsx';
 import {detachInspectorNode} from '../ui/details/inspectorModel.ts';
 import {switchPlaybackKind, playbackKind, playbackKinds, actionKindLabels} from '../actionTypes.ts';
 import {duplicate, rows} from '../timeline/model.ts';
-import {type ChecklistItem, checklistModel} from './checklist.ts';
+import {type ChecklistItem, checklistModel, transferItem} from './checklist.ts';
 import {FireArrowShots, useFireArrowSummary} from './FireArrowShots.tsx';
 import './checklist.css';
 import './registry.css';
@@ -30,9 +36,16 @@ import {actionClip, sentEvents as hkxSentEvents} from './hkxMoments.ts';
 import {openedBySwitch} from './momentOpen.ts';
 import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
-import {stepSource} from '../view.ts';
+import {stepSource, actionView, projectView, setActionView, firstPersonStart, setFirstPersonStart} from '../view.ts';
+import {timingLabel} from '../model.ts';
+import {playbackState, resetAttack, resetDetection, resetExit} from './playbackSettings.ts';
+import {exitSummary} from '../ui/details/inspectorModel.ts';
+import {sourceWindow} from './clipWindows.ts';
+import {t} from '../i18n/index.ts';
+import {AddSetting, SettingChips, useSettings, type Setting} from './cardSettings.tsx';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 
 type Context = {
   w: Workspace;
@@ -50,25 +63,12 @@ export const ChecklistContext = createContext<Context | null>(null);
 function useFold(_key: string, initial = false) {
   return useState(initial);
 }
-/** fold: the summary view decides whether a condition's editor is open (open while its card is chosen); without it
- *  the card keeps the open state it was left in. */
-export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'closed'}) {
+export function ChecklistBody({node}: {node: FlatNode}) {
   const ctx = useContext(ChecklistContext)!;
   const {w, edit, status, model, library} = ctx;
-  const nodeRef = parseNodeId(node.id);
   const action = w.actions.find(a => a.uid === node.action);
   const clip = action?.config.steps.find(s => s.id === node.step);
-  // An HKX card's 재생 설정 list opens with the card, its rows closed (as 기능).
-  const [kept, setKept] = useFold(`checklist:${w.id}:${node.id}`, true);
-  // In the summary view the toggle only closes the chosen card for now; choosing another card resets it.
-  const [handClosed, setHandClosed] = useState(false);
-  useEffect(() => {
-    if (fold !== 'open') setHandClosed(false);
-  }, [fold]);
-  const expanded = fold ? fold === 'open' && !handClosed : kept,
-    setExpanded = (v: boolean) => (fold ? setHandClosed(!v) : setKept(v));
   const [allOpen, setAllOpen] = useState<boolean>(),
-    [playAllOpen, setPlayAllOpen] = useState<boolean>(),
     [error, setError] = useState('');
   const update = useUpdateNodeInternals(),
     ref = useRef<HTMLDivElement>(null);
@@ -90,7 +90,7 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
       fn();
       setError('');
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     }
   };
   // A row's note is the help of its name (10-20, docs/mockup-ux-polish ④): it no longer takes a line of the card.
@@ -143,26 +143,21 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
       )
         return false;
     }
-    if (o.kind === 'blend' && items.some(i => i.node.kind === 'blend' && i.blend === (o.before ? 'enter' : 'exit')))
-      return false;
+    // The blends are playback settings (「＋ 설정」, unify ⑩), not features.
+    if (o.kind === 'blend') return false;
     return true;
   });
-  useEffect(() => {
-    if (ctx.selected !== node.id && model.owners.get(ctx.selected)?.includes(node.id)) setExpanded(true);
-  }, [ctx.selected]);
   // 「모두 펼치기 · 모두 접기」 from the card's right-click menu (FlatGraph): every list and item of this card.
   useEffect(() => {
     const unfold = (e: Event) => {
       const d = (e as CustomEvent<{id: string; open: boolean}>).detail;
       if (d.id !== node.id) return;
-      setExpanded(d.open);
-      setPlayAllOpen(d.open);
       setAllOpen(d.open);
     };
     addEventListener('card-unfold', unfold);
     return () => removeEventListener('card-unfold', unfold);
   }, [node.id]);
-  // The end and start blends are part of how the clip plays: listed under 재생 설정, not 기능 (docs/mockup-card-layout).
+  // The end and start blends are part of how the clip plays: playback settings, not 기능 (docs/mockup-card-layout).
   const blends = items.filter(i => i.node.kind === 'blend');
   const eventOption = (kind: string) =>
     kind === 'cameraRestore' ||
@@ -171,6 +166,105 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
     kind === 'carryFix' ||
     (kind.startsWith('notify:') &&
       !['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel'].includes(kind.slice(7)));
+  // The playback settings (docs/mockup unify ⑩, 10-27): a chip for each that differs from its default, opening in
+  // place to its fields; the rest from 「＋ 설정」. A category of the Details (StateDetails) opens alone (OnlySection).
+  const only =
+    (id: string): ViewRow =>
+    (rid, label, control, hint) =>
+      rid === id ? cardRow(rid, label, control, hint) : null;
+  const section = (id: string) => <OnlySection.Provider value={id}>{settings()}</OnlySection.Provider>;
+  const playback = (): Setting[] => {
+    if (!action) return [];
+    const a = action,
+      p = a.config,
+      view = actionView(w, a),
+      step = node.step ?? p.entry,
+      state = playbackState(w, a, step),
+      window = sourceWindow(a, step).value,
+      attack = p.steps.length === 1 ? p.steps[0].attack || p.attack : p.attack || p.steps.find(s => s.attack)?.attack;
+    const blend = (role: 'enter' | 'exit'): Setting => {
+      const item = blends.find(i => i.blend === role),
+        option = options.find(o => o.kind === 'blend' && !!o.before === (role === 'enter'));
+      return {
+        id: 'blend:' + role,
+        label: item?.node.title ?? (role === 'enter' ? tr('블렌드(시작)') : tr('블렌드(종료)')),
+        value: item?.node.summary ?? '',
+        set: !!item,
+        applies: !!item || !!option,
+        add: () => option && attempt(() => edit(w => addConnected(w, settingsTarget, option, node.position).workspace)),
+        reset: () => item && attempt(() => edit(w => deleteFlat(detachInspectorNode(w, item.node.id), item.node.id))),
+        fields: () => item && <BlendDetails w={w} id={item.node.id} edit={edit} status={status} />,
+      };
+    };
+    return [
+      {
+        id: 'kind',
+        label: tr('유형'),
+        value: actionKindLabels[playbackKind(a)],
+        ...state.kind,
+        fields: () => (
+          <DetailRow label={tr('유형')}>
+            <select
+              aria-label={tr('동작 유형')}
+              value={playbackKind(a)}
+              onChange={e =>
+                attempt(() => edit(w => switchPlaybackKind(w, a.uid, e.target.value as (typeof playbackKinds)[number])))
+              }
+            >
+              {playbackKinds.map(k => (
+                <option key={k} value={k}>
+                  {actionKindLabels[k]}
+                </option>
+              ))}
+            </select>
+          </DetailRow>
+        ),
+      },
+      {
+        id: 'view',
+        label: t('row.view'),
+        value: viewName(view),
+        ...state.view,
+        reset: () => attempt(() => edit(w => setActionView(w, a.uid, projectView(w)))),
+        fields: () => <ViewFields w={w} action={a} edit={edit} row={only('view')} />,
+      },
+      {
+        id: 'firstPerson',
+        label: t('row.firstPerson'),
+        value: t('view.' + firstPersonStart(w, a)),
+        ...state.firstPerson,
+        reset: () => attempt(() => edit(w => setFirstPersonStart(w, a.uid, 'block'))),
+        fields: () => <ViewFields w={w} action={a} edit={edit} row={only('firstPerson')} />,
+      },
+      {
+        id: 'detection',
+        label: tr('입력 감지'),
+        value: timingLabel(window.open) + ' → ' + timingLabel(window.close),
+        ...state.detection,
+        reset: () => edit(w => resetDetection(w, a.uid, step)),
+        fields: () => section('detection'),
+      },
+      {
+        id: 'exit',
+        label: tr('종료'),
+        value: exitSummary(a),
+        ...state.exit,
+        reset: () => edit(w => resetExit(w, a.uid)),
+        fields: () => section('exit'),
+      },
+      {
+        id: 'attack',
+        label: tr('공격 데이터'),
+        value: attack ?? '',
+        ...state.attack,
+        reset: () => edit(w => resetAttack(w, a.uid)),
+        fields: () => section('attack'),
+      },
+      blend('enter'),
+      blend('exit'),
+    ];
+  };
+  const playSettings = useSettings(playback());
   // One "+ 기능" (10-16, docs/mockup-feature-merge): what applies to the whole play, then what happens at a moment.
   const addMenu = () => (
     <AddItemMenu
@@ -196,128 +290,73 @@ export function ChecklistBody({node, fold}: {node: FlatNode; fold?: 'open' | 'cl
         e.stopPropagation();
       }}
     >
-      {node.kind === 'conditionCard' ? (
-        <NestedDetailPanel.Provider value={true}>
-          <ConditionCardBody
-            w={w}
-            uid={nodeRef.kind === 'conditionCard' ? nodeRef.uid : ''}
-            edit={edit}
-            focus={ctx.selected}
-            status={status}
-          />
-        </NestedDetailPanel.Provider>
-      ) : node.kind === 'startCard' ? (
-        <NestedDetailPanel.Provider value={true}>
-          <StartCardFields w={w} uid={nodeRef.kind === 'startCard' ? nodeRef.uid : ''} edit={edit} />
-        </NestedDetailPanel.Provider>
-      ) : node.kind === 'transition' ? (
-        <NestedDetailPanel.Provider value={true}>
-          <TransitionFields w={w} id={nodeRef.kind === 'transition' ? nodeRef.link : ''} edit={edit} />
-        </NestedDetailPanel.Provider>
-      ) : (
-        action && (
-          <>
-            {/* The header rows share one label column (docs/mockup-layout-audit ①): every control starts at the same
+      {action && (
+        <>
+          {/* The header rows share one label column (docs/mockup-layout-audit ①): every control starts at the same
                 place whatever the longest label is. */}
-            <div className="checklist-head">
-              {clip && (
-                <StepFiles
-                  w={w}
-                  action={action}
-                  step={clip}
-                  library={library}
-                  status={status}
-                  edit={edit}
-                  scopeKey={`${w.id}:${node.id}`}
-                  row={cardRow}
-                  change={(value, localPath) =>
-                    edit(w => ({
-                      ...w,
-                      actions: w.actions.map(a =>
-                        a.uid === action.uid
-                          ? {
-                              ...a,
-                              config: {
-                                ...a.config,
-                                steps: a.config.steps.map(s =>
-                                  s.id === node.step ? {...s, clip: value, localPath} : s
-                                ),
-                              },
-                            }
-                          : a
-                      ),
-                    }))
-                  }
-                />
-              )}
-              <label className="checklist-file">
-                {tr('유형')}
-                <select
-                  aria-label={tr('동작 유형')}
-                  value={playbackKind(action)}
-                  onChange={e =>
-                    attempt(() =>
-                      edit(w => switchPlaybackKind(w, action.uid, e.target.value as (typeof playbackKinds)[number]))
-                    )
-                  }
-                >
-                  {playbackKinds.map(k => (
-                    <option key={k} value={k}>
-                      {actionKindLabels[k]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <ViewFields w={w} action={action} edit={edit} row={cardRow} />
-            </div>
-            {/* 재생 설정 is item rows as 기능 (docs/mockup-playback-settings): the name, the end, the attack data and an
-                ordinary action's input detection. */}
-            <section className="checklist-section checklist-playback">
-              <div className="checklist-section-title">
-                <button aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-                  {tr('재생 설정')} <span className="section-count">{(action.pair ? 2 : 3) + blends.length}</span>
-                </button>
-              </div>
-              {expanded && (
-                <>
-                  <NestedDetailPanel.Provider value={true}>
-                    <CategoryRows.Provider value={{allOpen: playAllOpen}}>{settings()}</CategoryRows.Provider>
-                  </NestedDetailPanel.Provider>
-                  {blends.map(item => (
-                    <ChecklistRow key={item.node.id} item={item} owner={node.id} allOpen={playAllOpen} />
-                  ))}
-                </>
-              )}
-            </section>
-            {/* The features and the HKX's events fold each on their own (one "기능 · 이벤트" fold above them was the
-                same fold twice, 10-20). */}
-            {
-              <ChecklistSection
-                owner={node.id}
-                items={items.filter(i => i.category === 'feature' && i.node.kind !== 'blend')}
-                moments={items.filter(i => i.category === 'event')}
-                sent={sent}
-                action={action}
-                allOpen={allOpen}
-              />
-            }
+          <div className="checklist-head">
             {clip && (
-              <HkxEvents
-                clip={stepSource(w, action, clip).clip}
-                owner={node.id}
-                action={action.uid}
-                step={node.step}
-                pair={!!action.pair}
+              <StepFiles
+                w={w}
+                action={action}
+                step={clip}
+                library={library}
+                status={status}
+                edit={edit}
+                scopeKey={`${w.id}:${node.id}`}
+                row={cardRow}
+                change={(value, localPath) =>
+                  edit(w => ({
+                    ...w,
+                    actions: w.actions.map(a =>
+                      a.uid === action.uid
+                        ? {
+                            ...a,
+                            config: {
+                              ...a.config,
+                              steps: a.config.steps.map(s => (s.id === node.step ? {...s, clip: value, localPath} : s)),
+                            },
+                          }
+                        : a
+                    ),
+                  }))
+                }
               />
             )}
-            <div className="checklist-add-actions">{addMenu()}</div>
-            <section className="checklist-section checklist-info">
-              <NestedDetailPanel.Provider value={true}>
-                <CategoryRows.Provider value={{}}>{settings('info')}</CategoryRows.Provider>
-              </NestedDetailPanel.Provider>
-            </section>
-          </>
-        )
+          </div>
+          {/* What of the playback differs from its default, as chips (unify ⑩, docs/mockup-playback-settings before). */}
+          <SettingChips settings={playSettings} />
+          {/* The features and the HKX's events fold each on their own (one "기능 · 이벤트" fold above them was the
+                same fold twice, 10-20). */}
+          {
+            <ChecklistSection
+              owner={node.id}
+              items={items.filter(i => i.category === 'feature' && i.node.kind !== 'blend')}
+              moments={items.filter(i => i.category === 'event')}
+              sent={sent}
+              action={action}
+              allOpen={allOpen}
+            />
+          }
+          {clip && (
+            <HkxEvents
+              clip={stepSource(w, action, clip).clip}
+              owner={node.id}
+              action={action.uid}
+              step={node.step}
+              pair={!!action.pair}
+            />
+          )}
+          <div className="checklist-add-actions two">
+            {addMenu()}
+            <AddSetting settings={playSettings} />
+          </div>
+          <section className="checklist-section checklist-info">
+            <NestedDetailPanel.Provider value={true}>
+              <CategoryRows.Provider value={{}}>{settings('info')}</CategoryRows.Provider>
+            </NestedDetailPanel.Provider>
+          </section>
+        </>
       )}
       {error && (
         <p role="alert" className="checklist-error">
@@ -430,6 +469,60 @@ function ChecklistRow({
     }
   }, [ctx.selected]);
   const {title, summary} = n;
+  // Dragged by its name onto another HKX card (unify ⑪, as a condition between condition cards): it moves there, or
+  // is copied with Ctrl held. Pointer events (graph/ConditionCardFace.tsx says why); 5 px before it is a drag.
+  const [ghost, setGhost] = useState<{x: number; y: number; copy: boolean} | null>(null);
+  const begin = (e: React.PointerEvent) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.checklist-row-icons')) return;
+    const x0 = e.clientX,
+      y0 = e.clientY;
+    let moving = false,
+      target: HTMLElement | null = null;
+    const mark = (card: HTMLElement | null) => {
+      if (card === target) return;
+      target?.classList.remove('item-drop');
+      target = card;
+      target?.classList.add('item-drop');
+    };
+    const move = (ev: PointerEvent) => {
+      if (!moving && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+      moving = true;
+      const card = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>(
+        '.p3-node.hkxPlay[data-card]'
+      );
+      mark(card && card.dataset.card !== owner ? card : null);
+      setGhost({x: ev.clientX, y: ev.clientY, copy: ev.ctrlKey});
+    };
+    const up = (ev: PointerEvent) => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', up);
+      if (!moving) return;
+      const card = target?.dataset.card;
+      mark(null);
+      setGhost(null);
+      // The click after the release would open the row.
+      const swallow = (ev: MouseEvent) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+      };
+      addEventListener('click', swallow, {capture: true, once: true});
+      setTimeout(() => removeEventListener('click', swallow, {capture: true}), 0);
+      const to = card && ctx.model.raw.nodes.find(x => x.id === card)?.action;
+      if (!to || ev.type !== 'pointerup') return;
+      try {
+        // Made first: edit reports a refusal itself and goes on, and the message here would cover it.
+        const next = transferItem(w, n.id, to, ev.ctrlKey);
+        edit(() => next);
+        status(ev.ctrlKey ? tr('기능을 그 HKX 카드에 복사했습니다.') : tr('기능을 그 HKX 카드로 옮겼습니다.'));
+      } catch (e) {
+        status(errorText(e));
+      }
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+  };
   // The 활 발사 item says every moment it shoots, its registry event shots included (FireArrowShots.tsx).
   const fireSummary = useFireArrowSummary(w, n.kind === 'fireArrow' ? a : undefined);
   const attempt = (fn: () => void) => {
@@ -437,7 +530,7 @@ function ChecklistRow({
       fn();
       setError('');
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     }
   };
   return (
@@ -446,8 +539,19 @@ function ChecklistRow({
       className={'checklist-row' + (moment ? ' moment' : '') + (ctx.selected === n.id ? ' active-item' : '')}
       data-item={n.id}
     >
+      {ghost &&
+        createPortal(
+          <div
+            className={'cond-drag-ghost' + (ghost.copy ? ' copy' : '')}
+            style={{left: ghost.x + 12, top: ghost.y + 10}}
+          >
+            {ghost.copy && <b>{tr('복사')}</b>}
+            {title}
+          </div>,
+          document.body
+        )}
       {/* No checkbox (10-23, docs/mockup-no-checkbox): an item is used while it is there and deleted to stop. */}
-      <div className="checklist-row-heading">
+      <div className="checklist-row-heading" onPointerDown={begin}>
         <button
           className="checklist-row-toggle"
           title={item.scope}
@@ -689,6 +793,8 @@ function HkxEvents({
     [annotations, pair]
   );
   const entries = useMemo(() => new Map(renderedRegistry(w).map(e => [eventKey(e.name), e])), [w]);
+  // An HKX that sends nothing shows no events section (unify ⑩); an unread one still says how to see them.
+  if (sent?.length === 0) return null;
   return (
     <section className="checklist-section hkx-events">
       <div className="checklist-section-title">

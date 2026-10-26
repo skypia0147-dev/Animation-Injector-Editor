@@ -1,30 +1,41 @@
 import {useState} from 'react';
 import type {Workspace, Link} from '../workspace.ts';
 import {choosesOrdinary, frontAngle, frontRange, type StartCard} from '../cards.ts';
-import {DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
+import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {KeyField} from '../ui/details/KeyField.tsx';
 import {EventPicker} from '../ui/details/EventPicker.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {WindowFields} from '../ui/details/ClipWindowFields.tsx';
 import {markerNames} from '../ui/details/markerCatalog.ts';
-import {ConditionExpressionEditor} from './ConditionExpressionEditor.tsx';
 import {sharesSourceWindow} from './playback.ts';
-import {sourceWindow} from './clipWindows.ts';
-import {dropBinding} from './flat.ts';
-import {addCondition, addRow, moveRow, removeCondition, removeRow, setTrue, type CardPlace} from './cardCommands.ts';
 import {eventListError, uniqueEvents} from '../runtimeExtensions.ts';
 import {tr} from '../i18n/korean.ts';
-import type {GameControl} from '../keys.ts';
+import {gamepadXml, gameControlLabel, type GameControl} from '../keys.ts';
+import {timingLabel} from '../model.ts';
+import type {Setting} from './cardSettings.tsx';
+import {
+  linkBlend,
+  patchLink,
+  patchStart,
+  setLinkKey,
+  setLinkMode,
+  setLinkWindowScope,
+  startDefaults,
+  startMode,
+} from './cardEdits.ts';
 
 type Edit = (f: (w: Workspace) => Workspace) => void;
+const chip = (text: string) => <span className="cond-chip">{text}</span>;
+const keyText = (key: string, gamepad: number, control?: GameControl) =>
+  control ? gameControlLabel(control) : [key, gamepad ? gamepadXml(gamepad) : ''].filter(Boolean).join(' · ');
 
-/** A start card's settings (XML format 6 <Start>): its trigger, the cooldown and block that are this start's. */
-export function StartCardFields({w, uid, edit}: {w: Workspace; uid: string; edit: Edit}) {
+/** A start card's settings (XML format 6 <Start>), edited on the card (unify ⑨): its trigger, then what is set of
+ *  the sender, target, cooldown and block; the rest from 「＋ 설정」. */
+export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting[] {
   const s = w.starts.find(s => s.uid === uid);
   const [blockText, setBlockText] = useState<string | null>(null);
-  if (!s) return null;
-  const change = (patch: Partial<StartCard>) =>
-    edit(w => ({...w, starts: w.starts.map(x => (x.uid === uid ? {...x, ...patch} : x))}));
+  if (!s) return [];
+  const change = (patch: Partial<StartCard>) => edit(w => patchStart(w, uid, patch));
   // A start choosing among ordinary actions picks its target (mockup ⑨, runtime 0.12.299); a pair's start names
   // its partner as before.
   const ordinary = choosesOrdinary(w, s);
@@ -36,73 +47,104 @@ export function StartCardFields({w, uid, edit}: {w: Workspace; uid: string; edit
       return !to || !!to.pair;
     })();
   const blockError = blockText !== null ? eventListError(blockText.split(',')) : '';
-  return (
-    <DetailPanel>
-      <DetailRow label={tr('트리거')}>
-        <select
-          aria-label={tr('시작 트리거')}
-          value={s.mode}
-          onChange={e =>
-            change(
-              e.target.value === 'event'
-                ? {mode: 'event', key: '', gamepad: 0, onKeyUp: false}
-                : {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key || 'Num0'}
-            )
-          }
-        >
-          <option value="input">{tr('키 입력')}</option>
-          <option value="event">{tr('이벤트')}</option>
-        </select>
-      </DetailRow>
-      {s.mode === 'input' ? (
+  const input = s.mode === 'input';
+  return [
+    {
+      id: 'trigger',
+      label: input ? (s.onKeyUp ? tr('뗄 때') : tr('누를 때')) : tr('받을 때'),
+      value: chip(input ? keyText(s.key, s.gamepad, s.control) || tr('키 미지정') : s.event || tr('이벤트 미지정')),
+      set: true,
+      fixed: true,
+      fields: () => (
         <>
-          <DetailRow label={tr('키')}>
-            <KeyField
-              value={s.key}
-              gamepad={s.gamepad}
-              change={key => change({key})}
-              changeGamepad={gamepad => change({gamepad})}
-              control={s.control}
-              changeControl={control =>
-                change(control ? {control, key: '', gamepad: 0} : {control: undefined, key: 'Num0'})
-              }
-            />
-          </DetailRow>
-          <DetailRow label={tr('뗄 때')} hint={tr('키를 뗄 때 시작합니다.')}>
-            <input type="checkbox" checked={s.onKeyUp} onChange={e => change({onKeyUp: e.target.checked})} />
-          </DetailRow>
-        </>
-      ) : (
-        <>
-          <DetailRow label={tr('이벤트')}>
-            <EventPicker
-              label={tr('이벤트')}
-              value={s.event}
-              events={markerNames(w)}
-              change={event => change({event})}
-            />
-          </DetailRow>
-          <DetailRow label={tr('보낸 쪽')} hint={tr('이 이벤트를 보낸 액터가 플레이어일 때, NPC일 때, 둘 다.')}>
-            <select value={s.actor} onChange={e => change({actor: e.target.value as StartCard['actor']})}>
-              <option value="both">{tr('둘 다')}</option>
-              <option value="player">{tr('플레이어')}</option>
-              <option value="npc">NPC</option>
+          <DetailRow label={tr('트리거')}>
+            <select
+              aria-label={tr('시작 트리거')}
+              value={s.mode}
+              onChange={e => change(startMode(s, e.target.value as StartCard['mode']))}
+            >
+              <option value="input">{tr('키 입력')}</option>
+              <option value="event">{tr('이벤트')}</option>
             </select>
           </DetailRow>
-          {pairTarget && (
-            <DetailRow
-              label={tr('페어 상대')}
-              hint={tr('페어를 시작할 때 상대: 가장 가까운 액터 또는 보낸 쪽의 전투 대상.')}
-            >
-              <select value={s.target} onChange={e => change({target: e.target.value as StartCard['target']})}>
-                <option value="nearest">{tr('가장 가까운 액터')}</option>
-                <option value="combatTarget">{tr('전투 대상')}</option>
-              </select>
+          {input ? (
+            <>
+              <DetailRow label={tr('키')}>
+                <KeyField
+                  value={s.key}
+                  gamepad={s.gamepad}
+                  change={key => change({key})}
+                  changeGamepad={gamepad => change({gamepad})}
+                  control={s.control}
+                  changeControl={control =>
+                    change(control ? {control, key: '', gamepad: 0} : {control: undefined, key: 'Num0'})
+                  }
+                />
+              </DetailRow>
+              <DetailRow label={tr('뗄 때')} hint={tr('키를 뗄 때 시작합니다.')}>
+                <input type="checkbox" checked={s.onKeyUp} onChange={e => change({onKeyUp: e.target.checked})} />
+              </DetailRow>
+            </>
+          ) : (
+            <DetailRow label={tr('이벤트')}>
+              <EventPicker
+                label={tr('이벤트')}
+                value={s.event}
+                events={markerNames(w)}
+                change={event => change({event})}
+              />
             </DetailRow>
           )}
         </>
-      )}
-      {ordinary && (
+      ),
+    },
+    {
+      id: 'actor',
+      label: tr('보낸 쪽'),
+      value: s.actor === 'player' ? tr('플레이어') : s.actor === 'npc' ? 'NPC' : tr('둘 다'),
+      set: s.actor !== 'both',
+      applies: !input,
+      reset: () => change(startDefaults.actor),
+      fields: () => (
+        <DetailRow label={tr('보낸 쪽')} hint={tr('이 이벤트를 보낸 액터가 플레이어일 때, NPC일 때, 둘 다.')}>
+          <select value={s.actor} onChange={e => change({actor: e.target.value as StartCard['actor']})}>
+            <option value="both">{tr('둘 다')}</option>
+            <option value="player">{tr('플레이어')}</option>
+            <option value="npc">NPC</option>
+          </select>
+        </DetailRow>
+      ),
+    },
+    {
+      id: 'partner',
+      label: tr('페어 상대'),
+      value: s.target === 'combatTarget' ? tr('전투 대상') : tr('가장 가까운 액터'),
+      set: s.target === 'combatTarget',
+      applies: !input && !!pairTarget,
+      reset: () => change(startDefaults.partner),
+      fields: () => (
+        <DetailRow
+          label={tr('페어 상대')}
+          hint={tr('페어를 시작할 때 상대: 가장 가까운 액터 또는 보낸 쪽의 전투 대상.')}
+        >
+          <select value={s.target} onChange={e => change({target: e.target.value as StartCard['target']})}>
+            <option value="nearest">{tr('가장 가까운 액터')}</option>
+            <option value="combatTarget">{tr('전투 대상')}</option>
+          </select>
+        </DetailRow>
+      ),
+    },
+    {
+      id: 'target',
+      label: tr('대상'),
+      value:
+        s.target === 'combatTarget'
+          ? tr('전투 대상')
+          : tr('전방 대상 · {range} · {angle}°', {range: s.range ?? frontRange, angle: s.angle ?? frontAngle}),
+      set: s.target === 'combatTarget' || s.range !== undefined || s.angle !== undefined,
+      applies: ordinary,
+      reset: () => change(startDefaults.target),
+      fields: () => (
         <>
           <DetailRow
             label={tr('대상')}
@@ -142,285 +184,194 @@ export function StartCardFields({w, uid, edit}: {w: Workspace; uid: string; edit
             </>
           )}
         </>
-      )}
-      <DetailRow
-        label={tr('쿨다운')}
-        hint={tr(
-          '이 시작이 시작시킨 동작이 끝난 뒤, 이 시작만 기다리는 시간(초)입니다. 다른 시작·전환은 막지 않습니다.'
-        )}
-      >
-        <NumberInput value={s.cooldown} min={0} max={600} step={0.05} change={cooldown => change({cooldown})} />
-      </DetailRow>
-      <DetailRow
-        label={tr('바닐라 차단')}
-        hint={tr('쉼표로 나눈 바닐라 이벤트(예: blockStart,bashStart). 비우면 차단하지 않습니다.')}
-      >
-        <input
-          value={blockText ?? s.block?.events.join(',') ?? ''}
-          aria-invalid={!!blockError || undefined}
-          onChange={e => {
-            const text = e.target.value;
-            setBlockText(text);
-            const list = text.split(',').map(x => x.trim());
-            if (!text.trim()) change({block: undefined});
-            else if (!eventListError(list))
-              change({block: {events: uniqueEvents(list), when: s.block?.when ?? 'startable'}});
-          }}
-          onBlur={() => setBlockText(null)}
-        />
-      </DetailRow>
-      {s.block && (
-        <DetailRow label={tr('차단 시점')}>
-          <select
-            value={s.block.when}
-            onChange={e => change({block: {...s.block!, when: e.target.value as 'startable' | 'active' | 'both'}})}
-          >
-            <option value="startable">{tr('시작할 수 있을 때')}</option>
-            <option value="active">{tr('시작시킨 동작이 재생 중일 때')}</option>
-            <option value="both">{tr('둘 다')}</option>
-          </select>
+      ),
+    },
+    {
+      id: 'cooldown',
+      label: tr('쿨다운'),
+      value: tr('{v0}초', {v0: s.cooldown}),
+      set: s.cooldown > 0,
+      reset: () => change(startDefaults.cooldown),
+      fields: () => (
+        <DetailRow
+          label={tr('쿨다운')}
+          hint={tr(
+            '이 시작이 시작시킨 동작이 끝난 뒤, 이 시작만 기다리는 시간(초)입니다. 다른 시작·전환은 막지 않습니다.'
+          )}
+        >
+          <NumberInput value={s.cooldown} min={0} max={600} step={0.05} change={cooldown => change({cooldown})} />
         </DetailRow>
-      )}
-      {blockError && <p role="alert">{blockError}</p>}
-    </DetailPanel>
-  );
+      ),
+    },
+    {
+      id: 'block',
+      label: tr('바닐라 차단'),
+      value: (
+        <span className="cond-chips">
+          {s.block?.events.map(e => (
+            <span key={e} className="cond-chip">
+              {e}
+            </span>
+          ))}
+        </span>
+      ),
+      set: !!s.block,
+      reset: () => change(startDefaults.block),
+      fields: () => (
+        <>
+          <DetailRow
+            label={tr('바닐라 차단')}
+            hint={tr('쉼표로 나눈 바닐라 이벤트(예: blockStart,bashStart). 비우면 차단하지 않습니다.')}
+          >
+            <input
+              value={blockText ?? s.block?.events.join(',') ?? ''}
+              aria-invalid={!!blockError || undefined}
+              onChange={e => {
+                const text = e.target.value;
+                setBlockText(text);
+                const list = text.split(',').map(x => x.trim());
+                if (!text.trim()) change({block: undefined});
+                else if (!eventListError(list))
+                  change({block: {events: uniqueEvents(list), when: s.block?.when ?? 'startable'}});
+              }}
+              onBlur={() => setBlockText(null)}
+            />
+          </DetailRow>
+          {s.block && (
+            <DetailRow label={tr('차단 시점')}>
+              <select
+                value={s.block.when}
+                onChange={e => change({block: {...s.block!, when: e.target.value as 'startable' | 'active' | 'both'}})}
+              >
+                <option value="startable">{tr('시작할 수 있을 때')}</option>
+                <option value="active">{tr('시작시킨 동작이 재생 중일 때')}</option>
+                <option value="both">{tr('둘 다')}</option>
+              </select>
+            </DetailRow>
+          )}
+          {blockError && <p role="alert">{blockError}</p>}
+        </>
+      ),
+    },
+  ];
 }
 
-/** A transition card's settings: its key or event, the window it is taken in, its blend. */
-export function TransitionFields({w, id, edit}: {w: Workspace; id: string; edit: Edit}) {
+/** A transition card's settings, edited on the card (unify ⑨): its key or event, the window it is taken in, its blend
+ *  (set only to differ from the destination HKX's start blend). */
+export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Setting[] {
   const l = w.links.find(l => l.id === id);
-  if (!l) return null;
+  if (!l) return [];
   const from = w.actions.find(a => a.uid === l.from);
-  const change = (patch: Partial<Link>) =>
-    edit(w => ({...w, links: w.links.map(x => (x.id === id ? {...x, ...patch} : x))}));
-  const input = from?.config.inputs.find(i => i.id === l.input);
-  /** The key lives in the source HKX's inputs (written in place in the XML). */
+  const change = (patch: Partial<Link>) => edit(w => patchLink(w, id, patch));
+  const inputBinding = from?.config.inputs.find(i => i.id === l.input);
   const setKey = (key: string, gamepad: number, control?: GameControl) =>
-    edit(w => {
-      const n = structuredClone(w),
-        a = n.actions.find(a => a.uid === l.from)!,
-        link = n.links.find(x => x.id === id)!;
-      let i = a.config.inputs.find(i => i.id === link.input);
-      // A binding something else also uses (another transition with the same key, a carry, a shared input): this
-      // transition gets its own instead of changing theirs.
-      const others = i
-        ? n.sharedInputs.some(s => s.id === i!.id) ||
-          n.links.some(x => x !== link && x.from === a.uid && x.mode === 'input' && x.input === i!.id) ||
-          a.pair?.carry?.input === i.id
-        : false;
-      if (!i || others) {
-        let k = 1;
-        while (a.config.inputs.some(i => i.id === 'binding' + k)) k++;
-        i = {id: 'binding' + k, label: 'binding' + k, key: '', gamepad: 0};
-        a.config.inputs.push(i);
-        link.input = i.id;
-      }
-      i.key = key;
-      i.gamepad = gamepad;
-      if (control) i.control = control;
-      else delete i.control;
-      return n;
-    });
+    edit(w => setLinkKey(w, id, key, gamepad, control));
   const shared = sharesSourceWindow(w, l) && !l.ownWindow;
   const to = w.actions.find(a => a.uid === l.to);
   const blendable = !!to && !l.card && !from?.pair && !to.pair;
-  return (
-    <DetailPanel>
-      <DetailRow label={tr('입력')}>
-        <select
-          value={l.mode}
-          onChange={e =>
-            e.target.value === 'event'
-              ? edit(w =>
-                  dropBinding(
-                    {...w, links: w.links.map(x => (x.id === id ? {...x, mode: 'event' as const, input: ''} : x))},
-                    l.from,
-                    l.input
-                  )
-                )
-              : change({mode: 'input', event: '', window: true})
-          }
-        >
-          <option value="input">{tr('키 입력')}</option>
-          <option value="event">{tr('이벤트')}</option>
-        </select>
-      </DetailRow>
-      {l.mode === 'input' ? (
-        <DetailRow label={tr('키')}>
-          <KeyField
-            value={input?.key ?? ''}
-            gamepad={input?.gamepad ?? 0}
-            change={key => setKey(key, input?.gamepad ?? 0)}
-            changeGamepad={gamepad => setKey(input?.key ?? '', gamepad)}
-            control={input?.control}
-            changeControl={control => (control ? setKey('', 0, control) : setKey('E', 0))}
-          />
-        </DetailRow>
-      ) : (
-        <DetailRow label={tr('이벤트')}>
-          <EventPicker label={tr('이벤트')} value={l.event} events={markerNames(w)} change={event => change({event})} />
-        </DetailRow>
-      )}
-      {sharesSourceWindow(w, l) && (
-        <DetailRow
-          label={tr('감지 구간')}
-          hint={tr(
-            '이 HKX 공통: 출발 HKX의 입력 감지를 이 HKX의 다른 키 전환과 함께 씁니다. 이 전환만: 이 전환의 열림·닫힘을 따로 둡니다.'
+  const input = l.mode === 'input';
+  return [
+    {
+      id: 'trigger',
+      label: input ? tr('누를 때') : tr('받을 때'),
+      value: chip(
+        input
+          ? keyText(inputBinding?.key ?? '', inputBinding?.gamepad ?? 0, inputBinding?.control) || tr('키 미지정')
+          : l.event || tr('이벤트 미지정')
+      ),
+      set: true,
+      fixed: true,
+      fields: () => (
+        <>
+          <DetailRow label={tr('입력')}>
+            <select value={l.mode} onChange={e => edit(w => setLinkMode(w, id, e.target.value as Link['mode']))}>
+              <option value="input">{tr('키 입력')}</option>
+              <option value="event">{tr('이벤트')}</option>
+            </select>
+          </DetailRow>
+          {input ? (
+            <DetailRow label={tr('키')}>
+              <KeyField
+                value={inputBinding?.key ?? ''}
+                gamepad={inputBinding?.gamepad ?? 0}
+                change={key => setKey(key, inputBinding?.gamepad ?? 0)}
+                changeGamepad={gamepad => setKey(inputBinding?.key ?? '', gamepad)}
+                control={inputBinding?.control}
+                changeControl={control => (control ? setKey('', 0, control) : setKey('E', 0))}
+              />
+            </DetailRow>
+          ) : (
+            <DetailRow label={tr('이벤트')}>
+              <EventPicker
+                label={tr('이벤트')}
+                value={l.event}
+                events={markerNames(w)}
+                change={event => change({event})}
+              />
+            </DetailRow>
           )}
-        >
-          <select
-            value={l.ownWindow ? 'own' : 'shared'}
-            onChange={e =>
-              edit(w => ({
-                ...w,
-                links: w.links.map(x => {
-                  if (x.id !== id) return x;
-                  const {ownWindow, ...rest} = x;
-                  return e.target.value === 'own'
-                    ? {
-                        ...rest,
-                        ownWindow: true,
-                        window: true,
-                        ...structuredClone(sourceWindow(from!, from!.config.entry).value),
-                      }
-                    : rest;
-                }),
-              }))
-            }
-          >
-            <option value="shared">{tr('이 HKX 공통')}</option>
-            <option value="own">{tr('이 전환만')}</option>
-          </select>
-        </DetailRow>
-      )}
-      {!shared && (
-        <DetailRow label={tr('감지 구간 사용')} hint={tr('끄면 클립 전체에서 받습니다.')}>
-          <input type="checkbox" checked={l.window} onChange={e => change({window: e.target.checked})} />
-        </DetailRow>
-      )}
-      {!shared && l.window && (
-        <WindowFields
-          w={w}
-          action={from}
-          value={{open: l.open, close: l.close, buffered: l.buffered}}
-          events={markerNames(w)}
-          closeBasis="either"
-          change={next => change(next)}
-        />
-      )}
-      {blendable && (
-        <DetailRow label={tr('블렌드')} hint={tr('이 전환으로 들어갈 때의 블렌드(초). 비우면 도착 HKX의 시작 블렌드.')}>
-          <span>
-            <input
-              type="checkbox"
-              aria-label={tr('블렌드 사용')}
-              checked={l.blend !== undefined}
-              onChange={e => change({blend: e.target.checked ? 0.3 : undefined})}
+        </>
+      ),
+    },
+    {
+      id: 'window',
+      label: tr('감지 구간'),
+      value: shared
+        ? tr('이 HKX 공통')
+        : l.window
+          ? timingLabel(l.open) + ' → ' + timingLabel(l.close)
+          : tr('클립 전체'),
+      set: true,
+      fixed: true,
+      fields: () => (
+        <>
+          {sharesSourceWindow(w, l) && (
+            <DetailRow
+              label={tr('감지 구간')}
+              hint={tr(
+                '이 HKX 공통: 출발 HKX의 입력 감지를 이 HKX의 다른 키 전환과 함께 씁니다. 이 전환만: 이 전환의 열림·닫힘을 따로 둡니다.'
+              )}
+            >
+              <select
+                value={l.ownWindow ? 'own' : 'shared'}
+                onChange={e => edit(w => setLinkWindowScope(w, id, e.target.value === 'own'))}
+              >
+                <option value="shared">{tr('이 HKX 공통')}</option>
+                <option value="own">{tr('이 전환만')}</option>
+              </select>
+            </DetailRow>
+          )}
+          {!shared && (
+            <DetailRow label={tr('감지 구간 사용')} hint={tr('끄면 클립 전체에서 받습니다.')}>
+              <input type="checkbox" checked={l.window} onChange={e => change({window: e.target.checked})} />
+            </DetailRow>
+          )}
+          {!shared && l.window && (
+            <WindowFields
+              w={w}
+              action={from}
+              value={{open: l.open, close: l.close, buffered: l.buffered}}
+              events={markerNames(w)}
+              closeBasis="either"
+              change={next => change(next)}
             />
-            {l.blend !== undefined && (
-              <NumberInput value={l.blend} min={0} max={5} step={0.05} change={blend => change({blend})} />
-            )}
-          </span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'blend',
+      label: tr('블렌드'),
+      value: tr('{v0}초', {v0: l.blend ?? 0}),
+      set: l.blend !== undefined,
+      applies: blendable,
+      add: () => change(linkBlend.add),
+      reset: () => change(linkBlend.reset),
+      fields: () => (
+        <DetailRow label={tr('블렌드')} hint={tr('이 전환으로 들어갈 때의 블렌드(초). 없으면 도착 HKX의 시작 블렌드.')}>
+          <NumberInput value={l.blend ?? 0.3} min={0} max={5} step={0.05} change={blend => change({blend})} />
         </DetailRow>
-      )}
-    </DetailPanel>
-  );
-}
-
-/** A condition card's body (docs/mockup-format6-editor): its common conditions, then its rows (each with its
- *  conditions) or True; where each goes is the route row at the card's foot. */
-export function ConditionCardBody({
-  w,
-  uid,
-  edit,
-  focus,
-  status,
-}: {
-  w: Workspace;
-  uid: string;
-  edit: Edit;
-  focus?: string;
-  status: (s: string) => void;
-}) {
-  const c = w.cards.find(c => c.uid === uid);
-  if (!c) return null;
-  const attempt = (f: (w: Workspace) => Workspace) => {
-    try {
-      edit(f);
-    } catch (e) {
-      status(String(e));
-    }
-  };
-  const roots = (place: CardPlace, ids: string[]) =>
-    ids.map(id => (
-      <ConditionExpressionEditor
-        key={id}
-        embedded
-        w={w}
-        owner={uid}
-        id={id}
-        edit={edit}
-        focus={focus}
-        remove={() => edit(w => removeCondition(w, uid, place, id))}
-      />
-    ));
-  const adders = (place: CardPlace) => (
-    <div className="condition-expression-tools">
-      <button onClick={() => attempt(w => addCondition(w, uid, place).workspace)}>{tr('＋ 조건')}</button>
-      <button onClick={() => attempt(w => addCondition(w, uid, place, true).workspace)}>{tr('＋ 그룹')}</button>
-    </div>
-  );
-  return (
-    <div className="condition-card-body">
-      <section className="condition-card-part">
-        <div className="condition-card-part-title">{tr('공통 조건')}</div>
-        {roots('guards', c.guards)}
-        {!c.guards.length && <p className="checklist-entry-empty">{tr('없음 · 모든 경우')}</p>}
-        {adders('guards')}
-      </section>
-      {c.true !== undefined ? (
-        <section className="condition-card-part">
-          <div className="condition-card-row-head">
-            <span className="key true">True</span>
-            <span>{tr('공통 조건이 맞으면')}</span>
-            <button onClick={() => attempt(w => setTrue(w, uid, false))}>{tr('행으로 바꾸기')}</button>
-          </div>
-        </section>
-      ) : (
-        c.rows.map((r, i) => (
-          <section key={r.id} className="condition-card-part">
-            <div className="condition-card-row-head">
-              <span className="key">{i + 1}</span>
-              <span>{tr('행 {n}', {n: i + 1})}</span>
-              <button
-                disabled={i === 0}
-                onClick={() => attempt(w => moveRow(w, uid, r.id, i - 1))}
-                aria-label={tr('위로')}
-              >
-                ↑
-              </button>
-              <button
-                disabled={i === c.rows.length - 1}
-                onClick={() => attempt(w => moveRow(w, uid, r.id, i + 1))}
-                aria-label={tr('아래로')}
-              >
-                ↓
-              </button>
-              <button onClick={() => attempt(w => removeRow(w, uid, r.id))} aria-label={tr('행 삭제')}>
-                ×
-              </button>
-            </div>
-            {roots(`row:${r.id}`, r.guards)}
-            {adders(`row:${r.id}`)}
-          </section>
-        ))
-      )}
-      <div className="condition-expression-tools">
-        {c.true === undefined && <button onClick={() => attempt(w => addRow(w, uid).workspace)}>{tr('＋ 행')}</button>}
-        {c.true === undefined && c.rows.length <= 1 && (
-          <button onClick={() => attempt(w => setTrue(w, uid, true))}>{tr('True로 (공통 조건만)')}</button>
-        )}
-      </div>
-    </div>
-  );
+      ),
+    },
+  ];
 }

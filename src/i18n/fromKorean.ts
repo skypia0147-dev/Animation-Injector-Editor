@@ -56,6 +56,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ' 값이 지원되지 않습니다: ': [' value is not supported: ', ' の値はサポートされていません: ', ' 的值不受支持：'],
   ' 값이 필요합니다': [' value is required', ' の値が必要です', ' 需要值'],
   ' 를 덮음': [' overrides it', ' を上書き', ' 覆盖了它'],
+  ' 묶음에는 조건이 둘 이상 필요합니다': [
+    ' group needs two or more conditions',
+    ' グループには条件が2つ以上必要です',
+    ' 分组至少需要两个条件',
+  ],
   ' 발사': [' fire', ' 発射', ' 射击'],
   ' 범위 오류': [' range error', ' 範囲エラー', ' 范围错误'],
   ' 복사': [' Copy', ' コピー', ' 副本'],
@@ -229,7 +234,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'AI は注釈コマンド専用のイベント名です(0.12.274): AI.CamShake|強さ|時間',
     'AI 是注释命令专用的事件名(0.12.274): AI.CamShake|强度|时间',
   ],
-  'AND 그룹으로 감싸기': ['Wrap in AND group', 'AND グループで囲む', '包装为 AND 组'],
+  'AND 조건 사이의 묶음은 <Or>로 씁니다(같은 연산자는 묶지 않습니다)': [
+    'A group among AND conditions is written <Or> (the same operator is not grouped)',
+    'AND条件の間のグループは <Or> で書きます(同じ演算子はまとめません)',
+    'AND 条件之间的分组写作 <Or>(相同运算符不分组)',
+  ],
   'AnimationSet 루트가 필요합니다': [
     'An AnimationSet root is required',
     'AnimationSet ルートが必要です',
@@ -767,6 +776,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Input 仅限顺序输入 QTE。',
   ],
   'NOT (결과 반전)': ['NOT (Invert result)', 'NOT (結果反転)', 'NOT (结果反转)'],
+  'NOT인 묶음은 풀 수 없습니다. NOT을 먼저 끄세요.': [
+    "A NOT group can't be dissolved. Turn NOT off first.",
+    'NOTのグループは解除できません。先にNOTを外してください。',
+    '带 NOT 的分组无法解散。请先关闭 NOT。',
+  ],
+  'OR 행 안의 묶음은 <And>로 씁니다(같은 연산자는 묶지 않습니다)': [
+    'A group in an OR row is written <And> (the same operator is not grouped)',
+    'OR行の中のグループは <And> で書きます(同じ演算子はまとめません)',
+    'OR 行中的分组写作 <And>(相同运算符不分组)',
+  ],
   'Protected 상태를 검사합니다. Essential과는 별도 조건입니다.': [
     'Checks Protected status. This is separate from Essential.',
     'Protected 状態を判定します。Essential とは別の条件です。',
@@ -852,6 +871,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   'QTE 순서 입력 목록': ['QTE sequence input list', 'QTE シーケンス入力一覧', 'QTE 顺序输入列表'],
   'QTE 시작': ['QTE start', 'QTE 開始', 'QTE 开始'],
   'QTE 시작 · {v0}': ['QTE start · {v0}', 'QTE 開始 · {v0}', 'QTE 开始 · {v0}'],
+  'QTE 시작 · 이벤트': ['QTE start · Event', 'QTE開始 · イベント', 'QTE 开始 · 事件'],
   'QTE 시작 방식': ['QTE start method', 'QTE 開始方式', 'QTE 启动方式'],
   'QTE 시작 이벤트': ['QTE start event', 'QTE 開始イベント', 'QTE 开始事件'],
   'QTE 완벽 허용': ['QTE perfect tolerance', 'QTE パーフェクト許容値', 'QTE 完美容差'],
@@ -898,7 +918,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Rotate locked は一般アクション専用であり、区間設定と併用できません。',
     'Rotate locked 仅适用于普通动作，不能与区间设置同时使用。',
   ],
-  'S4 페어와 양쪽 동작': ['S4 pair and both-way actions', 'S4 ペアと両側アクション', 'S4 配对与双向动作'],
+  'Row.match는 any만 씁니다.': [
+    'Row match takes only any.',
+    'Row.match は any だけを使います。',
+    'Row.match 只能写 any。',
+  ],
   'Shift+클릭·끌기로 더하고, Ctrl+클릭·끌기로 넣고 뺍니다. 머리줄을 끌면 함께 옮겨지고, Esc로 선택을 풉니다.': [
     'Shift+click/drag to add, Ctrl+click/drag to toggle. Drag header to move together; Escape deselects.',
     'Shift+クリック・ドラッグで追加、Ctrl+クリック・ドラッグで追加/除外します。ヘッダーをドラッグするとまとめて移動し、Esc で選択を解除します。',
@@ -949,12 +973,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'To True (common conditions only)',
     'True にする（共通条件のみ）',
     '改为 True（仅公共条件）',
-  ],
-  'True만 있는 카드': ['A card with True only', 'True だけのカード', '只有 True 的卡'],
-  'True만 있는 카드입니다. True를 행으로 바꾸거나 지운 뒤 행을 더하세요.': [
-    'This card has True only. Change True to a row or delete it, then add rows.',
-    'True だけのカードです。True を行に変えるか消してから行を追加してください。',
-    '这张卡只有 True。请把 True 改为行或删除后再添加行。',
   ],
   'UTF-16 문서에 잘못된 문자가 있습니다.': [
     'UTF-16 document contains invalid characters.',
@@ -1124,6 +1142,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Interleaved transform index out of bounds.',
     'interleaved 変換インデックスが範囲外です。',
     'interleaved 变换索引超出范围。',
+  ],
+  'match는 any만 씁니다(없으면 모든 조건)': [
+    'match takes only any (absent: every condition)',
+    'match は any だけを使います(なければすべての条件)',
+    'match 只能写 any(省略则为全部条件)',
   ],
   'modEvent에는 name이 필요합니다': ['modEvent needs a name', 'modEvent には name が必要です', 'modEvent 需要 name'],
   'mode="direct"(바로 발사)는 당김이 없어 onRelease를 쓸 수 없습니다': [
@@ -1455,6 +1478,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '使用不同设置执行 {v0} 两次。',
   ],
   '{v0}초': ['{v0} s', '{v0} 秒', '{v0} 秒'],
+  '{v} 빼기': ['Remove {v}', '{v}を外す', '移除 {v}'],
   '{where}: 알 수 없는 게임 동작 {text} ({names})': [
     '{where}: unknown game control {text} ({names})',
     '{where}: 不明なゲーム操作 {text}（{names}）',
@@ -1551,6 +1575,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   값: ['Value', '値', '值'],
   '값 (%)': ['Value (%)', '値 (%)', '值 (%)'],
+  '값 추가': ['Add value', '値を追加', '添加值'],
   '값이 없는 이벤트입니다: <Do op="…" …/>를 쓰세요': [
     'The event has no value: write <Do op="…" …/>',
     '値のないイベントです: <Do op="…" …/> を書いてください',
@@ -1568,6 +1593,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Same QTE ID already exists in the same {v0}: ',
     '同じ {v0} に同一の QTE ID が存在します: ',
     '同一个 {v0} 中已存在相同的 QTE ID: ',
+  ],
+  '같은 검사 값이 두 번 있습니다.': [
+    'The same value is listed twice.',
+    '同じ検査値が2回あります。',
+    '同一检查值出现了两次。',
   ],
   '같은 경로에서 자기 자신으로 전환할 수 없습니다.': [
     'Cannot transition to itself within the same path.',
@@ -1593,6 +1623,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Exposed duplicate settings.',
     '同じ設定が重複して公開されています。',
     '重复导出了相同的设置。',
+  ],
+  '같은 연산자를 고르면 묶음이 풀립니다': [
+    'Choosing the same operator as its row dissolves the group',
+    '行と同じ演算子を選ぶとグループが解除されます',
+    '选择与所在行相同的运算符会解散分组',
   ],
   '같은 이름의 폴더가 이미 있습니다. 새 이름을 사용하세요. 기존 파일은 변경하지 않았습니다.': [
     'A folder with the same name already exists. Use a new name. Existing files were not modified.',
@@ -1673,6 +1708,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   거리: ['Distance', '距離', '距离'],
   거인: ['Giant', '巨人', '巨人'],
   '걷기·뛰기': ['Walk / run', '歩く・走る', '行走·奔跑'],
+  검: ['Sword', '剣', '剑'],
   '검사 값': ['Test value', '判定値', '检测值'],
   '검사 대상': ['Check target', '検査対象', '检查目标'],
   '검사 대상에서 반대편이 보이는지 엔진 시야 검사로 확인합니다. 공간 확보 조건과 함께 사용할 수 있습니다.': [
@@ -1914,13 +1950,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请检查共用输入的 ID、按键与手柄。',
   ],
   '공통 조건': ['Common conditions', '共通条件', '公共条件'],
-  '공통 조건 · 모두': ['Common conditions · all', '共通条件 · すべて', '公共条件 · 全部'],
   '공통 조건은 행·True보다 앞에 씁니다': [
     'Common conditions go before rows and True',
     '共通条件は行・True より前に書きます',
     '公共条件写在行和 True 之前',
   ],
-  '공통 조건이 맞으면': ['When the common conditions hold', '共通条件が合えば', '公共条件满足时'],
   관계: ['Relation', '関係', '关系'],
   구간: ['Window', '区間', '区间'],
   '구간 허용': ['Window mode', '区間許可', '区间允许'],
@@ -1942,18 +1976,23 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ルールの成功・失敗・完璧の結果を選択してください。',
     '请选择规则的成功、失败或完美结果。',
   ],
+  '그 HKX 카드에는 넣을 수 없는 기능입니다(이미 있는 기능은 하나만).': [
+    'That HKX card cannot take this feature (a feature it already has goes once).',
+    'そのHKXカードには入れられない機能です(既にある機能は一つだけ)。',
+    '该 HKX 卡片无法放入此功能(已有的功能只能有一个)。',
+  ],
   '그 HKX의 재생 중 차단(block)과 시작의 차단을 함께 쓰려면 같은 이벤트여야 합니다': [
     "To use the HKX's while-playing block and the start's block together, they must be the same events",
     'その HKX の再生中の遮断（block）と開始の遮断を一緒に使うには同じイベントでなければなりません',
     '要同时使用该 HKX 播放中的阻止（block）与开始的阻止，必须是相同的事件',
   ],
   '그 외 종족 · 기본 게임': ['Other races · base game', 'その他の種族 · ベースゲーム', '其他种族 · 基础游戏'],
+  그대로: ['As is', 'そのまま', '保持原样'],
   '그대로 (하던 페어 계속)': [
     'Keep as is (continue current pair)',
     'そのまま (現在のペアを継続)',
     '保持原样 (继续当前配对)',
   ],
-  '그대로 (하던 페어)': ['Keep as is (current pair)', 'そのまま (現在のペア)', '保持原样 (当前配对)'],
   '그래프 등록만': ['Registered in graph only', 'グラフ登録のみ', '仅在图表中注册'],
   '그래프 등록만 · 기능 없음': [
     'Registered in graph only · No feature',
@@ -1962,13 +2001,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '그래프 전체 보기': ['Zoom to fit graph', 'グラフ全体を表示', '缩放以适应图表'],
   '그래프 편집': ['Edit graph', 'グラフの編集', '编辑图表'],
-  그룹: ['Group', 'グループ', '组'],
-  '그룹 {n}': ['Group {n}', 'グループ {n}', '组 {n}'],
-  '그룹 접기': ['Collapse group', 'グループを折りたたむ', '折叠组'],
-  '그룹 펼치기': ['Expand group', 'グループを展開', '展开组'],
-  그룹끼리: ['Between groups', 'グループ同士', '组之间'],
-  '그룹끼리 조합': ['Combine groups', 'グループ同士の組み合わせ', '组之间的组合'],
-  '그룹으로 이동…': ['Move to group…', 'グループへ移動…', '移动至组…'],
   '글자 크기 {n}%': ['Text size {n}%', '文字サイズ {n}%', '文字大小 {n}%'],
   기능: ['Feature', '機能', '功能'],
   '기능 · ': ['Feature · ', '機能 · ', '功能 · '],
@@ -1986,7 +2018,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '기능 있는 이벤트': ['Events with features', '機能付きイベント', '带有功能的事件'],
   기능별: ['By feature', '機能別', '按功能'],
   '기능은 64개까지입니다.': ['Up to 64 features allowed.', '機能は 64 件までです。', '最多支持 64 个功能。'],
+  '기능을 그 HKX 카드로 옮겼습니다.': [
+    'Moved the feature to that HKX card.',
+    '機能をそのHKXカードに移動しました。',
+    '已将功能移到该 HKX 卡片。',
+  ],
+  '기능을 그 HKX 카드에 복사했습니다.': [
+    'Copied the feature to that HKX card.',
+    '機能をそのHKXカードにコピーしました。',
+    '已将功能复制到该 HKX 卡片。',
+  ],
   '기능을 선택하세요.': ['Select a feature.', '機能を選択してください。', '请选择功能。'],
+  '기능을 찾지 못했습니다.': ['Could not find the feature.', '機能が見つかりませんでした。', '找不到该功能。'],
   기다리기: ['Wait', '待機', '等待'],
   '기본 (어느 역할이든)': ['Default (any role)', '既定 (どの役割でも)', '默认 (无论何种角色)'],
   '기본 ±2.6%. 0이면 완벽 판정을 끕니다.': [
@@ -2001,6 +2044,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '기본 인칭 형식 오류': ['Invalid default view format', '既定の視点形式エラー', '默认视角格式错误'],
   기본값: ['Defaults', '既定値', '默认值'],
   '기본값: {v}': ['Default: {v}', '既定値: {v}', '默认值:{v}'],
+  기본값으로: ['Back to default', '既定値に戻す', '恢复默认'],
   '기본값이면 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다. 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.':
     [
       "By default, the QTE appears only when the role sending the event is the player. If the sender is 'Either side', it appears regardless of role.",
@@ -2120,13 +2164,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '能力値の比較基準を選んでください。',
     '请选择能力值的比较基准。',
   ],
-  '다른 그룹으로 이동': ['Move to another group', '別のグループへ移動', '移动至其他组'],
   '다른 노드 값 가져오기': ["Copy another node's values", '他のノードの値を取り込む', '复制其他节点的数值'],
   '다른 노드 값 가져오기…': ["Copy another node's values…", '他のノードの値を取り込む…', '复制其他节点的数值…'],
   다음: ['Next', '次', '下一个'],
   '다음 동작': ['Next action', '次のアクション', '下一个动作'],
   '다음 동작 추가': ['Add next action', '次のアクションを追加', '添加下一动作'],
-  '다음 페어': ['Next pair', '次のペア', '下一个配对'],
+  단검: ['Dagger', 'ダガー', '匕首'],
   '단계 교체 설정 오류': ['Step replace setting error', '段階置換設定エラー', '阶段替换设置错误'],
   '단일 HKX에서만 공격 데이터를 통합 편집할 수 있습니다.': [
     'Attack data can only be edited uniformly in single HKX actions.',
@@ -2150,8 +2193,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '无需拉弓即可发射。速度和距离与拉满相同，伤害乘以下方的 %。消耗 1 支已装备的箭，没有箭则不发射。弓的附魔和毒药暂不生效。',
     ],
   '당긴 만큼': ['As drawn', '引いた分だけ', '按拉弓程度'],
+  대검: ['Greatsword', '大剣', '巨剑'],
   대상: ['Target', '対象', '目标'],
-  '대상 · 일반 동작': ['Target · Ordinary action', '対象 · 一般アクション', '目标 · 普通动作'],
   '대상 고정은 운반이 있는 들기 페어에 연결하세요.': [
     'Connect fix carried target to lift pair with carry.',
     '運搬対象の固定は運搬を含む持ち上げペアに接続してください。',
@@ -2195,6 +2238,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '대상과의 거리': ['Distance to target', '対象との距離', '与目标的距离'],
   '대상과의 높이 차이': ['Height difference to target', '対象との高低差', '与目标的高度差'],
   데이드라: ['Daedra', 'デイドラ', '魔族'],
+  도끼: ['War axe', '斧', '战斧'],
   도살물고기: ['Slaughterfish', 'スローターフィッシュ', '食人鱼'],
   도착: ['Destination', '終点', '目标'],
   독: ['Poison', '毒', '毒药'],
@@ -2410,6 +2454,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   매머드: ['Mammoth', 'マンモス', '猛犸'],
   매지카: ['Magicka', 'マジカ', '魔法值'],
   '매지카 ': ['Magicka ', 'マジカ ', '魔法值 '],
+  맨손: ['Unarmed', '素手', '空手'],
   '맨손 공격 · 오른손': ['Unarmed attack · right hand', '素手攻撃 · 右手', '徒手攻击 · 右手'],
   '맨손 공격 · 왼손': ['Unarmed attack · left hand', '素手攻撃 · 左手', '徒手攻击 · 左手'],
   '맨손 전진 강공격 · 오른손': [
@@ -2427,6 +2472,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   메뉴: ['Menu', 'メニュー', '菜单'],
   멧돼지: ['Boar', 'イノシシ', '野猪'],
   모두: ['All', 'すべて', '全部'],
+  '모두 맞으면': ['When all hold', 'すべて満たすと', '全部满足时'],
   '모두 충족 (AND)': ['Match all (AND)', 'すべて満たす (AND)', '满足全部 (AND)'],
   '모두 충족 AND': ['All met AND', 'すべて満たす AND', '全部满足 AND'],
   '모드 이벤트 보내기': ['Send mod event', 'MOD イベント送信', '发送模组事件'],
@@ -2501,6 +2547,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '收起武器方可搬运：仅在收起武器·法术状态下启动，搬运中拔出则会掉落目标。抬起开始时收起武器：即使拔出武器也可启动，在开始抬起的瞬间直接将搬运者的武器收回鞘中（无动作）。此后若拔出武器·法术则掉落目标。目标的武器在放下前保持隐藏。',
     ],
   무시: ['Ignore', '無視', '忽略'],
+  '묶는 방법': ['How they combine', 'まとめ方', '组合方式'],
   묶음: ['Groups', 'グループ', '分组'],
   '묶음 QTE는 디테일의 "규칙별 설정"에서 규칙마다 결과 이벤트를 고르세요.': [
     'For grouped QTE, select result events per rule under "Per-Rule Settings" in Details.',
@@ -2513,12 +2560,34 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '成组 QTE 不能由事件开始。',
   ],
   '묶음 ·': ['Group ·', 'グループ ·', '分组 ·'],
+  '묶음 · 조건 {n}개': ['Group · {n} conditions', 'グループ · 条件{n}個', '分组 · {n} 个条件'],
+  '묶음 안에는 묶음을 넣지 않습니다(한 단계까지)': [
+    'A group holds no group (one level only)',
+    'グループの中にグループは入れません(1段階まで)',
+    '分组内不能再放分组(仅限一层)',
+  ],
+  '묶음 안에는 묶음을 넣지 않습니다(한 단계까지).': [
+    'A group holds no group (one level only).',
+    'グループの中にグループは入れません(1段階まで)。',
+    '分组内不能再放分组(仅限一层)。',
+  ],
   '묶음 이름': ['Group name', 'グループ名', '分组名称'],
   '묶음 이름과 영문 ID가 필요합니다.': [
     'Group name and alphanumeric ID are required.',
     'グループ名と英数 ID が必要です。',
     '需要组名称和英文 ID。',
   ],
+  '묶음에는 조건이 둘 이상 필요합니다.': [
+    'A group needs two or more conditions.',
+    'グループには条件が2つ以上必要です。',
+    '分组至少需要两个条件。',
+  ],
+  '묶음은 감싼 쪽의 반대 연산자로만 씁니다(AND 조건 사이에는 OR 묶음, OR 행에는 AND 묶음).': [
+    'A group takes the operator opposite to what holds it (an OR group among AND conditions, an AND group in an OR row).',
+    'グループは囲む側と反対の演算子だけを使います(AND条件の間ではORグループ、OR行ではANDグループ)。',
+    '分组只能使用与外层相反的运算符(AND 条件之间用 OR 分组,OR 行中用 AND 分组)。',
+  ],
+  '묶음을 찾지 못했습니다.': ['Group not found.', 'グループが見つかりません。', '未找到分组。'],
   문자열: ['Text', '文字列', '字符串'],
   '문제 {n}': ['Problems {n}', '問題 {n}', '问题 {n}'],
   '문제 · {n}': ['Problems · {n}', '問題 · {n}', '问题 · {n}'],
@@ -2626,6 +2695,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   발신자를: ['Set sender to', '送信元を', '将发送者设为'],
   방어: ['Block', '防御', '格挡'],
   '방어 중': ['Blocking', '防御中', '格挡中'],
+  방패: ['Shield', '盾', '盾牌'],
   방향: ['Direction', '方向', '方向'],
   '방향 상관없음': ['Either way', '向きは問わない', '方向不限'],
   '방향은 래그돌의 아래·위·앞·뒤·왼쪽·오른쪽입니다.': [
@@ -2669,8 +2739,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'コピー準備完了 · HKX 内容/注釈未検査',
     '准备复制 · 未检查 HKX 内容/注释',
   ],
-  '복사·복제·이동': ['Copy · Duplicate · Move', 'コピー · 複製 · 移動', '复制 · 副本 · 移动'],
-  '복사한 조건이 없습니다.': ['No copied condition.', 'コピーされた条件がありません。', '没有已复制的条件。'],
   '복사한 카드가 없습니다.': ['No copied card.', 'コピーしたカードがありません。', '没有已复制的卡片。'],
   '복사할 카드를 선택하세요.': [
     'Select the cards to copy.',
@@ -2678,7 +2746,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请选择要复制的卡。',
   ],
   복제: ['Duplicate', '複製', '创建副本'],
-  '복합조건 편집': ['Edit composite conditions', '複合条件を編集', '编辑复合条件'],
   '본 ': ['Bone ', 'ボーン ', '骨骼 '],
   '본 삭제': ['Delete bone', 'ボーンを削除', '删除骨骼'],
   '본 이름은 앞뒤 공백·제어 문자 없이 1~256바이트여야 합니다': [
@@ -2693,7 +2760,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '骨骼矩阵大小溢出。',
   ],
   본인: ['Self', '自分', '自身'],
-  '본인 · ': ['Self · ', '自分 · ', '自身 · '],
   '본인 앞 부채꼴의 전체 각도(도)입니다.': [
     'The full angle of the cone in front of you, in degrees.',
     '自分の前の扇形の全体の角度(度)です。',
@@ -2731,7 +2797,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '视口渲染失败：',
   ],
   블렌드: ['Blend', 'ブレンド', '混合'],
-  '블렌드 사용': ['Use blend', 'ブレンドを使う', '使用混合'],
   '블렌드 재정의': ['Override blend', 'ブレンド再定義', '覆盖混合'],
   '블렌드(0~5)를 확인하세요.': [
     'Check the blend (0-5).',
@@ -2786,7 +2851,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '该事件正在使用中。请先更改使用位置的事件：',
   ],
   '사용 키': ['Assigned key', '使用キー', '使用按键'],
-  '사용자 · 일반 동작': ['User · Ordinary action', 'ユーザー · 一般アクション', '用户 · 普通动作'],
   삭제: ['Delete', '削除', '删除'],
   '삭제 · 엔진 기본값으로': ['Delete · engine default', '削除 · エンジン既定値へ', '删除 · 改用引擎默认值'],
   '삭제하거나 그래프로 드래그해 이벤트 수신 카드를 만들 수 있습니다.': [
@@ -2802,7 +2866,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '相対 HKX パスが必要です: ',
     '需要相对 HKX 路径：',
   ],
-  '상대 · ': ['Partner · ', '相手 · ', '搭档 · '],
   '상대 각도': ['Angle to partner', '相手の角度', '相对角度'],
   '상대 대비 키 비율': ['Height ratio to partner', '相手に対する身長比率', '相对身高比例'],
   '상대 동작': ['Partner action', '相手アクション', '对方动作'],
@@ -2875,6 +2938,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '서리 거미': ['Frostbite Spider', 'フロストバイト・スパイダー', '霜噬蜘蛛'],
   '서리 아트로나크': ['Frost Atronach', '氷のアトロナック', '霜元素'],
+  석궁: ['Crossbow', 'クロスボウ', '弩'],
   선입력: ['Input buffer', '先行入力', '预输入'],
   '선입력 형식 오류': ['Invalid input buffer format', '先行入力形式エラー', '预输入格式错误'],
   '선택 규칙 복제': ['Duplicate selected rule', '選択ルールを複製', '复制所选规则'],
@@ -3250,6 +3314,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '시작 키 입력 추가': ['Add start key input', '開始キー入力を追加', '添加开始按键输入'],
   '시작 트리거': ['Start trigger', '開始トリガー', '启动触发器'],
   '시작 트리거 · {name}': ['Start trigger · {name}', '開始トリガー · {name}', '启动触发器 · {name}'],
+  '시작·전환 설정은 캔버스의 카드에서 편집합니다.': [
+    'Start and transition settings are edited on the card in the canvas.',
+    '開始・遷移の設定はキャンバスのカードで編集します。',
+    '开始和转换设置在画布的卡片上编辑。',
+  ],
   '시작시킨 동작이 재생 중일 때': ['While the action it started plays', '開始させた動作の再生中', '其启动的动作播放时'],
   '시작에는 to(동작), condition(함께 쓰는 조건 카드) 또는 조건 카드가 필요합니다': [
     'A start needs to (an action), condition (a shared condition card) or a condition card',
@@ -3294,7 +3363,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '下の使用箇所を変更してから削除してください。',
     '请先更改下方的使用位置再行删除。',
   ],
-  아래로: ['Move down', '下へ', '下移'],
   '아직 동작이 없습니다. ＋ HKX 재생으로 첫 카드를 만드세요.': [
     'No action yet. Make the first card with ＋ Play HKX.',
     'まだアクションがありません。＋ HKX 再生 で最初のカードを作ってください。',
@@ -3344,7 +3412,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   양손: ['Two-handed', '両手武器', '双手'],
   '양손 합': ['Both hands', '両手の合計', '双手合计'],
   양쪽: ['Both', '両方', '双方'],
-  '양쪽 일반 동작': ['Both ordinary actions', '両側一般アクション', '双方普通动作'],
   '양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.': [
     'Both-way ordinary transitions require a pair source and ordinary/combo destinations.',
     '両側一般遷移にはペアの始点と一般/コンボの遷移先が必要です。',
@@ -3379,18 +3446,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   얼마나: ['How much', 'どれだけ', '多少'],
   '얼음 망령': ['Ice Wraith', 'アイス・レイス', '冰怨灵'],
   없음: ['None', 'なし', '无'],
-  '없음 · 모든 경우': ['None · always', 'なし · 常に', '无 · 所有情况'],
   '없음 — 다른 프로젝트·모드의 애니메이션에서만 올 수 있습니다': [
     'None — can only arrive from animations in other projects or mods',
     'なし — 他のプロジェクトや MOD のアニメーションからのみ送信されます',
     '无 — 仅能来自其他项目或模组的动画',
   ],
   '엎드림 (배가 바닥)': ['Prone (stomach on ground)', 'うつ伏せ (腹が床)', '俯卧 (腹部着地)'],
-  '에는 조건이 하나 이상 필요합니다': [
-    ' needs at least one condition',
-    'には条件が一つ以上必要です',
-    '至少需要一个条件',
-  ],
   '에서 사용 중입니다. 해당 참조를 바꾼 뒤 연결을 해제하세요.': [
     ' is in use here. Change that reference before unlinking.',
     'で使用中です。該当する参照を変更してから接続を解除してください。',
@@ -3705,7 +3766,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   원형: ['Circle', '円形', '圆形'],
   위: ['Up', '上', '上'],
-  위로: ['Move up', '上へ', '上移'],
   위스프: ['Wisp', 'ウィスプ', '幽魂'],
   '위스프 마더': ['Wispmother', 'ウィスプマザー', '幽魂之母'],
   위치: ['Position', '位置', '位置'],
@@ -3859,10 +3919,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '发送此事件的角色为玩家时、为 NPC 时，或两者皆可。',
   ],
   '이 전환만': ['This transition only', 'この遷移のみ', '仅此过渡'],
-  '이 전환으로 들어갈 때의 블렌드(초). 비우면 도착 HKX의 시작 블렌드.': [
-    "The blend (s) entering through this transition. Empty: the arriving HKX's start blend.",
-    'この遷移で入るときのブレンド（秒）。空なら到着HKXの開始ブレンド。',
-    '通过此转换进入时的混合（秒）。留空则使用目标 HKX 的开始混合。',
+  '이 전환으로 들어갈 때의 블렌드(초). 없으면 도착 HKX의 시작 블렌드.': [
+    "The blend (seconds) when entering through this transition. Without it, the destination HKX's start blend.",
+    'この遷移で入るときのブレンド(秒)。なければ到着HKXの開始ブレンド。',
+    '通过此转换进入时的混合(秒)。没有时使用目标 HKX 的开始混合。',
   ],
   '이 조건에서 사용할 수 없는 속성: ': [
     'Property not allowed for this condition: ',
@@ -3916,12 +3976,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'この項目はクリップ時間基準で動作します',
     '此项按剪辑时间运行',
   ],
-  '이 항목을 삭제합니다. 그룹은 자식도 함께 삭제합니다. Ctrl+Z로 복원합니다.': [
-    'Deletes this item. Deleting a group also deletes its children. Undo with Ctrl+Z.',
-    'この項目を削除します。グループの場合は子要素も削除されます。Ctrl+Z で復元できます。',
-    '删除此项。删除组时将同时删除其子项。可用 Ctrl+Z 恢复。',
+  '이 행의 목적지가 이 카드로 되돌아와 순환합니다.': [
+    "This row's destination leads back to this card: a loop.",
+    'この行の行き先がこのカードに戻り、循環します。',
+    '该行的目标会回到此卡片,形成循环。',
   ],
   '이동 입력 방향': ['Movement input direction', '移動入力方向', '移动输入方向'],
+  '이동 입력 방향은 본인만 검사합니다.': [
+    'Movement direction checks only the actor itself.',
+    '移動入力方向は本人だけを検査します。',
+    '移动输入方向只检查本人。',
+  ],
   '이동키 취소': ['Movement recovery', '移動による復帰', '移动恢复'],
   '이동키 취소 · {name}': ['Movement recovery · {name}', '移動による復帰 · {name}', '移动恢复 · {name}'],
   '이동키 취소 · {name} · {label}': [
@@ -4021,7 +4086,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '이벤트 선택': ['Select event', 'イベントを選択', '选择事件'],
   '이벤트 선택…': ['Select event…', 'イベントを選択…', '选择事件…'],
   '이벤트 설정': ['Event settings', 'イベント設定', '事件设置'],
-  '이벤트 수신': ['Marker Received', 'マーカー受信', '接收标记'],
   '이벤트 수신 카드를 만들지 못했습니다.': [
     'Could not create event receive card.',
     'イベント受信カードを作成できませんでした。',
@@ -4139,7 +4203,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '인간 · 기본 게임': ['Humanoid · base game', '人間 · ベースゲーム', '人类 · 基础游戏'],
   인간형: ['Humanoid', '人型', '人形'],
   일반: ['Ordinary', '通常', '常规'],
-  '일반 → 페어': ['Ordinary → Pair', '一般 → ペア', '普通 → 配对'],
   '일반 공격': ['Normal attack', '通常攻撃', '普通攻击'],
   '일반 공격 · LMB / RT': ['Normal attack · LMB / RT', '通常攻撃 · LMB / RT', '普通攻击 · LMB / RT'],
   '일반 공격 · 쌍수': ['Normal attack · dual wield', '通常攻撃 · 二刀流', '普通攻击 · 双持'],
@@ -4287,7 +4350,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '장비·능력': ['Equipment and abilities', '装備・能力', '装备与能力'],
   '장착 종류': ['Equipment type', '装備の種類', '装备类型'],
   재생: ['Play', '再生', '播放'],
-  '재생 설정': ['Playback', '再生設定', '播放设置'],
   '재생 안 함': ['Plays nothing', '再生しない', '不播放'],
   '재생 전체': ['Entire playback', '再生全体', '整个播放过程'],
   '적대 여부는 선택한 검사 대상이 반대편에게 적대적인지 검사합니다. 동료는 플레이어 팀원 여부입니다.': [
@@ -4330,6 +4392,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '全局变量的值完全一致时通过。',
   ],
   '전역 카메라 복구': ['Global camera restore', '全体カメラ復帰', '全局相机恢复'],
+  전쟁망치: ['Warhammer', 'ウォーハンマー', '战锤'],
   전체: ['All', 'すべて', '全部'],
   '전체 {n}': ['All {n}', 'すべて {n}', '全部 {n}'],
   '전체 보기': ['Zoom to Fit', '全体を表示', '缩放到适合'],
@@ -4353,6 +4416,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '战斗目标只能用于进入配对的事件开始，或在普通动作之间选择的条件卡开始。',
   ],
   '전투 중': ['In combat', '戦闘中', '战斗中'],
+  전투도끼: ['Battleaxe', 'バトルアックス', '战斧(双手)'],
   '전환 감지 구간 설정 오류': [
     'Invalid transition detection window setting',
     '遷移入力受付区間の設定エラー',
@@ -4407,7 +4471,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   조건: ['Condition', '条件', '条件'],
   '조건 ({name})': ['Condition ({name})', '条件 ({name})', '条件 ({name})'],
   '조건 {n}개': ['{n} condition(s)', '条件 {n} 個', '{n} 个条件'],
-  '조건 {n}개 · 모두 맞으면': ['{n} conditions · all must hold', '条件 {n} 個 · すべて合えば', '{n} 个条件 · 全部满足'],
   '조건 검색': ['Search conditions', '条件を検索', '搜索条件'],
   '조건 검색 · 이름이나 분류': [
     'Search conditions · name or category',
@@ -4415,13 +4478,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '搜索条件 · 名称或分类',
   ],
   '조건 그룹에 추가하세요.': ['Add to a condition group.', '条件グループに追加してください。', '请添加到条件组。'],
+  '조건 그룹을 찾지 못했습니다.': ['Condition group not found.', '条件グループが見つかりません。', '未找到条件组。'],
   '조건 그룹이 순환합니다.': [
     'Condition group contains a cycle.',
     '条件グループが循環しています。',
     '条件组存在循环。',
   ],
   '조건 분기': ['Condition branch', '条件分岐', '条件分支'],
-  '조건 붙여넣기': ['Paste condition', '条件を貼り付け', '粘贴条件'],
   '조건 삭제': ['Delete condition', '条件を削除', '删除条件'],
   '조건 설정 누락: ': ['Missing condition setting: ', '条件設定の不足: ', '缺少条件设置: '],
   '조건 없는 행은 쓰지 않습니다: 공통 조건만으로 정하면 <True>, 나머지는 <False>로 씁니다': [
@@ -4434,7 +4497,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '条件のない行があります。条件を入れるか、共通条件だけで決めるなら True を使ってください。',
     '存在没有条件的行。请添加条件；若仅由公共条件决定，请使用 True。',
   ],
-  '조건 조합': ['Combine conditions', '条件の組み合わせ', '组合条件'],
+  '조건 추가': ['Add condition', '条件を追加', '添加条件'],
   '조건 카드': ['Condition card', '条件カード', '条件卡'],
   '조건 카드 ID 중복: ': ['Duplicate condition card ID: ', '条件カード ID の重複: ', '条件卡 ID 重复：'],
   '조건 카드 목록 형식 오류': ['Condition card list format error', '条件カード一覧の形式エラー', '条件卡列表格式错误'],
@@ -4502,7 +4565,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '条件卡的条件过多（运行时上限）。',
   ],
   '조건 형식 오류': ['Condition format error', '条件の形式エラー', '条件格式错误'],
-  '조건 활성화': ['Enable condition', '条件を有効化', '启用条件'],
   '조건에 맞는 이벤트가 없습니다.': [
     'No events match the criteria.',
     '条件に一致するイベントがありません。',
@@ -4518,26 +4580,39 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '条件は <Check>・<And>・<Or> で書きます。',
     '条件用 <Check>、<And>、<Or> 编写。',
   ],
-  '조건을 복사했습니다.': ['Condition copied.', '条件をコピーしました。', '已复制条件。'],
-  '조건을 찾지 못했습니다.': ['Could not find condition.', '条件が見つかりませんでした。', '未找到条件。'],
-  '조건을 추가하세요. 빈 그룹은 사용할 수 없습니다.': [
-    'Add conditions. Empty groups cannot be used.',
-    '条件を追加してください。空のグループは使用できません。',
-    '请添加条件。空组不可使用。',
+  '조건은 캔버스의 카드에서 편집합니다.': [
+    'Edit conditions on the card on the canvas.',
+    '条件はキャンバスのカードで編集します。',
+    '条件在画布上的卡片中编辑。',
   ],
+  '조건을 끌어 놓으면 그 조건으로 새 행을 만듭니다.': [
+    'Drop a condition here to make a new row with it.',
+    '条件をここにドロップすると、その条件で新しい行を作ります。',
+    '将条件拖放到此处,会用该条件新建一行。',
+  ],
+  '조건을 찾지 못했습니다.': ['Could not find condition.', '条件が見つかりませんでした。', '未找到条件。'],
   '조건의 「상대」와 공간 확보에서 빼고 볼 액터입니다. 전방 대상: 본인 앞 부채꼴 안에서 가장 가까운 액터. 전투 대상: 보낸 쪽(키면 플레이어)의 전투 대상.':
     [
       "The actor the conditions' \"partner\" reads, and that the room check does not count as an obstacle. Actor ahead: the nearest actor in the cone in front of you. Combat target: the sender's combat target (the player's for a key).",
       '条件の「相手」として読み、空間確保では障害物と見なさないアクターです。前方の対象: 自分の前の扇形の中で最も近いアクター。戦闘対象: 送った側(キーならプレイヤー)の戦闘対象。',
       '条件中的「对方」所读取、空间检查不视为障碍的角色。前方目标：自己前方扇形内最近的角色。战斗目标：发送方（按键时为玩家）的战斗目标。',
     ],
+  '조건의 검사 값을 선택하세요.': [
+    "Choose the condition's value.",
+    '条件の検査値を選んでください。',
+    '请选择条件的检查值。',
+  ],
   '조건의 검사 항목을 선택하세요.': [
     'Select a condition test property.',
     '条件の判定項目を選択してください。',
     '请选择条件的检查项目。',
   ],
+  '조건이 남지 않은 행을 지웠습니다. Ctrl+Z로 되돌립니다.': [
+    'Removed the row left without conditions. Ctrl+Z brings it back.',
+    '条件が残らなかった行を削除しました。Ctrl+Zで元に戻せます。',
+    '已删除没有剩余条件的行。按 Ctrl+Z 可恢复。',
+  ],
   조작법: ['Controls', '操作方法', '操作方法'],
-  조합: ['Combine', '組み合わせ', '组合'],
   종료: ['Exit', '終了', '结束'],
   '종료 시점': ['End timing', '終了タイミング', '结束时机'],
   '종료 시점 · {name}': ['End timing · {name}', '終了タイミング · {name}', '结束时机 · {name}'],
@@ -4553,6 +4628,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     ],
   좌표: ['Coordinates', '座標', '坐标'],
   '좌표 범위가 잘못되었습니다.': ['Coordinates out of range.', '座標範囲が無効です。', '坐标超出有效范围。'],
+  주문: ['Spell', '呪文', '法术'],
   '주문 보유': ['Has spell', '呪文所持', '拥有法术'],
   '주문 적용': ['Cast Spell', '呪文を適用', '施放法术'],
   '주변 맞춤': ['Fit neighbors', '周囲にフィット', '适配周围'],
@@ -4702,6 +4778,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '指定された原本が存在しないか、XML パスと異なります。再度選択してください。',
     '指定的源文件不存在或与 XML 路径不同。请重新选择。',
   ],
+  지팡이: ['Staff', '杖', '法杖'],
   '직전 동작': ['Previous action', '直前の動作', '上一个动作'],
   '직전 동작 설정은 직전 동작 조건에서만 사용하세요.': [
     'Use the previous action settings only in a previous action condition.',
@@ -4789,6 +4866,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '脊椎ボーンには 0.3 以下の小さい値のみをお勧めします。大きく設定すると歩行時の胴体の揺れが失われ、上半身と下半身が不自然にずれます。',
     '脊柱骨骼建议仅使用 0.3 以下的小数值。过大数值会导致行走时的躯干摆动消失，造成上半身与腿部脱节。',
   ],
+  철퇴: ['Mace', 'メイス', '钉锤'],
   '첫 동작 만들기': ['Make your first action', '最初のアクションを作る', '创建第一个动作'],
   체력: ['Health', '体力', '生命值'],
   '체크하면 이 조건의 참·거짓 결과를 반전합니다. 대상이나 데이터를 확인할 수 없는 검사 불능은 반전하지 않고 실패로 처리합니다.':
@@ -4808,6 +4886,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   최근: ['Recent', '最近', '最近'],
   '최대 경사각': ['Max slope angle', '最大傾斜角', '最大倾斜角'],
   최솟값: ['Minimum value', '最小値', '最小值'],
+  '추가할 값': ['Values to add', '追加する値', '可添加的值'],
   축소: ['Zoom out', '縮小', '缩小'],
   '출력 구성': ['Export configuration', '出力構成', '导出配置'],
   '출력 문서 크기 또는 XML 형식 오류': [
@@ -4978,6 +5057,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '클립 끝': ['Clip end', 'クリップの終わり', '剪辑结束'],
   '클립 시각 {seconds}초': ['Clip time {seconds} s', 'クリップ時刻 {seconds}秒', '片段时间 {seconds} 秒'],
   '클립 시각 빼기': ['Remove clip time', 'クリップ時刻を外す', '移除剪辑时间'],
+  '클립 전체': ['Whole clip', 'クリップ全体', '整个片段'],
   '클립 전체에서 전환을 허용합니다(시각·선입력 없음). 끄면 열림·닫힘 시각으로 정한 구간에서만 허용합니다.': [
     'Allows transitions across the entire clip (no timing or input buffer). If disabled, only allowed within the window defined by open and close times.',
     'クリップ全体で遷移を許可します（時刻・先行入力なし）。無効にすると開始・終了時刻で指定した区間内でのみ許可します。',
@@ -5122,8 +5202,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '페어 {n}': ['Pairs {n}', 'ペア {n}', '配对 {n}'],
   '페어 · ': ['Pair · ', 'ペア · ', '配对 · '],
-  '페어 · 다음': ['Pair · Next', 'ペア · 次', '配对 · 下一个'],
-  '페어 · 시작': ['Pair · Start', 'ペア · 開始', '配对 · 开始'],
   '페어 거리·각도·종료 블렌드 범위를 확인하세요.': [
     'Check pair distance, angle, and exit blend ranges.',
     'ペアの距離・角度・終了ブレンドの範囲を確認してください。',
@@ -5311,6 +5389,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '필수 대상': ['Essential target', 'Essential 対象', 'Essential 目标'],
   '하나 이상 충족 (OR)': ['Match any (OR)', '1つ以上満たす (OR)', '满足任一 (OR)'],
   '하나 이상 충족 OR': ['Any met OR', '1つ以上満たす OR', '满足任一 OR'],
+  '하나라도 맞으면': ['When any holds', 'どれか1つでも満たすと', '任一满足时'],
   '하는 일': ['What it does', '動作', '作用'],
   '한 번 입력·연타를 화면 안내 없이 애니메이션 연출로 쓸 때 켭니다.': [
     'Turn on when using single press or rapid press as animation staging without on-screen prompts.',
@@ -5339,13 +5418,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '解除:{pair} · 动作结束',
   ],
   '행 {n}': ['Row {n}', '行 {n}', '第 {n} 行'],
-  '행 삭제': ['Delete row', '行を削除', '删除行'],
   '행 안의 <Condition>에는 id를 쓰지 않습니다(함께 쓰는 카드는 루트에)': [
     'A <Condition> inside a row takes no id (shared cards go at the root)',
     '行内の <Condition> には id を書きません（共有カードはルートに）',
     '行内的 <Condition> 不写 id（共用卡放在根级）',
   ],
-  '행 추가': ['Add row', '行を追加', '添加行'],
   '행, True 또는 False 핀에서 연결하세요.': [
     'Connect from a row, True or False pin.',
     '行・True・False のピンからつないでください。',
@@ -5361,18 +5438,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '行には to・condition・続く <Condition> のいずれかが必要です',
     '行需要 to、condition 或后接的 <Condition> 之一',
   ],
-  '행에는 조건이 하나 이상 필요합니다.': [
-    'A row needs at least one condition.',
-    '行には条件が一つ以上必要です。',
-    '行至少需要一个条件。',
-  ],
   '행에는 조건이 하나 이상 필요합니다. 행을 지우세요.': [
     'A row needs at least one condition. Delete the row.',
     '行には条件が一つ以上必要です。行を削除してください。',
     '行至少需要一个条件。请删除该行。',
   ],
-  '행으로 바꾸기': ['Change to a row', '行に変える', '改为行'],
   '행을 찾지 못했습니다.': ['The row was not found.', '行が見つかりませんでした。', '未找到该行。'],
+  '행의 조건을 옮기고 원래 행(목적지 포함)은 지웠습니다. Ctrl+Z로 되돌립니다.': [
+    "Moved the row's conditions and removed the row (with its destination). Ctrl+Z brings it back.",
+    '行の条件を移し、元の行(行き先を含む)を削除しました。Ctrl+Zで元に戻せます。',
+    '已移动该行的条件,并删除了原行(含目标)。按 Ctrl+Z 可恢复。',
+  ],
   '행이 여럿인 카드는 True를 쓰지 않습니다. 행을 하나만 남기세요.': [
     'A card with several rows does not use True. Leave only one row.',
     '行が複数あるカードは True を使いません。行を一つだけ残してください。',
@@ -5491,6 +5567,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   확률: ['Chance', '確率', '概率'],
   환경: ['Environment', '環境', '环境'],
   환영: ['Illusion', '幻惑', '幻术'],
+  활: ['Bow', '弓', '弓'],
   '활 발사': ['Fire bow', 'Fire bow', 'Fire bow'],
   '활 발사 추가': ['Add fire bow', 'Fire bow を追加', '添加 Fire bow'],
   '활 발사: 바로 발사는 시각 발사가 필요합니다. 이벤트로 쏘려면 이벤트 등록의 활 발사를 쓰세요.': [
@@ -5508,6 +5585,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Fire bow は一般アクションに接続してください。',
     'Fire bow 请连接到普通动作。',
   ],
+  횃불: ['Torch', '松明', '火把'],
   회복: ['Restoration', '回復', '恢复'],
   '회전 · 전 구간 금지': ['Rotation · Full lock', '回転 · 全区間禁止', '旋转 · 全程锁定'],
   '회전 방식': ['Rotation mode', '回転方式', '旋转方式'],
@@ -5532,10 +5610,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '＋ HKX 재생': ['＋ Play HKX', '＋ HKX 再生', '＋ 播放 HKX'],
   '＋ 공통 조건': ['＋ Common condition', '＋ 共通条件', '＋ 公共条件'],
-  '＋ 그룹': ['＋ Group', '＋ グループ', '＋ 组'],
   '＋ 기능 추가': ['＋ Add feature', '＋ 機能を追加', '＋ 添加功能'],
   '＋ 등록': ['＋ Register', '＋ 登録', '＋ 注册'],
   '＋ 새 이벤트 등록…': ['＋ Register new event…', '＋ 新規イベントを登録…', '＋ 注册新事件…'],
+  '＋ 설정': ['＋ Setting', '＋ 設定', '＋ 设置'],
   '＋ 용도 추가 — 이 이벤트를 쓸 항목 고르기…': [
     '＋ Add usage — Choose an item to use this event…',
     '＋ 用途を追加 — このイベントを使用する項目を選択…',
@@ -5544,8 +5622,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '＋ 이벤트': ['＋ Event', '＋ イベント', '＋ 事件'],
   '＋ 이벤트 추가': ['＋ Add event', '＋ イベントを追加', '＋ 添加事件'],
   '＋ 조건': ['＋ Condition', '＋ 条件', '＋ 条件'],
-  '＋ 조건 그룹': ['＋ Condition group', '＋ 条件グループ', '＋ 条件组'],
+  '＋ 조건 추가': ['＋ Add condition', '＋ 条件を追加', '＋ 添加条件'],
   '＋ 키': ['＋ Key', '＋ キー', '＋ 按键'],
-  '＋ 행': ['＋ Row', '＋ 行', '＋ 行'],
-  '＋ 행 추가': ['＋ Add row', '＋ 行を追加', '＋ 添加行'],
 };

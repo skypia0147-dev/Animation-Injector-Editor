@@ -16,6 +16,7 @@ import {
   extensionSummary,
 } from '../src/graph/conditionExtensions.ts';
 import {readExpression, editExpression} from '../src/graph/conditionExpression.ts';
+import {multiValueField} from '../src/graph/multiValue.ts';
 import {checker, needsChecker} from './local.mjs';
 // Errors of the project's condition cards (cardChecks.ts).
 const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
@@ -23,7 +24,9 @@ const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
 function sample(kind) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
-  const t = {id: 'Condition1', kind, subject: 'partner', minimum: 0, ...extensionDefaults(kind)};
+  // The movement keys are the actor's own: no partner target.
+  const subject = kind === 'movementDirection' ? 'self' : 'partner';
+  const t = {id: 'Condition1', kind, subject, minimum: 0, ...extensionDefaults(kind)};
   if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
   // The last action the subject finished names one of the project's (runtime 0.12.296).
   if (kind === 'previousAction') Object.assign(t, {actions: [w.actions[0].uid], within: 1.5, ended: 'completed'});
@@ -38,16 +41,23 @@ for (const kind of extensionKinds)
     const w = sample(kind),
       t = testOf(w);
     t.negate = true;
+    // A value list where the condition takes one (runtime 0.12.301): any of them holds.
+    if (multiValueField[kind] === 'option')
+      t.option = definition(kind)
+        .choices.slice(0, 2)
+        .map(([v]) => v)
+        .join(',');
     assert.deepEqual(cardErrors(w), []);
     const saved = parseWorkspace(JSON.stringify(captureGraph(w)));
     assert.deepEqual(saved.cards, w.cards);
     const xml = compileWorkspace(w),
       restored = importWorkspaceXml(xml);
     assert.equal(compileWorkspace(restored), xml);
-    assert.ok(extensionSummary(t).includes('상대'));
+    assert.ok(extensionSummary(t).includes(t.subject === 'partner' ? '상대' : '본인'));
     const card = w.cards[0];
     const expression = readExpression(card, t.id);
-    const wrapped = editExpression(w, card.uid, {type: 'wrap', id: t.id, mode: 'all'});
+    // A group among AND conditions is an OR (runtime 0.12.301: one level, the opposite operator).
+    const wrapped = editExpression(w, card.uid, {type: 'wrap', id: t.id, mode: 'any'});
     const added = editExpression(wrapped, card.uid, {type: 'add', parent: t.id, expression});
     assert.deepEqual(cardErrors(added), []);
     mkdirSync('tests/generated/condition-extensions', {recursive: true});

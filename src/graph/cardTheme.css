@@ -25,6 +25,7 @@
   --card-start: #e3c862;
   --card-event: #f0a868;
   --card-plain: #b0b0b0;
+  --card-qte: #b9a6f0;
   /* Lines, by contrast against the body: box and field 3.5:1 or more, rule (section, dashed add) 2.2:1. Rows have no
      line; a stripe tells them apart. */
   --card-line: #ffffff66;
@@ -255,7 +256,7 @@
 }
 /* A feature's own numbers sit next to its name, not at the right. */
 .p3-node.card-themed
-  .checklist-section:not(.checklist-playback):not(.checklist-info)
+  .checklist-section:not(.checklist-info)
   .checklist-row:not(.moment)
   > .checklist-row-heading
   > button
@@ -312,45 +313,108 @@
   color: var(--card-victim);
   border-color: var(--card-victim);
 }
-/* ---------- Route rows (transition, QTE): outcome as a badge, role as a word, destination text ---------- */
-.p3-node.card-themed .branch-routes {
-  border-top: 0;
-  margin-top: 0;
-  padding: 0 0 6px;
+/* ---------- Route boxes (start, transition, QTE): as a condition card's rows (unify ⑧) ---------- */
+.p3-node.card-themed .route-face {
+  display: grid;
+  gap: 6px;
+  padding: 2px 9px 9px;
+  font-size: var(--fs-sm);
 }
-.p3-node.card-themed .branch-route {
-  border-top: 0;
-}
-.p3-node.card-themed .branch-route:nth-child(even of .branch-route) {
-  background: var(--card-stripe);
-}
-.p3-node.card-themed .branch-route-to {
-  color: var(--card-t1);
-}
-.p3-node.card-themed .branch-route-to.empty {
-  color: var(--card-t3);
-}
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-pass .branch-route-kind,
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-fail .branch-route-kind,
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-perfect .branch-route-kind {
-  justify-self: start;
-  padding: 0 7px;
+.p3-node.card-themed .route-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 31px;
+  padding: 5px 8px;
+  border: 1px solid var(--card-line);
   border-radius: 4px;
-  color: var(--card-badge-text);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  line-height: 18px;
 }
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-pass .branch-route-kind {
+.p3-node.card-themed .route-box .cond-to-wrap,
+.p3-node.card-themed .route-line .cond-to-wrap {
+  justify-self: end;
+  min-width: 0;
+}
+.p3-node.card-themed .route-label {
+  color: var(--card-t2);
+  white-space: nowrap;
+}
+.p3-node.card-themed .route-box.tone-starter .route-label {
+  color: var(--card-attacker);
+}
+.p3-node.card-themed .route-box.tone-partner .route-label {
+  color: var(--card-victim);
+}
+/* A QTE's result: its outcome in the True/False column, a line per role under one another. */
+.p3-node.card-themed .route-box.qte-result {
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+}
+.p3-node.card-themed .route-box.qte-result > .cond-tf {
+  margin-top: 1px;
+}
+.p3-node.card-themed .route-lines {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.p3-node.card-themed .route-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 21px;
+}
+.p3-node.card-themed .route-line:has(> .cond-to-wrap:first-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.p3-node.card-themed .route-line:has(> .cond-to-wrap:first-child) .cond-to-wrap {
+  justify-self: start;
+}
+.p3-node.card-themed .cond-tf.pass {
   background: var(--card-pass);
 }
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-fail .branch-route-kind {
+.p3-node.card-themed .cond-tf.fail {
   background: var(--card-fail);
 }
-.p3-node.card-themed .branch-route:not(.qte-role-row).tone-perfect .branch-route-kind {
+.p3-node.card-themed .cond-tf.perfect {
   background: var(--card-perfect);
 }
+/* The pin on the box's edge (a line's on the edge of the box it is in), coloured as the route. */
+.p3-node.card-themed .route-box > .react-flow__handle {
+  z-index: 2;
+}
+.p3-node.card-themed .route-line > .react-flow__handle {
+  z-index: 2;
+  right: -9px;
+}
+.p3-node.card-themed .route-box.tone-pass .react-flow__handle {
+  background: var(--card-pass);
+}
+.p3-node.card-themed .route-box.tone-fail .react-flow__handle {
+  background: var(--card-fail);
+}
+.p3-node.card-themed .route-box.tone-perfect .react-flow__handle {
+  background: var(--card-perfect);
+}
+.p3-node.card-themed .route-box.tone-starter .react-flow__handle,
+.p3-node.card-themed .route-line.tone-starter .react-flow__handle {
+  background: var(--card-attacker);
+}
+.p3-node.card-themed .route-box.tone-partner .react-flow__handle,
+.p3-node.card-themed .route-line.tone-partner .react-flow__handle {
+  background: var(--card-victim);
+}
+.shell .p3-node .cond-to-wrap .cond-to.qte {
+  color: var(--card-qte);
+}
+.shell .p3-node .cond-to-wrap .cond-to.event {
+  color: var(--card-event);
+}
 .p3-node.card-themed .qte-routes .qte-role {
+  font-style: normal;
   padding: 0;
   background: transparent;
   font-size: var(--fs-sm);
@@ -462,7 +526,6 @@
 .p3-node.card-themed .card-fold {
   border-top: 0;
 }
-.p3-node.card-themed .branch-route,
 .p3-node.card-themed .card-start button {
   border-radius: 4px;
 }
@@ -582,33 +645,6 @@
   color: var(--card-t3);
   font-size: var(--fs-xs);
 }
-.p3-node.card-themed .checklist-row-actions {
-  justify-content: flex-end;
-  gap: 4px 14px;
-  margin-top: 4px;
-}
-.p3-node.card-themed .checklist-row-actions:empty {
-  display: none;
-}
-.p3-node.card-themed .checklist-row-actions > .moment-note {
-  margin: 0 auto 0 0;
-}
-.shell .p3-node.card-themed .checklist-row-actions button {
-  min-height: 0;
-  height: 20px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--card-t2);
-  font-size: var(--fs-xs);
-}
-.shell .p3-node.card-themed .checklist-row-actions button:hover:not(:disabled) {
-  background: none;
-  color: var(--card-t1);
-}
-.shell .p3-node.card-themed .checklist-row-actions button.danger {
-  color: var(--card-not);
-}
 .p3-node.card-themed .checklist-add-menu > div button {
   border: 1px solid var(--card-line);
   border-radius: 4px;
@@ -704,41 +740,12 @@
   color: var(--card-t1);
 }
 
-/* The condition editor inside a card (group members, kind picker). */
-.p3-node.card-themed .condition-expression-editor small {
-  color: var(--card-t2);
-}
-.p3-node.card-themed .condition-expression-row,
-.shell .p3-node.card-themed .condition-expression-row.is-group-box {
-  border-color: var(--card-line);
-  border-radius: 4px;
-  background: transparent;
-}
-.p3-node.card-themed .condition-expression-children {
-  border-left-color: var(--card-rule);
-}
-.p3-node.card-themed .condition-expression-row.is-disabled > .condition-expression-heading {
-  color: var(--card-t3);
-}
-.shell .p3-node.card-themed .condition-expression-editor .condition-row-menu > summary {
-  color: var(--card-t2);
-}
-.p3-node.card-themed .condition-row-menu[open] > div {
-  background: var(--card-body);
-  border-color: var(--card-line);
-}
-.p3-node.card-themed .condition-expression-editor p {
-  color: var(--card-warn);
-}
+/* The condition kind picker inside a card. */
 .shell .p3-node.card-themed .condition-kind-trigger {
   color: var(--card-t1);
 }
 .p3-node.card-themed .condition-kind-trigger > i {
   color: var(--card-t2);
-}
-.p3-node.card-themed .condition-join::before,
-.p3-node.card-themed .condition-join::after {
-  border-top-color: var(--card-rule);
 }
 
 /* HKX events (read only). */

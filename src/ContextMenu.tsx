@@ -1,6 +1,7 @@
 import {Fragment, useEffect, useRef, useState} from 'react';
 import type {MouseEvent} from 'react';
 import {tr} from './i18n/korean.ts';
+import {errorText} from './errorText.ts';
 // `divider`: a line before the item, between two groups of the menu.
 export type MenuItem = {label: string; run: () => void; disabled?: boolean; divider?: boolean};
 /** The groups of a menu as one list, a divider before each group's first item; empty groups drop out. */
@@ -79,14 +80,14 @@ export function useEditorMenu(
             void navigator.clipboard
               .writeText(value.slice(start, end))
               .then(() => replace(''))
-              .catch(e => status(String(e)));
+              .catch(e => status(errorText(e)));
           },
         },
         {
           label: tr('복사'),
           disabled: start === end,
           run: () => {
-            void navigator.clipboard.writeText(value.slice(start, end)).catch(e => status(String(e)));
+            void navigator.clipboard.writeText(value.slice(start, end)).catch(e => status(errorText(e)));
           },
         },
         {
@@ -116,7 +117,7 @@ export function useEditorMenu(
             void navigator.clipboard
               .writeText(text)
               .then(() => status(tr('XML을 복사했습니다.')))
-              .catch(e => status(String(e)));
+              .catch(e => status(errorText(e)));
           },
         },
       ];

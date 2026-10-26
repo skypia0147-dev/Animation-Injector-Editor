@@ -96,11 +96,6 @@
   display: flex;
   justify-content: flex-end;
 }
-.export-version {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
 .package-modal {
   width: min(1000px, calc(100vw - 40px));
   height: min(780px, calc(100dvh - 40px));

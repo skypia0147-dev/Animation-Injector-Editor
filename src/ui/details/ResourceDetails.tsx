@@ -5,6 +5,7 @@ import {t} from '../../i18n/index.ts';
 import {DetailPanel, DetailCategory as Category, DetailRow} from './DetailRow.tsx';
 import {Property as Prop} from './Property.tsx';
 import {KeyField} from './KeyField.tsx';
+import {errorText} from '../../errorText.ts';
 export function InputDetails({
   w,
   selected,
@@ -58,7 +59,7 @@ export function InputDetails({
                     const next = attachInput(w, input.id, a.uid, e.target.checked);
                     edit(() => next);
                   } catch (err) {
-                    status(String(err));
+                    status(errorText(err));
                   }
                 }}
               />
@@ -94,7 +95,7 @@ export function ParameterDetails({
       const next = applyParameter(w, p.id, v);
       edit(() => next);
     } catch (e) {
-      status(String(e));
+      status(errorText(e));
     }
   };
   return (

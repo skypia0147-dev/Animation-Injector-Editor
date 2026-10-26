@@ -217,6 +217,9 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
     if (link.blend !== undefined) rows.push({label: tr('블렌드'), value: tr('{v0}초', {v0: link.blend})});
     return {title: n.title, icon, rows};
   }
+  // An event's QTE card reads as a start: the event it waits for (its QTE is its route row, FlatGraph).
+  if (n.id.startsWith('qte-event:'))
+    return {title: n.title, icon, rows: [{label: tr('받을 때'), value: n.summary || tr('이벤트 미지정')}]};
   const rows = n.kind === 'entry' ? [] : [{label, value: n.summary || tr('설정할 항목을 선택하세요')}];
   return {title: n.title, icon, rows};
 }

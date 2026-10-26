@@ -9,6 +9,7 @@ export type Mark = {
   fallbackBasis: 'seconds' | 'end';
 };
 import {tr} from './i18n/korean.ts';
+import {errorText} from './errorText.ts';
 /** A key and button, or a game control (control, runtime 0.12.292) instead of both. */
 export type Input = {id: string; label: string; key: string; gamepad: number; control?: GameControl};
 export type Step = {
@@ -284,7 +285,7 @@ export function validate(p: Project): Issue[] {
   try {
     shape(p && p.rotationLocked === undefined ? {...p, rotationLocked: false} : p);
   } catch (e) {
-    return [{level: 'error', node: 'project', message: String(e)}];
+    return [{level: 'error', node: 'project', message: errorText(e)}];
   }
   if (!p.name.trim() || !idPattern.test(p.actionId)) error('project', tr('이름과 영문 동작 ID를 입력하세요.'));
   if (!p.graph.length || p.graph.some(g => !graphs.includes(g)) || new Set(p.graph).size !== p.graph.length)

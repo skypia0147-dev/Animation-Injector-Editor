@@ -1,6 +1,7 @@
 import {pairedRigs} from '../pairedRigs.ts';
 import type {BranchTest} from './conditions.ts';
 import {tr} from '../i18n/korean.ts';
+import {multiValueField, valuesError, valuesOf} from './multiValue.ts';
 
 type Definition = {
   label: string;
@@ -629,7 +630,13 @@ export function extensionMaximum(t: BranchTest) {
 export function extensionError(t: BranchTest): string | undefined {
   const d = definition(t.kind);
   if (!d) return;
-  if (d.choices && !d.choices.some(([v]) => v === t.option)) return tr('조건의 검사 항목을 선택하세요.');
+  if (d.choices && multiValueField[t.kind] === 'option') {
+    const error = valuesError(
+      t.option,
+      d.choices.map(([v]) => v)
+    );
+    if (error) return error;
+  } else if (d.choices && !d.choices.some(([v]) => v === t.option)) return tr('조건의 검사 항목을 선택하세요.');
   if (t.kind === 'resource' && !['current', 'percent'].includes(t.measure ?? ''))
     return tr('자원 비교 기준을 선택하세요.');
   if (t.kind === 'actorValue' && !['current', 'base'].includes(t.measure ?? 'current'))
@@ -704,7 +711,10 @@ export function readExtension(kind: string, attrs: Record<string, string>): Part
 export function extensionSummary(t: BranchTest): string | undefined {
   const d = definition(t.kind);
   if (!d) return;
-  const option = d.choices?.find(([v]) => v === t.option)?.[1],
+  const option = valuesOf(t.option)
+      .map(o => d.choices?.find(([v]) => v === o)?.[1])
+      .filter(Boolean)
+      .join('·'),
     unit =
       t.kind === 'chance' || (t.kind === 'resource' && t.measure === 'percent')
         ? '%'

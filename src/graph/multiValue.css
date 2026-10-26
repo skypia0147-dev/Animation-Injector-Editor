@@ -1,0 +1,92 @@
+/* A check's values (graph/MultiValuePicker.tsx): chosen ones as chips, ＋ for the rest. Card colours (cardTheme.css). */
+.multi-values {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+.multi-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 3px 0 8px;
+  border: 1px solid var(--card-cond);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--card-cond) 15%, transparent);
+  color: var(--card-t1);
+  font-size: var(--fs-xs);
+  line-height: 20px;
+  white-space: nowrap;
+}
+/* The one value left has no ×: even sides. */
+.multi-value.alone {
+  padding: 0 8px;
+}
+.shell .multi-value button,
+.multi-value button {
+  min-height: 0;
+  height: 18px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--card-t2);
+  font-size: var(--fs-xs);
+  line-height: 18px;
+  cursor: pointer;
+}
+.multi-value button:hover {
+  color: var(--card-t1);
+}
+.shell .multi-values button.multi-add,
+.multi-values button.multi-add {
+  min-height: 0;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px dashed var(--card-t3);
+  border-radius: 11px;
+  background: none;
+  color: var(--card-t2);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.multi-values button.multi-add:hover {
+  border-color: var(--card-cond);
+  color: var(--card-t1);
+}
+.multi-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--card-line);
+  border-radius: 6px;
+  background: var(--card-body);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.4);
+}
+.shell .multi-menu button,
+.multi-menu button {
+  min-height: 0;
+  height: auto;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--card-t1);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.multi-menu button:hover,
+.multi-menu button:focus-visible {
+  background: color-mix(in srgb, var(--card-t1) 9%, transparent);
+}

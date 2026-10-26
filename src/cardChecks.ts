@@ -4,6 +4,7 @@ import {
   cardLoop,
   cardUses,
   descendants,
+  groupRuleError,
   isGroup,
   refAction,
   refCard,
@@ -15,6 +16,7 @@ import {
 } from './cards.ts';
 import {extensionError, extensionKinds, formKinds} from './graph/conditionExtensions.ts';
 import {selfDirections} from './graph/conditions.ts';
+import {valuesError} from './graph/multiValue.ts';
 import {attackStates, equippedTypes, eventListError} from './runtimeExtensions.ts';
 import {keyCode} from './model.ts';
 import {isGameControl} from './keys.ts';
@@ -154,7 +156,8 @@ export function checkCards(w: any) {
         !Array.isArray(r.guards) ||
         !r.guards.every(known) ||
         !refOk(r.to) ||
-        Object.keys(r).some(k => !['id', 'guards', 'to'].includes(k))
+        (r.any !== undefined && r.any !== true) ||
+        Object.keys(r).some(k => !['id', 'guards', 'to', 'any'].includes(k))
       )
         throw Error(tr('조건 카드 행 형식 오류'));
       rows.add(r.id);
@@ -175,10 +178,11 @@ function testErrors(w: Workspace, t: CardTest): string[] {
   if (extendedError) errors.push(extendedError);
   if (
     t.kind === 'equippedType' &&
-    (!['left', 'right'].includes(t.hand ?? '') || !equippedTypes.includes(t.equipmentType!))
+    (!['left', 'right'].includes(t.hand ?? '') || valuesError(t.equipmentType, equippedTypes))
   )
     errors.push(tr('검사할 손과 장착 종류를 선택하세요.'));
-  if (t.kind === 'attackState' && !attackStates.includes(t.attackState!))
+  if (t.kind === 'movementDirection' && t.subject !== 'self') errors.push(tr('이동 입력 방향은 본인만 검사합니다.'));
+  if (t.kind === 'attackState' && valuesError(t.attackState, attackStates))
     errors.push(tr('검사할 공격 상태를 선택하세요.'));
   if (formKinds.includes(t.kind)) {
     if (
@@ -314,6 +318,8 @@ export function cardIssues(w: Workspace): Issue[] {
         }
         for (const m of testErrors(w, t)) if (!seen.has(m)) (seen.add(m), err(c.uid, m));
       }
+    const rule = groupRuleError(c);
+    if (rule) err(c.uid, rule);
     if (descendants(c, roots.flat()).size > 200) err(c.uid, tr('조건 카드의 조건이 너무 많습니다(런타임 한도).'));
   }
   // A transition through a card has no blend of its own (the runtime refuses one).

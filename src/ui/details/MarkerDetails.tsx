@@ -5,6 +5,7 @@ import {useEffect, useState} from 'react';
 import {DetailPanel, DetailCategory} from './DetailRow.tsx';
 import {renameMarker, removeMarker, markerUses, markerNames} from './markerCatalog.ts';
 import {tr} from '../../i18n/korean.ts';
+import {errorText} from '../../errorText.ts';
 
 export function MarkerDetails({
   w,
@@ -34,7 +35,7 @@ export function MarkerDetails({
       select(draft);
       setError('');
     } catch (e) {
-      setError(String(e));
+      setError(errorText(e));
     }
   };
   return (
@@ -69,7 +70,7 @@ export function MarkerDetails({
                     select('');
                     status(tr('이벤트를 삭제했습니다.'));
                   } catch (e) {
-                    setError(String(e));
+                    setError(errorText(e));
                   }
                 }}
               >

@@ -20,6 +20,7 @@ import type {PackageReport, ReportRow, RuntimeVerdict} from './package';
 import {t} from './i18n/index.ts';
 import * as io from './io';
 import {tr} from './i18n/korean.ts';
+import {errorText} from './errorText.ts';
 
 function RuntimeStatus({verdict}: {verdict: RuntimeVerdict}) {
   if (!verdict.available)
@@ -163,8 +164,8 @@ export function PackagePanel({
     try {
       await fn();
     } catch (e) {
-      setMessage(String(e));
-      status(String(e));
+      setMessage(errorText(e));
+      status(errorText(e));
     } finally {
       setBusy(false);
     }

@@ -106,7 +106,7 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
         id: qteEventId(q.id),
         original: qteEventId(q.id),
         kind: 'markerReceive',
-        title: tr('이벤트 수신'),
+        title: tr('QTE 시작 · 이벤트'),
         summary: q.eventStart || tr('이벤트 이름을 지정하세요'),
         scope: {kind: 'root'},
         inputs: [],

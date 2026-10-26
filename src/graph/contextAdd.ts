@@ -88,7 +88,8 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
     const c = w.cards.find(c => c.uid === ref.uid);
     if (!c) return [];
     const options: AddOption[] = [
-      {label: tr('행 추가'), kind: 'row', ...(c.true !== undefined ? {disabled: tr('True만 있는 카드')} : {})},
+      // On a True card the new row takes True's place and destination (cardCommands addRow).
+      {label: tr('조건 추가'), kind: 'row'},
     ];
     const free = [
       ...(c.true !== undefined && !c.true ? [{pin: 'true', name: 'True'}] : []),

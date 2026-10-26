@@ -1,5 +1,4 @@
 import type {ExtensionKind, Comparison} from './conditionExtensions.ts';
-import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 // A condition's settings (a condition card's check or AND/OR group, cards.ts CardTest).
 /** Room and ground checks turn from the actor's own heading on its start mark (self*, runtime 0.12.280); partner* is
  *  the older form, still read and written as it was until changed (docs/mockup-space-sentence). */
@@ -40,8 +39,9 @@ export type BranchTest = {
     | 'sneaking'
     | 'female';
   hand?: 'left' | 'right';
-  equipmentType?: (typeof equippedTypes)[number];
-  attackState?: (typeof attackStates)[number];
+  /** Comma lists: any of them holds (runtime 0.12.301, graph/multiValue.ts). */
+  equipmentType?: string;
+  attackState?: string;
   operands?: string[];
   subject: 'self' | 'partner';
   minimum: number;

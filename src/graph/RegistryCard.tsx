@@ -40,6 +40,7 @@ import './registry.css';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {SoundSourceFields} from '../ui/details/SoundFile.tsx';
+import {errorText} from '../errorText.ts';
 
 // The graph renders only on-screen nodes: a registry node brought into view mounts after the request
 // (and may mount twice while the view moves), so a request stays for two seconds.
@@ -88,7 +89,7 @@ export function RegistryBody() {
       fn();
       setError('');
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      setError(errorText(e));
     }
   };
   useEffect(() => {

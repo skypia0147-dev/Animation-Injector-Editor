@@ -44,7 +44,7 @@ export function parseXml(text: string): Xml {
     throw new Error(tr('XML 문법 오류 또는 지원하지 않는 선언: 위치 ') + i);
   };
   const decode = (s: string) =>
-    s.replace(/&([^;]*);|&/g, (whole, key) => {
+    s.replace(/&([^;]*);|&/g, (_whole, key) => {
       const named: Record<string, string> = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"};
       if (Object.hasOwn(named, key)) return named[key];
       if (/^#(?:x[\da-f]+|\d+)$/i.test(key ?? '')) {

@@ -96,6 +96,7 @@ function content(x: Writer, c: ConditionCard): Xml[] {
     if (to) row.attrs.to = actionId(x.w, to);
     const inner = refCard(r.to);
     if (inner && x.names.has(inner)) row.attrs.condition = x.names.get(inner)!;
+    if (r.any) row.attrs.match = 'any';
     row.children = live(c, r.guards).map(g => checkXml(x.w, c, g));
     if ((inner && !x.names.has(inner)) || !r.to)
       row.children.push(node('Condition', {}, inner ? content(x, x.cards.get(inner)!) : []));

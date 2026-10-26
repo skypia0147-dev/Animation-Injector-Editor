@@ -1,7 +1,7 @@
 import type {Workspace} from '../workspace.ts';
 import {flatGraph, deleteFlat, type FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
-import {copyNodes, type NodeClipboard} from './clipboard.ts';
+import {copyNodes, pasteNodes, type NodeClipboard} from './clipboard.ts';
 import {retirePlayback} from './deletePlayback.ts';
 import {compactGraph} from './sharing.ts';
 import {tr} from '../i18n/korean.ts';
@@ -137,4 +137,16 @@ export function deleteChecklistNode(w: Workspace, id: string): Workspace {
     a = w.actions.find(a => a.uid === n?.action);
   if (n?.kind === 'hkxPlay' && a?.config.steps.length === 1) return retirePlayback(w, a.uid, false);
   return deleteFlat(w, id);
+}
+/** A feature or moment dragged onto another HKX card (unify ⑪): it goes there with its settings, as a pasted item
+ *  does; `copy` (Ctrl held) leaves it where it was too. One the card cannot take (a feature it has once already) is
+ *  refused. */
+export function transferItem(w: Workspace, id: string, toAction: string, copy: boolean): Workspace {
+  const raw = flatGraph(w),
+    node = raw.nodes.find(n => n.id === id);
+  if (!node?.action) throw Error(tr('기능을 찾지 못했습니다.'));
+  if (node.action === toAction) return w;
+  const r = pasteNodes(w, copyNodes(w, raw, [id]), node.position, toAction);
+  if (!r.ids.length) throw Error(tr('그 HKX 카드에는 넣을 수 없는 기능입니다(이미 있는 기능은 하나만).'));
+  return copy ? r.workspace : deleteChecklistNode(r.workspace, id);
 }

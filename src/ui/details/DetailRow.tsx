@@ -19,6 +19,8 @@ const RowOwner = createContext('');
 /** Categories drawn as the HKX card's item rows (재생 설정, docs/mockup-playback-settings): name, summary on
  *  one line, opening in place. Each starts closed; allOpen opens or closes all of them (전체 펼치기). */
 export const CategoryRows = createContext<{allOpen?: boolean} | null>(null);
+/** One category's fields alone (an HKX card's setting chip opens to it, unify ⑩): the others draw nothing. */
+export const OnlySection = createContext('');
 export function DetailPanel({children}: {children: ReactNode}) {
   useLanguage();
   const [query, setQuery] = useState('');
@@ -114,7 +116,9 @@ export function DetailCategory({
   }, [rows?.allOpen]);
   const focus = useContext(DetailFocus);
   const layout = useContext(InspectorLayout);
-  const item = useContext(ItemTitle);
+  const item = useContext(ItemTitle),
+    only = useContext(OnlySection);
+  if (only) return sectionId === only ? <section className="detail-category bare">{children}</section> : null;
   if (layout && !query && group !== layout) return null;
   if (focus && title !== focus && !title.startsWith(focus + ' ·')) return null;
   const expanded = !!query || open || (!!focus && !layout);

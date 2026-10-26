@@ -2,6 +2,8 @@ import type {BranchTest} from './conditions.ts';
 import {comparisons, definition, extensionMaximum} from './conditionExtensions.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
+import {multiValueField} from './multiValue.ts';
+import {MultiValuePicker} from './MultiValuePicker.tsx';
 export function ExtendedConditionFields({
   test,
   change,
@@ -22,13 +24,22 @@ export function ExtendedConditionFields({
           }
           hint={d.hint}
         >
-          <select value={test.option ?? ''} onChange={e => change({option: e.target.value})}>
-            {d.choices.map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
+          {multiValueField[test.kind] === 'option' ? (
+            <MultiValuePicker
+              value={test.option}
+              choices={d.choices}
+              change={option => change({option})}
+              label={tr('검사 값')}
+            />
+          ) : (
+            <select value={test.option ?? ''} onChange={e => change({option: e.target.value})}>
+              {d.choices.map(([v, label]) => (
+                <option key={v} value={v}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
         </DetailRow>
       )}
       {test.kind === 'resource' && (

@@ -39,12 +39,12 @@ test('Female NOT checkbox survives project and runtime XML without a separate ed
       execFileSync(checker, [file]);
     }
 });
-test('NOT on AND groups keeps its operands and their own NOTs', () => {
+test('NOT on a group keeps its operands and their own NOTs', () => {
   const w = sample(
     [
       {
         id: 'Condition1',
-        kind: 'all',
+        kind: 'any',
         negate: true,
         subject: 'self',
         minimum: 0,
@@ -56,7 +56,8 @@ test('NOT on AND groups keeps its operands and their own NOTs', () => {
     ['Condition1']
   );
   const xml = compileWorkspace(w);
-  assert.match(xml, /<And not="true">\s*<Check kind="female" subject="partner"\/>\s*<Check kind="air" not="true"\/>/);
+  // Among AND conditions a group is an OR (runtime 0.12.301).
+  assert.match(xml, /<Or not="true">\s*<Check kind="female" subject="partner"\/>\s*<Check kind="air" not="true"\/>/);
   const again = importWorkspaceXml(xml);
   assert.deepEqual(again.cards[0].tests, w.cards[0].tests);
   assert.deepEqual(again.cards[0].guards, ['Condition1']);

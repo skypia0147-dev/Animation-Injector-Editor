@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {backendText} from '../src/backendText.ts';
 import {getLanguage, setLanguage} from '../src/i18n/index.ts';
 import {fromKorean} from '../src/i18n/fromKorean.ts';
+import {errorText} from '../src/errorText.ts';
 
 // The Rust backend writes its messages in Korean (src-tauri/src); backend.ts shows them in the UI language.
 const inLanguage = (language, fn) => {
@@ -35,4 +36,13 @@ test('backend messages show in the UI language, with their values', () => {
     assert.equal(backendText('unknown message'), 'unknown message');
   });
   inLanguage('ko', () => assert.equal(backendText('파일이 아닙니다.'), '파일이 아닙니다.'));
+});
+
+// A refused edit shows its own words: no English 「Error: 」 before them (10-27, condition card drags).
+test('errorText: an Error shows its message, a backend error string as it is', () => {
+  assert.equal(
+    errorText(new Error('묶음 안에는 묶음을 넣지 않습니다(한 단계까지).')),
+    '묶음 안에는 묶음을 넣지 않습니다(한 단계까지).'
+  );
+  assert.equal(errorText('파일을 찾지 못했습니다.'), '파일을 찾지 못했습니다.');
 });

@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import type {LibraryEntry} from '../../assets.ts';
 import {t} from '../../i18n/index.ts';
 import * as io from '../../io.ts';
+import {errorText} from '../../errorText.ts';
 export function AssetField({
   clip,
   path,
@@ -47,7 +48,7 @@ export function AssetField({
         return;
       if (asset) now.change(asset.clip, asset.path);
     } catch (e) {
-      status(String(e));
+      status(errorText(e));
     } finally {
       if (mounted.current) setBusy(false);
     }

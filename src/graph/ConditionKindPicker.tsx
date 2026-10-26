@@ -3,6 +3,7 @@ import {createPortal} from 'react-dom';
 import {extensionKinds, definition} from './conditionExtensions.ts';
 import {t} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
+import './conditionEditor.css';
 
 /** The condition kinds by category (10-20, docs/mockup-ux-polish ⑪): the extension kinds keep their own category,
  *  the built-in ones get one here. A function so a language change reads the labels again. */

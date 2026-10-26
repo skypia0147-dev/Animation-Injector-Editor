@@ -23,6 +23,10 @@ import {
   addCondition,
   removeCondition,
   moveCondition,
+  mergeCondition,
+  setRowJoin,
+  setGroupJoin,
+  tidyCardIn,
   duplicateCondition,
 } from '../src/graph/cardCommands.ts';
 import {editExpression} from '../src/graph/conditionExpression.ts';
@@ -62,6 +66,7 @@ const RIGHTFUL = [
   /재생할 곳이 없습니다/,
   /빈 조건 카드/,
   /HKX 경로를 입력/,
+  /소리 파일 또는 등록 사운드/,
 ];
 
 function random(seed) {
@@ -91,22 +96,39 @@ function cardEdit(w, rnd) {
       {name: 'addRow', run: w => addRow(w, c.uid).workspace},
       row && {name: 'removeRow', run: w => removeRow(w, c.uid, row.id)},
       row && {name: 'moveRow', run: w => moveRow(w, c.uid, row.id, Math.floor(rnd() * 3))},
-      {name: 'setTrue', run: w => setTrue(w, c.uid, c.true === undefined)},
-      {name: 'addCondition', run: w => addCondition(w, c.uid, place, rnd() < 0.3).workspace},
+      {name: 'setTrue', run: w => setTrue(w, c.uid)},
+      {name: 'addCondition', run: w => addCondition(w, c.uid, place).workspace},
       root && {name: 'removeCondition', run: w => removeCondition(w, c.uid, place, root)},
       root && {
         name: 'moveCondition',
         run: w => moveCondition(w, c.uid, place, root, pick(places), Math.floor(rnd() * 3)),
       },
       root && {name: 'duplicateCondition', run: w => duplicateCondition(w, c.uid, place, root)},
+      // Dropped on another condition of its list: the two become a group (runtime 0.12.301: one level, opposite).
       root && {
-        name: 'wrap',
-        run: w => editExpression(w, c.uid, {type: 'wrap', id: root, mode: rnd() < 0.5 ? 'all' : 'any'}),
+        name: 'merge',
+        run: w =>
+          mergeCondition(w, c.uid, place, root, c.uid, place, pick(roots.filter(r => r !== root)) ?? root, false),
       },
-      group && {name: 'addMember', run: w => editExpression(w, c.uid, {type: 'add', parent: group.id})},
+      row && {name: 'rowJoin', run: w => setRowJoin(w, c.uid, row.id, !row.any)},
+      group && {
+        name: 'groupJoin',
+        run: w =>
+          setGroupJoin(
+            w,
+            c.uid,
+            c.guards.includes(group.id) ? 'guards' : 'row:' + (c.rows.find(r => r.guards.includes(group.id))?.id ?? ''),
+            group.id,
+            group.kind === 'all' ? 'any' : 'all'
+          ),
+      },
+      group && {
+        name: 'addMember',
+        run: w => tidyCardIn(editExpression(w, c.uid, {type: 'add', parent: group.id}), c.uid),
+      },
       member && {
         name: 'removeMember',
-        run: w => editExpression(w, c.uid, {type: 'remove', parent: group.id, id: member}),
+        run: w => tidyCardIn(editExpression(w, c.uid, {type: 'remove', parent: group.id, id: member}), c.uid),
       },
       root && {
         name: 'negate',

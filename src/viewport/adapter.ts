@@ -4,6 +4,7 @@ import type {SkinBinary, ViewerData, ViewerRequest} from './types.ts';
 import {validateViewerData} from './types.ts';
 import {decodeSkin, decodeViewerFrames} from './binaryFrame.ts';
 import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 
 declare global {
   interface Window {
@@ -62,7 +63,7 @@ export function useViewerData(request: ViewerRequest | null, revision = 0): View
         if (!cancelled) setState({key, loading: false, data});
       })
       .catch(error => {
-        if (!cancelled) setState({key, loading: false, error: String(error)});
+        if (!cancelled) setState({key, loading: false, error: errorText(error)});
       });
     return () => {
       cancelled = true;

@@ -1,4 +1,5 @@
-import {useEffect, useState} from 'react';
+import {createContext, useContext, useEffect, useRef, useState, useSyncExternalStore} from 'react';
+import {createPortal} from 'react-dom';
 import {Handle, Position, useUpdateNodeInternals} from '@xyflow/react';
 import type {Workspace} from '../workspace.ts';
 import type {ConditionCard} from '../cards.ts';
@@ -7,11 +8,28 @@ import {NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {ConditionFields} from './ConditionDetails.tsx';
 import {conditionNames, editExpression, patchTest} from './conditionExpression.ts';
 import {extensionSummary} from './conditionExtensions.ts';
-import {addCondition, addRow, moveRow, removeCondition, removeRow, setTrue, type CardPlace} from './cardCommands.ts';
+import {equippedTypeLabels, valuesOf} from './multiValue.ts';
+import {
+  addCondition,
+  addRow,
+  transferCondition,
+  mergeCondition,
+  removeCondition,
+  removeRow,
+  rowIntoList,
+  setGroupJoin,
+  setRowJoin,
+  setTrue,
+  tidyCardIn,
+  transferRow,
+  type CardPlace,
+  type CondList,
+} from './cardCommands.ts';
 import {routeDestination} from './pinTargets.ts';
 import {rowPin} from './flat.ts';
 import {tr} from '../i18n/korean.ts';
 import './conditionCard.css';
+import {errorText} from '../errorText.ts';
 
 // A condition card on the canvas (docs/mockup-card-layout): its common conditions as chips, then a line per row (its
 // conditions, where it goes), True and False the same way. No row numbers, no icons: rows read top to bottom. A
@@ -51,8 +69,15 @@ export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, dept
   }
   const name = who + (t.label || conditionNames[t.kind] || t.kind);
   if (t.kind === 'equippedType')
-    return [name, (t.hand === 'right' ? tr('오른손') : tr('왼손')) + ' ' + (t.equipmentType ?? 'bow')];
-  if (t.kind === 'attackState') return [name, t.attackState ?? ''];
+    return [
+      name,
+      (t.hand === 'right' ? tr('오른손') : tr('왼손')) +
+        ' ' +
+        valuesOf(t.equipmentType ?? 'bow')
+          .map(v => equippedTypeLabels()[v as keyof ReturnType<typeof equippedTypeLabels>] ?? v)
+          .join('·'),
+    ];
+  if (t.kind === 'attackState') return [name, valuesOf(t.attackState).join('·')];
   if (t.kind === 'stamina' || t.kind === 'magicka') return [name, String(t.minimum ?? '')];
   if ((t.kind === 'space' || t.kind === 'ground') && t.space) return [name, String(t.space.distance)];
   return [name, ''];
@@ -62,7 +87,88 @@ export function chipText(c: Pick<ConditionCard, 'tests'>, id: string, depth = 0)
   const [name, value] = conditionParts(c, id, depth);
   return value ? `${name} ${value}` : name;
 }
-function Chips({c, ids}: {c: ConditionCard; ids: string[]}) {
+// Dragging a condition (10-26): from any list on the card (common conditions, a row's, a group's) to another list, a
+// place among its conditions, into a group, or out into a new row (the card's bottom 「＋ 조건 추가」). Pointer events,
+// not HTML drag and drop: the desktop window takes drags for dropped files (Tauri dragDropEnabled), so the page never
+// sees dragover or drop there. A whole row drags too (by its line), between the other rows: the gaps between the
+// card's parts, which also take a condition as a new row there.
+type Drag = {from: CondList; id: string; row?: boolean; group?: boolean};
+// `merge`: let go on the middle of that condition, the two become a group (one level: not inside a group, not a
+// group dragged).
+type Target = {key: string; to: CondList | 'newRow'; index: number; merge?: string};
+// A condition also drags to another card (Ctrl held when letting go: a copy). One drag at a time on the canvas: every
+// condition card reads which card and place are under the pointer from here, and widens its gaps while a condition
+// is dragged (a row drags only on its own card).
+type Hover = {source: string; row: boolean; card: string; key: string};
+let hover: Hover | null = null;
+const watchers = new Set<() => void>();
+function setHover(h: Hover | null) {
+  if (h === hover || (h && hover && h.source === hover.source && h.card === hover.card && h.key === hover.key)) return;
+  hover = h;
+  watchers.forEach(f => f());
+}
+const watchHover = (f: () => void) => {
+  watchers.add(f);
+  return () => {
+    watchers.delete(f);
+  };
+};
+type DragKit = {
+  drag: Drag | null;
+  /** The drop place under the pointer: `<list>|<index>`, `into:<group id>`, `box:<list>` or `newRow`. */
+  over: string;
+  begin: (e: React.PointerEvent, d: Drag) => void;
+};
+const DragContext = createContext<DragKit | null>(null);
+/** Attributes making an element a place a condition can be let go: it goes to `index` of `to`. */
+const dropZone = (key: string, to: CondList | 'newRow', index: number) => ({
+  'data-drop-key': key,
+  'data-drop-to': to,
+  'data-drop-index': index,
+});
+/** Where a condition dragged to (x, y) lands on the card `face` (`own`: the card it comes from): a line's upper quarter
+ *  before it, its lower quarter after it, its middle into the group (a group's line) or a group with it (a
+ *  condition's); inside a group, or for a group dragged, halves only; else the part, group or new-row button under the
+ *  pointer. */
+function targetAt(face: HTMLElement, x: number, y: number, d: Drag, own: boolean): Target | null {
+  const el = document.elementFromPoint(x, y) as HTMLElement | null;
+  if (!el || !face.contains(el) || (own && el.closest(`[data-cond-item="${CSS.escape(d.id)}"]`))) return null;
+  // A row (with its destination) goes between parts, on this card or another; let go on the common conditions or
+  // another row, its conditions join them (as a group of its operator when theirs is the other).
+  if (d.row) {
+    const gap = el.closest<HTMLElement>('[data-drop-key^="gap:"], [data-drop-key="true"]');
+    if (gap) return {key: gap.dataset.dropKey!, to: 'newRow', index: Number(gap.dataset.dropIndex)};
+    const list =
+      el.closest<HTMLElement>('[data-cond-line]')?.dataset.list ??
+      el.closest<HTMLElement>('[data-drop-key^="box:"]')?.dataset.dropTo;
+    if (!list || list === 'newRow' || list.startsWith('group:') || (own && list === d.from)) return null;
+    return {key: 'box:' + list, to: list as CondList, index: 0};
+  }
+  const line = el.closest<HTMLElement>('[data-cond-line]');
+  if (line) {
+    const r = line.getBoundingClientRect(),
+      f = (y - r.top) / r.height,
+      list = line.dataset.list as CondList,
+      i = Number(line.dataset.index);
+    const middle = f > 0.25 && f < 0.75 && !d.group;
+    if (middle && line.dataset.members !== undefined)
+      return {
+        key: 'into:' + line.dataset.condLine,
+        to: `group:${line.dataset.condLine}`,
+        index: Number(line.dataset.members),
+      };
+    if (middle && !list.startsWith('group:'))
+      return {key: 'merge:' + line.dataset.condLine, to: list, index: i, merge: line.dataset.condLine};
+    const index = f < 0.5 ? i : i + 1;
+    return {key: `${list}|${index}`, to: list, index};
+  }
+  const zone = el.closest<HTMLElement>('[data-drop-key]');
+  return zone
+    ? {key: zone.dataset.dropKey!, to: zone.dataset.dropTo as Target['to'], index: Number(zone.dataset.dropIndex)}
+    : null;
+}
+function Chips({c, ids, list}: {c: ConditionCard; ids: string[]; list: CondList}) {
+  const kit = useContext(DragContext);
   return (
     <span className="cond-chips">
       {ids.map(id => {
@@ -71,13 +177,58 @@ function Chips({c, ids}: {c: ConditionCard; ids: string[]}) {
         const [name, value] = conditionParts(c, id);
         const group = t.kind === 'all' || t.kind === 'any';
         return (
-          <span key={id} className={'cond-chip' + (group ? ' group' : '') + (t.negate ? ' not' : '')}>
+          <span
+            key={id}
+            className={'cond-chip nodrag' + (group ? ' group' : '') + (t.negate ? ' not' : '')}
+            data-cond-item={id}
+            onPointerDown={e => kit?.begin(e, {from: list, id, group})}
+          >
             {t.negate && <b>NOT</b>}
-            {name}
-            {value && <em>{value}</em>}
+            {group ? (
+              <>
+                <JoinBadge kind={t.kind as 'all' | 'any'} small />
+                {(t.operands ?? []).map(m => chipText(c, m)).join(' · ')}
+              </>
+            ) : (
+              <>
+                {name}
+                {value && <em>{value}</em>}
+              </>
+            )}
           </span>
         );
       })}
+    </span>
+  );
+}
+
+/** AND or OR, as True and False are shown (docs/mockup-condition-groups ②). */
+function JoinBadge({kind, small = false}: {kind: 'all' | 'any'; small?: boolean}) {
+  return (
+    <span className={'cond-join-badge ' + (kind === 'any' ? 'or' : 'and') + (small ? ' small' : '')}>
+      {kind === 'any' ? 'OR' : 'AND'}
+    </span>
+  );
+}
+/** The two operators as badges, the chosen one filled. */
+function JoinToggle({kind, change}: {kind: 'all' | 'any'; change: (kind: 'all' | 'any') => void}) {
+  return (
+    <span className="cond-join-toggle" role="group" aria-label={tr('묶는 방법')}>
+      {(['all', 'any'] as const).map(k => (
+        <button
+          key={k}
+          type="button"
+          className={'cond-join-badge ' + (k === 'any' ? 'or' : 'and') + (kind === k ? '' : ' off')}
+          aria-pressed={kind === k}
+          title={k === 'any' ? tr('하나라도 맞으면') : tr('모두 맞으면')}
+          onClick={e => {
+            e.stopPropagation();
+            if (kind !== k) change(k);
+          }}
+        >
+          {k === 'any' ? 'OR' : 'AND'}
+        </button>
+      ))}
     </span>
   );
 }
@@ -89,6 +240,8 @@ type ListProps = {
   w: Workspace;
   c: ConditionCard;
   uid: string;
+  /** The list these conditions are, for dragging them. */
+  list: CondList;
   ids: string[];
   picked: string[];
   pick: (id: string) => void;
@@ -98,24 +251,49 @@ type ListProps = {
 };
 /** Conditions one per line [name · value · NOT · ×]; each picked one shows its fields (a group its own list), several
  *  at once as an HKX card's rows. */
-function CondList({w, c, uid, ids, picked, pick, remove, edit, attempt}: ListProps) {
+function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: ListProps) {
+  const kit = useContext(DragContext);
   if (!ids.length) return null;
   return (
     <div className="cond-list">
-      {ids.map(id => {
+      {ids.map((id, i) => {
         const t = c.tests.find(t => t.id === id);
         if (!t) return null;
         const [name, value] = conditionParts(c, id),
           group = t.kind === 'all' || t.kind === 'any',
           on = picked.includes(id);
+        // Over a line: its upper half puts the condition before it, the lower half after it, a group's middle into it.
+        const mark =
+          kit?.over === `${list}|${i}`
+            ? ' drop-before'
+            : kit?.over === `${list}|${i + 1}` && i === ids.length - 1
+              ? ' drop-after'
+              : kit?.over === 'into:' + id || kit?.over === 'merge:' + id
+                ? ' drop-into'
+                : '';
         return (
-          <div key={id} className={'cond-item' + (on ? ' picked' : '')}>
-            <div className="cond-item-line" onClick={() => pick(id)}>
+          <div
+            key={id}
+            className={'cond-item' + (on ? ' picked' : '') + (kit?.drag?.id === id ? ' dragged' : '') + mark}
+            data-cond-item={id}
+          >
+            <div
+              className="cond-item-line"
+              data-cond-line={id}
+              data-list={list}
+              data-index={i}
+              {...(group ? {'data-members': (t.operands ?? []).length} : {})}
+              onClick={() => pick(id)}
+              onPointerDown={e => {
+                if (!(e.target as HTMLElement).closest('button')) kit?.begin(e, {from: list, id, group});
+              }}
+            >
               <span className="cond-item-name">
-                {group && <i>{tr('그룹')}</i>}
-                {name}
+                {group ? <JoinBadge kind={t.kind as 'all' | 'any'} small /> : name}
               </span>
-              <span className="cond-item-value">{value}</span>
+              <span className="cond-item-value">
+                {group ? tr('묶음 · 조건 {n}개', {n: (t.operands ?? []).length}) : value}
+              </span>
               <button
                 type="button"
                 className={'cond-not' + (t.negate ? ' on' : '')}
@@ -143,7 +321,7 @@ function CondList({w, c, uid, ids, picked, pick, remove, edit, attempt}: ListPro
             {on && (
               <div className="cond-item-fields">
                 {group ? (
-                  <GroupFields w={w} c={c} uid={uid} id={id} edit={edit} attempt={attempt} />
+                  <GroupFields w={w} c={c} uid={uid} id={id} holder={list} edit={edit} attempt={attempt} />
                 ) : (
                   <NestedDetailPanel.Provider value={true}>
                     <ConditionFields w={w} owner={uid} id={id} edit={edit} embedded />
@@ -163,6 +341,7 @@ function GroupFields({
   c,
   uid,
   id,
+  holder,
   edit,
   attempt,
 }: {
@@ -170,16 +349,20 @@ function GroupFields({
   c: ConditionCard;
   uid: string;
   id: string;
+  /** The list holding the group (a row's or the common conditions). */
+  holder: CondList;
   edit: Edit;
   attempt: Attempt;
 }) {
   const t = c.tests.find(t => t.id === id)!,
     members = t.operands ?? [];
   const [picked, setPicked] = useState<string[]>(members[0] ? [members[0]] : []);
-  const add = (group: boolean) => {
+  const kit = useContext(DragContext),
+    list: CondList = `group:${id}`;
+  const add = () => {
     let made = '';
     attempt(w => {
-      const next = editExpression(w, uid, {type: 'add', parent: id, group});
+      const next = tidyCardIn(editExpression(w, uid, {type: 'add', parent: id}), uid);
       made =
         next.cards
           .find(x => x.uid === uid)
@@ -190,39 +373,32 @@ function GroupFields({
     if (made) setPicked(p => [...p, made]);
   };
   return (
-    <div className="cond-group">
+    <div
+      className={'cond-group' + (kit?.over === 'box:' + list ? ' drop-into' : '')}
+      {...dropZone('box:' + list, list, members.length)}
+    >
       <div className="cond-join">
-        <span>{tr('조합')}</span>
-        {(['all', 'any'] as const).map(kind => (
-          <button
-            key={kind}
-            type="button"
-            className={'cond-act' + (t.kind === kind ? ' on' : '')}
-            aria-pressed={t.kind === kind}
-            onClick={() => attempt(w => patchTest(w, uid, id, {kind}))}
-          >
-            {kind === 'all' ? tr('모두') : tr('또는')}
-          </button>
-        ))}
+        <JoinToggle
+          kind={t.kind as 'all' | 'any'}
+          change={kind => attempt(w => setGroupJoin(w, uid, holder as CardPlace, id, kind))}
+        />
+        <span>{tr('같은 연산자를 고르면 묶음이 풀립니다')}</span>
       </div>
       <CondList
         w={w}
         c={c}
         uid={uid}
+        list={list}
         ids={members}
         picked={picked}
         pick={m => setPicked(p => flip(p, m))}
-        remove={m => w => editExpression(w, uid, {type: 'remove', parent: id, id: m})}
+        remove={m => w => tidyCardIn(editExpression(w, uid, {type: 'remove', parent: id, id: m}), uid)}
         edit={edit}
         attempt={attempt}
       />
-      {!members.length && <p className="cond-empty">{tr('조건을 추가하세요. 빈 그룹은 사용할 수 없습니다.')}</p>}
       <div className="cond-foot">
-        <button type="button" className="cond-act" onClick={() => add(false)}>
+        <button type="button" className="cond-act" onClick={add}>
           {tr('＋ 조건')}
-        </button>
-        <button type="button" className="cond-act" onClick={() => add(true)}>
-          {tr('＋ 그룹')}
         </button>
       </div>
     </div>
@@ -240,19 +416,95 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
       setPicked([]);
     }
   }, [chosen, foldWhenLeft]);
+  const [drag, setDrag] = useState<Drag | null>(null),
+    [pointer, setPointer] = useState({x: 0, y: 0, copy: false});
+  const face = useRef<HTMLDivElement>(null);
+  const shared = useSyncExternalStore(watchHover, () => hover),
+    over = shared?.card === uid ? shared.key : '',
+    dragging = !!shared;
   const isOpen = (part: string) => open.includes(part),
     close = (part: string) => setOpen(o => o.filter(x => x !== part));
   const update = useUpdateNodeInternals();
   // Opening a part moves the rows under it: their pins are measured again.
-  useEffect(() => update(node), [open, picked, c?.rows.length, c?.true === undefined, node, update]);
+  // A drag widens the gaps between parts (where rows land).
+  useEffect(() => update(node), [open, picked, c?.rows.length, c?.true === undefined, dragging, node, update]);
   if (!c) return null;
   const attempt = (f: (w: Workspace) => Workspace) => {
     try {
       edit(f);
+      return true;
     } catch (e) {
-      status(String(e));
+      status(errorText(e));
+      return false;
     }
   };
+  const drop = (d: Drag, t: Target, card: string, copy: boolean) => {
+    if (d.row) {
+      if (t.to === 'newRow') attempt(w => transferRow(w, uid, d.id, card, t.index, copy));
+      // The last row's destination stays with the True that comes back; any other row's goes with it.
+      else if (attempt(w => rowIntoList(w, uid, d.id, card, t.to as CardPlace, copy)) && !copy && c.rows.length > 1)
+        status(tr('행의 조건을 옮기고 원래 행(목적지 포함)은 지웠습니다. Ctrl+Z로 되돌립니다.'));
+      return;
+    }
+    // The row's last condition leaving takes the row (and where it went) with it.
+    const lone =
+      !copy && (card !== uid || d.from !== t.to) && c.rows.find(r => 'row:' + r.id === d.from)?.guards.length === 1;
+    const moved = t.merge
+      ? attempt(w => mergeCondition(w, uid, d.from, d.id, card, t.to as CardPlace, t.merge!, copy))
+      : attempt(w => transferCondition(w, uid, d.from, d.id, card, t.to, t.index, copy));
+    if (moved && lone) status(tr('조건이 남지 않은 행을 지웠습니다. Ctrl+Z로 되돌립니다.'));
+  };
+  // A press becomes a drag once the pointer moves 5 px; letting go drops it where targetAt says, and the click that
+  // follows the release is swallowed (it would open or pick what was under the pointer).
+  const begin = (e: React.PointerEvent, d: Drag) => {
+    if (e.button !== 0) return;
+    const x0 = e.clientX,
+      y0 = e.clientY;
+    let moving = false,
+      target: Target | null = null,
+      card = '';
+    const move = (ev: PointerEvent) => {
+      if (!moving) {
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+        moving = true;
+        setDrag(d);
+        document.body.classList.add('cond-dragging');
+      }
+      // The card under the pointer: this one or another (its face names it).
+      const under = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>(
+        '.cond-face[data-card]'
+      );
+      card = under?.dataset.card ?? '';
+      target = under ? targetAt(under, ev.clientX, ev.clientY, d, card === uid) : null;
+      setHover({source: uid, row: !!d.row, card: target ? card : '', key: target?.key ?? ''});
+      setPointer({x: ev.clientX, y: ev.clientY, copy: ev.ctrlKey});
+    };
+    const up = (ev: PointerEvent) => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', up);
+      if (!moving) return;
+      document.body.classList.remove('cond-dragging');
+      const swallow = (ev: MouseEvent) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+      };
+      addEventListener('click', swallow, {capture: true, once: true});
+      setTimeout(() => removeEventListener('click', swallow, {capture: true}), 0);
+      setDrag(null);
+      setHover(null);
+      if (target && ev.type === 'pointerup') drop(d, target, card, ev.ctrlKey);
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+  };
+  const kit: DragKit = {drag, over, begin};
+  /** A part as a drop place: let go on it (not on one of its conditions) and the condition goes to its end. */
+  const box = (list: CondList, length: number) => ({
+    ...dropZone('box:' + list, list, length),
+    className: over === 'box:' + list ? ' drop-into' : '',
+  });
   /** Open a part with its first condition picked (others stay as they are); an open part closes. */
   const toggle = (part: string, ids: string[]) => {
     if (isOpen(part)) return close(part);
@@ -266,6 +518,7 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
         w={w}
         c={c}
         uid={uid}
+        list={place}
         ids={ids}
         picked={picked}
         pick={id => setPicked(p => flip(p, id))}
@@ -289,21 +542,6 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
         >
           {tr('＋ 조건')}
         </button>
-        <button
-          type="button"
-          className="cond-act"
-          onClick={() => {
-            let id = '';
-            attempt(w => {
-              const r = addCondition(w, uid, place, true);
-              id = r.id;
-              return r.workspace;
-            });
-            if (id) setPicked(p => [...p, id]);
-          }}
-        >
-          {tr('＋ 그룹')}
-        </button>
         {tools}
       </div>
     </div>
@@ -313,20 +551,37 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
     const to = routeDestination(w, node, pin),
       ref = kind === 'true' ? c.true : kind === 'false' ? c.false : c.rows.find(r => rowPin(r.id) === pin)?.to;
     const target = !to ? ' none' : refCard(ref ?? null) ? ' card' : ' hkx';
-    const opened = isOpen(part);
+    const opened = isOpen(part),
+      rowAny = kind === 'row' && !!c.rows.find(r => rowPin(r.id) === pin)?.any;
     return (
       <div
-        className={'cond-line' + (kind === 'row' ? '' : ' ' + kind)}
+        className={
+          'cond-line' + (kind === 'row' ? ' nodrag' + (!opened && ids.length > 1 ? ' joined' : '') : ' ' + kind)
+        }
         onClick={() => kind === 'row' && toggle(part, ids)}
+        onPointerDown={e => {
+          // The row's own line (not a condition chip, its destination or its pin) drags the whole row.
+          if (kind !== 'row' || (e.target as HTMLElement).closest('.cond-chip, .cond-to-wrap, .react-flow__handle'))
+            return;
+          begin(e, {from: part as CardPlace, id: part.slice(4), row: true});
+        }}
       >
         {kind !== 'row' && <span className={'cond-tf ' + kind}>{kind === 'true' ? 'True' : 'False'}</span>}
+        {/* Two or more conditions: AND or OR in the column True and False use. */}
+        {kind === 'row' && !opened && ids.length > 1 && <JoinBadge kind={rowAny ? 'any' : 'all'} />}
         {kind === 'row' &&
           (opened ? (
             <span className="cond-sum">
-              {ids.length > 1 ? tr('조건 {n}개 · 모두 맞으면', {n: ids.length}) : tr('조건 {n}개', {n: ids.length})}
+              {ids.length > 1 && (
+                <JoinToggle
+                  kind={rowAny ? 'any' : 'all'}
+                  change={k => attempt(w => setRowJoin(w, uid, part.slice(4), k === 'any'))}
+                />
+              )}
+              {tr('조건 {n}개', {n: ids.length})}
             </span>
           ) : (
-            <Chips c={c} ids={ids} />
+            <Chips c={c} ids={ids} list={part as CardPlace} />
           ))}
         {kind !== 'row' && <span />}
         <span className="cond-to-wrap nodrag" onClick={e => e.stopPropagation()}>
@@ -336,107 +591,131 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
       </div>
     );
   };
-  const guardsOpen = isOpen('guards');
-  return (
-    <div className="cond-face">
+  /** While dragging, the gap above a row (or above False: `index` = the row count) takes a condition as a new row
+   *  there, or a dragged row. */
+  const gap = (index: number) =>
+    dragging && (
       <div
-        className={'cond-box cond-guard' + (guardsOpen ? ' open' : '')}
-        onClick={() => !guardsOpen && toggle('guards', c.guards)}
-      >
+        className={'cond-gap-drop' + (over === 'gap:' + index ? ' on' : '')}
+        {...dropZone('gap:' + index, 'newRow', index)}
+      />
+    );
+  const guardsOpen = isOpen('guards'),
+    guardDrop = box('guards', c.guards.length);
+  return (
+    <DragContext.Provider value={kit}>
+      {drag &&
+        createPortal(
+          <div
+            className={'cond-drag-ghost' + (pointer.copy ? ' copy' : '')}
+            style={{left: pointer.x + 12, top: pointer.y + 10}}
+          >
+            {pointer.copy && <b>{tr('복사')}</b>}
+            {drag.row
+              ? (c.rows.find(r => r.id === drag.id)?.guards ?? []).map(id => chipText(c, id)).join(' · ')
+              : chipText(c, drag.id)}
+          </div>,
+          document.body
+        )}
+      <div className={'cond-face' + (dragging ? ' dragging' : '')} ref={face} data-card={uid}>
         <div
-          className="cond-cap"
-          onClick={e => {
-            if (!guardsOpen) return;
-            e.stopPropagation();
-            close('guards');
-          }}
+          {...guardDrop}
+          className={'cond-box cond-guard' + (guardsOpen ? ' open' : '') + guardDrop.className}
+          onClick={() => !guardsOpen && toggle('guards', c.guards)}
         >
-          {tr('공통 조건 · 모두')}
+          {/* Its name on its border (docs/mockup-condition-groups ⑦ C), open or not; open, the name closes it. */}
+          <span
+            className="cond-legend"
+            onClick={e => {
+              if (!guardsOpen) return;
+              e.stopPropagation();
+              close('guards');
+            }}
+          >
+            {tr('공통 조건')}
+          </span>
+          {!guardsOpen &&
+            (c.guards.length > 1 ? (
+              <span className="cond-joined">
+                <JoinBadge kind="all" />
+                <Chips c={c} ids={c.guards} list="guards" />
+              </span>
+            ) : c.guards.length ? (
+              <Chips c={c} ids={c.guards} list="guards" />
+            ) : (
+              <span className="cond-chips">
+                <span className="cond-chip add">{tr('＋ 공통 조건')}</span>
+              </span>
+            ))}
+          {guardsOpen &&
+            editor(
+              'guards',
+              c.guards,
+              c.true === undefined && c.rows.length <= 1 && c.guards.length > 0 ? (
+                <>
+                  <span className="cond-gap" />
+                  <button type="button" className="cond-act" onClick={() => attempt(w => setTrue(w, uid))}>
+                    {tr('True로 (공통 조건만)')}
+                  </button>
+                </>
+              ) : undefined
+            )}
         </div>
-        {!guardsOpen &&
-          (c.guards.length ? (
-            <Chips c={c} ids={c.guards} />
-          ) : (
-            <span className="cond-chips">
-              <span className="cond-chip add">{tr('＋ 공통 조건')}</span>
-            </span>
-          ))}
-        {guardsOpen &&
-          editor(
-            'guards',
-            c.guards,
-            c.true === undefined && c.rows.length <= 1 && c.guards.length > 0 ? (
-              <>
-                <span className="cond-gap" />
-                <button type="button" className="cond-act" onClick={() => attempt(w => setTrue(w, uid, true))}>
-                  {tr('True로 (공통 조건만)')}
-                </button>
-              </>
-            ) : undefined
-          )}
-      </div>
-      {c.true !== undefined ? (
-        <div className={'cond-box' + (isOpen('true') ? ' open' : '')}>
-          <div onClick={() => toggle('true', [])}>{line('true', 'true', [], 'true')}</div>
-          {isOpen('true') && (
-            <div className="cond-edit nodrag nopan" onClick={e => e.stopPropagation()}>
-              <div className="cond-foot">
-                <button type="button" className="cond-act" onClick={() => attempt(w => setTrue(w, uid, false))}>
-                  {tr('행으로 바꾸기')}
-                </button>
+        {c.true !== undefined ? (
+          // True: the card's common conditions alone. A condition or row let go on it (or the gap above) becomes the
+          // card's first row, which takes True's destination; True comes back once no row is left.
+          <div className={'cond-box' + (over === 'true' ? ' drop-into' : '')} {...dropZone('true', 'newRow', 0)}>
+            {gap(0)}
+            {line('true', 'true', [], 'true')}
+          </div>
+        ) : (
+          c.rows.map((r, i) => {
+            const part = 'row:' + r.id,
+              rowDrop = box(`row:${r.id}`, r.guards.length);
+            return (
+              <div
+                key={r.id}
+                {...rowDrop}
+                className={
+                  'cond-box' +
+                  (isOpen(part) ? ' open' : '') +
+                  (drag?.row && drag.id === r.id ? ' dragged' : '') +
+                  rowDrop.className
+                }
+              >
+                {gap(i)}
+                {line(rowPin(r.id), 'row', r.guards, part)}
+                {isOpen(part) &&
+                  editor(
+                    `row:${r.id}`,
+                    r.guards,
+                    <>
+                      <span className="cond-gap" />
+                      <button
+                        type="button"
+                        className="cond-act danger"
+                        onClick={() => {
+                          close(part);
+                          attempt(w => removeRow(w, uid, r.id));
+                        }}
+                      >
+                        {tr('삭제')}
+                      </button>
+                    </>
+                  )}
               </div>
-            </div>
-          )}
+            );
+          })
+        )}
+        <div className="cond-box">
+          {gap(c.rows.length)}
+          {line('false', 'false', [], 'false')}
         </div>
-      ) : (
-        c.rows.map((r, i) => {
-          const part = 'row:' + r.id;
-          return (
-            <div key={r.id} className={'cond-box' + (isOpen(part) ? ' open' : '')}>
-              {line(rowPin(r.id), 'row', r.guards, part)}
-              {isOpen(part) &&
-                editor(
-                  `row:${r.id}`,
-                  r.guards,
-                  <>
-                    <span className="cond-gap" />
-                    <button
-                      type="button"
-                      className="cond-act"
-                      disabled={i === 0}
-                      onClick={() => attempt(w => moveRow(w, uid, r.id, i - 1))}
-                    >
-                      {tr('위로')}
-                    </button>
-                    <button
-                      type="button"
-                      className="cond-act"
-                      disabled={i === c.rows.length - 1}
-                      onClick={() => attempt(w => moveRow(w, uid, r.id, i + 1))}
-                    >
-                      {tr('아래로')}
-                    </button>
-                    <button
-                      type="button"
-                      className="cond-act danger"
-                      onClick={() => {
-                        close(part);
-                        attempt(w => removeRow(w, uid, r.id));
-                      }}
-                    >
-                      {tr('삭제')}
-                    </button>
-                  </>
-                )}
-            </div>
-          );
-        })
-      )}
-      <div className="cond-box">{line('false', 'false', [], 'false')}</div>
-      {c.true === undefined && (
         <button
           type="button"
-          className="cond-add nodrag"
+          className={'cond-add nodrag' + (over === 'newRow' ? ' drop-into' : '')}
+          title={tr('조건을 끌어 놓으면 그 조건으로 새 행을 만듭니다.')}
+          {...dropZone('newRow', 'newRow', c.rows.length)}
           onClick={() => {
             let id = '',
               first = '';
@@ -453,9 +732,9 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
             }
           }}
         >
-          {tr('＋ 행 추가')}
+          {tr('＋ 조건 추가')}
         </button>
-      )}
-    </div>
+      </div>
+    </DragContext.Provider>
   );
 }

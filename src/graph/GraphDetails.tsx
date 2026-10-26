@@ -10,7 +10,8 @@ import {assetLibrary} from '../assets.ts';
 import {t} from '../i18n/index.ts';
 import {switchPlaybackKind} from '../actionTypes.ts';
 import {parseNodeId} from './nodeRef.ts';
-import {StartCardFields, TransitionFields, ConditionCardBody} from './CardDetails.tsx';
+import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 export function GraphDetails({
   w,
   graph,
@@ -30,11 +31,12 @@ export function GraphDetails({
   selectedAsset: string;
   onGlobalSettings: () => void;
 }) {
-  // Start, transition and condition cards (XML format 6) edit their own settings.
+  // Start, transition and condition cards (XML format 6) are edited on the card itself (unify ⑨).
   const ref = parseNodeId(node);
-  if (ref.kind === 'startCard') return <StartCardFields w={w} uid={ref.uid} edit={edit} />;
-  if (ref.kind === 'transition') return <TransitionFields w={w} id={ref.link} edit={edit} />;
-  if (ref.kind === 'conditionCard') return <ConditionCardBody w={w} uid={ref.uid} edit={edit} status={status} />;
+  if (ref.kind === 'startCard' || ref.kind === 'transition')
+    return <p className="info-box">{tr('시작·전환 설정은 캔버스의 카드에서 편집합니다.')}</p>;
+  // A condition card's conditions are edited on the card itself (AGENTS: AND/OR and NOT inside the card).
+  if (ref.kind === 'conditionCard') return <p className="info-box">{tr('조건은 캔버스의 카드에서 편집합니다.')}</p>;
   const visual = projectGraph(w, graph).nodes.find(n => n.id === node);
   const a = graph.kind === 'root' ? w.actions.find(a => a.uid === node) : graphAction(w, graph);
   const kind = visual?.kind;
@@ -80,7 +82,7 @@ export function GraphDetails({
               const next = switchPlaybackKind(w, a.uid, k);
               edit(() => next);
             } catch (e) {
-              status(String(e));
+              status(errorText(e));
             }
           }}
           onGlobalSettings={onGlobalSettings}

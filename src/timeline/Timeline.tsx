@@ -27,6 +27,7 @@ import {rulerTicks} from './ruler.ts';
 import {t, useLanguage} from '../i18n/index.ts';
 import {useEditorMenu} from '../ContextMenu.tsx';
 import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 type Drag = {
   row: Row;
   mode: 'move' | 'start' | 'end';
@@ -132,7 +133,7 @@ export function Timeline({
     try {
       fn();
     } catch (e) {
-      status(String(e));
+      status(errorText(e));
     }
   };
   useEffect(() => {

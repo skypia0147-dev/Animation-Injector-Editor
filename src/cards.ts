@@ -12,8 +12,9 @@ import {gameControlLabel, type GameControl} from './keys.ts';
 export type Ref = {action: string} | {card: string} | null;
 /** A condition of a card: a check, or an AND/OR group whose members are other conditions of the same card (by id). */
 export type CardTest = Omit<BranchTest, 'pass' | 'fail'>;
-/** A row: its conditions (roots among the card's tests) and where it goes when they all hold. */
-export type CardRow = {id: string; guards: string[]; to: Ref};
+/** A row: its conditions (roots among the card's tests) and where it goes when they all hold, or (`any`, runtime
+ *  0.12.301 match="any") when one of them does. */
+export type CardRow = {id: string; guards: string[]; to: Ref; any?: boolean};
 /** A condition card (<Start>'s content, a root <Condition>, a <Row>'s <Condition>, a <True>/<False>'s content):
  *  common conditions, then rows or one True, then False. */
 export type ConditionCard = {
@@ -175,6 +176,25 @@ export function makesLoop(w: Workspace, from: string, to: string): boolean {
   return false;
 }
 export const isGroup = (t: Pick<CardTest, 'kind'>) => t.kind === 'all' || t.kind === 'any';
+/** The group rule (runtime 0.12.301, docs/mockup-condition-groups ⑥): a group sits among a card's common conditions
+ *  or a row's, one level deep, of the operator opposite to what holds it (OR among AND conditions, AND in an OR row),
+ *  with two or more checks. */
+export function groupRuleError(c: Pick<ConditionCard, 'tests' | 'guards' | 'rows'>): string | undefined {
+  const lists: [string[], boolean][] = [
+    [c.guards, false],
+    ...c.rows.map(r => [r.guards, !!r.any] as [string[], boolean]),
+  ];
+  for (const [roots, any] of lists)
+    for (const id of roots) {
+      const t = c.tests.find(t => t.id === id);
+      if (!t || !isGroup(t)) continue;
+      if ((t.kind === 'any') === any)
+        return tr('묶음은 감싼 쪽의 반대 연산자로만 씁니다(AND 조건 사이에는 OR 묶음, OR 행에는 AND 묶음).');
+      const members = (t.operands ?? []).map(m => c.tests.find(x => x.id === m));
+      if (members.some(m => !m || isGroup(m))) return tr('묶음 안에는 묶음을 넣지 않습니다(한 단계까지).');
+      if (members.length < 2) return tr('묶음에는 조건이 둘 이상 필요합니다.');
+    }
+}
 /** The ids a list of roots holds, with their members. */
 export function descendants(c: Pick<ConditionCard, 'tests'>, roots: string[], out = new Set<string>()) {
   for (const id of roots) {

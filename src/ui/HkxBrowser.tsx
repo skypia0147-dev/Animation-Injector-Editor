@@ -10,6 +10,7 @@ import {assetFolders} from './assetFolders.ts';
 import type {AssetFolder} from './assetFolders.ts';
 import {Icon} from '../EditorChrome.tsx';
 import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 
 function HkxBrowserPanel({
   entries,
@@ -99,7 +100,7 @@ function HkxBrowserPanel({
           className={'sound-play' + (on ? ' on' : '') + (can ? '' : ' off')}
           aria-label={on ? tr('정지') : tr('재생')}
           title={can ? undefined : s.localPath ? tr('xwm은 미리듣기를 할 수 없습니다') : t('hkx.sourceMissing')}
-          onClick={() => can && toggleSound(s.localPath).catch(e => sounds$?.status(String(e)))}
+          onClick={() => can && toggleSound(s.localPath).catch(e => sounds$?.status(errorText(e)))}
         >
           {on ? '■' : '▶'}
         </button>

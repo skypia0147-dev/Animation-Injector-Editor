@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react';
 import {invoke, isTauri} from '../backend.ts';
 import type {Meta} from './model.ts';
 import {t} from '../i18n/index.ts';
+import {errorText} from '../errorText.ts';
 /** Length of a local HKX's first animation (desktop only); undefined when it cannot be read. */
 export async function clipSeconds(path: string): Promise<number | undefined> {
   if (!path || !isTauri()) return undefined;
@@ -30,7 +31,7 @@ export function useMetadata(path: string, revision = 0) {
         if (!cancelled) set({path, data: result.animations});
       })
       .catch(e => {
-        if (!cancelled) set({path, error: String(e)});
+        if (!cancelled) set({path, error: errorText(e)});
       });
     return () => {
       cancelled = true;

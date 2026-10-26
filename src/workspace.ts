@@ -37,6 +37,7 @@ import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStart
 import type {View, FirstPersonStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
 import {ordinaryEffectOps} from './clipEffects.ts';
+import {errorText} from './errorText.ts';
 export const operations = [
   'hide',
   'show',
@@ -645,7 +646,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
   try {
     parseWorkspace(JSON.stringify(w));
   } catch (e) {
-    return [{level: 'error', node: 'project', message: String(e)}];
+    return [{level: 'error', node: 'project', message: errorText(e)}];
   }
   if (w.globals.cameraReset && !eventOk(w.globals.cameraReset))
     err('globals', tr('카메라 복구 이벤트 이름을 확인하세요.'));

@@ -4,6 +4,7 @@ import {eventListError, uniqueEvents, equippedTypes, attackStates} from './runti
 import {pairedRigs} from './pairedRigs.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
 import {selfDirections} from './graph/conditions.ts';
+import {valuesError} from './graph/multiValue.ts';
 import {createProject, fullBodyGraph, mark} from './model.ts';
 import type {Mark, Input} from './model.ts';
 import {gamepadFromXml, gameControlFromXml, type GameControl} from './keys.ts';
@@ -16,7 +17,7 @@ import type {Xml} from './xml.ts';
 import {views, firstPersonStarts, actionView, fixedThird} from './view.ts';
 import {readQtes, readEventQtes} from './qte.ts';
 import {checkKinds} from './cardChecks.ts';
-import type {CardTest, ConditionCard, Ref, StartCard} from './cards.ts';
+import {groupRuleError, type CardRow, type CardTest, type ConditionCard, type Ref, type StartCard} from './cards.ts';
 import {tr} from './i18n/korean.ts';
 
 // Opening an XML (format 6, runtime 0.12.291): the document is the file's starts, condition cards and HKX cards, one
@@ -40,6 +41,13 @@ function choice<T extends string>(n: Xml | undefined, k: string, values: readonl
   const s = get(n, k, d);
   if (!values.includes(s as T)) throw new Error(tr('{v0}.{k}: 지원하지 않는 값 {s}', {v0: n?.name, k, s}));
   return s as T;
+}
+/** A value list (runtime 0.12.301): every value one of `choices`, none twice. */
+function values(n: Xml, k: string, choices: readonly string[]): string {
+  const s = required(n, k),
+    error = valuesError(s, choices);
+  if (error) throw new Error(tr('{v0}.{k}: 지원하지 않는 값 {s}', {v0: n.name, k, s}));
+  return s;
 }
 const required = (n: Xml, k: string) => {
   const s = get(n, k);
@@ -412,8 +420,10 @@ export function importWorkspaceXml(text: string): Workspace {
     for (const c of n.children) {
       if (isGuard(c)) card.guards.push(readCondition(card, c));
       else if (c.name === 'Row') {
-        shapeXml(c, ['to', 'condition'], ['Check', 'And', 'Or', 'Condition']);
-        const row = {id: 'row' + (card.rows.length + 1), guards: [] as string[], to: null as Ref};
+        shapeXml(c, ['to', 'condition', 'match'], ['Check', 'And', 'Or', 'Condition']);
+        if (c.attrs.match !== undefined && c.attrs.match !== 'any') throw new Error(tr('Row.match는 any만 씁니다.'));
+        const row: CardRow = {id: 'row' + (card.rows.length + 1), guards: [], to: null};
+        if (c.attrs.match === 'any') row.any = true;
         for (const g of c.children.filter(isGuard)) row.guards.push(readCondition(card, g));
         const inner = c.children.find(g => g.name === 'Condition');
         if (c.attrs.to !== undefined) row.to = {action: actionUid(c.attrs.to, 'Row')};
@@ -620,6 +630,10 @@ export function importWorkspaceXml(text: string): Workspace {
   }
   const errors = validateWorkspace(w).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(i => i.node + ': ' + i.message).join('\n'));
+  for (const c of w.cards) {
+    const error = groupRuleError(c);
+    if (error) throw new Error(error);
+  }
   return shareEventReceivers(arrange(w));
 }
 const newUid = (w: Workspace, prefix: 'card' | 'start') => {
@@ -708,10 +722,10 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     ...(kind === 'equippedType'
       ? {
           hand: choice(n, 'hand', ['left', 'right'] as const, 'left'),
-          equipmentType: choice(n, 'type', equippedTypes, 'bow'),
+          equipmentType: values(n, 'type', equippedTypes),
         }
       : {}),
-    ...(kind === 'attackState' ? {attackState: choice(n, 'state', attackStates, 'none')} : {}),
+    ...(kind === 'attackState' ? {attackState: values(n, 'state', attackStates)} : {}),
     ...(kind === 'space' || kind === 'ground'
       ? {
           space: {

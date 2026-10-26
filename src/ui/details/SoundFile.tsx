@@ -4,6 +4,7 @@ import {tr} from '../../i18n/korean.ts';
 import type {SoundEntry} from '../../package.ts';
 import {assetKey} from '../../package.ts';
 import {previewable, toggleSound, useSoundPreview} from '../../soundPreview.ts';
+import {errorText} from '../../errorText.ts';
 
 /** What choosing a sound file needs from the app: the library's sounds, remembering a source for the mod package,
  *  and saying what failed. */
@@ -32,7 +33,7 @@ export function SoundFileInput({
       change(picked.file);
       ctx?.remember(picked.file, picked.path);
     } catch (e) {
-      ctx?.status(String(e));
+      ctx?.status(errorText(e));
     }
   };
   return (
@@ -89,7 +90,7 @@ export function SoundSourceFields({
       setMany({file: picked.file});
       ctx?.remember(picked.file, picked.path);
     } catch (e) {
-      ctx?.status(String(e));
+      ctx?.status(errorText(e));
     }
   };
   const play = (
@@ -99,7 +100,7 @@ export function SoundSourceFields({
       aria-label={source && playing.path === source ? tr('정지') : tr('재생')}
       disabled={!source || !previewable(source)}
       title={!source ? tr('원본 미지정') : previewable(source) ? undefined : tr('xwm은 미리듣기를 할 수 없습니다')}
-      onClick={() => toggleSound(source).catch(e => ctx?.status(String(e)))}
+      onClick={() => toggleSound(source).catch(e => ctx?.status(errorText(e)))}
     >
       {source && playing.path === source ? '■' : '▶'}
     </button>

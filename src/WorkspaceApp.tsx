@@ -94,6 +94,7 @@ import {frameAtTime, viewerMeta} from './viewport/types.ts';
 import {previewAssets, setPreviewAsset, skeletonCandidates, skinPathForActor} from './viewport/resources.ts';
 import {SELECTION_COMMAND} from './graph/marquee.ts';
 import {tr} from './i18n/korean.ts';
+import {errorText} from './errorText.ts';
 
 export const EDITOR_VERSION = '1.0.0';
 const RECOVERY_KEY = 'aieditor-recovery-v6';
@@ -368,7 +369,7 @@ function Editor() {
     try {
       return compileWorkspace(w);
     } catch (e) {
-      return String(e);
+      return errorText(e);
     }
   }, [w, showXml]);
   const action = w.actions.find(a => a.uid === selection),
@@ -411,7 +412,7 @@ function Editor() {
         current.current = next;
         dispatchDocument({type: 'edit', next, graph});
       } catch (e) {
-        notify(String(e), 'error');
+        notify(errorText(e), 'error');
       }
     },
     [notify]
@@ -516,7 +517,7 @@ function Editor() {
         edit(() => next);
         setSelection('project');
       } catch (e) {
-        notify(String(e), 'error');
+        notify(errorText(e), 'error');
       }
       return;
     }
@@ -535,7 +536,7 @@ function Editor() {
         }
         setSelection('project');
       } catch (e) {
-        notify(String(e), 'error');
+        notify(errorText(e), 'error');
       }
       return;
     }
@@ -554,7 +555,7 @@ function Editor() {
         setSelection('project');
         notify(t('shell.deleted'), 'ok', true);
       } catch (e) {
-        notify(String(e), 'error');
+        notify(errorText(e), 'error');
       }
     } else if (link) {
       edit(w => {
@@ -673,7 +674,7 @@ function Editor() {
             const doc = await io.open();
             if (doc) await loadDocument(doc);
           } catch (e) {
-            notify(t('shell.openFailed', {error: String(e)}), 'error');
+            notify(t('shell.openFailed', {error: errorText(e)}), 'error');
           }
         })
     );
@@ -685,7 +686,7 @@ function Editor() {
             await loadDocument(await io.openPath(r.path));
           } catch (e) {
             setRecent(removeRecent(r.path));
-            notify(t('shell.openFailed', {error: String(e)}), 'error');
+            notify(t('shell.openFailed', {error: errorText(e)}), 'error');
           }
         })
     );
@@ -702,7 +703,7 @@ function Editor() {
       setRecoverable(false);
       notify(t('shell.recovered'), 'ok');
     } catch (e) {
-      notify(String(e), 'error');
+      notify(errorText(e), 'error');
     }
   };
   const addInput = () => {
@@ -842,7 +843,7 @@ function Editor() {
         }
         return !!path;
       } catch (e) {
-        notify(t('shell.saveFailed', {error: String(e)}), 'error');
+        notify(t('shell.saveFailed', {error: errorText(e)}), 'error');
         return false;
       } finally {
         setPending(false);
@@ -907,7 +908,7 @@ function Editor() {
             try {
               await loadDocument({name: f.name, path: '', contents: f.contents, stamp: ''});
             } catch (e) {
-              notify(t('shell.openFailed', {error: String(e)}), 'error');
+              notify(t('shell.openFailed', {error: errorText(e)}), 'error');
             }
           })
       );
@@ -919,7 +920,7 @@ function Editor() {
             try {
               await loadDocument(await io.openPath(path));
             } catch (e) {
-              notify(t('shell.openFailed', {error: String(e)}), 'error');
+              notify(t('shell.openFailed', {error: errorText(e)}), 'error');
             }
           })
       );
@@ -979,7 +980,7 @@ function Editor() {
             if (!started) setStarted(true);
           }
         } catch (e) {
-          notify(String(e), 'error');
+          notify(errorText(e), 'error');
         }
       }
     }
@@ -1006,7 +1007,7 @@ function Editor() {
         }
         for (const o of result.rejected) notify(t('drop.unsupported') + ': ' + baseName(o), 'warn');
       } catch (e) {
-        notify(String(e), 'error');
+        notify(errorText(e), 'error');
       }
     } else for (const o of others) notify(t('drop.unsupported') + ': ' + baseName(o), 'warn');
   };
@@ -1159,7 +1160,7 @@ function Editor() {
         if (disposed) f();
         else off = f;
       })
-      .catch(e => notify(String(e), 'error'));
+      .catch(e => notify(errorText(e), 'error'));
     return () => {
       disposed = true;
       off?.();
@@ -1241,7 +1242,7 @@ function Editor() {
         const path = await pickViewerAsset(kind === 'skeletons' ? 'skeleton' : 'skin');
         if (path) changePreviewAsset(kind, actor, path);
       } catch (error) {
-        notify(String(error), 'error');
+        notify(errorText(error), 'error');
       }
     });
   const nameOf = (uid: string) => w.actions.find(a => a.uid === uid)?.config.name ?? uid;
@@ -1273,7 +1274,7 @@ function Editor() {
                   edit(w => removeAction(w, a.uid));
                   setSelection('project');
                 } catch (e) {
-                  notify(String(e), 'error');
+                  notify(errorText(e), 'error');
                 }
               },
             },
@@ -1371,7 +1372,7 @@ function Editor() {
                 const next = duplicateGraphNode(w, activeGraph, ui.selection.node);
                 edit(() => next);
               } catch (e) {
-                setStatus(String(e));
+                setStatus(errorText(e));
               }
             } else if (action) duplicateAction(action);
           },
@@ -1719,7 +1720,7 @@ function Editor() {
                               const picked = await io.pickSound();
                               if (picked) edit(w => selectSound(w, picked.file, picked.path));
                             } catch (e) {
-                              notify(String(e), 'error');
+                              notify(errorText(e), 'error');
                             }
                           })
                       )}
@@ -1739,7 +1740,7 @@ function Editor() {
                                 notify(t('hkx.registered', {n: 1}), 'ok');
                               }
                             } catch (e) {
-                              notify(String(e), 'error');
+                              notify(errorText(e), 'error');
                             }
                           })
                       )}
@@ -2226,7 +2227,7 @@ function Editor() {
                               edit(() => next);
                               notify(t('shell.kindChanged'), 'ok');
                             } catch (e) {
-                              notify(String(e), 'error');
+                              notify(errorText(e), 'error');
                             }
                           }}
                           status={setStatus}

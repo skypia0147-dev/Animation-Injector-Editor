@@ -7,6 +7,7 @@ import {checklistModel, checklistProjection} from '../../graph/checklist.ts';
 import {renderedChecklist} from '../../graph/renderCache.ts';
 import {tr} from '../../i18n/korean.ts';
 import {useLanguage} from '../../i18n/index.ts';
+import {errorText} from '../../errorText.ts';
 
 // The shown document's view comes from the render cache; an edit's copy is projected on its own.
 const view = (w: Workspace) => checklistProjection(w, renderedChecklist(w)),
@@ -48,7 +49,7 @@ export function PinConnections({
                   return after;
                 });
               } catch (e) {
-                status(String(e));
+                status(errorText(e));
               }
               if (made) select(made);
             }}

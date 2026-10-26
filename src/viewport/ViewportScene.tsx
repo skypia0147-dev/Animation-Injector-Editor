@@ -10,6 +10,7 @@ import {safeLoaderUrl, validateGlbResources} from './glb.ts';
 import type {ViewerData} from './types.ts';
 import {firstPersonView} from './firstPersonCamera.ts';
 import {tr} from '../i18n/korean.ts';
+import {errorText} from '../errorText.ts';
 
 export type ActorView = 'me' | 'partner' | 'both';
 export type ViewPreset = 'perspective' | 'front' | 'back' | 'left' | 'right' | 'top' | 'camera';
@@ -71,7 +72,7 @@ export function ViewportScene({
     frameRef = useRef(frame),
     optionsRef = useRef(options),
     invalidateRef = useRef(() => {}),
-    commandRef = useRef((kind: 'fit' | 'home') => {});
+    commandRef = useRef((_kind: 'fit' | 'home') => {});
   frameRef.current = frame;
   optionsRef.current = options;
   useEffect(() => invalidateRef.current(), [frame, options]);
@@ -171,7 +172,7 @@ export function ViewportScene({
       element.appendChild(renderer.domElement);
     } catch (error) {
       disposeTree(scene);
-      onSceneError(tr('WebGL을 초기화할 수 없습니다: ') + String(error));
+      onSceneError(tr('WebGL을 초기화할 수 없습니다: ') + errorText(error));
       return;
     }
 
@@ -343,7 +344,7 @@ export function ViewportScene({
         });
       } catch (error) {
         if (disposed) return;
-        skinMessages.push(tr('A{v0} 스킨: {v1}', {v0: actorIndex + 1, v1: String(error)}));
+        skinMessages.push(tr('A{v0} 스킨: {v1}', {v0: actorIndex + 1, v1: errorText(error)}));
         onSkinStatus([...skinMessages]);
       }
     };
@@ -429,7 +430,7 @@ export function ViewportScene({
         update();
         renderer.render(scene, camera);
       } catch (error) {
-        onSceneError(tr('뷰포트 렌더링에 실패했습니다: ') + String(error));
+        onSceneError(tr('뷰포트 렌더링에 실패했습니다: ') + errorText(error));
         return;
       }
     };

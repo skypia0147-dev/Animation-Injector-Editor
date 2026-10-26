@@ -118,13 +118,6 @@
   background: #2a2c2c;
   cursor: default;
 }
-/* A selecting action with no entry settings yet (docs/mockup-entry-settings). */
-.checklist-entry-empty {
-  margin: 0;
-  padding: 2px 0;
-  color: var(--ue-dim);
-  font-size: var(--fs-xs);
-}
 .checklist-row.active-item {
   outline: 1px solid #a8ccc4;
   outline-offset: 2px;
@@ -233,34 +226,14 @@
 .checklist-fields .detail-value {
   min-width: 0;
 }
-.checklist-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.checklist-row-actions:empty {
-  display: none;
-}
-.checklist-row-actions > .moment-note {
-  flex: 1;
-}
 /* An item's own actions (복제, 삭제) stay quiet until pointed at (docs/mockup-control-style A). */
-.shell .checklist-row-actions > button,
 .shell .moment-footer > button:not(.moment-link) {
   border-color: transparent;
   color: var(--ue-dim);
 }
-.shell .checklist-row-actions > button:hover:not(:disabled),
 .shell .moment-footer > button:not(.moment-link):hover:not(:disabled) {
   border-color: var(--control-line);
   color: var(--ue-strong);
-}
-.checklist-row-actions select {
-  flex: 1;
-  min-width: 120px;
 }
 .checklist-shared {
   display: block;
@@ -273,30 +246,7 @@
   font-size: var(--fs-sm);
   white-space: normal;
 }
-.checklist-body .condition-expression-tools {
-  flex-wrap: wrap;
-}
-.checklist-body .condition-expression-heading {
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.checklist-body .condition-expression-heading .condition-name {
-  text-align: left;
-  min-width: 0;
-}
-.checklist-body .condition-expression-heading > select {
-  flex: 1;
-  min-width: 65px;
-}
-.checklist-body .condition-expression-children {
-  padding-left: 10px;
-}
-.checklist-body .condition-expression-row {
-  min-width: 0;
-}
-.checklist-body .condition-expression-fields {
-  padding: 6px;
-}
+
 .checklist-body .detail-search {
   width: 100%;
 }
@@ -630,3 +580,8 @@
 }
 
 /* An item an older project saved as 사용 안 함 (10-23: no checkbox to turn one off any more). */
+/* An HKX card a feature dragged from another card would go to (unify ⑪). */
+.p3-node.item-drop {
+  outline: 2px dashed var(--card-hkx, #6fd3b8);
+  outline-offset: 4px;
+}

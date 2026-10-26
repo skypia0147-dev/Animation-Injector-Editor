@@ -1,4 +1,5 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
+import {StartFace, TransitionFace} from './StartCardFace.tsx';
 import {SlimClipBars} from './ClipBar.tsx';
 import {PinMenu} from './PinMenu.tsx';
 import {
@@ -60,9 +61,18 @@ import type {CardPresentation} from './cardPresentation.ts';
 import {menuGroups, useEditorMenu} from '../ContextMenu.tsx';
 import {t, useLanguage} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
-/** routeTo: where each route row's pin goes now, by name (routePins). */
+import {errorText} from '../errorText.ts';
+/** routeTo: where each route row's pin goes now, by name (routePins); routeKinds: what it reaches (the colour of its
+ *  destination chip, as a condition card's). */
+type RouteKind = 'hkx' | 'card' | 'qte' | 'event';
 type Visual = Node<
-  FlatNode & {presentation: CardPresentation; collapsed?: boolean; routeTo?: Record<string, string>; start?: StartRow},
+  FlatNode & {
+    presentation: CardPresentation;
+    collapsed?: boolean;
+    routeTo?: Record<string, string>;
+    routeKinds?: Record<string, RouteKind>;
+    start?: StartRow;
+  },
   'flat'
 >;
 type CardModel = ReturnType<typeof renderedChecklist>;
@@ -212,7 +222,6 @@ function ArrangeMenu({
 // are only what makes them draw again.
 const CardBody = memo(function CardBody({
   node,
-  fold,
 }: {
   node: Visual['data'];
   items: unknown;
@@ -220,12 +229,11 @@ const CardBody = memo(function CardBody({
   version: number;
   selection: string;
   library: unknown;
-  fold?: 'open' | 'closed';
 }) {
   // A card's clip bars are slim (the property list, mockup ⑥-A).
   return (
     <SlimClipBars.Provider value={true}>
-      <ChecklistBody node={node} fold={fold} />
+      <ChecklistBody node={node} />
     </SlimClipBars.Provider>
   );
 });
@@ -254,6 +262,15 @@ function GatedConditionCard({
     />
   );
 }
+/** A start or transition card, edited on the card (unify ⑨): it draws with every document, as a condition card. */
+function GatedStartCard({node, routes}: {node: Visual['data']; routes: React.ReactNode}) {
+  const gate = useContext(CardGate)!,
+    ctx = useContext(ChecklistContext)!,
+    ref = parseNodeId(node.id);
+  if (ref.kind === 'startCard') return <StartFace w={gate.w} uid={ref.uid} edit={ctx.edit} routes={routes} />;
+  if (ref.kind === 'transition') return <TransitionFace w={gate.w} id={ref.link} edit={ctx.edit} routes={routes} />;
+  return null;
+}
 function GatedChecklist({node}: {node: Visual['data']}) {
   const gate = useContext(CardGate)!,
     items = gate.model.items.get(node.id),
@@ -261,12 +278,8 @@ function GatedChecklist({node}: {node: Visual['data']}) {
   // The body follows the selection only when it is this card, one of its items or something it owns.
   const touched =
     !!s && (s === node.id || !!items?.some(i => i.node.id === s) || !!gate.model.owners.get(s)?.includes(node.id));
-  // Summary view: a condition's editor is open while the card (or what it owns) is chosen, as an HKX card is.
-  const summary = useContext(CardView)?.summary,
-    fold = summary && node.kind === 'conditionCard' ? (touched ? ('open' as const) : ('closed' as const)) : undefined;
   return (
     <CardBody
-      fold={fold}
       node={node}
       items={items}
       epoch={gate.epoch}
@@ -303,7 +316,7 @@ function StartLine({node, start}: {node: Visual['data']; start: StartRow}) {
       });
       if (made) ctx.select(made);
     } catch (e) {
-      ctx.status(String(e));
+      ctx.status(errorText(e));
     }
   };
   return (
@@ -357,7 +370,10 @@ function Card({id, data, selected}: NodeProps<Visual>) {
     ctx = routable(data) ? context : null;
   // Every pin with a destination list is a row at the card's foot (below); any other pin stays on the card's edge.
   const routes = routePins(data),
-    edgePins = routes.length ? data.outputs.filter(p => !routes.includes(p)) : data.outputs;
+    // Start and transition cards draw their routes among their settings (StartCardFace).
+    startish = (data.kind === 'startCard' || data.kind === 'transition') && !!ctx,
+    qteEvent = data.id.startsWith('qte-event:'),
+    edgePins = qteEvent ? [] : routes.length ? data.outputs.filter(p => !routes.includes(p)) : data.outputs;
   // A start's, card's or transition's route names where it goes (from the document); a QTE's from its result.
   const routeText = (p: string) =>
     data.kind !== 'qte' && context ? routeDestination(context.w, data.id, p) : data.routeTo?.[p] || '';
@@ -374,24 +390,43 @@ function Card({id, data, selected}: NodeProps<Visual>) {
         return after;
       });
     } catch (e) {
-      ctx!.status(String(e));
+      ctx!.status(errorText(e));
     }
     if (made) ctx!.select(made);
   };
-  // A route row: what it is, where it goes, its list (the whole row opens it) and its pin on the row's edge.
+  // A route's destination as a condition card's (docs/mockup unify ⑧): a chip coloured by what it reaches (HKX, card,
+  // QTE, event; dashed when nowhere) that opens the list of destinations.
+  const destination = (p: string, text: string, empty: boolean, reaches?: RouteKind) => {
+    const kind = empty ? 'none' : (data.routeKinds?.[p] ?? reaches ?? 'hkx');
+    return (
+      <span className="cond-to-wrap nodrag" onClick={e => e.stopPropagation()}>
+        {ctx ? (
+          <PinMenu
+            className={'cond-to ' + kind}
+            label={text}
+            title={portLabel(data, p) + tr(' 연결 대상 고르기')}
+            load={() => pinRows(ctx.w, view(ctx.w), data.id).find(r => r.pin === p)}
+            pick={target => choose(p, target)}
+          />
+        ) : (
+          <span className={'cond-to ' + kind}>{text}</span>
+        )}
+      </span>
+    );
+  };
+  // A route row: a box with what it is, where it goes and its pin on the box's edge.
   const routeRow = (p: string, kind: React.ReactNode, text: string, empty: boolean, extra = '') => (
-    <div key={p} className={'branch-route tone-' + routeTone(data, p) + extra}>
-      <span className="branch-route-kind">{kind}</span>
-      <span className={'branch-route-to' + (empty ? ' empty' : '')}>{text}</span>
-      {ctx && (
-        <PinMenu
-          className="branch-route-menu"
-          label="▾"
-          title={portLabel(data, p) + tr(' 연결 대상 고르기')}
-          load={() => pinRows(ctx.w, view(ctx.w), data.id).find(r => r.pin === p)}
-          pick={target => choose(p, target)}
-        />
-      )}
+    <div key={p} className={'route-box tone-' + routeTone(data, p) + extra}>
+      <span className="route-label">{kind}</span>
+      {destination(p, text, empty)}
+      <Handle id={p} type="source" position={Position.Right} title={portLabel(data, p)} />
+    </div>
+  );
+  // One line of a QTE result's box: who goes (a coloured word) and where.
+  const roleLine = (p: string, role: React.ReactNode, text: string, empty: boolean, reaches?: RouteKind) => (
+    <div key={p} className={'route-line tone-' + routeTone(data, p)}>
+      {role}
+      {destination(p, text, empty, reaches)}
       <Handle id={p} type="source" position={Position.Right} title={portLabel(data, p)} />
     </div>
   );
@@ -399,53 +434,56 @@ function Card({id, data, selected}: NodeProps<Visual>) {
   // a pair's transition the attacker's and the victim's rows, an event its row; "계속" is the outcome's row alone.
   const outcomeNames = {success: tr('성공'), failure: tr('실패'), perfect: tr('완벽')} as const,
     roleNames = {self: tr('가해자'), partner: tr('피해자'), both: tr('양쪽')} as const;
-  const qteRows = data.presentation.qte?.results?.flatMap(r => {
+  const qteRows = data.presentation.qte?.results?.map(r => {
     const pin = r.k === 'success' ? 'pass' : r.k === 'failure' ? 'fail' : 'perfect',
-      partner = `choice:${r.k}:partner`;
-    if (r.mode === 'continue')
-      return [
-        routeRow(pin, outcomeNames[r.k], r.k === 'perfect' ? tr('성공 경로 사용') : tr('계속'), true, ' qte-outcome'),
-      ];
-    const rows = [
-      <div key={r.k + ':head'} className={'branch-route qte-outcome qte-outcome-head tone-' + routeTone(data, pin)}>
-        <span className="branch-route-kind">{outcomeNames[r.k]}</span>
-      </div>,
-    ];
-    if (r.mode === 'event')
-      rows.push(
-        routeRow(
-          pin,
-          <i className="qte-role event">⚡</i>,
-          (routeSet(pin) ? routeText(pin).replace(/^⚡ /, '') : r.event || tr('이벤트를 지정하세요')) +
-            (r.pair && !r.player ? ' · ' + roleNames[r.recipient] : ''),
-          !routeSet(pin),
-          ' qte-role-row'
-        )
-      );
-    else {
-      rows.push(
-        routeRow(
-          pin,
-          <i className={'qte-role ' + (r.player ? 'player' : r.pair ? 'attacker' : 'next')}>
-            {r.player ? tr('플레이어') : r.pair ? tr('가해자') : tr('다음')}
-          </i>,
-          routeSet(pin) ? routeText(pin) : tr('동작을 고르세요'),
-          !routeSet(pin),
-          ' qte-role-row'
-        )
-      );
-      if (r.pair)
-        rows.push(
-          routeRow(
-            partner,
-            <i className={'qte-role ' + (r.player ? 'partner' : 'victim')}>{r.player ? tr('상대') : tr('피해자')}</i>,
-            routeSet(partner) ? routeText(partner) : r.player ? tr('지정 안 함') : tr('그대로 (하던 페어)'),
-            !routeSet(partner),
-            ' qte-role-row'
-          )
-        );
-    }
-    return rows;
+      partner = `choice:${r.k}:partner`,
+      tone = routeTone(data, pin);
+    const lines =
+      r.mode === 'continue'
+        ? [roleLine(pin, null, r.k === 'perfect' ? tr('성공 경로 사용') : tr('계속'), true)]
+        : r.mode === 'event'
+          ? [
+              roleLine(
+                pin,
+                <i className="qte-role event">⚡</i>,
+                (routeSet(pin) ? routeText(pin).replace(/^⚡ /, '') : r.event || tr('이벤트를 지정하세요')) +
+                  (r.pair && !r.player ? ' · ' + roleNames[r.recipient] : ''),
+                !routeSet(pin) && !r.event,
+                'event'
+              ),
+            ]
+          : [
+              roleLine(
+                pin,
+                <i className={'qte-role ' + (r.player ? 'player' : r.pair ? 'attacker' : 'next')}>
+                  {r.player ? tr('플레이어') : r.pair ? tr('가해자') : tr('다음')}
+                </i>,
+                routeSet(pin) ? routeText(pin).replace(/^→ /, '') : tr('동작을 고르세요'),
+                !routeSet(pin)
+              ),
+              ...(r.pair
+                ? [
+                    roleLine(
+                      partner,
+                      <i className={'qte-role ' + (r.player ? 'partner' : 'victim')}>
+                        {r.player ? tr('상대') : tr('피해자')}
+                      </i>,
+                      routeSet(partner)
+                        ? routeText(partner).replace(/^→ /, '')
+                        : r.player
+                          ? tr('지정 안 함')
+                          : tr('그대로'),
+                      !routeSet(partner)
+                    ),
+                  ]
+                : []),
+            ];
+    return (
+      <div key={r.k} className={'route-box qte-result tone-' + tone}>
+        <span className={'cond-tf ' + tone}>{outcomeNames[r.k]}</span>
+        <div className="route-lines">{lines}</div>
+      </div>
+    );
   });
   return (
     <div
@@ -489,6 +527,17 @@ function Card({id, data, selected}: NodeProps<Visual>) {
             />
           )}
         />
+      ) : startish ? (
+        <GatedStartCard
+          node={data}
+          routes={
+            <div className="route-face">
+              {routes.map(p =>
+                routeRow(p, portLabel(data, p), routeSet(p) ? routeText(p) : routeEmpty(data, p), !routeSet(p))
+              )}
+            </div>
+          }
+        />
       ) : data.kind === 'hkxPlay' ? (
         <GatedChecklist node={data} />
       ) : data.presentation.qte ? (
@@ -524,14 +573,27 @@ function Card({id, data, selected}: NodeProps<Visual>) {
           ))}
         </div>
       )}
+      {qteEvent && (
+        // The QTE this event starts: where the card goes, not chosen here (it is the QTE's own event).
+        <div className="route-face">
+          <div className="route-box">
+            <span className="route-label">{tr('도착')}</span>
+            <span className="cond-to-wrap">
+              <span className="cond-to qte">{data.routeTo?.trigger || 'QTE'}</span>
+            </span>
+            <Handle id="trigger" type="source" position={Position.Right} title={tr('도착')} />
+          </div>
+        </div>
+      )}
       {qteRows ? (
-        <div className="branch-routes qte-routes">{qteRows}</div>
+        <div className="route-face qte-routes">{qteRows}</div>
       ) : (
         routes.length > 0 &&
-        data.kind !== 'conditionCard' && (
-          // Routes are rows at the card's foot: what the route is, where it goes, its list (the whole row opens it)
-          // and its pin on the row's edge (docs/mockup-branch-pins, docs/mockup-route-rows, 10-15).
-          <div className="branch-routes">
+        data.kind !== 'conditionCard' &&
+        !startish && (
+          // Routes are boxes at the card's foot as a condition card's rows: what the route is, where it goes (a chip
+          // opening its list) and its pin on the box's edge (docs/mockup-route-rows, unify ⑧ 10-27).
+          <div className="route-face">
             {routes.map(p =>
               routeRow(p, portLabel(data, p), routeSet(p) ? routeText(p) : routeEmpty(data, p), !routeSet(p))
             )}
@@ -729,6 +791,7 @@ function FlatGraphPanel({
     const byId = new Map(projection.nodes.map(n => [n.id, n])),
       names = new Map(w.actions.map(a => [a.uid, a.config.name || a.config.actionId])),
       routed = new Map<string, Record<string, string>>(),
+      kinds = new Map<string, Record<string, RouteKind>>(),
       qteRouted = new Map<string, string[]>();
     const onward = new Map<string, string>();
     for (const e of projection.edges) if (!onward.has(e.source)) onward.set(e.source, e.target);
@@ -737,8 +800,19 @@ function FlatGraphPanel({
       let t = byId.get(e.target);
       for (let hop = 0; t?.kind === 'blend' && hop < 4; hop++) t = byId.get(onward.get(t.id) ?? '') ?? t;
       if (!t) continue;
-      const label = (t.kind === 'hkxPlay' && t.action && names.get(t.action)) || t.title;
+      const label =
+        (t.kind === 'hkxPlay' && t.action && names.get(t.action)) ||
+        (t.kind === 'qte' ? 'QTE · ' + (presentations.get(t.id)?.qte?.typeName ?? t.title) : t.title);
       routed.set(e.source, {...routed.get(e.source), [e.pin]: label});
+      const kind: RouteKind =
+        e.via || t.kind === 'eventEmit'
+          ? 'event'
+          : t.kind === 'conditionCard'
+            ? 'card'
+            : t.kind === 'qte'
+              ? 'qte'
+              : 'hkx';
+      if (!kinds.get(e.source)?.[e.pin]) kinds.set(e.source, {...kinds.get(e.source), [e.pin]: kind});
       if (byId.get(e.source)?.kind === 'qte') {
         const list = (qteRouted.get(e.source + '|' + e.pin) ?? []).concat(e.via ? '⚡ ' + e.via : '→ ' + label);
         qteRouted.set(e.source + '|' + e.pin, [...new Set(list)]);
@@ -753,14 +827,17 @@ function FlatGraphPanel({
       });
     }
     for (const n of projection.nodes) {
-      const pins = routePins(n),
-        routeTo = pins.length ? Object.fromEntries(pins.map(p => [p, routed.get(n.id)?.[p] ?? ''])) : undefined;
+      // An event's QTE card names the QTE it starts as a route (fixed: it is that QTE's event).
+      const pins = n.id.startsWith('qte-event:') ? ['trigger'] : routePins(n),
+        routeTo = pins.length ? Object.fromEntries(pins.map(p => [p, routed.get(n.id)?.[p] ?? ''])) : undefined,
+        routeKinds = pins.length && kinds.get(n.id) ? kinds.get(n.id) : undefined;
       // How the action starts reads every line into its card, not only the ones a flow view shows.
       const start = n.kind === 'hkxPlay' ? startRow(w, n, fullProjection) : undefined;
       const fresh = {
           ...n,
           presentation: presentations.get(n.id)!,
           ...(routeTo ? {routeTo} : {}),
+          ...(routeKinds ? {routeKinds} : {}),
           ...(start ? {start} : {}),
         },
         old = previousData.current.get(n.id);
@@ -994,7 +1071,7 @@ function FlatGraphPanel({
     try {
       fn();
     } catch (e) {
-      status(String(e));
+      status(errorText(e));
     }
   };
   const chosen = () => (picked.length ? picked : visibleSelected ? [visibleSelected] : []);
@@ -1884,7 +1961,7 @@ function FlatGraphPanel({
                     select(n.id);
                   }
                 }}
-                onNodeDragStop={(_, n, all) => {
+                onNodeDragStop={(_, _n, all) => {
                   dragging.current = false;
                   if (!cancelled.current)
                     focusAction

@@ -2,6 +2,8 @@ import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
 import {definition, extensionDefaults, formKinds} from './conditionExtensions.ts';
 import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
+import {MultiValuePicker} from './MultiValuePicker.tsx';
+import {equippedTypeLabels} from './multiValue.ts';
 import {t} from '../i18n/index.ts';
 import {useState} from 'react';
 import {patchTest} from './conditionExpression.ts';
@@ -104,6 +106,8 @@ export function ConditionFields({
                 : {}),
               ...(kind === 'attackState' ? {attackState: test.attackState ?? 'bowDrawn'} : {}),
               ...(kind === 'global' ? {subject: 'self', equals: test.equals ?? 1} : {}),
+              // The player's own movement keys: always the actor itself (no target field).
+              ...(kind === 'movementDirection' ? {subject: 'self' as const} : {}),
               ...(['space', 'ground'].includes(kind) && !test.space
                 ? {
                     subject: 'self' as const,
@@ -140,37 +144,29 @@ export function ConditionFields({
             </select>
           </DetailRow>
           <DetailRow label={t('ext.equipmentType')}>
-            <select
+            <MultiValuePicker
               value={test.equipmentType ?? 'bow'}
-              onChange={e => change({equipmentType: e.target.value as BranchTest['equipmentType']})}
-            >
-              {equippedTypes.map(k => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
+              choices={equippedTypes.map(k => [k, equippedTypeLabels()[k]] as const)}
+              change={equipmentType => change({equipmentType})}
+              label={t('ext.equipmentType')}
+            />
           </DetailRow>
         </>
       )}
       {test.kind === 'attackState' && (
         <DetailRow label={t('ext.state')}>
-          <select
+          <MultiValuePicker
             value={test.attackState ?? 'none'}
-            onChange={e => change({attackState: e.target.value as BranchTest['attackState']})}
-          >
-            {attackStates.map(k => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+            choices={attackStates.map(k => [k, k] as const)}
+            change={attackState => change({attackState})}
+            label={t('ext.state')}
+          />
         </DetailRow>
       )}
       {/* A room check is always measured at the actor's own spot (docs/mockup-space-sentence): no target field. */}
       {test.kind === 'previousAction' && <PreviousActionFields w={w} test={test} change={change} />}
       {/* The time of day and the weather are the world's: no target. */}
-      {!['all', 'any', 'global', 'space', 'ground', 'gameHour', 'weather'].includes(test.kind) && (
+      {!['all', 'any', 'global', 'space', 'ground', 'gameHour', 'weather', 'movementDirection'].includes(test.kind) && (
         <DetailRow
           label={tr('검사 대상')}
           hint={tr(
