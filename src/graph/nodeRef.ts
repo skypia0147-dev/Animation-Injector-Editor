@@ -2,12 +2,12 @@
 // startsWith('flow:') and split(':') in many files; decode with parseNodeId and build with
 // nodeId (or the existing encoders flatId, branchId, animId, tableId, qteId, which agree).
 //
-// Formats (action and link IDs never contain ':' or '|'):
-//   flow:<owner>:<test>            condition branch            (branchId)
-//   conditionTable:<owner>         condition table view node   (tableId)
+// Formats (action, link, start and card IDs never contain ':' or '|'):
+//   startCard:<uid>                start card (XML format 6 <Start>)
+//   conditionCard:<uid>            condition card
+//   transition:<link>              transition card
 //   qte:<id>                       QTE node                    (qteId)
 //   notify:<owner>|<local>         notify/feature row; <local> may contain ':'
-//   draft:<n>                      unconnected draft node
 //   shared:<name>                  shared endpoint (shared:outputPose)
 //   <graphId(scope)>|<local>       node inside a non-root graph scope (flatId)
 //   anything else                  root node: action uid, entry, blend IDs, notes
@@ -16,11 +16,11 @@ import {graphId} from './state.ts';
 
 export type ScopeRef = Exclude<GraphRef, {kind: 'root'}>;
 export type NodeRef =
-  | {kind: 'branch'; owner: string; test: string}
-  | {kind: 'table'; owner: string}
+  | {kind: 'startCard'; uid: string}
+  | {kind: 'conditionCard'; uid: string}
+  | {kind: 'transition'; link: string}
   | {kind: 'qte'; id: string}
   | {kind: 'notify'; owner: string; local: string}
-  | {kind: 'draft'; id: string}
   | {kind: 'shared'; name: string}
   | {kind: 'scoped'; scope: ScopeRef; local: string}
   | {kind: 'plain'; id: string};
@@ -49,18 +49,17 @@ export function parseScope(text: string): ScopeRef | undefined {
 
 export function parseNodeId(id: string): NodeRef {
   let rest: string | undefined;
-  if ((rest = after(id, 'flow:')) !== undefined) {
-    const cut = rest.indexOf(':');
-    if (cut > 0) return {kind: 'branch', owner: rest.slice(0, cut), test: rest.slice(cut + 1)};
-  } else if ((rest = after(id, 'conditionTable:')) !== undefined) {
-    if (rest) return {kind: 'table', owner: rest};
+  if ((rest = after(id, 'startCard:')) !== undefined) {
+    if (rest) return {kind: 'startCard', uid: rest};
+  } else if ((rest = after(id, 'conditionCard:')) !== undefined) {
+    if (rest) return {kind: 'conditionCard', uid: rest};
+  } else if ((rest = after(id, 'transition:')) !== undefined) {
+    if (rest) return {kind: 'transition', link: rest};
   } else if ((rest = after(id, 'qte:')) !== undefined) {
     if (rest) return {kind: 'qte', id: rest};
   } else if ((rest = after(id, 'notify:')) !== undefined) {
     const cut = rest.indexOf('|');
     if (cut > 0) return {kind: 'notify', owner: rest.slice(0, cut), local: rest.slice(cut + 1)};
-  } else if (/^draft:\d+$/.test(id)) {
-    return {kind: 'draft', id};
   } else if ((rest = after(id, 'shared:')) !== undefined) {
     if (rest) return {kind: 'shared', name: rest};
   } else {
@@ -73,15 +72,16 @@ export function parseNodeId(id: string): NodeRef {
 
 export function nodeId(ref: NodeRef): string {
   switch (ref.kind) {
-    case 'branch':
-      return `flow:${ref.owner}:${ref.test}`;
-    case 'table':
-      return 'conditionTable:' + ref.owner;
+    case 'startCard':
+      return 'startCard:' + ref.uid;
+    case 'conditionCard':
+      return 'conditionCard:' + ref.uid;
+    case 'transition':
+      return 'transition:' + ref.link;
     case 'qte':
       return 'qte:' + ref.id;
     case 'notify':
       return `notify:${ref.owner}|${ref.local}`;
-    case 'draft':
     case 'plain':
       return ref.id;
     case 'shared':
@@ -89,30 +89,4 @@ export function nodeId(ref: NodeRef): string {
     case 'scoped':
       return `${graphId(ref.scope)}|${ref.local}`;
   }
-}
-
-/** Action that owns the node, when the ID itself names one. */
-export function nodeOwner(ref: NodeRef): string | undefined {
-  switch (ref.kind) {
-    case 'branch':
-    case 'table':
-    case 'notify':
-      return ref.owner;
-    case 'scoped':
-      return 'action' in ref.scope ? ref.scope.action : undefined;
-    default:
-      return undefined;
-  }
-}
-
-/** Test ID of a condition branch node (flow:<owner>:<test>), else undefined. */
-export function branchTest(id: string): string | undefined {
-  const ref = parseNodeId(id);
-  return ref.kind === 'branch' ? ref.test : undefined;
-}
-
-/** True when the node lies directly inside the given graph scope (<graphId(scope)>|<local>). */
-export function inScope(id: string, scope: ScopeRef): boolean {
-  const ref = parseNodeId(id);
-  return ref.kind === 'scoped' && graphId(ref.scope) === graphId(scope);
 }

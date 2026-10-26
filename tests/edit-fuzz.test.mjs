@@ -1,11 +1,12 @@
-// Free editing (10-24): lines and cards cut, deleted, added and drawn anywhere, as the canvas issues them
-// (graph/commands.ts), must never leave the project broken, and which action a condition belongs to follows its
-// lines. Random edits of real projects from fixed seeds; after every accepted edit the project must round-trip,
-// report only errors an edit rightly leaves (something new to fill in, two settings that disagree), compile when it
-// has none into XML the runtime accepts and that reads back the same, and keep every reference it holds whole.
+// Free editing (XML format 6): lines and cards cut, deleted, added and drawn anywhere, as the canvas issues them
+// (graph/commands.ts), and a condition card's own edits (rows, True, conditions, groups: graph/cardCommands.ts,
+// graph/conditionExpression.ts), must never leave the project broken. Random edits of real projects from fixed seeds;
+// after every accepted edit the project must round-trip, keep every reference it holds whole, hold no card loop,
+// report only errors an edit rightly leaves (something new to fill in), and when it has none compile into XML the
+// runtime accepts and that the editor reads back to the same XML (one to one).
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync, mkdirSync, rmSync} from 'node:fs';
+import {readFileSync, writeFileSync, mkdirSync, rmSync, existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {readEditorBlock} from '../src/editorBlock.ts';
@@ -14,30 +15,53 @@ import {parseWorkspace, validateWorkspace, compileWorkspace} from '../src/worksp
 import {executeGraphCommand} from '../src/graph/commands.ts';
 import {checklistProjection} from '../src/graph/checklist.ts';
 import {contextualAdds} from '../src/graph/contextAdd.ts';
-import {checker, needsChecker} from './local.mjs';
+import {
+  addRow,
+  removeRow,
+  moveRow,
+  setTrue,
+  addCondition,
+  removeCondition,
+  moveCondition,
+  duplicateCondition,
+} from '../src/graph/cardCommands.ts';
+import {editExpression} from '../src/graph/conditionExpression.ts';
+import {cardLoop, refAction, refCard} from '../src/cards.ts';
+import {checker, needsChecker, runtimeSource} from './local.mjs';
 
 const SEEDS = [
-  'examples/S3Directional.xml',
-  'examples/S3Event.xml',
-  'examples/S4Connections.xml',
+  'tests/fixtures/current-xml/Directional.xml',
+  'tests/fixtures/current-xml/Event.xml',
+  'tests/fixtures/current-xml/Connections.xml',
   'tests/fixtures/current-xml/Chain.xml',
+  'tests/fixtures/current-xml/Grapple.xml',
   'tests/fixtures/edit-fuzz/Selecting.xml',
-];
-// Errors an edit rightly leaves: something new still to fill in, or two settings that disagree.
+  `${runtimeSource}/tests/data/dynamic-dodge-shot.xml`,
+].filter(existsSync);
+// Errors an edit rightly leaves: something new still to fill in (a key, an event, a destination, a condition's
+// setting), or two settings that disagree.
 const RIGHTFUL = [
-  /전환 키: 유효한 키/,
-  /블렌드 양쪽을 연결하세요/,
+  /유효한 키/,
+  /키 또는 패드/,
+  /키를 지정/,
+  /이벤트 이름/,
+  /이벤트를 지정/,
   /플러그인 파일 이름/,
   /16진수 폼 ID/,
-  /시작 이벤트 이름을 입력/,
   /동작을 하나 이상 추가/,
   /같은 입력의 전환이 둘/,
-  /블렌드가 충돌합니다/,
-  /연결 이벤트 이름을 입력/,
-  /이벤트 이름은 1~64바이트/,
-  /운반: 내려놓기 동작을 고르세요/,
-  /전환이 들어오는 고르기 동작에 이어진 조건이 없습니다/,
-  /조건 분기를 거치는 전환에는 블렌드를 둘 수 없습니다/,
+  /내려놓기 동작을 고르세요/,
+  /내려놓기 입력을 선택/,
+  /대상 놓기 시점/,
+  /목적지/,
+  /갈 곳/,
+  /조건 카드를 거치는 전환/,
+  /빈 조건 그룹/,
+  /같은 출발 HKX에 이미 연결된 이벤트/,
+  /전투 대상은 페어로/,
+  /재생할 곳이 없습니다/,
+  /빈 조건 카드/,
+  /HKX 경로를 입력/,
 ];
 
 function random(seed) {
@@ -49,8 +73,55 @@ function random(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+const at = rnd => ({x: Math.round(rnd() * 2000), y: Math.round(rnd() * 2000)});
+/** A condition card's own edits: rows, True, its conditions and groups. */
+function cardEdit(w, rnd) {
+  const pick = list => list[Math.floor(rnd() * list.length)];
+  const c = pick(w.cards);
+  if (!c) return;
+  const places = ['guards', ...c.rows.map(r => 'row:' + r.id)],
+    place = pick(places),
+    roots = place === 'guards' ? c.guards : (c.rows.find(r => 'row:' + r.id === place)?.guards ?? []),
+    root = pick(roots),
+    row = pick(c.rows),
+    group = pick(c.tests.filter(t => t.kind === 'all' || t.kind === 'any')),
+    member = group && pick(group.operands ?? []);
+  return pick(
+    [
+      {name: 'addRow', run: w => addRow(w, c.uid).workspace},
+      row && {name: 'removeRow', run: w => removeRow(w, c.uid, row.id)},
+      row && {name: 'moveRow', run: w => moveRow(w, c.uid, row.id, Math.floor(rnd() * 3))},
+      {name: 'setTrue', run: w => setTrue(w, c.uid, c.true === undefined)},
+      {name: 'addCondition', run: w => addCondition(w, c.uid, place, rnd() < 0.3).workspace},
+      root && {name: 'removeCondition', run: w => removeCondition(w, c.uid, place, root)},
+      root && {
+        name: 'moveCondition',
+        run: w => moveCondition(w, c.uid, place, root, pick(places), Math.floor(rnd() * 3)),
+      },
+      root && {name: 'duplicateCondition', run: w => duplicateCondition(w, c.uid, place, root)},
+      root && {
+        name: 'wrap',
+        run: w => editExpression(w, c.uid, {type: 'wrap', id: root, mode: rnd() < 0.5 ? 'all' : 'any'}),
+      },
+      group && {name: 'addMember', run: w => editExpression(w, c.uid, {type: 'add', parent: group.id})},
+      member && {
+        name: 'removeMember',
+        run: w => editExpression(w, c.uid, {type: 'remove', parent: group.id, id: member}),
+      },
+      root && {
+        name: 'negate',
+        run: w => ({
+          ...w,
+          cards: w.cards.map(x =>
+            x.uid === c.uid ? {...x, tests: x.tests.map(t => (t.id === root ? {...t, negate: !t.negate} : t))} : x
+          ),
+        }),
+      },
+    ].filter(Boolean)
+  );
+}
 /** The edits the canvas could issue next: lines drawn between any two cards, lines cut, cards deleted, added and
- *  added from a card's menu. */
+ *  added from a card's menu, and a card's own edits. */
 function edits(w, rnd) {
   const pick = list => list[Math.floor(rnd() * list.length)];
   const p = checklistProjection(w),
@@ -67,88 +138,97 @@ function edits(w, rnd) {
   }
   for (const edge of p.edges) if (rnd() < 0.15) out.push({type: 'disconnect', edge});
   if (nodes.length && rnd() < 0.5) out.push({type: 'delete', id: pick(nodes).id});
-  const a = pick(w.actions);
-  if (a && rnd() < 0.4)
+  if (rnd() < 0.4)
     out.push({
       type: 'add',
-      owner: a.uid,
-      kind: pick(['conditionBranch', 'keyInput', 'markerReceive']),
-      position: {x: Math.round(rnd() * 2000), y: Math.round(rnd() * 2000)},
+      owner: '',
+      kind: pick(['conditionCard', 'keyInput', 'markerReceive', 'playNode']),
+      position: at(rnd),
     });
   const host = pick(nodes);
   if (host && rnd() < 0.4) {
     const options = contextualAdds(w, host.id).filter(o => !o.disabled);
-    if (options.length)
-      out.push({
-        type: 'addConnected',
-        source: host.id,
-        option: pick(options),
-        position: {x: Math.round(rnd() * 2000), y: Math.round(rnd() * 2000)},
-      });
+    if (options.length) out.push({type: 'addConnected', source: host.id, option: pick(options), position: at(rnd)});
+  }
+  for (let i = 0; i < 3; i++) {
+    const c = cardEdit(w, rnd);
+    if (c) out.push({type: 'card', ...c});
   }
   return out.length ? pick(out) : undefined;
 }
-/** What is wrong with the project after an edit; `selecting` are the actions that only select in the seed. */
-function problems(w, selecting, runtime) {
+const run = (w, c) => (c.type === 'card' ? c.run(w) : executeGraphCommand(w, c).workspace);
+const describe = c =>
+  c.type === 'disconnect'
+    ? `cut ${c.edge.source} -> ${c.edge.target}`
+    : c.type === 'card'
+      ? 'card ' + c.name
+      : JSON.stringify(c).slice(0, 160);
+
+/** What is wrong with the project after an edit. */
+function problems(w, runtime) {
   const found = [];
   try {
-    if (JSON.stringify(parseWorkspace(JSON.stringify(w)).actions) !== JSON.stringify(w.actions))
-      found.push('the project does not round-trip');
+    const back = parseWorkspace(JSON.stringify(w));
+    for (const k of ['actions', 'starts', 'cards', 'links', 'qtes'])
+      if (JSON.stringify(back[k]) !== JSON.stringify(w[k])) found.push(`the project's ${k} do not round-trip`);
   } catch (e) {
     return ['the project does not reopen: ' + e.message];
   }
-  // Every condition, action and followed condition a flow names is there.
-  const uids = new Set(w.actions.map(a => a.uid));
-  for (const a of w.actions) {
-    const f = a.flow;
-    if (!f) continue;
-    const ids = new Set(f.tests.map(t => t.id)),
-      bad = e => e && (('node' in e && !ids.has(e.node)) || ('action' in e && !uids.has(e.action)));
-    if (f.entry && !ids.has(f.entry) && !f.unlinked) found.push('a flow enters a missing condition');
-    for (const t of f.tests) {
-      if (bad(t.pass) || bad(t.fail)) found.push('a route leads to a missing condition or action');
-      if (t.operands?.some(o => !ids.has(o))) found.push('a group holds a missing condition');
+  // Every destination, condition and owner the document names is there.
+  const actions = new Set(w.actions.map(a => a.uid)),
+    cards = new Set(w.cards.map(c => c.uid));
+  const whole = (r, where) => {
+    if (r === null || r === undefined) return;
+    if (refAction(r) && !actions.has(refAction(r))) found.push(`${where} goes to a missing action`);
+    if (refCard(r) && !cards.has(refCard(r))) found.push(`${where} goes to a missing card`);
+  };
+  for (const s of w.starts) whole(s.to, 'a start');
+  for (const c of w.cards) {
+    const ids = new Set(c.tests.map(t => t.id));
+    for (const r of c.rows) {
+      whole(r.to, 'a row');
+      if (r.guards.some(g => !ids.has(g))) found.push('a row names a missing condition');
     }
-    for (const x of f.fans ?? [])
-      if (
-        !ids.has(x.parent) ||
-        x.branches.some(b => !ids.has(b)) ||
-        Object.entries(x.fails).some(([k, v]) => !ids.has(k) || bad(v))
-      )
-        found.push('a fan names a missing condition');
-    if (f.follow && !w.actions.some(x => x.uid === f.follow.owner && x.flow?.tests.some(t => t.id === f.follow.test)))
-      found.push('a start follows a missing condition');
+    if (c.true !== undefined) whole(c.true, 'a True');
+    whole(c.false, 'a False');
+    if (c.guards.some(g => !ids.has(g))) found.push('a card names a missing common condition');
+    for (const t of c.tests) if (t.operands?.some(o => !ids.has(o))) found.push('a group holds a missing condition');
+    if (c.true !== undefined && c.rows.length) found.push('a card has both True and rows');
   }
-  // A start's line into a condition card: its own flow's, or the one it follows.
-  for (const e of checklistProjection(w).edges)
-    for (const o of e.origins?.length ? e.origins : [e]) {
-      const card = /^flow:([^:]+):/.exec(e.target)?.[1],
-        start = /^start:([^|]+)\|/.exec(o.source)?.[1] ?? (uids.has(o.source) ? o.source : undefined),
-        a = start && w.actions.find(x => x.uid === start);
-      if (card && a && card !== (a.flow?.follow ? a.flow.follow.owner : a.uid))
-        found.push("a start's line is drawn into another action's condition");
+  for (const l of w.links) {
+    if (!actions.has(l.from)) found.push('a transition from a missing action');
+    if (l.to && !actions.has(l.to)) found.push('a transition to a missing action');
+    if (l.card && !cards.has(l.card)) found.push('a transition to a missing card');
+    if (l.partnerTo && !actions.has(l.partnerTo)) found.push("a transition's partner is missing");
+  }
+  for (const q of w.qtes ?? []) {
+    if (q.owner && !actions.has(q.owner)) found.push('a QTE of a missing action');
+    for (const r of Object.values(q.results)) {
+      if (r.to && !actions.has(r.to)) found.push('a QTE result to a missing action');
+      if (r.card && !cards.has(r.card)) found.push('a QTE result to a missing card');
     }
-  // A blend behind a transition's card ends at that transition's destination, or is left open.
-  for (const b of w.blends ?? []) {
-    const id = /^link:([^|]+)\|/.exec(b.source)?.[1],
-      l = id && w.links.find(l => l.id === id);
-    if (id && !l) found.push('a blend sits behind a transition that is gone');
-    else if (l && b.target && (/^anim:([^:]+):\|clip_/.exec(b.target)?.[1] ?? b.target) !== l.to)
-      found.push("a transition's blend ends at another HKX than the transition");
   }
+  if (w.order.some(u => !actions.has(u) && !cards.has(u) && !w.starts.some(s => s.uid === u)))
+    found.push('the order names something gone');
+  if (cardLoop(w)) found.push('condition cards go to one another in a loop');
   const errors = validateWorkspace(w).filter(i => i.level === 'error');
-  for (const e of errors) {
-    if (RIGHTFUL.some(r => r.test(e.message))) continue;
-    // A new HKX card's file is the user's to choose; a selecting action never asks for one.
-    if (/HKX 경로를 입력/.test(e.message) && !selecting.has(w.actions.find(x => x.uid === e.node)?.config.actionId))
-      continue;
-    found.push('error: ' + e.message);
-  }
+  for (const e of errors) if (!RIGHTFUL.some(r => r.test(e.message))) found.push('error: ' + e.node + ': ' + e.message);
   if (errors.length) return found;
   const xml = compileWorkspace(w);
   const reason = runtime?.(xml);
   if (reason) found.push('the runtime refuses it: ' + reason);
-  if (compileWorkspace(importWorkspaceXml(xml)) !== xml) found.push('the XML reads back differently');
+  try {
+    const again = compileWorkspace(importWorkspaceXml(xml));
+    if (again !== xml) {
+      found.push('the XML reads back differently');
+      if (!existsSync(`${dir}/differs-a.xml`)) {
+        writeFileSync(`${dir}/differs-a.xml`, xml);
+        writeFileSync(`${dir}/differs-b.xml`, again);
+      }
+    }
+  } catch (e) {
+    found.push('the XML does not read back: ' + e.message);
+  }
   return found;
 }
 
@@ -177,16 +257,17 @@ function runtimeCheck() {
     return seen.get(h);
   };
 }
+const open = path => importWorkspaceXml(readEditorBlock(readFileSync(path, 'utf8')).body);
 
-test('free editing never breaks a project (fixed random edits of real projects)', needsChecker, () => {
+test('free editing never breaks a project (fixed random edits of real projects)', needsChecker, t => {
   const runtime = runtimeCheck(),
     report = [];
-  let accepted = 0;
+  let accepted = 0,
+    compiled = 0;
   for (const [n, path] of SEEDS.entries()) {
-    const base = importWorkspaceXml(readEditorBlock(readFileSync(path, 'utf8')).body),
-      selecting = new Set(base.actions.filter(a => !a.config.steps.some(s => s.clip)).map(a => a.config.actionId)),
+    const base = open(path),
       rnd = random(1024 + n);
-    for (let run = 0; run < 24; run++) {
+    for (let r = 0; r < 24; r++) {
       let w = structuredClone(base);
       const trail = [];
       for (let step = 0; step < 30; step++) {
@@ -194,33 +275,34 @@ test('free editing never breaks a project (fixed random edits of real projects)'
         if (!c) break;
         let next;
         try {
-          next = executeGraphCommand(w, c).workspace;
+          next = run(w, c);
         } catch (e) {
           // Refused, as the canvas would, with words for the user; never a program error.
           if (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError)
-            report.push(`${path} run ${run}: an edit fails with ${e.stack}\n  ${trail.join('\n  ')}`);
+            report.push(`${path} run ${r}: an edit fails with ${e.stack}\n  ${[...trail, describe(c)].join('\n  ')}`);
           continue;
         }
         if (!next || next === w) continue;
         accepted++;
         w = next;
-        trail.push(
-          c.type === 'disconnect' ? `cut ${c.edge.source} -> ${c.edge.target}` : JSON.stringify(c).slice(0, 160)
-        );
-        const found = problems(w, selecting, runtime);
+        trail.push(describe(c));
+        const found = problems(w, runtime);
+        if (!validateWorkspace(w).some(i => i.level === 'error')) compiled++;
         if (found.length) {
-          report.push(`${path} run ${run}: ${found.join('; ')}\n  ${trail.join('\n  ')}`);
+          report.push(`${path} run ${r}: ${[...new Set(found)].join('; ')}\n  ${trail.join('\n  ')}`);
           break;
         }
       }
     }
   }
-  assert.ok(accepted > 1000, `only ${accepted} edits were accepted`);
+  t.diagnostic(`${accepted} edits accepted, ${compiled} edited projects compiled and checked by the runtime`);
+  assert.ok(accepted > 1500, `only ${accepted} edits were accepted`);
+  assert.ok(compiled > 300, `only ${compiled} edited projects compiled`);
   assert.deepEqual(report, []);
 });
 
 // Whatever a card's menu offers, and every line's cut and every card's delete, works: on each project as it opens
-// and after random edits (10-24: 「통과 → 조건 분기 추가」 on a condition with a next one looped back into it).
+// and after random edits.
 test('every menu item, cut and delete works', () => {
   const report = [];
   const sweep = (w, where) => {
@@ -243,23 +325,24 @@ test('every menu item, cut and delete works', () => {
       try {
         executeGraphCommand(w, {type: 'disconnect', edge});
       } catch (e) {
-        report.push(`${where}: cut ${edge.source} -> ${edge.target}: ${e.message}`);
+        // A dashed line to an event's listener is changed on its QTE result, not cut.
+        if (!edge.via) report.push(`${where}: cut ${edge.source} -> ${edge.target}: ${e.message}`);
       }
   };
   for (const [n, path] of SEEDS.entries()) {
-    const base = importWorkspaceXml(readEditorBlock(readFileSync(path, 'utf8')).body),
+    const base = open(path),
       rnd = random(4096 + n);
     sweep(base, path);
-    for (let run = 0; run < 8; run++) {
+    for (let r = 0; r < 8; r++) {
       let w = structuredClone(base);
       for (let step = 0; step < 25; step++) {
         const c = edits(w, rnd);
         if (!c) break;
         try {
-          w = executeGraphCommand(w, c).workspace ?? w;
+          w = run(w, c) ?? w;
         } catch {}
       }
-      sweep(w, `${path} run ${run}`);
+      sweep(w, `${path} run ${r}`);
     }
   }
   assert.deepEqual(report, []);

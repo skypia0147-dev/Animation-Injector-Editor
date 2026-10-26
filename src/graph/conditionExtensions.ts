@@ -7,9 +7,36 @@ type Definition = {
   category: string;
   choices?: readonly (readonly [string, string])[];
   numeric?: boolean;
+  /** A comparison the check may go without (falling: rising or falling only, or how far it has fallen too). */
+  optionalNumeric?: boolean;
   form?: string;
   hint: string;
 };
+/** Actor values the runtime's actorValue check takes (0.12.296), as written and as shown. */
+export const actorValueNames = (): [string, string][] => [
+  ['level', tr('레벨')],
+  ['Health', tr('체력')],
+  ['Magicka', tr('매지카')],
+  ['Stamina', tr('스태미나')],
+  ['OneHanded', tr('한손')],
+  ['TwoHanded', tr('양손')],
+  ['Marksman', tr('궁술')],
+  ['Block', tr('방어')],
+  ['Smithing', tr('제련')],
+  ['HeavyArmor', tr('중갑')],
+  ['LightArmor', tr('경갑')],
+  ['Pickpocket', tr('소매치기')],
+  ['Lockpicking', tr('자물쇠 따기')],
+  ['Sneak', tr('은신')],
+  ['Alchemy', tr('연금술')],
+  ['Speechcraft', tr('화술')],
+  ['Alteration', tr('변화')],
+  ['Conjuration', tr('소환')],
+  ['Destruction', tr('파괴')],
+  ['Illusion', tr('환영')],
+  ['Restoration', tr('회복')],
+  ['Enchanting', tr('마법부여')],
+];
 export const extensionConditions = {
   movementDirection: {
     get label() {
@@ -430,6 +457,106 @@ export const extensionConditions = {
       return tr('검사 대상이 있는 셀이 실내인지 검사합니다. 실외 조건은 NOT으로 설정하세요.');
     },
   },
+  previousAction: {
+    get label() {
+      return tr('직전 동작');
+    },
+    get category() {
+      return tr('상태');
+    },
+    get hint() {
+      return tr(
+        '검사 대상이 마지막으로 끝낸 이 프로젝트의 동작(XML로 추가한 동작)이 고른 것 중 하나인지 봅니다. 끝난 지 몇 초 안인지, 끝까지 재생했는지 중간에 끝났는지도 고를 수 있습니다. 바닐라 동작은 대상이 아닙니다. 이 조건을 쓸 때만 기록합니다.'
+      );
+    },
+  },
+  falling: {
+    get label() {
+      return tr('낙하 중');
+    },
+    get category() {
+      return tr('상태');
+    },
+    get choices() {
+      return [
+        ['falling', tr('떨어지는 중')],
+        ['rising', tr('오르는 중')],
+      ] as const;
+    },
+    optionalNumeric: true,
+    get hint() {
+      return tr(
+        '공중에서 오르는 중인지 떨어지는 중인지 봅니다. 낙하 거리를 켜면 땅을 떠난 높이에서 지금까지 떨어진 거리도 비교합니다(엔진이 기억하는 값).'
+      );
+    },
+  },
+  slope: {
+    get label() {
+      return tr('지면 기울기');
+    },
+    get category() {
+      return tr('공간');
+    },
+    get choices() {
+      return [
+        ['any', tr('방향 상관없음')],
+        ['downhill', tr('내리막을 볼 때')],
+        ['uphill', tr('오르막을 볼 때')],
+      ] as const;
+    },
+    numeric: true,
+    get hint() {
+      return tr(
+        '발밑 바닥이 수평에서 기운 각도(°)입니다. 공중이면 검사 불능입니다. 바라보는 방향이 내리막인지 오르막인지도 고를 수 있습니다.'
+      );
+    },
+  },
+  actorValue: {
+    get label() {
+      return tr('능력치 비교');
+    },
+    get category() {
+      return tr('수치');
+    },
+    get choices() {
+      return actorValueNames();
+    },
+    numeric: true,
+    get hint() {
+      return tr('기술 수치·레벨 등을 비교합니다. 현재 값은 버프·디버프를 포함하고, 기본 값은 포함하지 않습니다.');
+    },
+  },
+  gameHour: {
+    get label() {
+      return tr('게임 시각');
+    },
+    get category() {
+      return tr('환경');
+    },
+    numeric: true,
+    get hint() {
+      return tr('게임 안 시각(0~24시)입니다. 범위는 자정을 넘을 수 있습니다(20시~5시).');
+    },
+  },
+  weather: {
+    get label() {
+      return tr('날씨');
+    },
+    get category() {
+      return tr('환경');
+    },
+    get choices() {
+      return [
+        ['pleasant', tr('맑음')],
+        ['cloudy', tr('흐림')],
+        ['rainy', tr('비')],
+        ['snow', tr('눈')],
+      ] as const;
+    },
+    get hint() {
+      return tr('지금 날씨의 분류입니다.');
+    },
+  },
   location: {
     get label() {
       return tr('지역');
@@ -478,6 +605,13 @@ export function extensionDefaults(kind: string): Partial<BranchTest> {
       : {}),
     ...(kind === 'resource' ? {measure: 'percent'} : {}),
     ...(kind === 'chance' ? {value: 30} : {}),
+    ...(kind === 'previousAction' ? {actions: [], ended: 'any' as const} : {}),
+    ...(kind === 'slope' ? {compare: 'ge' as const, value: 25} : {}),
+    ...(kind === 'actorValue'
+      ? {option: 'OneHanded', compare: 'ge' as const, value: 50, measure: 'current' as const}
+      : {}),
+    ...(kind === 'gameHour' ? {compare: 'range' as const, value: 20, upper: 5} : {}),
+    ...(kind === 'weather' ? {option: 'rainy'} : {}),
     ...(d.form ? {form: {plugin: '', id: ''}} : {}),
   };
 }
@@ -486,7 +620,11 @@ export function extensionMaximum(t: BranchTest) {
     ? 100
     : t.kind === 'relativeAngle'
       ? 180
-      : 1000000;
+      : t.kind === 'slope'
+        ? 90
+        : t.kind === 'gameHour'
+          ? 24
+          : 1000000;
 }
 export function extensionError(t: BranchTest): string | undefined {
   const d = definition(t.kind);
@@ -494,14 +632,30 @@ export function extensionError(t: BranchTest): string | undefined {
   if (d.choices && !d.choices.some(([v]) => v === t.option)) return tr('조건의 검사 항목을 선택하세요.');
   if (t.kind === 'resource' && !['current', 'percent'].includes(t.measure ?? ''))
     return tr('자원 비교 기준을 선택하세요.');
-  if (d.numeric || t.kind === 'chance') {
+  if (t.kind === 'actorValue' && !['current', 'base'].includes(t.measure ?? 'current'))
+    return tr('능력치 비교 기준을 선택하세요.');
+  if (t.kind === 'previousAction') {
+    // Reading the XML checks the shared settings before the actions are in (importXml.ts reads those).
+    if (t.actions !== undefined && !t.actions.length) return tr('직전 동작을 하나 이상 고르세요.');
+    if (t.within !== undefined && !(Number.isFinite(t.within) && t.within >= 0 && t.within <= 600))
+      return tr('끝난 지 시간은 0~600초입니다.');
+    if (!['any', 'completed', 'cancelled'].includes(t.ended ?? 'any')) return tr('끝난 방식을 선택하세요.');
+  }
+  // A fall without its distance asks only rising or falling.
+  if (d.optionalNumeric && t.compare === undefined) return;
+  if (d.numeric || d.optionalNumeric || t.kind === 'chance') {
     if (!Number.isFinite(t.value) || t.value! < 0 || t.value! > extensionMaximum(t))
       return tr('비교 값의 범위를 확인하세요.');
-    if (d.numeric && !comparisons().some(([v]) => v === t.compare)) return tr('비교 방식을 선택하세요.');
+    if ((d.numeric || d.optionalNumeric) && !comparisons().some(([v]) => v === t.compare))
+      return tr('비교 방식을 선택하세요.');
+    // A game hour's range may wrap past midnight (20 to 5).
     if (
       t.compare === 'range' &&
-      d.numeric &&
-      (!Number.isFinite(t.upper) || t.upper! < t.value! || t.upper! > extensionMaximum(t))
+      (d.numeric || d.optionalNumeric) &&
+      (!Number.isFinite(t.upper) ||
+        (t.upper! < t.value! && t.kind !== 'gameHour') ||
+        t.upper! < 0 ||
+        t.upper! > extensionMaximum(t))
     )
       return tr('범위의 끝 값은 시작 값 이상이어야 합니다.');
   }
@@ -509,17 +663,22 @@ export function extensionError(t: BranchTest): string | undefined {
 export function extensionAttrs(t: BranchTest): Record<string, string> {
   const d = definition(t.kind);
   if (!d) return {};
+  // A fall's distance is written only when it is asked.
+  const numeric = d.numeric || (d.optionalNumeric && t.compare !== undefined);
   return {
     ...(d.choices ? {option: t.option!} : {}),
-    ...(d.numeric ? {compare: t.compare!} : {}),
-    ...(d.numeric || t.kind === 'chance' ? {value: String(t.value)} : {}),
-    ...(d.numeric && t.compare === 'range' ? {upper: String(t.upper)} : {}),
+    ...(numeric ? {compare: t.compare!} : {}),
+    ...(numeric || t.kind === 'chance' ? {value: String(t.value)} : {}),
+    ...(numeric && t.compare === 'range' ? {upper: String(t.upper)} : {}),
     ...(t.kind === 'resource' ? {measure: t.measure!} : {}),
+    ...(t.kind === 'actorValue' && t.measure === 'base' ? {measure: 'base'} : {}),
   };
 }
 export function readExtension(kind: string, attrs: Record<string, string>): Partial<BranchTest> {
   const d = definition(kind),
-    allowed = Object.keys(extensionAttrs({kind, compare: attrs.compare} as BranchTest));
+    allowed = Object.keys(
+      extensionAttrs({kind, compare: attrs.compare as Comparison, measure: attrs.measure} as BranchTest)
+    );
   for (const key of ['option', 'compare', 'measure', 'value', 'upper'])
     if (attrs[key] !== undefined && !allowed.includes(key)) throw Error(tr('이 조건에서 사용할 수 없는 속성: ') + key);
   if (!d) return {};
@@ -529,12 +688,14 @@ export function readExtension(kind: string, attrs: Record<string, string>): Part
     if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) throw Error(tr('잘못된 조건 수치: ') + key);
     return Number(value);
   };
+  const compared = d.numeric || (d.optionalNumeric && attrs.compare !== undefined);
   const value: Partial<BranchTest> = {
     ...(d.choices ? {option: attrs.option} : {}),
-    ...(d.numeric ? {compare: attrs.compare as Comparison} : {}),
-    ...(d.numeric || kind === 'chance' ? {value: numeric('value')} : {}),
-    ...(d.numeric && attrs.compare === 'range' ? {upper: numeric('upper')} : {}),
+    ...(compared ? {compare: attrs.compare as Comparison} : {}),
+    ...(compared || kind === 'chance' ? {value: numeric('value')} : {}),
+    ...(compared && attrs.compare === 'range' ? {upper: numeric('upper')} : {}),
     ...(kind === 'resource' ? {measure: attrs.measure as 'current' | 'percent'} : {}),
+    ...(kind === 'actorValue' ? {measure: (attrs.measure as 'base') ?? 'current'} : {}),
   };
   const error = extensionError({kind, ...value} as BranchTest);
   if (error) throw Error(error);
@@ -547,9 +708,11 @@ export function extensionSummary(t: BranchTest): string | undefined {
     unit =
       t.kind === 'chance' || (t.kind === 'resource' && t.measure === 'percent')
         ? '%'
-        : t.kind === 'relativeAngle'
+        : t.kind === 'relativeAngle' || t.kind === 'slope'
           ? '°'
-          : '';
+          : t.kind === 'gameHour'
+            ? tr('시')
+            : '';
   const value =
     t.compare === 'range'
       ? `${t.value}~${t.upper}${unit}`
@@ -559,7 +722,12 @@ export function extensionSummary(t: BranchTest): string | undefined {
     d.label,
     option,
     d.form ? `${t.form?.plugin ?? ''} : ${t.form?.id ?? ''}` : undefined,
-    d.numeric ? value : t.kind === 'chance' ? `${t.value}%` : undefined,
+    d.numeric || (d.optionalNumeric && t.compare !== undefined)
+      ? value
+      : t.kind === 'chance'
+        ? `${t.value}%`
+        : undefined,
+    t.kind === 'previousAction' && t.within !== undefined ? tr('{seconds}초 안', {seconds: t.within}) : undefined,
   ]
     .filter(Boolean)
     .join(' / ');

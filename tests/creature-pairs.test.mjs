@@ -7,7 +7,17 @@ import {assets} from '../src/package.ts';
 import {previewAssets} from '../src/viewport/resources.ts';
 
 const xml = rig =>
-  `<?xml version="1.0"?><AnimationSet version="4" id="CreaturePair"><Inputs><Input id="use" key="G"/></Inputs><Pair id="Test" clip="Animations/Pair/Test.hkx"><Start input="use"/><Target rig="${rig}" range="250" angle="160"/><Exit at="end-0.05" blend="0.2"/></Pair></AnimationSet>`;
+  `<?xml version="1.0"?>
+<AnimationSet version="6" id="CreaturePair">
+  <Inputs>
+    <Input id="use" key="G"/>
+  </Inputs>
+  <Start input="use" to="Test"/>
+  <Pair id="Test" clip="Animations/Pair/Test.hkx">
+    <FindPartner rig="${rig}" range="250" angle="160"/>
+    <Exit blend="0.2"/>
+  </Pair>
+</AnimationSet>`;
 for (const profile of pairedRigs) {
   test(`creature pair ${profile.id}: XML, project, package and explicit preview identity`, () => {
     const w = importWorkspaceXml(xml(profile.id));

@@ -1,3 +1,5 @@
+import {XML_FORMAT_VERSION} from './xmlFormat.ts';
+
 /** The editor's own data kept inside the runtime XML (2026-10-03, the user's decision: one file, no .aiproj).
  *
  * The XML a document saves is the runtime's body followed by one comment the runtime skips:
@@ -63,7 +65,8 @@ export function savedProject(text: string): {body: string; project?: string; sta
  * the game plays nothing from the file until it is saved without errors. The backend writes this exact body
  * without the runtime check (main.rs draft_body). */
 export function draftBody(id: string): string {
-  return `<?xml version="1.0" encoding="utf-8"?>\n<AnimationSet version="4" id="${/^[A-Za-z0-9_]{1,64}$/.test(id) ? id : 'Draft'}"/>`;
+  return `<?xml version="1.0" encoding="utf-8"?>\n<AnimationSet version="${XML_FORMAT_VERSION}" id="${/^[A-Za-z0-9_]{1,64}$/.test(id) ? id : 'Draft'}"/>`;
 }
+/** A draft's body. */
 export const isDraftBody = (body: string) =>
-  /^<\?xml[^>]*\?>\s*<AnimationSet version="4" id="[A-Za-z0-9_]{1,64}"\/>$/.test(body.trim());
+  /^<\?xml[^>]*\?>\s*<AnimationSet version="6" id="[A-Za-z0-9_]{1,64}"\/>$/.test(body.trim());

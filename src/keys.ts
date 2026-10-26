@@ -146,3 +146,68 @@ export function gamepadFromXml(text: string, where = 'gamepad'): number {
     )
   );
 }
+/** Game controls (runtime 0.12.292, GameControls.h): an input given by what the game calls it, control="jump".
+ *  The game maps it to the player's keyboard, mouse and gamepad bindings, so one choice covers every device and
+ *  follows remapping. In the runtime's order; the label is the game's own name for it. */
+export const gameControls = [
+  'jump',
+  'sprint',
+  'sneak',
+  'activate',
+  'readyWeapon',
+  'shout',
+  'rightAttack',
+  'leftAttack',
+  'togglePOV',
+  'run',
+  'toggleRun',
+  'autoMove',
+  'wait',
+  'favorites',
+  'tweenMenu',
+] as const;
+export type GameControl = (typeof gameControls)[number];
+export const isGameControl = (text: string | undefined): text is GameControl =>
+  !!text && (gameControls as readonly string[]).includes(text);
+export const gameControlLabel = (control: GameControl): string =>
+  ({
+    jump: tr('점프'),
+    sprint: tr('질주'),
+    sneak: tr('웅크리기'),
+    activate: tr('상호작용'),
+    readyWeapon: tr('무기 꺼내기·넣기'),
+    shout: tr('외침·능력'),
+    rightAttack: tr('오른손 공격'),
+    leftAttack: tr('왼손 공격·막기'),
+    togglePOV: tr('시점 전환'),
+    run: tr('걷기·뛰기'),
+    toggleRun: tr('항상 달리기 전환'),
+    autoMove: tr('자동 이동'),
+    wait: tr('기다리기'),
+    favorites: tr('즐겨찾기'),
+    tweenMenu: tr('메뉴'),
+  })[control];
+/** A control attribute's value: one of gameControls (exact case, like the runtime). */
+export function gameControlFromXml(text: string, where = 'control'): GameControl {
+  if (isGameControl(text)) return text;
+  throw new Error(tr('{where}: 알 수 없는 게임 동작 {text} ({names})', {where, text, names: gameControls.join(' ')}));
+}
+/** The game's default bindings for each control (keyboard/mouse key name, gamepad button name; '' = none), for the
+ *  editor's QTE preview only: in the game the player's own bindings are used. */
+export const gameControlDefaults: Record<GameControl, {key: string; pad: string}> = {
+  jump: {key: 'Space', pad: 'Y'},
+  sprint: {key: 'LAlt', pad: 'LB'},
+  sneak: {key: 'LCtrl', pad: 'LS'},
+  activate: {key: 'E', pad: 'A'},
+  readyWeapon: {key: 'R', pad: 'X'},
+  shout: {key: 'Z', pad: 'RB'},
+  rightAttack: {key: 'Mouse1', pad: 'RT'},
+  leftAttack: {key: 'Mouse2', pad: 'LT'},
+  togglePOV: {key: 'F', pad: 'RS'},
+  run: {key: 'LShift', pad: ''},
+  toggleRun: {key: 'CapsLock', pad: ''},
+  autoMove: {key: 'C', pad: ''},
+  wait: {key: 'T', pad: 'Back'},
+  favorites: {key: 'Q', pad: 'Up'},
+  tweenMenu: {key: 'Tab', pad: 'B'},
+};

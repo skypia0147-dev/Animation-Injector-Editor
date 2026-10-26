@@ -9,6 +9,7 @@ import './graph/graph.css';
 import './viewport/viewport.css';
 import './ui/finish.css';
 import './ui/graphite.css';
+import './graph/cardTheme.css';
 import {applyUiScale, storedUiScale} from './ui/uiScale.ts';
 import {installWheelGuard} from './ui/wheelGuard.ts';
 

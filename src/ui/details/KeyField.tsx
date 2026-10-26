@@ -3,6 +3,7 @@ import {keys} from '../../model.ts';
 import {t} from '../../i18n/index.ts';
 import {capturedKey} from './keyCapture.ts';
 import {tr} from '../../i18n/korean.ts';
+import {gameControlLabel, gameControls, type GameControl} from '../../keys.ts';
 export const gamepadButtons = [
   ['—', 0],
   ['A', 4096],
@@ -27,12 +28,17 @@ export function KeyField({
   change,
   gamepad,
   changeGamepad,
+  control,
+  changeControl,
   labeled = false,
 }: {
   value: string;
   change: (s: string) => void;
   gamepad: number;
   changeGamepad: (n: number) => void;
+  /** A game control instead of the key and button (runtime 0.12.292); offered when changeControl is given. */
+  control?: GameControl;
+  changeControl?: (control: GameControl | undefined) => void;
   labeled?: boolean;
 }) {
   const [capture, setCapture] = useState(false),
@@ -59,8 +65,30 @@ export function KeyField({
     window.addEventListener('keydown', key, true);
     return () => window.removeEventListener('keydown', key, true);
   }, [capture, change]);
+  // A game control: the player's own keyboard, mouse and gamepad keys for it, followed when remapped.
+  const controlPicker = changeControl && (
+    <select
+      aria-label={tr('게임 동작')}
+      title={tr(
+        '게임 동작을 고르면 키보드·마우스·게임패드에서 그 동작에 묶인 키로 동작합니다. 게임 설정에서 키를 바꾸면 따라갑니다.'
+      )}
+      value={control ?? ''}
+      onChange={e => changeControl((e.target.value || undefined) as GameControl | undefined)}
+    >
+      <option value="">{tr('키·패드 직접 지정')}</option>
+      <optgroup label={tr('게임 동작')}>
+        {gameControls.map(c => (
+          <option key={c} value={c}>
+            {gameControlLabel(c)}
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  );
+  if (control) return <div className="key-field">{controlPicker}</div>;
   return (
     <div className="key-field">
+      {controlPicker}
       {labeled && <span>{tr('키보드·마우스')}</span>}
       <div className="key-main">
         <input aria-label={t('node.keyInput')} list={id} value={value} onChange={e => change(e.target.value)} />

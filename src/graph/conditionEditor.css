@@ -61,25 +61,8 @@
   gap: 6px;
   flex-wrap: wrap;
 }
-.condition-expression-routes {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-  font-size: var(--fs-sm);
-}
 .condition-expression-row.is-disabled > .condition-expression-heading {
   color: #aaa;
-}
-.condition-search {
-  width: 100%;
-  box-sizing: border-box;
-  margin: 8px 0;
-}
-.condition-search-results {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 .condition-row-menu {
   position: relative;
@@ -202,50 +185,61 @@
   color: #bdbdbd;
   font-size: var(--fs-xs);
 }
+/* The popup is portalled to <body>, outside .shell: its rules are scoped by the popup's own class. Box, search
+   field, group headings and the current item's check are the floating-window tokens (ui/graphite.css). */
 .condition-kind-popup {
   position: fixed;
   z-index: 100000;
   width: 340px;
+  box-sizing: border-box;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  border: 1px solid #555;
-  border-radius: 6px;
-  background: #262626;
-  box-shadow: 0 8px 24px #000a;
+  padding: 6px;
+  border: 1px solid var(--pop-line);
+  border-radius: var(--pop-radius);
+  background: var(--pop-bg);
+  box-shadow: var(--pop-shadow);
   color: #e6e6e6;
   font-size: var(--fs-sm);
 }
-.shell .condition-kind-popup input {
-  margin: 8px;
-  height: 28px;
-  box-sizing: border-box;
-}
+/* One line: the chips that do not fit wrap onto a second line that is cut off. */
 .condition-kind-recent {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px 8px;
-  border-bottom: 1px solid #3a3a3a;
+  gap: 8px 4px;
+  box-sizing: content-box;
+  height: 22px;
+  overflow: hidden;
+  padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--pop-rule);
 }
 .condition-kind-recent b {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   font-weight: 500;
-  color: #a6a6a6;
+  line-height: 22px;
+  color: var(--pop-head);
   margin-right: 2px;
 }
-.shell .condition-kind-recent button {
-  min-height: 20px;
-  padding: 0 8px;
+.condition-kind-popup .condition-kind-recent button {
+  height: 22px;
+  min-height: 0;
+  padding: 0 9px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 11px;
   background: #383838;
   color: #e0e0e0;
   font-size: var(--fs-sm);
+  line-height: 22px;
+  white-space: nowrap;
+}
+.condition-kind-popup .condition-kind-recent button:hover {
+  background: var(--pop-hover);
+  color: #fff;
 }
 .condition-kind-list {
   overflow-y: auto;
-  padding: 4px 0 8px;
+  padding: 2px 0 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   /* rows keep their height: a clipped item would otherwise shrink to fit the scroll box */
@@ -254,16 +248,11 @@
 }
 .condition-kind-list h5 {
   grid-column: 1 / -1;
-  margin: 8px 0 2px;
-  padding: 0 10px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: #a9c3e6;
 }
 .condition-kind-list > div {
-  margin: 0 4px;
-  padding: 3px 8px;
-  border-radius: 3px;
+  position: relative;
+  padding: 4px 24px 4px 8px;
+  border-radius: 4px;
   line-height: 18px;
   cursor: pointer;
   overflow: hidden;
@@ -271,16 +260,12 @@
   white-space: nowrap;
 }
 .condition-kind-list > div[data-active='true'] {
-  background: #3a3a3a;
-}
-.condition-kind-list > div[aria-selected='true'] {
+  background: var(--pop-hover);
   color: #fff;
-  font-weight: 600;
-  box-shadow: inset 2px 0 0 #8fd3ff;
 }
 .condition-kind-list > p {
   grid-column: 1 / -1;
-  margin: 8px 10px;
+  margin: 8px;
   color: #a6a6a6;
 }
 

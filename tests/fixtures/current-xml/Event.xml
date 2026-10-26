@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="ImportedSet">
-  <Action id="EditorEvent" clip="Animations\ComboTest\test_Attack1.hkx">
-    <Start event="AI_EditorS3_Start" actor="both" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <Attack data="attackStart"/>
-    <Flow entry="RequireWeapon">
-      <Test id="RequireWeapon" kind="weaponDrawn" subject="self" pass="Self"/>
-      <Play id="Self" action="EditorEvent"/>
-    </Flow>
+<AnimationSet version="6" id="ImportedSet">
+  <Start id="EditorEvent_Start" to="EditorEvent" event="AI_EditorS3_Start" cooldown="0.3">
+    <Check kind="weaponDrawn"/>
+  </Start>
+  <Action id="EditorEvent" clip="Animations\ComboTest\test_Attack1.hkx" attack="attackStart" enter="0.1">
+    <Exit blend="0.2"/>
   </Action>
 </AnimationSet>

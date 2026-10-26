@@ -1,6 +1,6 @@
-import {selectsOnly, type Action, type Workspace} from '../../workspace.ts';
+import type {Action, Workspace} from '../../workspace.ts';
 import type {FlatNode} from '../../graph/flat.ts';
-import {blendBinding, blendNodes, entryBlendActions} from '../../graph/blends.ts';
+import {animId} from '../../graph/blends.ts';
 import {ruleNode} from '../../graph/sharing.ts';
 import {barText, exitToBar} from '../../graph/clipBar.ts';
 import {tr} from '../../i18n/korean.ts';
@@ -19,33 +19,23 @@ export function playbackNode(nodes: FlatNode[], action: Action, step?: string) {
   );
 }
 
-/** The card that stands for an action: its HKX card, or a selecting action's decision card (it draws no
- *  HKX card, graph/sharing.ts). */
-export function actionNode(w: Workspace, nodes: FlatNode[], action: Action, step?: string): string | undefined {
-  if (action.flow && selectsOnly(action))
-    return w.conditionTables?.includes(action.uid)
-      ? `conditionTable:${action.uid}`
-      : `flow:${action.uid}:${action.flow.entry}`;
+/** The card that stands for an action: its HKX card. */
+export function actionNode(_w: Workspace, nodes: FlatNode[], action: Action, step?: string): string | undefined {
   return playbackNode(nodes, action, step)?.id;
 }
 
+/** An HKX card's start and end blends (XML format 6: <Action enter>, <Exit blend>). */
 export function actionBlends(w: Workspace, action: string) {
-  return blendNodes(w).flatMap(b => {
-    try {
-      const role = blendBinding(w, b);
-      const applies =
-        role.action === action || (role.kind === 'enter' && entryBlendActions(w, role.action).includes(action));
-      const disconnected = !!w.disconnections?.some(c => c.bindings.some(e => e.source === b.id || e.target === b.id));
-      return applies ? [{...b, role, inherited: role.action !== action, disconnected}] : [];
-    } catch {
-      return [];
-    }
-  });
-}
-
-export function sharedNodeMembers(w: Workspace, id: string) {
-  const g = w.sharedRules?.find(g => g.members.some(m => ruleNode(g.kind, m, w) === id));
-  return g ? g.members.map(m => ruleNode(g.kind, m, w)) : [id];
+  const a = w.actions.find(a => a.uid === action);
+  if (!a) return [];
+  return [
+    ...(a.enterBlendEnabled
+      ? [{id: animId(action, 'blendIn'), seconds: a.config.enterBlend, role: {kind: 'enter' as const, action}}]
+      : []),
+    ...(a.exitBlendEnabled
+      ? [{id: animId(action, 'blendOut'), seconds: a.config.exitBlend, role: {kind: 'exit' as const, action}}]
+      : []),
+  ].map(b => ({...b, inherited: false, disconnected: false}));
 }
 
 export function detachInspectorNode(w: Workspace, id: string): Workspace {

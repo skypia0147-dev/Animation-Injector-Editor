@@ -2,6 +2,7 @@ import type {Action, Workspace} from './workspace.ts';
 import type {Mark} from './model.ts';
 import {mark} from './model.ts';
 import {tr} from './i18n/korean.ts';
+import {reaches} from './cards.ts';
 
 // Runtime counterparts: CarrySpec / CarryHoldSpec (AnimationInjector runtime/CarrySpec.h).
 export type CarryHoldBone = {name: string; weight: number};
@@ -38,7 +39,7 @@ export const defaultCarry = (a?: Action): Carry => ({
   bone: 'NPC R Clavicle [RClv]',
   targetRoot: 'NPC Root [Root]',
   putdownAction: '',
-  input: a?.config.start.input || a?.config.inputs[0]?.id || '',
+  input: a?.config.inputs[0]?.id || '',
   target: 'pose',
   part: '',
   hold: null,
@@ -144,9 +145,9 @@ export function carryErrors(w: Workspace, a: Action): string[] {
   if (c.fix && !validCarryFix(c.fix))
     out.push(tr('운반: 대상 고정 시점은 클립 시작 기준 0~600초로 지정합니다(이벤트·대체값 없음).'));
   const putdown = w.actions.find(x => x.uid === c.putdownAction);
-  if (!putdown || !putdownCandidate(putdown, a))
+  if (!putdown || !putdownCandidate(putdown, a, w))
     out.push(
-      tr('운반: 내려놓기 동작을 고르세요. 시작 입력·조건 분기·방향 클립이 없는 한 사람 일반 동작이어야 합니다.')
+      tr('운반: 내려놓기 동작을 고르세요. 시작 카드가 가지 않는(조건 카드를 거쳐서도) 한 사람 일반 동작이어야 합니다.')
     );
   else if (!putdown.config.carryRelease)
     out.push(
@@ -154,9 +155,10 @@ export function carryErrors(w: Workspace, a: Action): string[] {
     );
   return out;
 }
-// Same rule as the runtime: a plain one-actor Action that only the carry starts.
-export function putdownCandidate(x: Action, lift: Action): boolean {
-  return x.uid !== lift.uid && !x.pair && !x.flow && x.config.kind === 'single' && x.config.start.mode === 'none';
+// Same rule as the runtime: a plain one-actor Action that only the carry starts (no start card goes to it, directly
+// or through condition cards).
+export function putdownCandidate(x: Action, lift: Action, w?: Workspace): boolean {
+  return x.uid !== lift.uid && !x.pair && x.config.kind === 'single' && !w?.starts.some(s => reaches(w, s.to, x.uid));
 }
 /** The runtime rejects a CarryRelease outside a carry's putdown Action. */
 export function strayCarryRelease(w: Workspace, a: Action): boolean {

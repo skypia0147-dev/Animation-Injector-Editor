@@ -21,14 +21,14 @@ test('a card says its start key, or the actions that lead to it', () => {
   const set = all.filter(r => r.row.tone === 'set'),
     via = all.filter(r => r.row.tone === 'via');
   assert.ok(set.length > 0 && via.length > 0);
+  // A start card going straight to the action: the row picks it.
   for (const {n, row} of set) {
-    const a = w.actions.find(a => a.uid === n.action);
-    assert.notEqual(a.config.start.mode, 'none');
-    assert.ok(row.node.startsWith('start:' + a.uid + '|'));
+    const start = w.starts.find(s => 'startCard:' + s.uid === row.node);
+    assert.equal(start?.to?.action, n.action);
   }
   // Grapple's stage targets start only through the attacker's transitions.
   for (const {n, row} of via) {
-    assert.equal(w.actions.find(a => a.uid === n.action).config.start.mode, 'none');
+    assert.ok(!w.starts.some(s => s.to?.action === n.action));
     assert.match(row.text, /\(.+\)/);
   }
   assert.ok(!all.some(r => r.row.tone === 'none'), 'every Grapple action starts somehow');
@@ -61,14 +61,13 @@ test("an action an event's QTE starts says so (10-20: it read 'no way to start')
     p.actionId = id;
     p.name = id;
     p.steps[0].clip = 'Animations/' + id + '.hkx';
-    p.start.mode = 'none';
     w.actions.push(wrap(p, 'b' + i));
   }
   const qte = addFlat(w, '', 'qte', {x: 400, y: 0});
   w = qte.workspace;
   const draft = addFlat(w, '', 'markerReceive', {x: 0, y: 0});
   w = draft.workspace;
-  w.drafts.find(d => d.id === draft.id).value.config.start.event = 'Grapple_Stage_Start_10';
+  w.starts.find(s => 'startCard:' + s.uid === draft.id).event = 'Grapple_Stage_Start_10';
   w = connectFlat(w, draft.id, qte.id, 'trigger');
   w.qtes[0].results.success = {mode: 'transition', event: '', recipient: 'self', to: 'b0', partnerTo: 'b1'};
   for (const {row} of rows(w)) {

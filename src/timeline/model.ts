@@ -34,6 +34,10 @@ export const names: Record<string, string> = {
   show: 'notify.weaponShow',
   spell: 'notify.spell',
   ragdoll: 'notify.ragdoll',
+  strike: 'notify.strike',
+  sound: 'notify.sound',
+  globalSet: 'notify.globalSet',
+  modEvent: 'notify.modEvent',
   shake: 'notify.cameraShake',
   cancel: 'notify.pairCancel',
   timeOn: 'notify.timeScale',
@@ -92,53 +96,51 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
       transition: true,
     });
   if (a.pair) {
-    if (a.pair.effectsEnabled) {
-      for (const key of [...slots, 'cost'] as const) {
-        const s = a.pair.timeline[key];
-        if (s.enabled)
-          items.push({
-            id: 'pair:' + key,
-            kind: key,
-            label: title(key),
-            from: s.from,
-            until: key === 'cost' ? undefined : s.until,
-            role: s.role,
-          });
-      }
-      const grouped = new Set<string>();
-      for (const [key, value] of Object.entries(w.layout[layout(a.uid)] ?? {})) {
-        if (!key.startsWith('range_') || !value.text) continue;
-        try {
-          const spec = JSON.parse(value.text),
-            on = a.pair.effects.find(e => e.id === spec.on),
-            off = a.pair.effects.find(e => e.id === spec.off);
-          if (on && off && slots.includes(spec.kind) && !grouped.has(on.id) && !grouped.has(off.id)) {
-            grouped.add(on.id);
-            grouped.add(off.id);
-            items.push({
-              id: 'range:' + key,
-              kind: spec.kind,
-              label: title(spec.kind),
-              from: effectMark(on),
-              until: effectMark(off),
-              role: on.values.target ?? 'both',
-              group: {on, off},
-            });
-          }
-        } catch {
-          /* Ignore damaged editor grouping; preserve the executable effects as separate points. */
-        }
-      }
-      for (const e of a.pair.effects.filter(e => !grouped.has(e.id)))
+    for (const key of [...slots, 'cost'] as const) {
+      const s = a.pair.timeline[key];
+      if (s.enabled)
         items.push({
-          id: 'effect:' + e.id,
-          kind: e.values.op,
-          label: title(e.values.op),
-          from: effectMark(e),
-          role: e.values.target ?? 'both',
-          effect: e,
+          id: 'pair:' + key,
+          kind: key,
+          label: title(key),
+          from: s.from,
+          until: key === 'cost' ? undefined : s.until,
+          role: s.role,
         });
     }
+    const grouped = new Set<string>();
+    for (const [key, value] of Object.entries(w.layout[layout(a.uid)] ?? {})) {
+      if (!key.startsWith('range_') || !value.text) continue;
+      try {
+        const spec = JSON.parse(value.text),
+          on = a.pair.effects.find(e => e.id === spec.on),
+          off = a.pair.effects.find(e => e.id === spec.off);
+        if (on && off && slots.includes(spec.kind) && !grouped.has(on.id) && !grouped.has(off.id)) {
+          grouped.add(on.id);
+          grouped.add(off.id);
+          items.push({
+            id: 'range:' + key,
+            kind: spec.kind,
+            label: title(spec.kind),
+            from: effectMark(on),
+            until: effectMark(off),
+            role: on.values.target ?? 'both',
+            group: {on, off},
+          });
+        }
+      } catch {
+        /* Ignore damaged editor grouping; preserve the executable effects as separate points. */
+      }
+    }
+    for (const e of a.pair.effects.filter(e => !grouped.has(e.id)))
+      items.push({
+        id: 'effect:' + e.id,
+        kind: e.values.op,
+        label: title(e.values.op),
+        from: effectMark(e),
+        role: e.values.target ?? 'both',
+        effect: e,
+      });
   } else {
     for (const key of slots) {
       const s = p.slots[key];
@@ -226,12 +228,6 @@ export function patch(w: Workspace, action: string, id: string, change: {from?: 
   return n;
 }
 export function remove(w: Workspace, action: string, id: string): Workspace {
-  w = {
-    ...w,
-    sharedRules: w.sharedRules
-      ?.map(g => (g.kind === 'feature' ? {...g, members: g.members.filter(m => m !== action + '|' + id)} : g))
-      .filter(g => g.members.length > 1),
-  };
   if (id.startsWith('range:')) {
     const a = w.actions.find(a => a.uid === action)!,
       r = rows(w, a).find(r => r.id === id);
@@ -328,20 +324,25 @@ export function add(
   if (slots.includes(kind as any) || kind === 'cost') {
     if (a.pair) {
       id = 'pair:' + kind;
-      a.pair.effectsEnabled = true;
       a.pair.timeline[kind as keyof typeof a.pair.timeline].enabled = true;
     } else if (kind === 'cost') a.config.cost.enabled = true;
     else a.config.slots[kind as (typeof slots)[number]].enabled = true;
   } else if (kind === 'recovery') a.config.recovery.enabled = true;
   else if (a.pair) {
-    a.pair.effectsEnabled = true;
     const e = {
       id: uid(
         'effect',
         a.pair.effects.map(e => e.id)
       ),
-      // Both actors unless the item names one (runtime 0.12.275).
-      values: {op: kind, at: String(time)},
+      // Both actors unless the item names one (runtime 0.12.275). A strike starts as the initiator hitting its
+      // partner: both actors striking each other is never the first thing meant.
+      values:
+        kind === 'strike'
+          ? {op: kind, at: String(time), target: 'initiator', pick: 'partner'}
+          : // A sound, a global and a mod event once, not once per actor (runtime 0.12.296).
+            ['sound', 'globalSet', 'modEvent'].includes(kind)
+            ? {op: kind, at: String(time), target: 'initiator'}
+            : ({op: kind, at: String(time)} as Record<string, string>),
     };
     a.pair.effects.push(e);
     id = 'effect:' + e.id;

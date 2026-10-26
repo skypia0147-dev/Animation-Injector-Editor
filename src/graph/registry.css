@@ -81,70 +81,57 @@
   outline-offset: 1px;
   background: #3a2f4d;
 }
+/* One line per event under the column heads (docs/mockup-registry-oneline A): name | what it does | HKX count. */
+.registry-colhead,
 .checklist-body .registry-row-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr) 40px;
+  gap: 10px;
+  align-items: center;
+}
+.registry-colhead {
+  padding: 0 0 2px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--card-rule, #ffffff40);
+  color: var(--card-t3, #868686);
+  font-size: var(--fs-xs);
+}
+.registry-colhead > :last-child {
+  text-align: right;
+}
+.checklist-body .registry-row-head {
   width: 100%;
-  padding: 5px 2px;
+  min-height: 24px;
+  padding: 2px 0;
   background: transparent;
   border: 0;
   color: inherit;
+  text-align: left;
   cursor: pointer;
 }
 .checklist-body .registry-row-head:hover {
   background: #2d2d2d;
 }
-.registry-caret {
-  width: 12px;
-  color: var(--ue-dim, #8c8c8c);
-  flex: none;
-}
-.registry-row-main {
-  flex: 1;
+.registry-name,
+.registry-what {
   min-width: 0;
-  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .registry-name {
   font-weight: 600;
   color: #f0f0f0;
-  word-break: break-all;
+}
+.registry-what > span + span::before {
+  content: ' · ';
+  color: var(--card-t3, #868686);
 }
 .registry-usage-count {
   font-size: var(--fs-xs);
   color: var(--ue-dim, #8c8c8c);
-  white-space: nowrap;
-  flex: none;
-  padding-top: 2px;
-}
-.registry-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 3px;
-}
-.registry-chip {
-  font-size: var(--fs-xs);
-  background: #333;
-  border: 1px solid #484848;
-  border-radius: 10px;
-  padding: 0 7px;
-  color: #d8c8f4;
-}
-.registry-chip.lasting {
-  border-color: #6b5a2a;
-  color: var(--registry-lasting);
-}
-.registry-chip.warn {
-  border-color: #6b5a2a;
-  color: var(--ue-warn, #e8b64a);
-}
-.registry-chip.use {
-  border-color: #2f5a3a;
-  color: var(--registry-use);
-}
-.registry-chip.none {
-  color: #a6a6a6;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .registry-row-body {
   background: #1e1e1e;
@@ -164,15 +151,6 @@
 .registry-usage-title,
 .registry-body .dim {
   color: var(--ue-dim, #8c8c8c);
-}
-.registry-hint {
-  font-size: var(--fs-xs);
-  color: var(--ue-dim, #8c8c8c);
-  margin: -2px 0 6px 54px;
-}
-.registry-hint b {
-  color: #d8c8f4;
-  font-weight: 500;
 }
 .registry-sub-title {
   margin: 10px 0 2px;

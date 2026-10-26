@@ -30,6 +30,19 @@
   --hkx-fill: #334a47;
   --hkx-head: #45645e;
   --hkx-border: #7eaaa0;
+  /* Start and condition cards (docs/mockup-format6-editor). */
+  --start-fill: #33301f;
+  --start-head: #4f4a33;
+  --start-border: #7a7046;
+  --cond-fill: #2c2537;
+  --cond-head: #4a3c5c;
+  --cond-border: #7a63a0;
+  --cond-line-fill: #241e2e;
+  --cond-line-border: #3f3550;
+  --cond-dash: #4f4466;
+  --cond-chip: #333a4c;
+  --cond-group: #6c7aa0;
+  --cond-key: #5a4f6c;
   --route-pass: #8fc09b;
   --route-fail: #eda59e;
   /* One colour, one meaning (docs/mockup-ux-polish ⑨): roles, results, the start warning and a chosen line's ends
@@ -252,13 +265,28 @@
 .shell .details-body {
   background: var(--ue-panel);
 }
+/* Floating windows (docs/mockup-floating-windows): the menus, the pickers and the help popup share one box, one
+   search field, one hover and a check on the current item. The pickers and the help popup are portalled to <body>,
+   outside .shell, so these are :root tokens. */
+:root {
+  --pop-bg: #2f2f2f;
+  --pop-line: #494949;
+  --pop-radius: 8px;
+  --pop-shadow: 0 12px 32px #0006;
+  --pop-hover: #1c3a5e;
+  --pop-current: #9ecbff;
+  --pop-head: #8c8c8c;
+  --pop-rule: #444;
+  --pop-field-bg: #1e1e1e;
+  --pop-field-line: #444;
+}
 .shell .menu-popup,
 .shell .menu-sub,
 .editor-context-menu {
-  background: #2f2f2f;
-  border: 1px solid #494949;
-  box-shadow: 0 12px 32px #0006;
-  border-radius: 10px;
+  background: var(--pop-bg);
+  border: 1px solid var(--pop-line);
+  box-shadow: var(--pop-shadow);
+  border-radius: var(--pop-radius);
   padding: 6px;
 }
 .menu-row {
@@ -283,8 +311,11 @@
 .menu-list:has(.menu-sub) {
   overflow: visible;
 }
+.shell .menu-item:is(:hover, :focus-visible):not(:disabled):not(.disabled) {
+  background: var(--pop-hover);
+  color: #fff;
+}
 .menu-item:focus-visible {
-  background: #404040;
   outline-offset: -2px;
 }
 .shell .menu-sub {
@@ -323,9 +354,31 @@
   max-height: calc(100vh - 16px);
   overflow-y: auto;
 }
-.editor-context-menu button {
-  min-height: 34px;
+/* .shell: the general `.shell button` rule would otherwise box every item. */
+.shell .editor-context-menu button {
+  min-height: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
   color: var(--ue-text);
+}
+.shell .editor-context-menu button:is(:hover, :focus):not(:disabled) {
+  background: var(--pop-hover);
+  border-color: transparent;
+  color: #fff;
+}
+.shell .editor-context-menu button:disabled {
+  color: #777;
+}
+.editor-context-menu hr {
+  flex: none;
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--pop-rule);
 }
 .graphite-dock {
   position: relative;
@@ -395,26 +448,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.graph-organize {
-  position: relative;
-}
-.shell .graph-organize .menu-popup {
-  z-index: 250;
-  min-width: 0;
-  width: max-content;
-  padding: 4px;
-}
-.shell .graph-organize .menu-item {
-  justify-content: flex-start;
-  min-height: 28px;
-  height: 28px;
-  padding: 4px 10px;
-  gap: 0;
-  font-size: var(--fs-sm);
-}
-.graph-organize .menu-check:empty {
-  display: none;
-}
 .p3-node {
   box-sizing: border-box;
   background: var(--ue-node);
@@ -447,88 +480,7 @@
   flex-shrink: 0;
   color: #bfbfbf;
 }
-/* A fanned branch's number (its order menu) and its warning (docs/mockup-condition-fan). */
-.p3-node > strong .fan-badge {
-  flex-shrink: 0;
-  display: inline-grid;
-  place-items: center;
-  min-width: 22px;
-  height: 22px;
-  min-height: 0;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 11px;
-  background: #8fd3ff;
-  color: #10222b;
-  font-size: var(--fs-sm);
-  font-weight: 800;
-  cursor: pointer;
-}
-.p3-node > strong .fan-badge:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 1px;
-}
-.p3-node > strong .fan-tag {
-  margin-left: auto;
-  flex-shrink: 0;
-  padding: 0 5px;
-  border: 1px solid #8a6d3e;
-  border-radius: 3px;
-  color: var(--warn);
-  font-size: var(--fs-xs);
-  font-style: normal;
-  font-weight: 700;
-  line-height: 18px;
-}
-.p3-node > strong .fan-tag.back {
-  border-color: #8a4a44;
-  color: #e59a92;
-}
-.fan-menu {
-  width: 160px;
-}
-/* A fan whose cards stand out of their order: under its condition card. */
-.fan-note {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 4px 3px 8px;
-  border: 1px solid #8a6d3e;
-  border-radius: 5px;
-  background: #2a2520;
-  color: var(--warn);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  white-space: nowrap;
-  pointer-events: all;
-}
-.fan-note button {
-  min-height: 0;
-  height: 20px;
-  padding: 0 8px;
-  font-size: var(--fs-xs);
-}
 /* Where a dragged branch would be inserted (canvas units, under the cards). */
-.fan-insert {
-  position: absolute;
-  height: 3px;
-  border-radius: 2px;
-  background: #8fd3ff;
-  pointer-events: none;
-}
-.fan-insert span {
-  position: absolute;
-  right: 0;
-  bottom: 6px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: #8fd3ff;
-  color: #10222b;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  white-space: nowrap;
-}
 .node-fields {
   display: grid;
   gap: 7px;
@@ -862,22 +814,16 @@
   border-radius: 8px;
   font-size: var(--fs-md);
 }
-.shell .myproject .row,
-.shell .hkx-browser button.hkx-row {
+.shell .myproject .row {
   background: transparent;
   border: 0;
   border-radius: 7px;
   text-align: left;
   font-size: var(--fs-sm);
 }
-.shell .myproject .row.on,
-.shell .hkx-browser button.hkx-row.on {
+.shell .myproject .row.on {
   background: #303030;
   color: #fff;
-}
-.shell .myproject .row.l3 {
-  color: #999;
-  min-height: 26px;
 }
 .shell .timeline {
   background: #212121;
@@ -977,9 +923,6 @@
 }
 .tree-problem.warning {
   background: var(--warn);
-}
-.shell .tree-entry.has-error > span {
-  color: #ffb3b0;
 }
 .tree-start-event {
   display: inline-flex;
@@ -1358,24 +1301,6 @@
     transition-duration: 0s !important;
   }
 }
-/* A routing pin's destination list (graph/PinMenu.tsx): the card's ▾ sits just outside its pin. */
-.pin-menu-button {
-  position: absolute;
-  left: calc(100% + 9px);
-  width: 20px;
-  height: 18px;
-  min-height: 0;
-  padding: 0;
-  border: 1px solid #555;
-  border-radius: 4px;
-  background: #2c2c2c;
-  color: #d4d4d4;
-  font-size: var(--fs-xs);
-  line-height: 1;
-}
-.pin-menu-button:hover {
-  background: #314a64;
-}
 /* A condition's routes: rows at the card's foot, each with its list (the whole row) and its pin on the edge. */
 .branch-routes {
   display: grid;
@@ -1490,35 +1415,74 @@
   width: 260px;
   max-height: min(420px, calc(100vh - 16px));
   overflow-y: auto;
+  box-sizing: border-box;
   padding: 6px;
-  border: 1px solid #111;
-  border-radius: 6px;
-  background: #2a2a2a;
-  box-shadow: 0 8px 32px #0009;
+  border: 1px solid var(--pop-line);
+  border-radius: var(--pop-radius);
+  background: var(--pop-bg);
+  box-shadow: var(--pop-shadow);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
-.pin-menu input {
-  margin-bottom: 4px;
+/* One search field for both pickers (ConditionKindPicker uses the same). */
+.pin-menu input:not([type='checkbox']):not([type='range']),
+.condition-kind-popup input:not([type='checkbox']):not([type='range']) {
+  flex: none;
+  width: auto;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  margin: 0 0 4px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--pop-field-line);
+  border-radius: 4px;
+  background: var(--pop-field-bg);
+  color: #e6e6e6;
+  font-size: var(--fs-sm);
+}
+.pin-menu input:not([type='checkbox']):not([type='range']):focus,
+.condition-kind-popup input:not([type='checkbox']):not([type='range']):focus {
+  border-color: #5a8fd0;
+  outline: none;
 }
 .pin-menu button {
+  position: relative;
+  flex: none;
+  min-height: 26px;
+  height: auto;
+  padding: 4px 24px 4px 8px;
   border: 0;
+  border-radius: 4px;
   background: none;
-  justify-content: flex-start;
+  color: #e6e6e6;
+  justify-content: center;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
   font-size: var(--fs-sm);
-  min-height: 28px;
   width: 100%;
 }
 .pin-menu button:hover:not([aria-disabled='true']),
 .pin-menu button:focus {
-  background: #314a64;
+  background: var(--pop-hover);
+  color: #fff;
 }
-.pin-menu button.current {
-  color: #9ecbff;
+/* The current item: blue text and a check at the right (the menus' check). */
+.pin-menu button[aria-selected='true'],
+.condition-kind-list > div[aria-selected='true'] {
+  color: var(--pop-current);
+}
+.pin-menu button[aria-selected='true']::after,
+.condition-kind-list > div[aria-selected='true']::after {
+  content: '\2713';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--pop-current);
+  font-size: 13px;
 }
 .pin-menu button[aria-disabled='true'] {
   color: #777;
@@ -1528,13 +1492,17 @@
   font-size: var(--fs-xs);
   color: #888;
 }
-.pin-menu-group {
-  margin: 6px 4px 2px;
+/* Group headings: small, grey, with the count (both pickers). */
+.pin-menu-group,
+.condition-kind-list h5 {
+  margin: 0;
+  padding: 6px 8px 2px;
   font-size: var(--fs-xs);
-  color: #8c8c8c;
+  font-weight: 500;
+  color: var(--pop-head);
 }
 .pin-menu-empty {
-  padding: 6px;
+  padding: 6px 8px;
   font-size: var(--fs-sm);
   color: #888;
 }
@@ -1740,4 +1708,148 @@
   color: #e8cf86;
   font-size: var(--fs-sm);
   padding: 0;
+}
+
+/* A strike's settings (ui/details/StrikeFields.tsx): its groups apart by a thin gap, no titles (mockup ⑦, 10-26),
+   several numbers on one row. */
+.strike-gap {
+  height: 10px;
+}
+.strike-gap:first-child {
+  display: none;
+}
+.strike-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+/* The strike's area (mockup ⑦): the shape from above, then radius·angle over up·down, label number label number
+   unit in fixed columns so the two lines line up, packed to the right. */
+.strike-area {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--card-stripe-line, #ffffff14);
+}
+.strike-area-shape .outline {
+  stroke: #ffffff26;
+  stroke-dasharray: 2 3;
+}
+.strike-area-shape .area {
+  fill: #f0a86840;
+  stroke: #f0a868;
+  stroke-width: 1.2;
+}
+.strike-area-shape .actor {
+  fill: #d0d0d0;
+}
+.strike-area-shape .facing {
+  stroke: #d0d0d0;
+  stroke-width: 1.4;
+}
+.strike-pair {
+  display: grid;
+  grid-template-columns: auto 60px auto 60px 10px;
+  justify-content: end;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 2px;
+}
+.shell .strike-area .strike-pair input[type='number'],
+.shell .p3-node.card-themed .checklist-fields .strike-area .strike-pair input[type='number'] {
+  width: 60px;
+  padding: 0 4px;
+}
+.strike-pair > span {
+  text-align: right;
+  white-space: nowrap;
+}
+.strike-pair > span:last-child {
+  text-align: left;
+}
+.strike-inline small {
+  color: var(--card-t3, #8c8c8c);
+  font-size: var(--fs-xs);
+}
+.shell input.strike-number {
+  flex: none;
+  width: 64px;
+}
+.strike-extras {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.strike-extras label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+/* A sound's row in the browser (ui/HkxBrowser.tsx): ▶ before its name, a thin progress line while it plays. */
+.shell .hkx-browser .sound-play {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #5a5a5a;
+  border-radius: 4px;
+  background: none;
+  color: var(--ue-text);
+  font-size: 10px;
+  line-height: 1;
+}
+.shell .hkx-browser .sound-play.on {
+  border-color: #57a882;
+  background: #2f5d45;
+  color: #fff;
+}
+.shell .hkx-browser .sound-play.off {
+  border-style: dashed;
+  color: #6a6a6a;
+  cursor: not-allowed;
+}
+.hkx-browser .sound-progress {
+  display: block;
+  height: 3px;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: #3a3a3a;
+}
+.hkx-browser .sound-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: #6fd3b8;
+}
+/* A sound function's file (ui/details/SoundFile.tsx): its path, then 찾아보기 on the same line. */
+.sound-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.sound-file input {
+  flex: 1;
+  min-width: 0;
+}
+.sound-file button {
+  flex: none;
+  white-space: nowrap;
+}
+/* The previous-action condition's actions (graph/ConditionDetails.tsx): a wrapping list of checkboxes. */
+.previous-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.previous-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }

@@ -1,6 +1,6 @@
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
-import {cardHeight, cardWidth, summaryHeight} from './cardPresentation.ts';
+import {cardHeight, cardWidth, pinTop, summaryHeight} from './cardPresentation.ts';
 
 /** The graph `arrange` places: projected nodes (with a measured height where the canvas drew them) and edges. */
 export type ArrangeGraph = {nodes: (FlatNode & {measured?: {height?: number}})[]; edges: GraphEdge[]};
@@ -82,8 +82,6 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
     const s = byId.get(e.source),
       t = byId.get(e.target);
     if (!s || !t || SPECIAL.has(s.kind) || SPECIAL.has(t.kind) || s.id === t.id) continue;
-    // A branch's fail onto a branch of its own fan (①'s fail to ③) does not pull that branch out of the fan.
-    if (s.fan && t.fan && s.fan.parent === t.fan.parent) continue;
     const list = out.get(s.id) ?? [];
     if (!list.some(x => x.to === t.id)) list.push({to: t.id, pin: e.pin, rank: e.rank});
     out.set(s.id, list);
@@ -155,84 +153,126 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
   const outside = (id: string) => !hub.has(id);
   const groups = grouped(new Map(roots.map(r => [r.id, new Set([...reaches.get(r.id)!].filter(outside))])));
   const placed = new Map<string, {col: number; y: number}>();
-  // One block in lanes: its roots in order, entering only the cards `inside` accepts.
+  // One block in layers (10-26, user report on DynamicSprintStop.xml: its HKX cards stood in two columns and a
+  // condition card under twelve HKX cards). A card's column is its longest route from the block's roots, so a card
+  // several routes lead to sits right of all of them; the HKX cards a start or a condition plays share one column,
+  // the block's last such; a card stands at the height of the line into it (its first source's pin) and moves down
+  // only to clear the card above it in its column. A second entrance (a key into an HKX a route already reaches)
+  // stands just left of the card it starts. Lines that close a loop do not count.
   const lay = (group: FlatNode[], inside: (id: string) => boolean) => {
-    const mine: string[] = [];
-    let cursor = 0;
-    // A card the flows of two or more actions lead to (a merge between actions) waits for all of them and sits a
-    // column right of the last (10-19, Grapple's RKO: placed after Pounding's flow, GrappleFront's line ran back
-    // through three cards). Inside one action a route keeps its row and a later branch draws back to the card
-    // (Arrange B). A source the merge itself leads to (a loop) is not waited for.
     const enters = (n: FlatNode) => inside(n.id) && !shared(n);
-    const block = new Set(group.flatMap(r => [...reach(r.id, enters)]));
-    const waits = new Map<string, string[]>();
-    const waitsFor = (t: string) => {
-      let list = waits.get(t);
-      if (!list) {
-        const after = reach(t, enters);
-        list = [...(into.get(t) ?? [])].filter(p => p !== t && block.has(p) && !after.has(p));
-        if (new Set(list.map(p => byId.get(p)!.action)).size < 2) list = [];
-        waits.set(t, list);
-      }
-      return list;
+    const block = new Set(group.flatMap(r => [...reach(r.id, enters)]).filter(id => !placed.has(id)));
+    const kids = (id: string) => (children.get(id) ?? []).filter(t => block.has(t));
+    // Route order (depth first from the roots in order), and the lines back to a card still open (a loop).
+    const index = new Map<string, number>(),
+      state = new Map<string, 'open' | 'done'>(),
+      back = new Set<string>(),
+      post: string[] = [];
+    const visit = (id: string) => {
+      state.set(id, 'open');
+      index.set(id, index.size);
+      for (const t of kids(id))
+        if (state.get(t) === 'open') back.add(id + '>' + t);
+        else if (!state.has(t)) visit(t);
+      state.set(id, 'done');
+      post.push(id);
     };
-    // Depth first, in route order: a card, its routes, then the row below starts under both.
-    const visit = (root: string) => {
-      type Open = {id: string; col: number; top: number; kids: string[]; next: number};
-      const stack: Open[] = [];
-      const open = (id: string, col: number) => {
-        placed.set(id, {col, y: cursor});
-        mine.push(id);
-        const kids = (children.get(id) ?? []).filter(
-          t => !placed.has(t) && !shared(byId.get(t)!) && inside(t) && waitsFor(t).every(p => placed.has(p))
-        );
-        if (kids.length) stack.push({id, col, top: cursor, kids, next: 0});
-        else cursor += height(byId.get(id)!) + GAP_Y;
-      };
-      open(root, 0);
-      while (stack.length) {
-        const f = stack[stack.length - 1];
-        if (f.next < f.kids.length) {
-          const k = f.kids[f.next++];
-          if (!placed.has(k)) open(k, Math.max(f.col + 1, ...waitsFor(k).map(p => (placed.get(p)?.col ?? f.col) + 1)));
-          continue;
-        }
-        cursor = Math.max(cursor, f.top + height(byId.get(f.id)!) + GAP_Y);
-        stack.pop();
-      }
+    for (const r of group) if (block.has(r.id) && !state.has(r.id)) visit(r.id);
+    for (const id of block) if (!state.has(id)) visit(id);
+    const topo = [...post].reverse();
+    const ahead = (id: string) => kids(id).filter(t => !back.has(id + '>' + t));
+    const sources = new Map<string, string[]>();
+    for (const id of topo) for (const t of ahead(id)) sources.set(t, [...(sources.get(t) ?? []), id]);
+    for (const list of sources.values()) list.sort((a, b) => index.get(a)! - index.get(b)!);
+    const col = new Map<string, number>();
+    const layer = () => {
+      for (const id of topo)
+        col.set(id, Math.max(col.get(id) ?? 0, ...(sources.get(id) ?? []).map(p => col.get(p)! + 1)));
     };
-    const later: {root: FlatNode; first: string}[] = [];
-    for (const r of group) {
-      // A card a route before it already reached (a hub card after its entrance) keeps that place.
-      if (placed.has(r.id)) continue;
-      const kids = (children.get(r.id) ?? []).filter(inside);
-      if (kids.length && kids.every(k => placed.has(k))) later.push({root: r, first: kids[0]});
-      else visit(r.id);
+    layer();
+    const played = [...block].filter(
+      id =>
+        byId.get(id)!.kind === 'hkxPlay' &&
+        !!sources.get(id)?.length &&
+        sources.get(id)!.every(p => byId.get(p)!.kind !== 'hkxPlay' && !transition(byId.get(p)!))
+    );
+    if (played.length > 1) {
+      const last = Math.max(...played.map(id => col.get(id)!));
+      for (const id of played) col.set(id, last);
+      layer();
     }
-    // A second entrance: left of the card it starts, in the first free place of that column.
-    for (const {root: r, first} of later) {
-      const target = placed.get(first)!,
-        col = target.col - 1,
-        h = height(r);
-      const taken = mine
-        .filter(id => placed.get(id)!.col === col)
-        .map(id => [placed.get(id)!.y, placed.get(id)!.y + height(byId.get(id)!)] as const)
-        .sort((a, b) => a[0] - b[0]);
-      let y = target.y;
-      for (const [top, end] of taken) if (y < end + GAP_Y && y + h + GAP_Y > top) y = end + GAP_Y;
-      placed.set(r.id, {col, y});
-      mine.push(r.id);
+    // A card no route leads to stands just left of the first card it leads to.
+    for (const id of topo)
+      if (!sources.get(id)?.length && ahead(id).length)
+        col.set(id, Math.max(col.get(id)!, Math.min(...ahead(id).map(t => col.get(t)!)) - 1));
+    const pin = (s: string, t: string) => {
+      const n = byId.get(s)!,
+        at = (n.outputs as string[]).indexOf(out.get(s)?.find(x => x.to === t)?.pin ?? '');
+      return pinTop(n) + Math.max(0, at) * 24;
+    };
+    const ys = new Map<string, number>();
+    const taken = new Map<number, [number, number][]>();
+    const put = (id: string, want: number) => {
+      const c = col.get(id)!,
+        h = height(byId.get(id)!),
+        spans = taken.get(c) ?? [];
+      let y = Math.max(0, want);
+      for (const [top, end] of [...spans].sort((a, b) => a[0] - b[0]))
+        if (y < end + GAP_Y && y + h + GAP_Y > top) y = end + GAP_Y;
+      spans.push([y, y + h]);
+      taken.set(c, spans);
+      ys.set(id, y);
+    };
+    // Column by column: each card at its first placed source's pin, in that order; the roots of the block's routes
+    // under each other; a second entrance last, beside the card it starts.
+    const later: string[] = [];
+    for (const c of [...new Set(col.values())].sort((a, b) => a - b)) {
+      const here = topo.filter(id => col.get(id) === c);
+      const wants: [string, number][] = [];
+      for (const id of here) {
+        const from = (sources.get(id) ?? []).find(p => ys.has(p));
+        // The first card a source leads to shares its top (one row, as before 10-26: an HKX's transition was 24 px
+        // lower when its line left the second pin); the others stand at their pins.
+        if (from)
+          wants.push([
+            id,
+            ahead(from)[0] === id ? ys.get(from)! : ys.get(from)! + pin(from, id) - pinTop(byId.get(id)!),
+          ]);
+        else if (
+          !sources.get(id)?.length &&
+          ahead(id).length &&
+          ahead(id).every(t => (sources.get(t)?.length ?? 0) > 1)
+        )
+          later.push(id);
+        else wants.push([id, Number.MAX_SAFE_INTEGER]);
+      }
+      wants.sort((a, b) => a[1] - b[1] || index.get(a[0])! - index.get(b[0])!);
+      for (const [id, want] of wants) {
+        const spans = taken.get(c) ?? [];
+        put(id, want === Number.MAX_SAFE_INTEGER ? Math.max(0, ...spans.map(([, end]) => end + GAP_Y)) : want);
+      }
     }
-    // A merge whose sources never all came (a guard: every source is placed above, so none should be left).
-    for (const id of block) if (!placed.has(id)) visit(id);
-    const cols = [...new Set(mine.map(id => placed.get(id)!.col))].sort((a, b) => a - b);
+    for (const id of later)
+      put(
+        id,
+        Math.min(
+          ...ahead(id)
+            .filter(t => ys.has(t))
+            .map(t => ys.get(t)!),
+          Infinity
+        )
+      );
+    for (const id of later) if (!Number.isFinite(ys.get(id)!)) put(id, 0);
+    const mine = [...block].sort((a, b) => index.get(a)! - index.get(b)!);
+    for (const id of mine) placed.set(id, {col: col.get(id)!, y: ys.get(id)!});
+    const cols = [...new Set(mine.map(id => col.get(id)!))].sort((a, b) => a - b);
     const xs = new Map<number, number>();
     let x = 0;
     for (const c of cols) {
       xs.set(c, x);
-      x += Math.max(...mine.filter(id => placed.get(id)!.col === c).map(id => width(byId.get(id)!))) + GAP_X;
+      x += Math.max(...mine.filter(id => col.get(id) === c).map(id => width(byId.get(id)!))) + GAP_X;
     }
-    return mine.map(id => ({id, x: xs.get(placed.get(id)!.col)!, y: placed.get(id)!.y}));
+    return mine.map(id => ({id, x: xs.get(col.get(id)!)!, y: ys.get(id)!}));
   };
   const frames: Frame[] = [];
   for (const group of groups) {

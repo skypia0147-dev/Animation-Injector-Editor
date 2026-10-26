@@ -1,9 +1,8 @@
 import type {Workspace, Action} from '../workspace.ts';
 import {nodeCatalog, type NodeKind} from '../nodes/catalog.ts';
-import {blendNodes} from './blends.ts';
+import {blendSeconds, editBlend} from './blends.ts';
 import {featureValue, applyFeature, type FeatureValue} from './sharedFeatures.ts';
 import {rows} from '../timeline/model.ts';
-import {tr} from '../i18n/korean.ts';
 
 type Bag = Record<string, unknown>;
 type Settings = {kind: string; value: unknown};
@@ -16,9 +15,9 @@ function address(w: Workspace, id: string) {
   );
   return {a, local, parts};
 }
-function fields(a: Action, kind: string) {
+function fields(kind: string) {
   const keys = kind in nodeCatalog ? nodeCatalog[kind as NodeKind].fields : [];
-  return keys.filter(k => !k.includes('[]') && !['input', 'event', 'config.start.input', 'config.entry'].includes(k));
+  return keys.filter(k => !k.includes('[]') && !['input', 'event', 'config.entry'].includes(k));
 }
 function readPath(a: Action, path: string): unknown {
   return path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Bag)[k] : undefined), a);
@@ -35,8 +34,8 @@ function writePath(a: Action, path: string, value: unknown) {
 }
 // Only configuration is shared. IDs, ownership, destinations and live state remain local.
 export function nodeSettings(w: Workspace, id: string): Settings | undefined {
-  const blend = blendNodes(w).find(b => b.id === id);
-  if (blend) return {kind: 'blend', value: blend.seconds};
+  const blend = blendSeconds(w, id);
+  if (blend !== undefined) return {kind: 'blend', value: blend};
   const {a, local, parts} = address(w, id);
   if (!a) return;
   if (parts[0] === 'link') {
@@ -49,7 +48,7 @@ export function nodeSettings(w: Workspace, id: string): Settings | undefined {
         value:
           local === 'markerReceive'
             ? {event: rule.event}
-            : {input: input ? pick(input, ['label', 'key', 'gamepad']) : undefined},
+            : {input: input ? pick(input, ['label', 'key', 'gamepad', 'control']) : undefined},
       };
     }
     if (local === 'detectionWindow') return {kind: 'detectionWindow', value: pick(rule, ['open', 'close', 'buffered'])};
@@ -69,35 +68,6 @@ export function nodeSettings(w: Workspace, id: string): Settings | undefined {
     }
     return;
   }
-  if (parts[0] === 'flow') {
-    const f = a.flow;
-    if (!f) return;
-    const seen = new Set<string>();
-    const expression = (id: string): unknown => {
-      if (seen.has(id)) throw Error(tr('조건 공유에 순환 참조가 있습니다.'));
-      seen.add(id);
-      const t = f.tests.find(t => t.id === id);
-      if (!t) throw Error(tr('공유할 구성 조건이 없습니다.'));
-      const {id: _, pass, fail, operands, ...settings} = t;
-      if (!settings.negate) delete settings.negate;
-      const value = {settings, children: (operands ?? []).map(expression)};
-      seen.delete(id);
-      return value;
-    };
-    if (f.tests.some(t => t.id === parts[2])) return {kind: 'condition', value: expression(parts[2])};
-    return;
-  }
-  if (parts[0] === 'start' && ['keyInput', 'markerReceive'].includes(local)) {
-    if (a.config.start.mode === 'none') return;
-    const input = a.config.inputs.find(i => i.id === a.config.start.input);
-    return {
-      kind: 'start:' + local,
-      value: {
-        start: pick(a.config.start, ['mode', 'event', 'actor', 'onKeyUp']),
-        input: input ? pick(input, ['label', 'key', 'gamepad']) : undefined,
-      },
-    };
-  }
   if (parts[0] === 'anim' && local.startsWith('clip_')) {
     const step = a.config.steps.find(s => s.id === local.slice(5));
     if (!step) return;
@@ -112,16 +82,15 @@ export function nodeSettings(w: Workspace, id: string): Settings | undefined {
   }
   if (parts[0] !== 'anim' && parts[0] !== 'start') return;
   if (local === 'outputPose') return {kind: 'outputPose', value: pick(a.config, ['graph'])};
-  const keys = fields(a, local);
+  const keys = fields(local);
   if (!keys.length) return;
   if (keys.some(k => k.startsWith('pair.')) && !a.pair) return;
   return {kind: local, value: Object.fromEntries(keys.map(k => [k, readPath(a, k)]))};
 }
 export function applyNodeSettings(w: Workspace, id: string, v: Settings): void {
   if (v.kind === 'blend') {
-    w.blends ??= structuredClone(blendNodes(w));
-    const b = w.blends.find(b => b.id === id);
-    if (b) b.seconds = v.value as number;
+    const next = editBlend(w, id, {seconds: v.value as number});
+    w.actions = next.actions;
     return;
   }
   const {a, local, parts} = address(w, id);
@@ -156,74 +125,6 @@ export function applyNodeSettings(w: Workspace, id: string, v: Settings): void {
     if (c) Object.assign(c, structuredClone(v.value));
     return;
   }
-  if (v.kind === 'condition') {
-    const f = a.flow,
-      root = f?.tests.find(t => t.id === parts[2]);
-    if (!f || !root) return;
-    const previous = new Set<string>(),
-      pending = [...(root.operands ?? [])];
-    while (pending.length) {
-      const id = pending.pop()!;
-      if (previous.has(id)) continue;
-      previous.add(id);
-      pending.push(...(f.tests.find(t => t.id === id)?.operands ?? []));
-    }
-    const apply = (target: typeof root, expr: any) => {
-      const old = target.operands ?? [],
-        children = expr.children as any[];
-      const {id, pass, fail} = target;
-      Object.keys(target).forEach(k => delete (target as unknown as Bag)[k]);
-      Object.assign(target, structuredClone(expr.settings), {id}, pass ? {pass} : {}, fail ? {fail} : {});
-      if (children.length)
-        target.operands = children.map((child, i) => {
-          let t = f.tests.find(t => t.id === old[i]);
-          // Shared operand definitions must not be overwritten by editing a different expression.
-          if (t && f.tests.some(other => other !== target && other.operands?.includes(t!.id))) t = undefined;
-          if (!t) {
-            let j = 1;
-            while (f.tests.some(t => t.id === 'SharedCondition' + j)) j++;
-            t = {id: 'SharedCondition' + j, kind: 'alive', subject: 'self', minimum: 0};
-            f.tests.push(t);
-          }
-          apply(t, child);
-          return t.id;
-        });
-    };
-    apply(root, v.value);
-    let removed = true;
-    while (removed) {
-      removed = false;
-      const used = new Set([f.entry]);
-      for (const t of f.tests) {
-        for (const id of t.operands ?? []) used.add(id);
-        for (const e of [t.pass, t.fail]) if (e && 'node' in e) used.add(e.node);
-      }
-      f.tests = f.tests.filter(t => {
-        if (previous.has(t.id) && !used.has(t.id)) {
-          removed = true;
-          return false;
-        }
-        return true;
-      });
-    }
-    return;
-  }
-  if (v.kind.startsWith('start:')) {
-    const value = v.value as {start: Bag; input?: Bag};
-    Object.assign(a.config.start, structuredClone(value.start));
-    if (value.input) {
-      let input = a.config.inputs.find(i => i.id === a.config.start.input);
-      if (!input) {
-        let j = 1;
-        while (a.config.inputs.some(i => i.id === 'SharedInput' + j)) j++;
-        input = {id: 'SharedInput' + j, label: '', key: '', gamepad: 0};
-        a.config.inputs.push(input);
-        a.config.start.input = input.id;
-      }
-      Object.assign(input, structuredClone(value.input));
-    }
-    return;
-  }
   if (v.kind === 'clip' || v.kind === 'pairedClip') {
     const s = a.config.steps.find(s => s.id === local.slice(5));
     if (!s) return;
@@ -239,5 +140,4 @@ export function applyNodeSettings(w: Workspace, id: string, v: Settings): void {
     return;
   }
   for (const [path, value] of Object.entries(v.value as Bag)) writePath(a, path, value);
-  if (v.kind === 'cameraRestore' && a.cameraEnabled && a.pair) a.pair.effectsEnabled = true;
 }

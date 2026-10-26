@@ -3,47 +3,49 @@ import {useState, useEffect} from 'react';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
 import {ConditionFields} from './ConditionDetails.tsx';
-import {conditionNames, editExpression, readExpression, expressionSummary, sideBySide} from './conditionExpression.ts';
+import {
+  conditionNames,
+  editExpression,
+  readExpression,
+  expressionSummary,
+  sideBySide,
+  patchTest,
+} from './conditionExpression.ts';
 import type {Expression, ExpressionCommand} from './conditionExpression.ts';
 import './conditionEditor.css';
 import {tr} from '../i18n/korean.ts';
 
 let copied: Expression | undefined;
-/** Where a condition's route goes, in words: an action's name, the next condition or nothing. */
-export function routeTarget(w: Workspace, test: BranchTest, p: 'pass' | 'fail') {
-  const to = test[p];
-  return to
-    ? 'action' in to
-      ? (w.actions.find(a => a.uid === (to as {action: string}).action)?.config.name ?? tr('대상 없음'))
-      : tr('다음 조건')
-    : tr('실행하지 않음');
-}
+/** One root condition of a condition card and its members (`owner`: the card's uid, `id`: the root's). `remove`
+ *  takes the root away from where it sits (the card's list). */
 export function ConditionExpressionEditor({
   w,
-  id,
+  owner,
+  id: root,
   edit,
   embedded = false,
   focus,
+  remove,
 }: {
   w: Workspace;
+  owner: string;
   id: string;
   edit: (fn: (w: Workspace) => Workspace) => void;
   embedded?: boolean;
   focus?: string;
+  remove?: () => void;
 }) {
-  const [, owner, root] = id.split(':'),
-    a = w.actions.find(a => a.uid === owner),
-    f = a?.flow;
+  const f = w.cards.find(c => c.uid === owner);
   const [selected, setSelected] = useState(embedded ? '' : root),
     [error, setError] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<{parent: string; id: string}>();
   useEffect(() => {
-    if (focus?.startsWith(`flow:${owner}:`)) {
-      setSelected(focus.split(':')[2]);
+    if (focus === `${owner}:${root}`) {
+      setSelected(root);
       setCollapsed(new Set());
     }
-  }, [focus, owner]);
+  }, [focus, owner, root]);
   if (!f || !f.tests.some(t => t.id === root)) return null;
   const attempt = (fn: () => void) => {
     try {
@@ -54,15 +56,7 @@ export function ConditionExpressionEditor({
     }
   };
   const command = (c: ExpressionCommand) => attempt(() => edit(w => editExpression(w, owner, c)));
-  const patch = (id: string, p: Partial<BranchTest>) =>
-    edit(w => {
-      const n = structuredClone(w);
-      Object.assign(
-        n.actions.find(a => a.uid === owner)!.flow!.tests.find(t => t.id === id)!,
-        p
-      );
-      return n;
-    });
+  const patch = (id: string, p: Partial<BranchTest>) => edit(w => patchTest(w, owner, id, p));
   const row = (key: string, parent?: string, depth = 0, title?: string): React.ReactNode => {
     const t = f.tests.find(t => t.id === key);
     if (!t || depth > 80) return null;
@@ -232,11 +226,11 @@ export function ConditionExpressionEditor({
               )}
             </div>
           </details>
-          {parent && (
+          {(parent || remove) && (
             <button
               title={tr('이 항목을 삭제합니다. 그룹은 자식도 함께 삭제합니다. Ctrl+Z로 복원합니다.')}
               aria-label={tr('조건 삭제')}
-              onClick={() => command({type: 'remove', parent, id: key})}
+              onClick={() => (parent ? command({type: 'remove', parent, id: key}) : attempt(() => remove!()))}
             >
               ×
             </button>
@@ -254,7 +248,7 @@ export function ConditionExpressionEditor({
         )}
         {!group && selected === key && (
           <div className="condition-expression-fields">
-            <ConditionFields w={w} id={`flow:${owner}:${key}`} edit={edit} embedded />
+            <ConditionFields w={w} owner={owner} id={key} edit={edit} embedded />
           </div>
         )}
       </div>
@@ -295,16 +289,6 @@ export function ConditionExpressionEditor({
       <div className="condition-expression-tools">
         <button onClick={() => command({type: 'group', id: root})}>{tr('＋ 조건 그룹')}</button>
       </div>
-      {/* On the canvas the card's route rows show where each route goes (FlatGraph BranchRoutes). */}
-      {!embedded && (
-        <div className="condition-expression-routes">
-          {(['pass', 'fail'] as const).map(p => (
-            <span key={p}>
-              {p === 'pass' ? tr('통과') : tr('실패')}: {routeTarget(w, test, p)}
-            </span>
-          ))}
-        </div>
-      )}
     </section>
   );
 }

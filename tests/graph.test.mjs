@@ -27,7 +27,7 @@ test('duplicating a state preserves optional feature flags but generates new ide
   assert.deepEqual(copy.pair, a.pair);
 });
 import assert from 'node:assert/strict';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {emptyWorkspace, addAction, parseWorkspace, compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {graphId, uiReducer, initialUI, documentReducer} from '../src/graph/state.ts';
 import {
@@ -36,21 +36,13 @@ import {
   graphExists,
   mutateGraph,
   deleteGraphNode,
-  connectGraph,
   addGraphItem,
 } from '../src/graph/projection.ts';
 test('projecting every layer preserves XML and gives edges concrete endpoints', () => {
   const w = s4sample(),
     before = JSON.stringify(w),
     xml = compileWorkspace(w);
-  const refs = [
-    {kind: 'root'},
-    ...w.actions.flatMap(a => [
-      {kind: 'anim', action: a.uid},
-      {kind: 'start', action: a.uid},
-    ]),
-    ...w.links.map(l => ({kind: 'link', link: l.id})),
-  ];
+  const refs = [{kind: 'root'}, ...w.actions.flatMap(a => [{kind: 'anim', action: a.uid}])];
   for (const g of refs) {
     const p = projectGraph(w, g);
     for (const e of p.edges) {
@@ -92,12 +84,11 @@ test('shared undo spans graphs, branches clear redo, no-op does not add a step',
   s = documentReducer(s, {type: 'edit', next: mutateGraph(s.present, anim, 'blendOut', true)});
   assert.equal(s.future.length, 0);
 });
-test('unsupported wiring and required-node deletion fail without mutating input', () => {
+test('required-node deletion fails without mutating input', () => {
   const w = s4sample(),
     a = w.actions[0],
     g = {kind: 'anim', action: a.uid},
     before = JSON.stringify(w);
-  assert.throws(() => connectGraph(w, g, 'findPartner', 'outputPose'));
   assert.throws(() => deleteGraphNode(w, g, 'outputPose'));
   assert.equal(JSON.stringify(w), before);
 });

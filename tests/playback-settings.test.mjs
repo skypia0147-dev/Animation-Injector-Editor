@@ -11,6 +11,7 @@ import {mark} from '../src/model.ts';
 import {setSourceWindow} from '../src/graph/clipWindows.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {checker, needsChecker} from './local.mjs';
+import {newStart} from '../src/cards.ts';
 
 function fixture() {
   let w = emptyWorkspace();
@@ -22,9 +23,10 @@ function fixture() {
 }
 test('distinct cooldown and per-HKX feature attachment survive graph save and native XML parsing', needsChecker, () => {
   let w = fixture();
-  w.actions[1].config.cooldown = 1.23;
-  let d = addFlat(w, 'a1', 'notify:iframe', {x: 40, y: 80});
-  w = connectFlat(d.workspace, d.id, 'anim:a2:|clip_A1');
+  // A cooldown is its start card's: the second HKX has a start of its own besides the transition into it.
+  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', cooldown: 1.23, to: {action: 'a2'}});
+  // An item is added on its own HKX card.
+  w = addFlat(w, 'a2', 'notify:iframe', {x: 40, y: 80}).workspace;
   assert.equal(w.actions[0].config.slots.iframe.enabled, false);
   assert.equal(w.actions[1].config.slots.iframe.enabled, true);
   w = playbackLink(w, 'a1', 'a2', {id: 'H', label: 'H', key: 'H', gamepad: 0}).workspace;
@@ -40,7 +42,7 @@ test('distinct cooldown and per-HKX feature attachment survive graph save and na
   const p = spawnSync(checker, ['--compare', resolve(dir, 'v1.xml'), resolve(dir, 'v2.xml')], {encoding: 'utf8'});
   assert.equal(p.status, 0, p.stdout + p.stderr);
   const re = importWorkspaceXml(compileWorkspace(w));
-  assert.equal(re.actions[1].config.cooldown, 1.23);
+  assert.equal(re.starts.find(s => s.to.action === re.actions[1].uid).cooldown, 1.23);
   assert.equal(re.actions[1].config.slots.iframe.enabled, true);
   // An event close waits for its event only (runtime 0.12.278).
   assert.equal(re.links[0].close.basis, 'event');

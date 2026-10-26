@@ -30,15 +30,12 @@ function refs(w: Workspace): Ref[] {
     for (const [outcome, result] of Object.entries(q.results))
       if (result.mode === 'event') add(result, 'event', q.name + ' · ' + outcome);
   }
-  const actions = [
-    ...w.actions.map(a => ({a, label: a.config.name})),
-    ...(w.drafts ?? []).map(d => ({a: d.value, label: tr('미연결 카드 {id}', {id: d.id})})),
-  ];
+  for (const s of w.starts) if (s.mode === 'event') add(s, 'event', tr('시작 카드 · 이벤트'));
+  const actions = w.actions.map(a => ({a, label: a.config.name}));
   for (const {a, label} of actions) {
     for (const [variant, s] of [['', a], ...Object.entries(a.variants)] as [string, typeof a][]) {
       const where = label + (variant ? tr(' · 보관된 {variant} 설정', {variant}) : '');
       s.config.events.forEach((_, i) => add(s.config.events, i, where, true));
-      if (s.config.start.mode === 'event') add(s.config.start, 'event', where + tr(' · 시작 입력'));
       marks(s.config).forEach(m => addMark(m, where + tr(' · 기능/전환 시각')));
       for (const [step, v] of Object.entries(s.clipWindows ?? {})) {
         addMark(v.open, where + tr(' · {step} 감지 시작', {step}));
@@ -102,7 +99,7 @@ export function removeMarker(w: Workspace, name: string): Workspace {
     next.eventRegistry = next.eventRegistry.filter(r => r.name !== name);
     if (!next.eventRegistry.length) delete next.eventRegistry;
   }
-  for (const a of [...next.actions, ...(next.drafts ?? []).map(d => d.value)])
+  for (const a of next.actions)
     for (const s of [a, ...Object.values(a.variants)]) s.config.events = s.config.events.filter(e => e !== name);
   return next;
 }

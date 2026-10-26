@@ -14,7 +14,6 @@ test('a hidden QTE is written, read back and named on its card', () => {
   p.actionId = 'Mash';
   p.name = 'Mash';
   p.steps[0].clip = 'Animations\Mash.hkx';
-  p.start.mode = 'none';
   w.actions.push(wrap(p, 'a1'));
   const added = addFlat(w, 'a1', 'qte', {x: 420, y: 160});
   w = added.workspace;

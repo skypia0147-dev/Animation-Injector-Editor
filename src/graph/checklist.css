@@ -35,13 +35,6 @@
   accent-color: #83b4ab;
   flex: none;
 }
-.checklist-summary {
-  width: 100%;
-  display: block;
-  background: #292929;
-  border: 0;
-  margin: 4px 0;
-}
 .checklist-file {
   display: flex;
   align-items: center;
@@ -167,9 +160,6 @@
   color: #bbb;
   font-size: var(--fs-xs);
 }
-.checklist-row.is-disabled > .checklist-row-heading button {
-  color: var(--ue-dim);
-}
 /* One list since 10-16: the moments (⏱) follow the whole-play items under a small divider, their time or event
    as a badge where the summary sits. */
 .checklist-row.moment > .checklist-row-heading > button > span:first-child::before {
@@ -278,10 +268,6 @@
   color: #a5ccc5;
   padding-left: 21px;
 }
-.checklist-add {
-  width: 100%;
-  margin-top: 10px;
-}
 .checklist-error {
   color: #ffafaf;
   font-size: var(--fs-sm);
@@ -310,9 +296,6 @@
 }
 .checklist-body .condition-expression-fields {
   padding: 6px;
-}
-.checklist-body .condition-expression-routes {
-  white-space: normal;
 }
 .checklist-body .detail-search {
   width: 100%;
@@ -344,58 +327,6 @@
   height: 14px;
   min-height: 0;
 }
-.graph-workspace .p3-node .checklist-summary small {
-  display: inline;
-  margin-left: 6px;
-}
-.notify-item.checklist-muted {
-  opacity: 0.45;
-  border-style: dashed;
-}
-.checklist-unassigned {
-  position: relative;
-}
-.checklist-unassigned-panel {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 30;
-  width: 390px;
-  max-width: 65vw;
-  max-height: 65vh;
-  overflow: auto;
-  background: #252525;
-  border: 1px solid #666;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 8px 24px #0008;
-  white-space: normal;
-}
-.checklist-unassigned-panel section {
-  border-top: 1px solid #484848;
-  padding-top: 6px;
-  margin-top: 8px;
-}
-.checklist-unassigned-panel section > button {
-  width: 100%;
-  text-align: left;
-}
-.checklist-condition-rules > .checklist-row .checklist-fields > label {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  margin: 6px 0;
-}
-.checklist-condition-rules .checklist-fields > label select {
-  max-width: 75%;
-}
-.checklist-inspector .checklist-row-heading > button {
-  height: auto;
-  min-height: 30px;
-}
-.checklist-inspector .checklist-body .detail-row {
-  grid-template-columns: minmax(70px, 1fr) minmax(0, 1.5fr);
-}
 .checklist-section-title > button:first-child {
   margin-left: 0;
   flex: 1;
@@ -404,15 +335,6 @@
   text-align: left;
 }
 /* The 활 발사 item: one row per moment it shoots (FireArrowShots.tsx, docs/mockup-fire-arrow-item). */
-.fire-shots {
-  display: grid;
-  gap: 8px;
-}
-.fire-shots-label {
-  font-size: var(--fs-xs);
-  color: var(--ue-dim);
-  letter-spacing: 0.04em;
-}
 .fire-shot {
   display: grid;
   gap: 6px;
@@ -424,35 +346,6 @@
 .fire-shot.off {
   opacity: 0.6;
 }
-.fire-shot-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-.fire-shot-head label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.fire-shot-what {
-  font-weight: 600;
-}
-.fire-shot-event {
-  padding: 1px 7px;
-  border-radius: 10px;
-  background: #3a3f2a;
-  color: #e8dfa8;
-  font-size: var(--fs-xs);
-}
-.fire-shot-when {
-  margin-left: auto;
-  color: var(--ue-dim);
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.fire-shot-when input,
 .fire-shot-line input {
   width: 64px;
 }
@@ -468,49 +361,6 @@
   color: var(--ue-dim);
   font-size: var(--fs-xs);
   line-height: 1.5;
-}
-.p3-node .fire-shot-link,
-.fire-shot-link {
-  display: inline;
-  min-height: 0;
-  height: auto;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: #8fd3ff;
-  font-size: var(--fs-xs);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-.fire-shot-add {
-  display: grid;
-  gap: 4px;
-}
-.fire-shot-add > button {
-  justify-self: start;
-}
-.fire-shot-menu {
-  display: grid;
-  gap: 2px;
-  padding: 4px;
-  border: 1px solid #4b6b78;
-  border-radius: 6px;
-  background: #232727;
-}
-.fire-shot-menu button {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-}
-.fire-shot-menu button:hover {
-  background: #2f3e44;
-}
-.fire-shot-menu small {
-  color: var(--ue-dim);
 }
 
 /* Moment items edit in place (10-23, docs/mockup-inline-moments): a clip time, an event (a registered function,
@@ -583,6 +433,7 @@
 .clip-bar.no-track {
   grid-template-columns: var(--row-label, 72px) minmax(0, 1fr);
 }
+
 .clip-bar-track {
   position: relative;
   height: 20px;
@@ -592,6 +443,11 @@
   cursor: pointer;
   touch-action: none;
   user-select: none;
+}
+/* Ticks and handles are placed on a lane inset by half a handle, so a handle at 0 or the end stays in the box. */
+.clip-bar-lane {
+  position: absolute;
+  inset: 0 5px;
 }
 .clip-bar-track .tick {
   position: absolute;
@@ -611,8 +467,8 @@
 }
 .clip-bar-track .span {
   position: absolute;
-  top: 4px;
-  height: 11px;
+  top: calc(50% - 4px);
+  height: 8px;
   border-radius: 3px;
   background: #6d8a52;
   cursor: grab;
@@ -623,8 +479,8 @@
 .clip-bar-track .edge,
 .clip-bar-track .me {
   position: absolute;
-  top: -2px;
-  height: 22px;
+  top: 3px;
+  bottom: 3px;
   border-radius: 2px;
   transform: translateX(-50%);
   cursor: ew-resize;
@@ -701,20 +557,11 @@
 .moment-tag {
   cursor: help;
 }
-.moment-sub {
-  padding: 0 4px 3px 22px;
-  color: var(--ue-dim);
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-}
 /* A cost or a time scale with no numbers on this node does not run here (runtime 0.12.281). */
 .checklist-row.registry-moment.missing {
   outline: 1px dashed #f0904a;
   outline-offset: -2px;
   border-radius: 4px;
-}
-.checklist-row.registry-moment.missing > .moment-sub {
-  color: #f0904a;
 }
 .moment-note {
   margin: 0;
@@ -743,14 +590,6 @@
 }
 .fire-shot.bad {
   border-color: #8a5a3a;
-}
-.moment-lock {
-  color: #b7a6e6;
-  border: 1px solid #4d4470;
-  border-radius: 9px;
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  white-space: nowrap;
 }
 .checklist-row.annotation-moment > .checklist-row-heading > button > span:first-child {
   color: #b7a6e6;
@@ -791,33 +630,3 @@
 }
 
 /* An item an older project saved as 사용 안 함 (10-23: no checkbox to turn one off any more). */
-.checklist-off {
-  color: #c9a27a;
-  border: 1px solid #6b5a43;
-  border-radius: 9px;
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-}
-
-/* Which starts judge a condition card, from the lines (docs/mockup-free-conditions): or a warning that none does. */
-.condition-binding {
-  display: inline-block;
-  max-width: 100%;
-  margin: 0 0 6px;
-  padding: 0 7px;
-  border: 1px solid #5d4f73;
-  border-radius: 9px;
-  background: #2a2433;
-  color: #cdb9ef;
-  font-size: var(--fs-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-.condition-binding.loose {
-  border-color: #6a5a38;
-  background: #2e2818;
-  color: #f0c98a;
-}

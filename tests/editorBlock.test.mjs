@@ -10,12 +10,10 @@ import {checker, needsChecker} from './local.mjs';
 
 // One file, no .aiproj (10-03): the runtime XML carries the whole project in a comment the runtime skips.
 const XML = `<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="EditorBlock">
-  <Action id="Roll" clip="Animations\\EditorBlock\\Roll.hkx">
-    <Start key="G"/>
-  </Action>
-</AnimationSet>
-`;
+<AnimationSet version="6" id="EditorBlock">
+  <Start key="G" to="Roll"/>
+  <Action id="Roll" clip="Animations\\EditorBlock\\Roll.hkx"/>
+</AnimationSet>`;
 const saved = w => withEditorBlock(compileWorkspace(w), JSON.stringify(captureGraph(w)));
 
 test('a saved XML restores its whole project while its runtime body is untouched', () => {

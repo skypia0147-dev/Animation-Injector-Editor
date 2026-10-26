@@ -40,8 +40,8 @@ test('Editor and runtime reject legacy and future XML without partially loading 
       'legacy',
       '<AnimationInjector version="1" mod="Old"><Action id="Old"><Clip file="Animations\\Old.hkx"/></Action></AnimationInjector>',
     ],
-    ['future', fixture.replace('version="4"', 'version="99"')],
-    ['missing-version', fixture.replace(' version="4"', '')],
+    ['future', fixture.replace('version="6"', 'version="99"')],
+    ['missing-version', fixture.replace(' version="6"', '')],
   ]) {
     assert.throws(() => importWorkspaceXml(xml));
     const file = resolve(out, name + '.xml');
@@ -50,21 +50,11 @@ test('Editor and runtime reject legacy and future XML without partially loading 
   }
 });
 
-test('retired output preference is removed from a saved graph without changing playback', () => {
-  const w = importWorkspaceXml(readFileSync('tests/fixtures/current-xml/Connections.xml', 'utf8'));
-  const old = captureGraph(w);
-  old.meta.xmlVersion = 1;
-  const restored = parseWorkspace(JSON.stringify(old));
-  assert.equal(restored.xmlVersion, undefined);
-  assert.equal(compileWorkspace(restored), compileWorkspace(w));
-  assert.ok(!JSON.stringify(captureGraph(restored)).includes('xmlVersion'));
-});
-
 test('native equivalence checks detect a changed rotation lock', needsChecker, () => {
   const fixture = readFileSync('tests/fixtures/current-xml/Single.xml', 'utf8');
   const files = [false, true].map(locked => {
     const file = resolve(out, `rotation-${locked}.xml`);
-    writeFileSync(file, fixture.replace('    <Attack', `    <Rotate locked="${locked}"/>\n    <Attack`));
+    writeFileSync(file, fixture.replace('    <Exit', `    <Rotate locked="${locked}"/>\n    <Exit`));
     check(file);
     return file;
   });

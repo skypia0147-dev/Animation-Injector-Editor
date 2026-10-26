@@ -1,7 +1,11 @@
-import {useEffect, useRef, useState} from 'react';
+import {Fragment, useEffect, useRef, useState} from 'react';
 import type {MouseEvent} from 'react';
 import {tr} from './i18n/korean.ts';
-export type MenuItem = {label: string; run: () => void; disabled?: boolean};
+// `divider`: a line before the item, between two groups of the menu.
+export type MenuItem = {label: string; run: () => void; disabled?: boolean; divider?: boolean};
+/** The groups of a menu as one list, a divider before each group's first item; empty groups drop out. */
+export const menuGroups = (...groups: MenuItem[][]): MenuItem[] =>
+  groups.filter(g => g.length).flatMap((g, i) => g.map((item, j) => (i && !j ? {...item, divider: true} : item)));
 export function useEditorMenu(
   items: (target: HTMLElement, x: number, y: number) => MenuItem[],
   status: (s: string) => void
@@ -119,7 +123,7 @@ export function useEditorMenu(
     }
     setMenu({
       x: Math.max(8, Math.min(e.clientX, window.innerWidth - 244)),
-      y: Math.max(8, Math.min(e.clientY, window.innerHeight - list.length * 34 - 16)),
+      y: Math.max(8, Math.min(e.clientY, window.innerHeight - list.length * 28 - 16)),
       items: list,
     });
   };
@@ -140,17 +144,19 @@ export function useEditorMenu(
         }}
       >
         {menu.items.map(i => (
-          <button
-            role="menuitem"
-            key={i.label}
-            disabled={i.disabled}
-            onClick={() => {
-              dismiss();
-              i.run();
-            }}
-          >
-            {i.label}
-          </button>
+          <Fragment key={i.label}>
+            {i.divider && <hr />}
+            <button
+              role="menuitem"
+              disabled={i.disabled}
+              onClick={() => {
+                dismiss();
+                i.run();
+              }}
+            >
+              {i.label}
+            </button>
+          </Fragment>
         ))}
       </div>
     ),

@@ -2,11 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {neighbors, actionFlow, regionLayout, fitsAt} from '../src/graph/navigation.ts';
 import {beginFocus, retainFocus} from '../src/graph/focusSession.ts';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {flatGraph} from '../src/graph/flat.ts';
 import {compactGraph} from '../src/graph/sharing.ts';
 import {moveNodes} from '../src/graph/projection.ts';
-import {tableProjection} from '../src/graph/conditionTables.ts';
 import {emptyWorkspace, addAction, compileWorkspace} from '../src/workspace.ts';
 const n = (id, action, kind = 'hkxPlay') => ({
   id,
@@ -47,30 +46,6 @@ test('region arrangement follows nested pass/fail routes regardless of IDs and s
   assert.ok(p['anim-pass'].y < p['anim-fail'].y);
   assert.deepEqual(g, before);
   assert.deepEqual(regionLayout({...g, edges: [...g.edges].reverse()}), p);
-});
-
-test('condition table ports and target placement use route order rather than stored test order', () => {
-  const w = emptyWorkspace();
-  for (let i = 0; i < 3; i++) w.actions.push(addAction(w, 'single'));
-  const [a, b, c] = w.actions;
-  for (const action of w.actions) {
-    action.nodeAuthored = true;
-    action.config.steps[0].clip = 'animations\\Test.hkx';
-  }
-  a.flow = {
-    entry: 'Z',
-    tests: [
-      {id: 'A', kind: 'female', subject: 'self', minimum: 0, pass: {action: c.uid}},
-      {id: 'Z', kind: 'combat', subject: 'self', minimum: 0, pass: {action: b.uid}, fail: {node: 'A'}},
-    ],
-  };
-  w.conditionTables = [a.uid];
-  const g = tableProjection(w, flatGraph(w)),
-    table = g.nodes.find(n => n.kind === 'conditionTable');
-  assert.ok(table.outputs.indexOf('choice:Z:pass') < table.outputs.indexOf('choice:A:pass'));
-  const layout = regionLayout(g);
-  assert.ok(layout[`anim:${b.uid}:|clip_A1`].y < layout[`anim:${c.uid}:|clip_A1`].y);
-  assert.equal(compileWorkspace(moveNodes(w, {kind: 'root'}, layout)), compileWorkspace(w));
 });
 
 test('region arrangement terminates with shared destinations and cyclic combo routes without overlap', () => {

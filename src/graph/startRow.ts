@@ -1,10 +1,11 @@
-/** How an action starts, shown under its HKX card's title (10-20, mockup A "시작" row): a key or an event (the
- *  row picks its start card), only through other actions (a transition, a condition route, a QTE result, a carry:
- *  any line from another action into this card), or nothing yet (the row offers to add a start key or event). */
+/** How an action starts, shown under its HKX card's title (10-20, mockup A "시작" row): a start card going to it (the
+ *  row picks it), only through condition cards or other actions (a transition, a QTE result), or nothing yet (the row
+ *  offers to add a start key or event). */
 import type {Workspace} from '../workspace.ts';
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
-import {gamepadXml} from '../keys.ts';
+import {gamepadXml, gameControlLabel} from '../keys.ts';
+import {refAction, refCard, type Ref} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
 
 export type StartRow = {tone: 'set' | 'via' | 'none'; text: string; node?: string};
@@ -12,56 +13,52 @@ export type StartRow = {tone: 'set' | 'via' | 'none'; text: string; node?: strin
 export function startRow(
   w: Workspace,
   n: FlatNode,
-  graph: {nodes: FlatNode[]; edges: GraphEdge[]}
+  _graph?: {nodes: FlatNode[]; edges: GraphEdge[]}
 ): StartRow | undefined {
   const a = n.kind === 'hkxPlay' ? w.actions.find(a => a.uid === n.action) : undefined;
   if (!a || n.step !== a.config.entry) return undefined;
-  const start = a.config.start;
-  if (start.mode === 'input') {
-    const input = [...a.config.inputs, ...w.sharedInputs].find(i => i.id === start.input);
-    // The key's own name (Num0, G), as its input card shows it.
-    const key = input?.key || (input?.gamepad ? gamepadXml(input.gamepad) : '—');
+  const own = w.starts.filter(s => refAction(s.to) === a.uid);
+  if (own.length) {
+    const s = own[0];
+    const text =
+      s.mode === 'input'
+        ? (s.control
+            ? gameControlLabel(s.control)
+            : tr('키 {key}', {key: s.key || (s.gamepad ? gamepadXml(s.gamepad) : '—')})) +
+          (s.onKeyUp ? tr(' · 뗄 때') : '')
+        : tr('이벤트 {v0}', {v0: s.event || tr('미지정')});
     return {
       tone: 'set',
-      text: tr('키 {key}', {key}) + (start.onKeyUp ? tr(' · 뗄 때') : ''),
-      node: `start:${a.uid}|keyInput`,
+      text: text + (own.length > 1 ? tr(' 외 {v0}', {v0: own.length - 1}) : ''),
+      node: 'startCard:' + s.uid,
     };
   }
-  if (start.mode === 'event')
-    return {
-      tone: 'set',
-      text: tr('이벤트 {v0}', {v0: start.event || tr('미지정')}),
-      node: `start:${a.uid}|markerReceive`,
-    };
-  // No start of its own: other actions may still lead here, through this action's own steps on the way (its state
-  // node, an entry blend or condition in the document's graph; the canvas folds some of them away).
-  const byId = new Map(graph.nodes.map(x => [x.id, x]));
-  const names = new Set<string>(),
-    seen = new Set<string>();
-  const walk = (id: string, hops: number) => {
-    if (seen.has(id) || hops > 6) return;
-    seen.add(id);
-    for (const e of graph.edges) {
-      if (e.target !== id) continue;
-      const source = byId.get(e.source);
-      if (!source?.action) continue;
-      if (source.action !== a.uid) {
-        const from = w.actions.find(x => x.uid === source.action);
-        if (from) names.add(from.config.name || from.config.actionId);
-      } else if (!source.id.startsWith('start:')) walk(source.id, hops + 1);
-    }
+  // Reached through condition cards: the cards that can play it.
+  const reaches = (r: Ref, seen = new Set<string>()): boolean => {
+    if (refAction(r) === a.uid) return true;
+    const c = w.cards.find(c => c.uid === refCard(r));
+    if (!c || seen.has(c.uid)) return false;
+    seen.add(c.uid);
+    return [...c.rows.map(r => r.to), c.true ?? null, c.false].some(r => reaches(r, seen));
   };
-  walk(n.id, 0);
+  const names = new Set<string>();
+  if (w.starts.some(s => refCard(s.to) && reaches(s.to))) names.add(tr('조건 카드'));
   // A transition shared by many actions is one card on the canvas: name every action whose link leads here.
   for (const l of w.links)
-    if ((l.to === a.uid || l.partnerTo === a.uid) && l.from !== a.uid) {
+    if ((l.to === a.uid || l.partnerTo === a.uid || (l.card && reaches({card: l.card}))) && l.from !== a.uid) {
       const from = w.actions.find(x => x.uid === l.from);
       if (from) names.add(from.config.name || from.config.actionId);
     }
-  // A QTE whose result starts this action (10-20: an event's QTE belongs to no action, so its line was not seen and
-  // the card read "no way to start"): named by its action, or by the event that asks it.
+  // A carry's putdown: its key on the carrying pair starts it.
+  for (const x of w.actions)
+    if (x.pair?.carry?.putdownAction === a.uid && x.uid !== a.uid) names.add(x.config.name || x.config.actionId);
+  // A QTE whose result starts this action: named by its action, or by the event that asks it.
   for (const q of w.qtes ?? [])
-    if (Object.values(q.results).some(r => r.mode === 'transition' && (r.to === a.uid || r.partnerTo === a.uid))) {
+    if (
+      Object.values(q.results).some(
+        r => r.mode === 'transition' && (r.to === a.uid || r.partnerTo === a.uid || (r.card && reaches({card: r.card})))
+      )
+    ) {
       const owner = w.actions.find(x => x.uid === q.owner);
       if (owner && owner.uid !== a.uid) names.add(owner.config.name || owner.config.actionId);
       else if (q.eventStart !== undefined) names.add(tr('이벤트 {v0} QTE', {v0: q.eventStart || tr('미지정')}));
@@ -70,7 +67,7 @@ export function startRow(
     const list = [...names];
     return {
       tone: 'via',
-      text: tr('← 전환으로만 ({v0})', {
+      text: tr('전환으로만 ({v0})', {
         v0: list[0] + (list.length > 1 ? tr(' 외 {v0}', {v0: list.length - 1}) : ''),
       }),
     };

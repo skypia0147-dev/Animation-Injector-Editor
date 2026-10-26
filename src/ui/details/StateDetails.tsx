@@ -19,7 +19,6 @@ import {Property as Prop} from './Property.tsx';
 import {TimeField} from './TimeField.tsx';
 import {EventPicker} from './EventPicker.tsx';
 import {StepFiles, ViewFields, type ViewRow} from './ViewFields.tsx';
-import {KeyField} from './KeyField.tsx';
 import {markerNames} from './markerCatalog.ts';
 import {ClipWindowFields, ExitField} from './ClipWindowFields.tsx';
 import {AnglePreview} from './AnglePreview.tsx';
@@ -64,16 +63,9 @@ export function StateDetails({
   const camera: CameraRestore = a.camera ?? {...defaultCamera(), reset: w.globals.cameraReset ?? ''},
     setCamera = (c: CameraRestore) => change({...a, camera: c});
   const patch = (v: Partial<Project>) => change({...a, config: {...p, ...v}}),
-    start = (v: Partial<Project['start']>) =>
-      change({
-        ...a,
-        config: {...p, start: {...p.start, ...v}},
-        pair: pair && v.mode && v.mode !== 'event' ? {...pair, target: 'nearest'} : pair,
-      }),
     pp = (v: Partial<Pair>) => {
       if (pair) change({...a, pair: {...pair, ...v}});
     };
-  const input = p.inputs.find(i => i.id === p.start.input);
   // View settings touch the workspace (the asset library); without `edit` only this action changes.
   const editAll = edit ?? ((f: (w: Workspace) => Workspace) => change(f(w).actions.find(x => x.uid === a.uid) ?? a));
   const detailRow: ViewRow = (id, label, control, hint) => (
@@ -99,11 +91,8 @@ export function StateDetails({
     <DetailPanel>
       {/* In the HKX card (integrated) 재생 설정 is item rows (docs/mockup-playback-settings): the kind and the file
           are the card's top, finding the partner and the pair play are its features. */}
-      {integrated ? (
-        <Category sectionId="playback" group="playback" title={tr('이름')} summary={p.name}>
-          <Prop id="name" value={p.name} change={name => patch({name})} />
-        </Category>
-      ) : (
+      {/* In the HKX card the name is the card's head; it is edited under 식별 정보 (docs/mockup-card-layout). */}
+      {integrated ? null : (
         <Category
           sectionId="playback"
           group="playback"
@@ -201,70 +190,12 @@ export function StateDetails({
         )}
       </Category>
       <Category
-        sectionId="start-input"
-        title={t('node.keyInput')}
-        summary={t('detail.' + (p.start.mode === 'none' ? 'external' : p.start.mode))}
-      >
-        <Prop
-          id="mode"
-          value={p.start.mode}
-          initial="none"
-          change={mode => start({mode})}
-          options={['none', 'input', 'event'].map(v => [v, t('detail.' + (v === 'none' ? 'external' : v))])}
-        />
-        {p.start.mode === 'input' && (
-          <>
-            <Prop
-              id="input"
-              value={p.start.input}
-              change={input => start({input})}
-              options={p.inputs.map(i => [i.id, i.label])}
-            />
-            {input && (
-              <DetailRow id="input">
-                <KeyField
-                  value={input.key}
-                  gamepad={input.gamepad}
-                  change={key => patch({inputs: p.inputs.map(i => (i.id === input.id ? {...i, key} : i))})}
-                  changeGamepad={gamepad =>
-                    patch({inputs: p.inputs.map(i => (i.id === input.id ? {...i, gamepad} : i))})
-                  }
-                />
-              </DetailRow>
-            )}
-            <Prop id="onRelease" value={p.start.onKeyUp} initial={false} change={onKeyUp => start({onKeyUp})} />
-          </>
-        )}
-      </Category>
-      {p.start.mode === 'event' && (
-        <Category sectionId="start-event" title={t('node.markerReceive')} summary={p.start.event}>
-          <Prop id="marker" value={p.start.event} change={event => start({event})}>
-            <EventPicker
-              label={labelText('marker')}
-              value={p.start.event}
-              events={markerNames(w)}
-              change={event => start({event})}
-            />
-          </Prop>
-          <Prop
-            id="sender"
-            value={p.start.actor}
-            initial="both"
-            change={actor => start({actor})}
-            options={['player', 'npc', 'both'].map(v => [v, t('detail.' + v)])}
-          />
-        </Category>
-      )}
-      <Category
         sectionId="state-condition"
         title={t('node.stateCondition')}
-        summary={
-          t('detail.' + (p.air === 'deny' ? 'ground' : p.air === 'only' ? 'air' : 'both')) +
-          (p.cooldown ? ' · ' + p.cooldown + tr('초') : '')
-        }
+        summary={t('detail.' + (p.air === 'deny' ? 'ground' : p.air === 'only' ? 'air' : 'both'))}
       >
-        {/* 시작 제한 (runtime 0.12.276): the action's own nature, on every way in. A state check (weapon, attacking,
-            stamina) is a condition branch's test. */}
+        {/* The HKX's air rule, on every way in (format 5: a cooldown is its start's, on the start card). A state
+            check (weapon, attacking, stamina) is a condition branch's test. */}
         <Prop
           id="location"
           value={p.air}
@@ -276,9 +207,10 @@ export function StateDetails({
             ['allow', t('detail.both')],
           ]}
         />
-        {number('cooldown', 'cooldown')}
         <p className="effect-note">
-          {tr('어느 경로로 와도 적용됩니다. 무기·공격 중·스태미나 검사는 조건 분기에서 합니다.')}
+          {tr(
+            '어느 경로로 와도 적용됩니다. 쿨다운은 시작 카드에서 정합니다. 무기·공격 중·스태미나 검사는 조건 분기에서 합니다.'
+          )}
         </p>
       </Category>
       {p.fireArrow && !pair && (
@@ -463,16 +395,6 @@ export function StateDetails({
               {pairNumber('range', 'range', 10000, 1)}
               {pairNumber('angle', 'angle', 360, 5)}
               <AnglePreview angle={pair.angle} />
-              <Prop
-                id="target"
-                value={pair.target}
-                initial="nearest"
-                change={target => pp({target})}
-                options={[
-                  ['nearest', t('detail.nearest')],
-                  ...(p.start.mode === 'event' ? [['combatTarget', t('detail.combatTarget')] as [string, string]] : []),
-                ]}
-              />
             </Category>
           )}
           {!integrated && (
@@ -485,7 +407,6 @@ export function StateDetails({
               {pairCheck('lossBlend', 'lossEnabled')}
               {pairNumber('blend', 'lossBlend', 5)}
               {pairCheck('interruptOnThirdPartyHit', 'interruptOnThirdPartyHit')}
-              {pairCheck('enabled', 'effectsEnabled')}
             </Category>
           )}
           <CarryFields action={a} w={w} change={change} edit={edit} focused={!!focused} compact={integrated} />
@@ -534,7 +455,6 @@ export function StateDetails({
                 ...a,
                 cameraEnabled,
                 camera,
-                pair: a.pair && cameraEnabled ? {...a.pair, effectsEnabled: true} : a.pair,
               })
             }
           />
@@ -600,6 +520,7 @@ export function StateDetails({
         />
       </Category>
       <Category sectionId="identifiers" group="info" title={tr('식별 정보')} summary={p.actionId} initialOpen>
+        {integrated && <Prop id="name" value={p.name} change={name => patch({name})} />}
         <Prop id="internalId" label="Action ID" value={p.actionId} change={actionId => patch({actionId})} />
         {integrated &&
           p.steps

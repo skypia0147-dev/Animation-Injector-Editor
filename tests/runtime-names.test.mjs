@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {runtimeNameUses, runtimeEventNames, runtimeFixedNames} from '../src/runtimeNames.ts';
 import {runtimeSource, needsRuntimeSource} from './local.mjs';
@@ -15,10 +15,10 @@ test('a sample project uses no runtime name', () => {
   assert.deepEqual(runtimeNameUses(s4sample()), []);
 });
 
-test('a shared runtime event typed as an event name warns on its action, ignoring case', () => {
+test('a shared runtime event typed as an event name warns on its start card, ignoring case', () => {
   const w = s4sample();
-  w.actions[0].config.start.event = 'ai_pairenterlead';
-  const found = warnings(w).filter(i => i.node === 'a1');
+  Object.assign(w.starts[0], {mode: 'event', key: '', event: 'ai_pairenterlead'});
+  const found = warnings(w).filter(i => i.node === w.starts[0].uid);
   assert.equal(found.length, 1);
   assert.ok(found[0].message.includes("'AI_PairEnterLead'") && found[0].message.includes('공용 이벤트'));
   assert.ok(compileWorkspace(w), 'a warning never blocks the output');
@@ -37,19 +37,17 @@ test('every field is read: links, cancel lists, project events and globals', () 
   assert.ok(nodes.includes('a2'), 'event: entries of a comma list');
 });
 
-test('fixed variable and state names get the milder message; near names and drafts pass', () => {
+test('fixed variable and state names get the milder message; near names pass', () => {
   const w = s4sample();
   w.links[0].event = 'iAI_PairState';
   const [only] = runtimeNameUses(w);
   assert.ok(only.message.includes('고정 이름') && !only.message.includes('공용 이벤트'));
   w.links[0].event = 'AI_PairEnterLeadX';
-  w.drafts = [{id: 'd1', kind: 'event', event: 'AI_PairEnterLead'}];
   assert.deepEqual(runtimeNameUses(w), []);
 });
 
 test('one warning per name and place', () => {
   const w = s4sample();
-  w.actions[0].config.start.event = 'AI_PairEnterLead';
   w.actions[0].config.events = ['AI_PairEnterLead', 'AI_PAIRENTERLEAD'];
   assert.equal(runtimeNameUses(w).length, 1);
   assert.equal(runtimeEventNames.length, 4);

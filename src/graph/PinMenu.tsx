@@ -116,7 +116,9 @@ export function PinMenu({
             )}
             {groups.map(g => (
               <div key={g} role="group" aria-label={g}>
-                <div className="pin-menu-group">{g}</div>
+                <div className="pin-menu-group">
+                  {g} · {shown.filter(t => t.group === g).length}
+                </div>
                 {shown
                   .filter(t => t.group === g)
                   .map(t => (

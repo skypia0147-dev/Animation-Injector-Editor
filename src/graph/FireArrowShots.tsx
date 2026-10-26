@@ -14,7 +14,7 @@ import {
   setShotWay,
   shotWay,
 } from './fireArrowMoments.ts';
-import {RegistryLink, WhenSwitch, useClipBar} from './MomentFields.tsx';
+import {EventLink, WhenSwitch, useClipBar} from './MomentFields.tsx';
 import {ClipBar} from './ClipBar.tsx';
 import {barToSeconds} from './clipBar.ts';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
@@ -84,10 +84,8 @@ export function FireArrowShots({
           {timing.shots.map(shot => (
             <div key={shot.fn.id} className="fire-shot-line">
               <span>
-                {tr('이벤트')} <code className="fire-shot-event">{shot.name}</code>{' '}
-                {tr('{seconds}초', {seconds: shot.time.toFixed(2)})}
+                {tr('이벤트')} <EventLink event={shot.name} /> {tr('{seconds}초', {seconds: shot.time.toFixed(2)})}
               </span>
-              <RegistryLink event={shot.name} />
             </div>
           ))}
           {f.at && (
@@ -150,9 +148,8 @@ export function FireArrowShots({
         <div className="moment-line">
           <span className="moment-label">{tr('이벤트')}</span>
           <span className="moment-inline">
-            <code>{shot.name}</code>
+            <EventLink event={shot.name} />
             <span className="moment-unit">· {tr('{seconds}초', {seconds: shot.time.toFixed(2)})}</span>
-            <RegistryLink event={shot.name} />
           </span>
         </div>
       )}

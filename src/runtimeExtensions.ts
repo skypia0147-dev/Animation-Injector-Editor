@@ -1,5 +1,6 @@
 import type {Project, Step} from './model.ts';
 import {tr} from './i18n/korean.ts';
+import {isGameControl} from './keys.ts';
 /** A new action shot: on the attack button's release, no clip time (an event shot is a registry function). */
 export const defaultFireArrow = (): {at: null; onRelease: boolean} => ({at: null, onRelease: true});
 export type Suppression = {events: string[]; when: 'startable' | 'active' | 'both'};
@@ -66,6 +67,9 @@ export function stripExtensions(value: any): unknown {
     ...value,
     ...(value.start ? {start: {...value.start}} : {}),
     ...(Array.isArray(value.steps) ? {steps: value.steps.map((s: Step) => ({...s}))} : {}),
+    ...(Array.isArray(value.inputs)
+      ? {inputs: value.inputs.map((i: unknown) => (i && typeof i === 'object' ? {...i} : i))}
+      : {}),
   };
   const fail = () => {
     throw Error(tr('런타임 확장 설정의 형식이 잘못되었습니다.'));
@@ -82,6 +86,13 @@ export function stripExtensions(value: any): unknown {
     m.event.length <= 1024 &&
     typeof m.fallback === 'boolean' &&
     ['seconds', 'end'].includes(m.fallbackBasis);
+  // An input's game control (runtime 0.12.292): one of keys.ts gameControls, with no key or button.
+  for (const i of Array.isArray(p?.inputs) ? p.inputs : [])
+    if (i && typeof i === 'object' && i.control !== undefined) {
+      if (!isGameControl(i.control) || i.key || i.gamepad) fail();
+      delete i.control;
+      i.key = 'Num0';
+    }
   // Optional one-point slot {at: Mark}; the action shot {at: Mark | null, onRelease}.
   if (p?.carryRelease !== undefined) {
     const f = p.carryRelease;

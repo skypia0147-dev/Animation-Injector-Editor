@@ -167,7 +167,10 @@ export function viewIssues(w: Workspace): Issue[] {
         })
       );
     // Only an event start names its actor; an input start is the player's.
-    if (view === 'first' && a.config.start.mode === 'event' && a.config.start.actor === 'npc')
+    if (
+      view === 'first' &&
+      w.starts.some(s => s.mode === 'event' && s.actor === 'npc' && s.to && 'action' in s.to && s.to.action === a.uid)
+    )
       warn(
         a.uid,
         tr('{v0}: NPC는 1인칭 동작을 재생하지 않습니다. 시작 대상을 플레이어로 바꾸거나 인칭을 바꾸세요.', {
@@ -207,12 +210,5 @@ export function viewIssues(w: Workspace): Issue[] {
       to = w.actions.find(a => a.uid === l.to);
     if (from && to) follows(from, to, l.id);
   }
-  for (const a of w.actions)
-    for (const test of a.flow?.tests ?? [])
-      for (const edge of [test.pass, test.fail])
-        if (edge && 'action' in edge && edge.action) {
-          const to = w.actions.find(x => x.uid === edge.action);
-          if (to) follows(a, to, a.uid);
-        }
   return out;
 }

@@ -27,5 +27,3 @@ export function commandSummary(payload: string): string | undefined {
   const c = parseCommand(payload);
   return c && tr('카메라 흔들림 · 세기 {s} · {d}초', {s: c.strength, d: c.duration});
 }
-/** The annotation text for a shake. */
-export const camShakeText = (strength: number, duration: number) => `${commandEvent}.CamShake|${strength}|${duration}`;

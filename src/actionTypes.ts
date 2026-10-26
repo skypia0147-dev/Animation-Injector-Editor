@@ -93,7 +93,6 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
           });
         }
       }
-      pair.effectsEnabled = pairTrackKeys.some(k => pair!.timeline[k].enabled);
       for (const slot of Object.values(p.slots)) slot.enabled = false;
       p.cost.enabled = false;
     } else if (a.pair) {
@@ -111,15 +110,12 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
     'inputs',
     'events',
     'air',
-    'cooldown',
     'enterBlend',
     'exitBlend',
     'exit',
     'recovery',
   ] as const)
     Object.assign(p, {[key]: clone(old[key])});
-  p.start = clone(old.start);
-  if (kind === 'pair' && p.start.mode !== 'event') pair!.target = 'nearest';
   if (cached?.clipWindows) a.clipWindows = clone(cached.clipWindows);
   else delete a.clipWindows;
   a.config = p;

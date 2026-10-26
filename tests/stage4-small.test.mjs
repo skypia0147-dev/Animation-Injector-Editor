@@ -16,16 +16,21 @@ mkdirSync(out, {recursive: true});
 const sameForRuntime = (name, source, w) => {
   writeFileSync(`${out}/${name}-source.xml`, source);
   writeFileSync(`${out}/${name}-editor.xml`, compileWorkspace(w));
-  execFileSync(checker, ['--compare', `${out}/${name}-source.xml`, `${out}/${name}-editor.xml`], {stdio: 'pipe'});
+  execFileSync(checker, ['--compare-starts', `${out}/${name}-source.xml`, `${out}/${name}-editor.xml`], {
+    stdio: 'pipe',
+  });
 };
 const roundtrip = w => parseWorkspace(JSON.stringify(captureGraph(w)));
 const errors = w => validateWorkspace(w).filter(i => i.level === 'error');
 
-const CANCELS = `<AnimationSet version="4" id="Cancels">
-  <Inputs><Input id="use" key="E"/></Inputs>
-  <Action id="Dodge" clip="Animations\\Test\\Dodge.hkx"><Start input="use"/>
-    <Cancel id="dodgeOut" to="vanilla:Attack"/>
-    <Cancel id="late" to="vanilla:Block"><Window from="0.2" until="end-0.1" buffer="false"/></Cancel>
+const CANCELS = `<AnimationSet version="6" id="Cancels">
+  <Inputs>
+    <Input id="use" key="E"/>
+  </Inputs>
+  <Start input="use" to="Dodge"/>
+  <Action id="Dodge" clip="Animations\\Test\\Dodge.hkx">
+    <Vanilla id="dodgeOut" to="Attack"/>
+    <Vanilla id="late" to="Block" from="0.2" until="end-0.1" buffer="false"/>
   </Action>
 </AnimationSet>`;
 
@@ -36,11 +41,11 @@ test('a vanilla cancel keeps its own XML id and an always-open window (G6, G11)'
   assert.equal(timed.always, undefined);
   sameForRuntime('cancels', CANCELS, w);
   w = roundtrip(w);
-  // Open for the whole clip: no <Window> (format 4).
-  assert.match(compileWorkspace(w), /<Cancel id="dodgeOut" to="vanilla:Attack"\/>/);
+  // Open for the whole clip: no from, until or buffer (format 6).
+  assert.match(compileWorkspace(w), /<Vanilla id="dodgeOut" to="Attack"\/>/);
   // The XML id is set apart from the editor's key: the key stays, the file takes the given id.
   w.actions[0].cancels[1].xmlId = 'blockOut';
-  assert.match(compileWorkspace(w), /<Cancel id="blockOut" to="vanilla:Block">/);
+  assert.match(compileWorkspace(w), /<Vanilla id="blockOut" to="Block" /);
   assert.equal(w.actions[0].cancels[1].id, 'late');
   assert.equal(roundtrip(w).actions[0].cancels[1].xmlId, 'blockOut');
   // Two windows may not share an id (the runtime's window ids, case-insensitive), nor take an invalid one.
@@ -50,35 +55,25 @@ test('a vanilla cancel keeps its own XML id and an always-open window (G6, G11)'
   assert.ok(errors(w).some(e => /캔슬 창의 대상·ID/.test(e.message)));
 });
 
-test(
-  'always is gone (format 4): the omitted Window is the whole clip; an unnamed cancel is cancelN',
-  needsChecker,
-  () => {
-    assert.throws(
-      () =>
-        importWorkspaceXml(
-          CANCELS.replace(
-            '<Cancel id="dodgeOut" to="vanilla:Attack"/>',
-            '<Cancel id="dodgeOut" to="vanilla:Attack"><Window always="true"/></Cancel>'
-          )
-        ),
-      /always/
-    );
-    // The runtime names an unnamed cancel by its position; the editor keeps that name and does not write it.
-    const unnamed = CANCELS.replace('<Cancel id="dodgeOut" ', '<Cancel ');
-    const w = importWorkspaceXml(unnamed);
-    assert.equal(w.actions[0].cancels[0].id, 'cancel1');
-    assert.match(compileWorkspace(w), /<Cancel to="vanilla:Attack"\/>/);
-    sameForRuntime('unnamed-cancel', unnamed, w);
-  }
-);
+test('an unnamed vanilla cancel is cancelN', needsChecker, () => {
+  // The runtime names an unnamed cancel by its position; the editor keeps that name and does not write it.
+  const unnamed = CANCELS.replace('<Vanilla id="dodgeOut" ', '<Vanilla ');
+  const w = importWorkspaceXml(unnamed);
+  assert.equal(w.actions[0].cancels[0].id, 'cancel1');
+  assert.match(compileWorkspace(w), /<Vanilla to="Attack"\/>/);
+  sameForRuntime('unnamed-cancel', unnamed, w);
+});
 
-const QTES = `<AnimationSet version="4" id="Qtes">
-  <Inputs><Input id="use" key="E"/></Inputs>
-  <Action id="A" clip="Animations\\Test\\A.hkx"><Start input="use"/>
+const QTES = `<AnimationSet version="6" id="Qtes">
+  <Inputs>
+    <Input id="use" key="E"/>
+  </Inputs>
+  <Start input="use" to="A"/>
+  <Action id="A" clip="Animations\\Test\\A.hkx">
     <QTE id="Q1" at="0.5" key="E" anchor="screen"/>
   </Action>
-  <Action id="B" clip="Animations\\Test\\B.hkx"><Start event="GoB"/>
+  <Start event="GoB" to="B"/>
+  <Action id="B" clip="Animations\\Test\\B.hkx">
     <QTE id="Q1" at="0.4" key="E" anchor="center"/>
   </Action>
 </AnimationSet>`;
@@ -107,13 +102,22 @@ test(
   }
 );
 
-const CAMERA = `<AnimationSet version="4" id="Camera">
-  <Inputs><Input id="use" key="E"/></Inputs>
-  <EventRegistry><Event name="ResetA"/><Event name="ResetB"/></EventRegistry>
-  <Pair id="P1" clip="Animations\\Test\\P1.hkx"><Start input="use"/>
-    <Effects><Camera reset="ResetA" restore="event" timeout="10"/></Effects></Pair>
-  <Pair id="P2" clip="Animations\\Test\\P2.hkx"><Start event="GoP2"/>
-    <Effects><Camera reset="ResetA" restore="event" timeout="10"/></Effects></Pair>
+const CAMERA = `<AnimationSet version="6" id="Camera">
+  <Inputs>
+    <Input id="use" key="E"/>
+  </Inputs>
+  <EventRegistry>
+    <Event name="ResetA"/>
+    <Event name="ResetB"/>
+  </EventRegistry>
+  <Start input="use" to="P1"/>
+  <Pair id="P1" clip="Animations\\Test\\P1.hkx">
+    <Camera reset="ResetA" restore="event" timeout="10"/>
+  </Pair>
+  <Start event="GoP2" to="P2"/>
+  <Pair id="P2" clip="Animations\\Test\\P2.hkx">
+    <Camera reset="ResetA" restore="event" timeout="10"/>
+  </Pair>
 </AnimationSet>`;
 
 test('one pair restores the camera on its own event while the others keep the project one (G15)', needsChecker, () => {

@@ -1,19 +1,19 @@
-import {qteMembers, copyQteRules, uniqueQteGroup, remapQtePin} from './qteGroups.ts';
-import type {Workspace} from '../workspace.ts';
-import {addAction} from '../workspace.ts';
+import {qteMembers, copyQteRules, uniqueQteGroup} from './qteGroups.ts';
+import type {Workspace, Action} from '../workspace.ts';
+import {addAction, uid} from '../workspace.ts';
 import type {ViewGraph} from './navigation.ts';
-import {addFlat, addDetachedCondition, connectFlat, flatGraph, flatNode} from './flat.ts';
+import {addItem, conditionCardId, flatGraph, startCardId, transitionId} from './flat.ts';
 import {nodeSettings, applyNodeSettings} from './nodeSettings.ts';
-import {animId, blendNodes} from './blends.ts';
-import {draftWorkspace, draftScope} from './drafts.ts';
+import {animId} from './blends.ts';
 import {rows} from '../timeline/model.ts';
-import {readExpression, insertExpression} from './conditionExpression.ts';
 import {moveNodes, addComment, editComment, layoutKey} from './projection.ts';
-import {copyWorkspaceInto} from './copyWorkspace.ts';
-import {compactGraph, ruleNode} from './sharing.ts';
-import {tableProjection} from './conditionTables.ts';
-import {sourceWindow} from './clipWindows.ts';
+import {parseNodeId} from './nodeRef.ts';
+import {newCardUid, newStartUid, refAction, refCard, type Ref} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
+
+// Copying cards (XML format 6): HKX cards with their items, start cards, condition cards, transitions, QTEs and notes.
+// A destination among the copied cards goes to its copy; one outside them keeps going where it went, when that is in
+// the document pasted into.
 
 export type NodeClipboard = {
   format: 'ai-nodes-1';
@@ -28,19 +28,12 @@ export function setNodeClipboard(value: NodeClipboard) {
 }
 export function copyNodes(w: Workspace, g: ViewGraph, ids: string[]): NodeClipboard {
   const selected = new Set(ids),
-    nodes = g.nodes.filter(n => selected.has(n.id) && n.kind !== 'entry');
-  if (!nodes.length) throw Error(tr('복사할 카드를 선택하세요. 진입 카드는 하나만 사용합니다.'));
-  const complete = tableProjection(w, compactGraph(w, flatGraph(w))).nodes.every(
-    n => n.kind === 'entry' || selected.has(n.id)
-  );
+    nodes = g.nodes.filter(n => selected.has(n.id) && n.kind !== 'entry' && n.kind !== 'eventRegistry');
+  if (!nodes.length) throw Error(tr('복사할 카드를 선택하세요.'));
   return structuredClone({
     format: 'ai-nodes-1',
     workspace: w,
-    complete,
-    graph: {
-      nodes,
-      edges: g.edges.filter(e => selected.has(e.source) && selected.has(e.target) && !e.id.startsWith('operand:')),
-    },
+    graph: {nodes, edges: g.edges.filter(e => selected.has(e.source) && selected.has(e.target))},
   });
 }
 export function pasteNodes(
@@ -51,311 +44,168 @@ export function pasteNodes(
 ): {workspace: Workspace; ids: string[]} {
   if (clip.format !== 'ai-nodes-1' || !clip.graph.nodes.length || clip.graph.nodes.length > 1000)
     throw Error(tr('지원하지 않는 카드 클립보드입니다.'));
-  if (clip.complete && !clip.cardItems && sourceCompatible(w, clip.workspace))
-    return copyWorkspaceInto(w, clip.workspace, clip.graph, at);
   let n = structuredClone(w);
-  const source = clip.workspace,
-    map = new Map<string, string>(),
-    owners = new Map<string, string>();
-  const cardCopies: {
-    old: Workspace['actions'][number];
-    copy: Workspace['actions'][number];
-    step: string;
-    source: string;
-    target: string;
-  }[] = [];
+  const source = clip.workspace;
+  const actions = new Map<string, string>(),
+    cards = new Map<string, string>(),
+    map = new Map<string, string>();
   const ox = Math.min(...clip.graph.nodes.map(n => n.position.x)),
     oy = Math.min(...clip.graph.nodes.map(n => n.position.y));
   const position = (node: ViewGraph['nodes'][number]) => ({
     x: at.x + node.position.x - ox,
     y: at.y + node.position.y - oy,
   });
-  // Playback contexts are duplicated first. Only their own playback settings are copied.
+  const items = new Set(clip.cardItems ?? []);
+  // HKX cards: the whole action (its features and moments come with it).
   for (const node of clip.graph.nodes.filter(n => n.kind === 'hkxPlay')) {
     const old = source.actions.find(a => a.uid === node.action);
-    if (!old) throw Error(tr('원본 재생 설정을 찾지 못했습니다.'));
-    if (clip.cardItems && owners.has(old.uid)) {
-      map.set(node.id, animId(owners.get(old.uid)!, 'clip_' + node.step));
-      continue;
+    if (!old || actions.has(old.uid)) continue;
+    const fresh = addAction(n, old.pair ? 'pair' : 'single');
+    const copy: Action = {
+      ...structuredClone(old),
+      uid: fresh.uid,
+      position: position(node),
+      config: {...structuredClone(old.config), actionId: fresh.config.actionId, name: old.config.name + tr(' 복사')},
+    };
+    n.actions.push(copy);
+    actions.set(old.uid, copy.uid);
+    const id = animId(copy.uid, 'clip_' + copy.config.entry);
+    map.set(node.id, id);
+    // Its timeline layout and its parameters.
+    const timeline = source.layout['timeline_' + layoutKey(old.uid)];
+    if (timeline) n.layout['timeline_' + layoutKey(copy.uid)] = structuredClone(timeline);
+    for (const p of source.parameters.filter(p => p.action === old.uid)) {
+      let pid = p.id + '_copy',
+        index = 2;
+      while (n.parameters.some(p => p.id === pid)) pid = p.id + '_copy' + index++;
+      n.parameters.push({...structuredClone(p), id: pid, action: copy.uid});
     }
-    const r = addFlat(n, '', 'playNode', position(node));
-    n = r.workspace;
-    const a = n.actions.at(-1)!;
-    if (clip.cardItems) {
-      const selectedSteps = new Set(
-        clip.graph.nodes.filter(v => v.kind === 'hkxPlay' && v.action === old.uid).map(v => v.step)
-      );
-      const steps = old.config.steps.filter(s => selectedSteps.has(s.id));
-      const step = steps.find(s => s.id === old.config.entry) ?? steps[0];
-      const copy = {
-        ...structuredClone(old),
-        uid: a.uid,
-        nodeAuthored: true,
-        position: a.position,
-        config: {
-          ...structuredClone(old.config),
-          actionId: a.config.actionId,
-          name: old.config.name + tr(' 복사'),
-          entry: step.id,
-          steps: structuredClone(steps),
-          start: {...structuredClone(old.config.start), mode: 'none' as const},
-        },
-      };
-      delete copy.flow;
-      copy.clipWindows = Object.fromEntries(steps.map(s => [s.id, structuredClone(sourceWindow(old, s.id).value)]));
-      if (copy.pair?.carry) copy.pair.carry.putdownAction = '';
-      n.actions[n.actions.length - 1] = copy;
-      const target = animId(copy.uid, 'clip_' + node.step);
-      owners.set(old.uid, copy.uid);
-      map.set(node.id, target);
-      cardCopies.push({old, copy, step: step.id, source: node.id, target});
-      continue;
-    }
-    if (old.pair) {
-      a.pair = structuredClone(old.pair);
-      a.pair.effects = [];
-      a.pair.effectsEnabled = false;
-      delete a.pair.carry;
-      for (const value of Object.values(a.pair.timeline))
-        if (value && typeof value === 'object' && 'enabled' in value) value.enabled = false;
-    }
-    const step = old.config.steps.find(s => s.id === node.step) ?? old.config.steps[0];
-    a.config.steps = [{...structuredClone(step), id: a.config.entry}];
-    delete a.config.steps[0].recovery;
-    a.config.name = old.config.name + tr(' 복사');
-    a.config.kind = 'single';
-    const settings = nodeSettings(source, node.id);
-    if (settings) applyNodeSettings(n, r.id, settings);
-    owners.set(old.uid, a.uid);
-    map.set(node.id, r.id);
   }
-  const routeOwner = (id?: string) => owners.get(id ?? '') ?? owner ?? n.actions[0]?.uid;
-  for (const node of clip.graph.nodes.filter(n => n.kind !== 'hkxPlay' && !clip.cardItems?.includes(n.id))) {
-    const a = source.drafts?.find(d => d.id === node.id)?.value ?? source.actions.find(a => a.uid === node.action),
-      dest = routeOwner(node.action);
-    let id = '';
-    if (node.kind === 'qte') {
-      const rules = qteMembers(source, node.id);
-      if (!rules.length) throw Error(tr('원본 QTE를 찾지 못했습니다.'));
+  for (const a of n.actions)
+    if (a.pair?.carry && [...actions.values()].includes(a.uid))
+      a.pair.carry.putdownAction =
+        actions.get(a.pair.carry.putdownAction) ??
+        (n.actions.some(x => x.uid === a.pair!.carry!.putdownAction) ? a.pair.carry.putdownAction : '');
+  // Condition cards first named (their copies' uids), then filled (they may go to one another).
+  const cardNodes = clip.graph.nodes.filter(x => parseNodeId(x.id).kind === 'conditionCard');
+  for (const node of cardNodes) {
+    const old = (parseNodeId(node.id) as {uid: string}).uid;
+    const fresh = newCardUid(n);
+    n.cards.push({uid: fresh, tests: [], guards: [], rows: [], false: null, position: position(node)});
+    cards.set(old, fresh);
+    map.set(node.id, conditionCardId(fresh));
+  }
+  const remap = (r: Ref): Ref => {
+    const a = refAction(r),
+      c = refCard(r);
+    if (a) return actions.has(a) ? {action: actions.get(a)!} : n.actions.some(x => x.uid === a) ? r : null;
+    if (c) return cards.has(c) ? {card: cards.get(c)!} : n.cards.some(x => x.uid === c) ? r : null;
+    return null;
+  };
+  const copied = (r: Ref): Ref => {
+    const a = refAction(r),
+      c = refCard(r);
+    return a && actions.has(a) ? {action: actions.get(a)!} : c && cards.has(c) ? {card: cards.get(c)!} : null;
+  };
+  for (const [old, fresh] of cards) {
+    const o = source.cards.find(c => c.uid === old)!,
+      c = n.cards.find(c => c.uid === fresh)!;
+    c.tests = structuredClone(o.tests);
+    c.guards = [...o.guards];
+    c.rows = o.rows.map(r => ({...r, guards: [...r.guards], to: remap(r.to)}));
+    if (o.true !== undefined) c.true = remap(o.true);
+    c.false = remap(o.false);
+  }
+  for (const node of clip.graph.nodes) {
+    const ref = parseNodeId(node.id);
+    if (ref.kind === 'startCard') {
+      const o = source.starts.find(s => s.uid === ref.uid);
+      if (!o) continue;
+      const fresh = newStartUid(n);
+      n.starts.push({...structuredClone(o), uid: fresh, xmlId: undefined, to: remap(o.to), position: position(node)});
+      map.set(node.id, startCardId(fresh));
+    } else if (ref.kind === 'transition') {
+      const o = source.links.find(l => l.id === ref.link);
+      // A transition is its source's: copied with its HKX card (or pasted onto the HKX chosen).
+      const from = o && (actions.get(o.from) ?? (owner && n.actions.some(a => a.uid === owner) ? owner : ''));
+      if (!o || !from) continue;
+      const id = uid(
+        'link',
+        n.links.map(l => l.id)
+      );
+      const to = remap(o.card ? {card: o.card} : o.to ? {action: o.to} : null);
+      const a = n.actions.find(a => a.uid === from)!,
+        input = source.actions.find(x => x.uid === o.from)?.config.inputs.find(i => i.id === o.input);
+      let inputId = o.input;
+      if (
+        input &&
+        !a.config.inputs.some(
+          i => i.id === input.id && i.key === input.key && i.gamepad === input.gamepad && i.control === input.control
+        )
+      ) {
+        let k = 1;
+        while (a.config.inputs.some(i => i.id === 'binding' + k)) k++;
+        inputId = 'binding' + k;
+        a.config.inputs.push({...structuredClone(input), id: inputId});
+      }
+      n.links.push({
+        ...structuredClone(o),
+        id,
+        from,
+        to: refAction(to),
+        card: refCard(to) || undefined,
+        input: inputId,
+        partnerTo: actions.get(o.partnerTo) ?? (n.actions.some(x => x.uid === o.partnerTo) ? o.partnerTo : ''),
+        position: position(node),
+      });
+      map.set(node.id, transitionId(id));
+    } else if (node.kind === 'qte') {
+      const all = qteMembers(source, node.id);
+      if (!all.length) continue;
+      // The rules of the HKX cards copied with it; without them one unattached rule per kind of rule.
+      const keys = new Set<string>();
+      const rules = all.some(q => actions.has(q.owner))
+        ? all.filter(q => actions.has(q.owner))
+        : all.filter(q => {
+            const {id: _, owner: _o, step: _s, ...value} = q,
+              key = JSON.stringify(value);
+            if (keys.has(key)) return false;
+            keys.add(key);
+            return true;
+          });
       const group = rules[0].group ? uniqueQteGroup(n, rules[0].group + tr(' 복사')) : undefined;
-      const keys = new Set<string>(),
-        template = rules.filter(q => {
-          const {id, owner, step, ...value} = q,
-            key = JSON.stringify(value);
-          if (keys.has(key)) return false;
-          keys.add(key);
-          return true;
-        });
-      const added = copyQteRules(n, template, group);
-      id = 'qte:' + added[0].id;
-      for (let i = 0; i < template.length; i++) map.set('qte:' + template[i].id, 'qte:' + added[i].id);
-      for (const q of added)
-        for (const value of Object.values(q.results)) {
-          if (value.mode === 'transition') {
-            value.mode = 'continue';
-            value.to = '';
-            value.partnerTo = '';
+      const added = copyQteRules(n, rules, group);
+      for (const [i, q] of added.entries()) {
+        q.owner = actions.get(rules[i].owner) ?? '';
+        q.step = q.owner ? (n.actions.find(a => a.uid === q.owner)?.config.entry ?? '') : '';
+        // A result goes on to what was copied with it.
+        for (const r of Object.values(q.results))
+          if (r.mode === 'transition') {
+            const to = copied(r.card ? {card: r.card} : r.to ? {action: r.to} : null);
+            r.to = refAction(to);
+            r.card = refCard(to) || undefined;
+            r.partnerTo = actions.get(r.partnerTo) ?? '';
+            if (!r.to && !r.card) Object.assign(r, {mode: 'continue', to: '', partnerTo: ''});
           }
-        }
-      n = moveNodes(n, {kind: 'root'}, {[id]: position(node)});
+      }
+      map.set(node.id, 'qte:' + added[0].id);
     } else if (node.kind === 'comment') {
       const r = addComment(n, {kind: 'root'}, position(node));
       n = editComment(r.workspace, {kind: 'root'}, r.id!, node.summary);
-      id = r.id!;
-    } else if (node.kind === 'conditionTable') {
-      const r = addFlat(n, dest, node.kind, position(node));
-      n = r.workspace;
-      id = r.id;
-      const d = n.drafts!.find(d => d.id === id)!;
-      {
-        if (!a?.flow) throw Error(tr('원본 조건 규칙을 찾지 못했습니다.'));
-        d.value.flow = structuredClone(a.flow);
-        for (const test of d.value.flow.tests) {
-          for (const port of ['pass', 'fail'] as const) {
-            const end = test[port];
-            if (end && 'action' in end) {
-              const mapped = owners.get(end.action);
-              if (mapped) test[port] = {action: mapped};
-              else delete test[port];
-            }
-          }
-          if (test.space) test.space.candidate = owners.get(test.space.candidate) ?? '';
-        }
-      }
-    } else if (node.kind === 'conditionBranch') {
-      if (!dest || !a?.flow) throw Error(tr('조건을 붙여넣을 HKX를 선택하거나 함께 복사하세요.'));
-      const key = node.id.split(':')[2];
-      const r = addDetachedCondition(n, dest, position(node));
-      n = r.workspace;
-      const f = n.actions.find(a => a.uid === dest)!.flow!;
-      const previous = new Set(f.tests.map(t => t.id));
-      const imported = insertExpression(f, readExpression(a.flow, key)),
-        t = f.tests.find(t => t.id === imported)!;
-      const placeholder = r.id.split(':')[2];
-      f.tests = f.tests.filter(t => t.id !== placeholder);
-      t.id = placeholder;
-      id = r.id;
-      for (const test of f.tests)
-        if ((!previous.has(test.id) || test.id === placeholder) && test.space)
-          test.space.candidate = owners.get(test.space.candidate) ?? '';
-    } else if (node.kind === 'blend') {
-      const r = addFlat(n, dest, 'blend', position(node));
-      n = r.workspace;
-      id = r.id;
-      n.blends!.find(b => b.id === id)!.seconds = blendNodes(source).find(b => b.id === node.id)!.seconds;
-    } else {
-      const draft = source.drafts?.find(d => d.id === node.id);
-      const row = a && rows(source, a).find(r => r.id === node.notify),
-        kind = draft?.kind ?? (row ? 'notify:' + row.kind : node.kind);
-      const context =
-        a?.pair && !n.actions.find(a => a.uid === dest)?.pair
-          ? {...n, actions: [...n.actions, {...a, uid: 'clipboardContext'}]}
-          : n;
-      const r = addFlat(context, context === n ? dest : 'clipboardContext', kind, position(node));
-      n = r.workspace;
-      if (context !== n) n.actions = n.actions.filter(a => a.uid !== 'clipboardContext');
-      id = r.id;
-      const d = n.drafts!.find(d => d.id === id)!;
-      d.owner = dest;
-      if (draft) {
-        d.value = structuredClone(draft.value);
-        d.kind = draft.kind;
-        d.local = draft.local;
-        d.notify = draft.notify;
-        d.from = '';
-        d.to = '';
-      } else if (a) {
-        if (a.pair && !d.value.pair) d.value = addAction({...n, actions: []}, 'pair');
-        if (node.kind === 'keyInput' || node.kind === 'markerReceive') {
-          const link =
-            node.scope.kind === 'link'
-              ? source.links.find(l => l.id === (node.scope as {link: string}).link)
-              : undefined;
-          const input = a.config.inputs.find(i => i.id === (link?.input ?? a.config.start.input));
-          d.value.config.start = {
-            ...d.value.config.start,
-            mode: node.kind === 'markerReceive' ? 'event' : 'input',
-            event: link?.event ?? a.config.start.event,
-          };
-          if (input) {
-            d.value.config.inputs = [structuredClone(input)];
-            d.value.config.start.input = input.id;
-          }
-        } else {
-          const settings = nodeSettings(source, node.id);
-          if (settings) {
-            const temp = draftWorkspace(n, d),
-              scope = draftScope(d),
-              target = d.notify
-                ? `notify:${d.value.uid}|${d.notify}`
-                : scope.kind === 'start'
-                  ? `start:${d.value.uid}|${d.local}`
-                  : animId(d.value.uid, d.local);
-            applyNodeSettings(temp, target, settings);
-            d.value = temp.actions[0];
-          }
-        }
-        if (d.value.pair?.carry) d.value.pair.carry.putdownAction = owners.get(d.value.pair.carry.putdownAction) ?? '';
-      }
-    }
-    map.set(node.id, id);
-  }
-  // Rebuild only internal wires. Draft attachment can change the visual identity.
-  const pending = clip.graph.edges.filter(
-    e => !clip.cardItems?.includes(e.source) && !clip.cardItems?.includes(e.target)
-  );
-  let passes = 0;
-  while (pending.length && passes++ <= clip.graph.edges.length) {
-    let progress = false,
-      last = '';
-    for (let i = pending.length - 1; i >= 0; i--) {
-      const e = pending[i],
-        s = map.get(e.source),
-        t = map.get(e.target);
-      if (!s || !t) {
-        pending.splice(i, 1);
-        continue;
-      }
+      map.set(node.id, r.id!);
+    } else if (node.kind !== 'hkxPlay' && !items.has(node.id) && node.action && owner && !actions.has(node.action)) {
+      // An item alone onto the chosen HKX card: its kind, with its settings.
+      const a = source.actions.find(a => a.uid === node.action);
+      const row = a && node.notify ? rows(source, a).find(r => r.id === node.notify) : undefined;
+      const kind = row ? 'notify:' + row.kind : node.kind === 'blend' ? 'blend' : node.original;
       try {
-        const before = flatGraph(n).nodes;
-        const next = connectFlat(n, s, t, remapQtePin(e.pin, map));
-        const after = flatGraph(next).nodes;
-        for (const [oldId, mapped] of map)
-          if (!after.some(n => n.id === mapped)) {
-            const previous = before.find(n => n.id === mapped);
-            if (!previous) continue;
-            const candidates = after.filter(n => !before.some(b => b.id === n.id) && n.kind === previous.kind);
-            if (candidates.length === 1) map.set(oldId, candidates[0].id);
-            else if (previous.kind === 'conditionTable') {
-              const owner = next.actions.find(a => a.flow && !n.actions.find(b => b.uid === a.uid)?.flow);
-              if (owner) map.set(oldId, 'conditionTable:' + owner.uid);
-            }
-          }
-        n = next;
-        pending.splice(i, 1);
-        progress = true;
-      } catch (err) {
-        last = String(err);
-      }
-    }
-    if (!progress) throw Error(tr('복사한 내부 연결을 복원하지 못했습니다: ') + last);
-  }
-  if (clip.cardItems) {
-    // Clone owned values directly; visual attachment wires are not independent objects.
-    const originals = blendNodes(source);
-    n.blends ??= blendNodes(n);
-    for (const c of cardCopies) {
-      const timeline = source.layout['timeline_' + layoutKey(c.old.uid)];
-      if (timeline) n.layout['timeline_' + layoutKey(c.copy.uid)] = structuredClone(timeline);
-      const ownedBlends = originals.filter(
-        b => clip.cardItems!.includes(b.id) && clip.graph.nodes.some(v => v.id === b.id && v.action === c.old.uid)
-      );
-      const local = (id: string) =>
-        ownedBlends.some(b => b.id === id)
-          ? `blend:${c.copy.uid}:copy:${id}`
-          : (map.get(id) ??
-            (id === c.old.uid
-              ? animId(c.copy.uid, 'clip_' + c.copy.config.entry)
-              : id.replace(`:${c.old.uid}:`, `:${c.copy.uid}:`).replace(`:${c.old.uid}|`, `:${c.copy.uid}|`)));
-      for (const b of ownedBlends) {
-        const target = b.target.endsWith('|outputPose') ? animId(c.copy.uid, 'outputPose') : c.target;
-        const start = target === c.target ? 'entry' : c.target;
-        const id = local(b.id);
-        n.blends = n.blends.filter(x => x.id !== id);
-        n.blends.push({id, source: start, target, seconds: b.seconds});
-      }
-      for (const id of clip.cardItems.filter(id => clip.graph.nodes.some(v => v.id === id && v.action === c.old.uid)))
-        map.set(id, local(id));
-      for (const p of source.parameters.filter(p => p.action === c.old.uid)) {
-        let id = p.id + '_copy',
-          index = 2;
-        while (n.parameters.some(p => p.id === id)) id = p.id + '_copy' + index++;
-        n.parameters.push({...structuredClone(p), id, action: c.copy.uid});
-      }
-      const oldCarry = c.old.pair?.carry;
-      if (c.copy.pair?.carry && oldCarry) c.copy.pair.carry.putdownAction = owners.get(oldCarry.putdownAction) ?? '';
-      const itemIds = new Set(
-        clip.graph.nodes.filter(v => clip.cardItems!.includes(v.id) && v.action === c.old.uid).map(v => v.id)
-      );
-      for (const cut of source.disconnections ?? []) {
-        const bindings = cut.bindings
-          .filter(
-            b =>
-              (itemIds.has(b.source) || itemIds.has(b.target)) &&
-              [b.source, b.target].every(id => !id.startsWith(`anim:${c.old.uid}:|clip_`) || map.has(id))
-          )
-          .map(b => ({...b, source: local(b.source), target: local(b.target)}));
-        if (bindings.length) {
-          n.disconnections ??= [];
-          n.disconnections.push({...cut, source: local(cut.source), target: local(cut.target), bindings});
-        }
-      }
-    }
-    for (const group of source.sharedRules ?? []) {
-      const members = group.members.map(m => map.get(ruleNode(group.kind, m, source))).filter((x): x is string => !!x);
-      if (members.length > 1) {
-        n.sharedRules ??= [];
-        n.sharedRules.push({kind: 'node', members});
+        const r = addItem(n, owner, kind, node.original === 'blendIn');
+        n = r.workspace;
+        const settings = nodeSettings(source, node.id);
+        if (settings) applyNodeSettings(n, r.id, settings);
+        map.set(node.id, r.id);
+      } catch {
+        /* An item the chosen card cannot take is left out. */
       }
     }
   }
@@ -365,8 +215,6 @@ export function pasteNodes(
     if (id) layout[id] = position(node);
   }
   n = moveNodes(n, {kind: 'root'}, layout);
-  return {workspace: n, ids: [...new Set(map.values())]};
-}
-function sourceCompatible(w: Workspace, s: Workspace) {
-  return w.id === s.id && JSON.stringify(w.parameters) === JSON.stringify(s.parameters);
+  const drawn = new Set(flatGraph(n).nodes.map(x => x.id));
+  return {workspace: n, ids: [...new Set(map.values())].filter(id => drawn.has(id) || id.startsWith('@'))};
 }

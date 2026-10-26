@@ -2,7 +2,8 @@
 // Injector repository, https://github.com/skypia0147-dev/Animation-Injector). They default to a checkout beside this
 // one (../AnimationInjector, built in build/Release); AIE_XMLCHECK and AIE_RUNTIME_SRC point elsewhere. A test that
 // needs one is skipped, with the reason, when it is missing.
-import {existsSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {dirname, join, resolve} from 'node:path';
 

@@ -1,16 +1,29 @@
 import {defaultFireArrow} from '../runtimeExtensions.ts';
 import {defaultCarry, defaultCarryFix} from '../carry.ts';
 import type {Workspace, Action} from '../workspace.ts';
-import {addAction, addLink, removeAction, defaultCamera} from '../workspace.ts';
+import {addAction, removeAction, defaultCamera} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
-import {clone, timingLabel, startLabel, mark, fireArrowLabel} from '../model.ts';
+import {clone, timingLabel, mark, fireArrowLabel} from '../model.ts';
 import type {NodeKind} from '../nodes/catalog.ts';
 import {t} from '../i18n/index.ts';
 import type {GraphRef} from './state.ts';
 import {graphId} from './state.ts';
 import {tr} from '../i18n/korean.ts';
 export type Pin =
-  `choice:${string}` | 'perfect' | 'pass' | 'fail' | 'trigger' | 'released' | 'condition' | 'pose' | 'partner';
+  | `choice:${string}`
+  | `row:${string}`
+  | 'true'
+  | 'false'
+  | 'perfect'
+  | 'pass'
+  | 'fail'
+  | 'trigger'
+  | 'released'
+  | 'condition'
+  | 'pose'
+  | 'partner';
+/** One end-to-end connection a drawn line stands for (a line through hidden items keeps the ones it joins). */
+export type Connection = {source: string; target: string; pin: string; targetPin?: string};
 export type GraphNode = {
   id: string;
   kind: NodeKind | 'comment';
@@ -24,7 +37,7 @@ export type GraphNode = {
   error?: boolean;
 };
 export type GraphEdge = {
-  origins?: import('./disconnect.ts').Connection[];
+  origins?: Connection[];
   id: string;
   source: string;
   target: string;
@@ -140,86 +153,11 @@ export function projectGraph(w: Workspace, g: GraphRef): {nodes: GraphNode[]; ed
         inputs: [],
         outputs: [],
       });
-  if (g.kind === 'root') {
-    add('entry', 'entry', '', -230, 40, {outputs: ['trigger']});
-    for (const a of w.actions) {
-      add(
-        a.uid,
-        'state',
-        a.config.steps[0]?.clip.split(/[\\/]/).at(-1) || t('graph.missingClip'),
-        a.position.x,
-        a.position.y,
-        {
-          title: a.config.name,
-          inputs: ['trigger'],
-          outputs: ['trigger'],
-          open: {kind: 'anim', action: a.uid},
-        }
-      );
-      if (a.config.start.mode !== 'none') {
-        const id = 'start_' + a.uid;
-        add(id, 'transition', startLabel(a.config), a.position.x - 135, a.position.y - 60, {
-          inputs: ['trigger'],
-          outputs: ['trigger'],
-          open: {kind: 'start', action: a.uid},
-        });
-        edge('entry', id);
-        edge(id, a.uid);
-      }
-    }
-    for (const l of w.links) {
-      const text =
-        l.mode === 'event'
-          ? l.event
-          : w.actions.find(a => a.uid === l.from)?.config.inputs.find(i => i.id === l.input)?.key;
-      add(l.id, 'transition', text || t('graph.emptyRule'), l.position.x, l.position.y, {
-        inputs: ['trigger'],
-        outputs: l.partnerTo ? ['trigger', 'partner'] : ['trigger'],
-        error: !text,
-        open: {kind: 'link', link: l.id},
-      });
-      edge(l.from, l.id);
-      edge(l.id, l.to);
-      if (l.partnerTo) edge(l.id, l.partnerTo, 'partner');
-    }
-    return {nodes, edges};
-  }
+  if (g.kind === 'root') return {nodes, edges};
   const a = graphAction(w, g);
   if (!a) return {nodes, edges};
   const p = a.config;
-  if (g.kind === 'start' || g.kind === 'link') {
-    const rule = g.kind === 'link' ? w.links.find(l => l.id === g.link) : undefined;
-    const mode = g.kind === 'start' ? p.start.mode : rule?.mode;
-    const input = g.kind === 'start' ? p.start.input : rule?.input;
-    const marker = g.kind === 'start' ? p.start.event : rule?.event;
-    if (mode !== 'none')
-      add(
-        mode === 'event' ? 'markerReceive' : 'keyInput',
-        mode === 'event' ? 'markerReceive' : 'keyInput',
-        mode === 'event' ? (marker ?? '') : (p.inputs.find(i => i.id === input)?.key ?? ''),
-        0,
-        0,
-        {outputs: mode === 'input' && g.kind === 'start' ? ['trigger', 'released'] : ['trigger']}
-      );
-    add('result', 'result', '', 650, 0, {
-      inputs: g.kind === 'start' ? ['trigger', 'condition'] : ['trigger'],
-    });
-    if (rule?.window) {
-      add('detectionWindow', 'detectionWindow', timingLabel(rule.open) + ' → ' + timingLabel(rule.close), 300, 0, {
-        inputs: ['trigger'],
-        outputs: ['trigger'],
-      });
-      edge(mode === 'event' ? 'markerReceive' : 'keyInput', 'detectionWindow');
-      edge('detectionWindow', 'result');
-    } else if (mode !== 'none') edge(mode === 'event' ? 'markerReceive' : 'keyInput', 'result');
-    if (g.kind === 'start') {
-      if (p.cooldown > 0 || p.air !== 'deny') {
-        add('stateCondition', 'stateCondition', t('node.stateCondition'), 260, 190, {outputs: ['condition']});
-        edge('stateCondition', 'result', 'condition');
-      }
-    }
-    return {nodes, edges};
-  }
+  if (g.kind === 'start' || g.kind === 'link') return {nodes, edges};
   const steps = g.step ? p.steps.filter(s => s.id === g.step) : p.steps;
   for (const [i, s] of steps.entries())
     add('clip_' + s.id, 'hkxPlay', s.clip.split(/[\\/]/).at(-1) || t('graph.missingClip'), 0, i * 180, {
@@ -243,8 +181,8 @@ export function projectGraph(w: Workspace, g: GraphRef): {nodes: GraphNode[]; ed
     pass('pairedPlay');
     edge('findPartner', 'pairedPlay', 'partner');
   }
-  if (a.enterBlendEnabled) pass('blendIn', String(p.enterBlend) + ' s');
-  if (a.exitBlendEnabled) pass('blendOut', String(p.exitBlend) + ' s');
+  if (a.enterBlendEnabled) pass('blendIn', String(p.enterBlend) + tr('초'));
+  if (a.exitBlendEnabled) pass('blendOut', String(p.exitBlend) + tr('초'));
   if (a.cameraEnabled && a.camera) pass('cameraRestore', cameraReset(w, a.camera));
   if (a.pair?.carry) {
     add('carry', 'carry', a.pair.carry.bone, x, 240, {inputs: ['trigger'], outputs: ['trigger']});
@@ -313,12 +251,26 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
     }
     if (kind === 'suppress') {
       if (remove) delete p.suppress;
-      else p.suppress ??= {events: [''], when: 'startable'};
+      else p.suppress ??= {events: [''], when: 'active'};
       return n;
     }
     if (kind === 'carry' && a.pair) {
       if (remove) delete a.pair.carry;
-      else a.pair.carry ??= defaultCarry(a);
+      else if (!a.pair.carry) {
+        a.pair.carry = defaultCarry(a);
+        // The putdown key: the pair's start key to begin with (its start card's), changed in the carry's details.
+        const start = n.starts.find(s => s.mode === 'input' && s.to && 'action' in s.to && s.to.action === a.uid);
+        if (!a.pair.carry.input && start) {
+          a.config.inputs.push({
+            id: 'PutDown',
+            label: tr('내려놓기'),
+            key: start.key,
+            gamepad: start.gamepad,
+            ...(start.control ? {control: start.control} : {}),
+          });
+          a.pair.carry.input = 'PutDown';
+        }
+      }
       return n;
     }
     if (kind === 'carryFix') {
@@ -338,7 +290,6 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
       a.cameraEnabled = !remove;
       if (!remove) {
         a.camera ??= {...defaultCamera(), reset: w.globals.cameraReset ?? ''};
-        if (a.pair) a.pair.effectsEnabled = true;
       }
     } else if (kind === 'hkxPlay') {
       for (const s of p.steps.filter(s => !g.step || s.id === g.step)) {
@@ -347,24 +298,9 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
       }
     } else throw Error(t('graph.requiredNode'));
   } else if (g.kind === 'start') {
-    if (kind === 'keyInput' || kind === 'markerReceive') {
-      p.start.mode = remove ? 'none' : kind === 'keyInput' ? 'input' : 'event';
-      if (!remove && kind === 'keyInput') p.start.input = p.inputs[0]?.id ?? '';
-    } else if (kind === 'stateCondition') {
-      // Removed: the defaults (ground, no cooldown); added: the common 0.2 s cooldown a new item starts with.
-      p.cooldown = remove ? 0 : 0.2;
-      p.air = 'deny';
-    } else throw Error(t('graph.unsupported'));
-  } else if (g.kind === 'link') {
-    const l = n.links.find(l => l.id === g.link)!;
-    if (kind === 'keyInput' || kind === 'markerReceive') {
-      l.mode = kind === 'keyInput' ? 'input' : 'event';
-      l.input = remove ? '' : (p.inputs[0]?.id ?? '');
-      if (remove) l.event = '';
-      if (l.mode === 'input') l.window = true;
-    } else if (kind === 'detectionWindow') {
-      // Removing it takes the whole clip (format 4: no <Window>).
-      l.window = !remove;
+    if (kind === 'stateCondition') {
+      // The air rule: removed, ground only (the default); added, the ground and the air.
+      p.air = remove ? 'deny' : 'allow';
     } else throw Error(t('graph.unsupported'));
   } else throw Error(t('graph.requiredNode'));
   return n;
@@ -377,7 +313,6 @@ export function deleteGraphNode(w: Workspace, g: GraphRef, id: string): Workspac
   }
   if (g.kind === 'root') {
     if (w.actions.some(a => a.uid === id)) return removeAction(w, id);
-    if (id.startsWith('start_')) return mutateGraph(w, {kind: 'start', action: id.slice(6)}, 'keyInput', true);
     if (w.links.some(l => l.id === id)) return {...w, links: w.links.filter(l => l.id !== id)};
     throw Error(t('graph.requiredNode'));
   }
@@ -388,43 +323,11 @@ export function deleteGraphNode(w: Workspace, g: GraphRef, id: string): Workspac
   if (node.kind === 'comment') throw Error(t('graph.requiredNode'));
   return mutateGraph(w, g.kind === 'anim' && node.step ? {...g, step: node.step} : g, node.kind, true);
 }
-export function connectGraph(w: Workspace, g: GraphRef, source: string, target: string): Workspace {
-  if (source === target) throw Error(t('graph.selfLink'));
-  if (g.kind === 'root') {
-    if (source === 'entry') {
-      const n = clone(w),
-        a = n.actions.find(a => a.uid === target);
-      if (!a) throw Error(t('graph.unsupported'));
-      a.config.start.mode = 'input';
-      a.config.start.input = a.config.inputs[0]?.id ?? '';
-      return n;
-    }
-    const l = addLink(w, source, target);
-    l.input = '';
-    l.event = '';
-    return {...w, links: [...w.links, l]};
-  }
-  const n = clone(w),
-    a = graphAction(n, g);
-  if (!a) throw Error(t('graph.selectState'));
-  const graph = projectGraph(w, g),
-    s = graph.nodes.find(x => x.id === source),
-    d = graph.nodes.find(x => x.id === target);
-  if (
-    !s ||
-    !d ||
-    !s.outputs.some(p => d.inputs.includes(p) || (p === 'pose' && d.inputs.some(i => i.startsWith('pose'))))
-  )
-    throw Error(t('graph.pinMismatch'));
-  if (graph.edges.some(e => e.source === source && e.target === target)) return w;
-  throw Error(t('graph.canonical'));
-}
 export function addGraphItem(w: Workspace, g: GraphRef, kind: NodeKind, position?: {x: number; y: number}) {
   let n = clone(w);
   let id: string;
   if (g.kind === 'root') {
     const a = addAction(n);
-    a.config.start.mode = 'none';
     a.config.steps[0].clip = '';
     if (position) a.position = position;
     n.actions.push(a);
@@ -453,33 +356,6 @@ export function duplicateGraphNode(w: Workspace, g: GraphRef, id: string): Works
     return n;
   }
   throw Error(t('graph.singleton'));
-}
-export function reconnectGraph(w: Workspace, g: GraphRef, edge: GraphEdge, source: string, target: string): Workspace {
-  const n = clone(w);
-  if (g.kind === 'root') {
-    const l = n.links.find(l => l.id === edge.source || l.id === edge.target);
-    if (!l) throw Error(t('graph.requiredNode'));
-    if (edge.target === l.id) {
-      if (target === l.id) {
-        l.from = source;
-        l.input = '';
-      } else if (source === l.from) l.to = target;
-      else throw Error(t('graph.unsupported'));
-    } else {
-      if (source !== l.id) throw Error(t('graph.unsupported'));
-      if (edge.pin === 'partner') l.partnerTo = target;
-      else l.to = target;
-    }
-    if (
-      l.from === l.to ||
-      !n.actions.some(a => a.uid === l.from) ||
-      !n.actions.some(a => a.uid === l.to) ||
-      (l.partnerTo && n.actions.find(a => a.uid === l.partnerTo)?.pair)
-    )
-      throw Error(t('graph.unsupported'));
-    return n;
-  }
-  return connectGraph(w, g, source, target);
 }
 export function addComment(w: Workspace, g: GraphRef, position: {x: number; y: number} = {x: 0, y: 0}) {
   const n = clone(w),

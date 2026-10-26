@@ -4,7 +4,7 @@ import {emptyWorkspace, wrap, compileWorkspace, parseWorkspace, defaultPair} fro
 import {createProject} from '../src/model.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {flatGraph, addFlat, connectFlat, deleteFlat} from '../src/graph/flat.ts';
-import {disconnectEdge} from '../src/graph/disconnect.ts';
+import {disconnectEdge} from '../src/graph/commands.ts';
 import {captureGraph} from '../src/graph/document.ts';
 import {qteErrors, qteTypes, shownTo} from '../src/qte.ts';
 import {previewInitial, previewAdvance, previewInput, qteTarget} from '../src/qtePreview.ts';
@@ -17,7 +17,6 @@ function fixture(pair = false) {
     p.actionId = 'Action' + i;
     p.name = 'Action' + i;
     p.steps[0].clip = 'Animations\\Test' + i + '.hkx';
-    p.start.mode = 'none';
     const a = wrap(p, 'a' + i);
     if (pair && i === 1) {
       a.pair = defaultPair();
@@ -237,7 +236,7 @@ test('rapid and sequence preview counts, timeout, wrong key, and perfect cutoff'
   assert.equal(s.outcome, 'failure');
   assert.equal(previewAdvance(previewInitial(), 2.4, q).outcome, 'failure');
 });
-import {lowerDisconnected} from '../src/graph/disconnect.ts';
+const lowerDisconnected = w => w; // Cuts are document edits now (format 6): nothing is lowered.
 import {qteMembers} from '../src/graph/qteGroups.ts';
 test('Grapple control, stop, sounds and group survive XML/project round trips', () => {
   let {w} = wired(true);
@@ -366,7 +365,6 @@ test('complete graph QTE copy remaps shared groups and disconnected result pins'
       g,
       g.nodes.map(n => n.id)
     );
-  assert.ok(copy.complete);
   const r = pasteNodes(emptyWorkspace(), copy, {x: 0, y: 0}, '').workspace;
   assert.equal(r.qtes.length, 1);
   assert.notEqual(r.qtes[0].group, 'Stages');
@@ -404,7 +402,7 @@ test('QTE channel survives XML and project round trips and is validated like the
   }
 });
 const RAGDOLL_XML = `<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="RagdollRecoveryQTE">
+<AnimationSet version="6" id="RagdollRecoveryQTE">
   <EventRegistry>
     <Event name="Ragdoll">
       <QTE id="GetUp" design="converge" feedback="1.2" anchor="center" y="0.15">
@@ -412,11 +410,9 @@ const RAGDOLL_XML = `<?xml version="1.0" encoding="utf-8"?>
       </QTE>
     </Event>
   </EventRegistry>
-  <Action id="GetUpBack" clip="Animations\RagdollRecoveryQTE\GetUpBack.hkx">
-    <Start event="GetUpBack" actor="player"/>
-  </Action>
-</AnimationSet>
-`;
+  <Start event="GetUpBack" actor="player" to="GetUpBack"/>
+  <Action id="GetUpBack" clip="Animations\\RagdollRecoveryQTE\\GetUpBack.hkx"/>
+</AnimationSet>`;
 test('an event starts a QTE with no HKX (runtime 0.12.248): XML and project round trips', () => {
   const w = importWorkspaceXml(RAGDOLL_XML);
   const q = w.qtes[0];
@@ -473,7 +469,7 @@ test('an event QTE is the player own: an ordinary transition only, no recipient,
 // Ragdoll recovery from rest (runtime 0.12.249, Ragdoll Recovery 1.1.0): the plugin's pose events start the QTEs,
 // and a success goes straight to its get-up action.
 const REST_XML = `<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="RagdollRecoveryQTE">
+<AnimationSet version="6" id="RagdollRecoveryQTE">
   <EventRegistry>
     <Event name="GetUpBack">
       <QTE id="GetUpBack" speed="3.7391" successWindow="0.23369" perfectWindow="0.09347" feedback="1.2" anchor="center" y="0.15" design="converge">
@@ -486,14 +482,9 @@ const REST_XML = `<?xml version="1.0" encoding="utf-8"?>
       </QTE>
     </Event>
   </EventRegistry>
-  <Action id="GetUpBack" clip="Animations\RagdollRecoveryQTE\GetUpBack.hkx">
-    <Enter blend="0.5"/>
-  </Action>
-  <Action id="GetUpFront" clip="Animations\RagdollRecoveryQTE\GetUpFront.hkx">
-    <Enter blend="0.5"/>
-  </Action>
-</AnimationSet>
-`;
+  <Action id="GetUpBack" clip="Animations\\RagdollRecoveryQTE\\GetUpBack.hkx" enter="0.5"/>
+  <Action id="GetUpFront" clip="Animations\\RagdollRecoveryQTE\\GetUpFront.hkx" enter="0.5"/>
+</AnimationSet>`;
 test('an event QTE success goes straight to an HKX (runtime 0.12.249): XML, canvas and round trips', () => {
   let w = importWorkspaceXml(REST_XML);
   const back = w.actions.find(a => a.config.actionId === 'GetUpBack'),
@@ -527,57 +518,58 @@ test('the canvas reads event -> QTE -> event; its lines and cards edit the QTE',
   assert.ok(
     start && g.edges.some(e => e.source === 'qte:GetUp' && e.target === 'qte-emit:GetUp:success' && e.pin === 'pass')
   );
-  // Cutting the start line or deleting the event card leaves a detached QTE; deleting the result event clears it.
-  // A cut line keeps the QTE editable and leaves it out of the XML (as every cut does); reconnecting restores it.
+  // Cutting the start line or deleting the event card leaves a detached QTE, kept editable and out of the XML;
+  // deleting the result event clears it.
   const cut = disconnectEdge(w, start);
   assert.equal(cut.qtes.length, 1);
+  assert.equal(cut.qtes[0].eventStart, undefined);
   assert.doesNotMatch(compileWorkspace(cut), /<QTE /);
-  assert.match(compileWorkspace(connectFlat(cut, start.source, start.target, start.pin)), /<QTE id="GetUp"/);
   assert.equal(deleteFlat(w, 'qte-event:GetUp').qtes[0].eventStart, undefined);
   assert.equal(deleteFlat(w, 'qte-emit:GetUp:success').qtes[0].results.success.mode, 'continue');
   // An event card made on the canvas, dragged to a detached QTE: the QTE starts from that event.
   w = deleteFlat(w, 'qte-event:GetUp');
   const added = addFlat(w, '', 'markerReceive', {x: 40, y: 40});
   w = added.workspace;
-  w.drafts.find(d => d.id === added.id).value.config.start.event = 'Ragdoll';
+  w.starts.find(s => 'startCard:' + s.uid === added.id).event = 'Ragdoll';
   w = connectFlat(w, added.id, 'qte:GetUp', 'trigger');
   assert.equal(w.qtes[0].eventStart, 'Ragdoll');
-  assert.ok(!w.drafts?.some(d => d.id === added.id), 'the draft became the QTE event card');
+  assert.ok(!w.starts.some(s => 'startCard:' + s.uid === added.id), 'the start card became the QTE event card');
   assert.ok(flatGraph(w).edges.some(e => e.source === 'qte-event:GetUp' && e.target === 'qte:GetUp'));
 });
 // Ragdoll recovery from a nearly resting body (runtime 0.12.253, Ragdoll Recovery 1.4.0): one QTE event, the success
 // goes to a selecting action whose flow reads how the body lies at the handoff.
 const SETTLE_XML = `<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="RagdollRecoveryQTE">
+<AnimationSet version="6" id="RagdollRecoveryQTE">
   <EventRegistry>
     <Event name="GetUpQTE">
       <QTE id="GetUp" speed="3.7391" successWindow="0.23369" perfectWindow="0.09347" feedback="1.2" anchor="center" y="0.15" design="converge">
-        <Success to="GetUp"/>
+        <Success>
+          <Check kind="lying" option="back"/>
+          <True to="GetUpBack"/>
+          <False to="GetUpFront"/>
+        </Success>
         <Failure event="GetUpRelease"/>
       </QTE>
     </Event>
   </EventRegistry>
-  <Action id="GetUp">
-    <Flow entry="Side">
-      <Test id="Side" kind="lying" option="back" pass="Back" fail="Front"/>
-      <Play id="Back" action="GetUpBack"/>
-      <Play id="Front" action="GetUpFront"/>
-    </Flow>
-  </Action>
-  <Action id="GetUpBack" clip="Animations\RagdollRecoveryQTE\GetUpBack.hkx"/>
-  <Action id="GetUpFront" clip="Animations\RagdollRecoveryQTE\GetUpFront.hkx"/>
-</AnimationSet>
-`;
-test('the lying condition and an event QTE going to a selecting action round-trip (runtime 0.12.253)', () => {
+  <Action id="GetUpBack" clip="Animations\\RagdollRecoveryQTE\\GetUpBack.hkx"/>
+  <Action id="GetUpFront" clip="Animations\\RagdollRecoveryQTE\\GetUpFront.hkx"/>
+</AnimationSet>`;
+test('the lying condition and an event QTE going through a condition card round-trip (runtime 0.12.253)', () => {
   const w = importWorkspaceXml(SETTLE_XML);
   assert.deepEqual(qteErrors(w), []);
   const q = w.qtes.find(q => q.eventStart === 'GetUpQTE');
-  const selector = w.actions.find(a => a.config.actionId === 'GetUp');
-  assert.equal(q.results.success.to, selector.uid);
+  // The selecting action's flow is the result's own condition card (format 6).
+  const card = w.cards.find(c => c.uid === q.results.success.card);
+  assert.ok(card);
+  assert.equal(q.results.success.to, '');
   assert.equal(q.results.failure.event, 'GetUpRelease');
   const xml = compileWorkspace(w);
-  assert.match(xml, /<Test id="[^"]+" kind="lying"[^>]* option="back"/);
-  assert.match(xml, /<Success to="GetUp"\/>\s*<Failure event="GetUpRelease"\/>/);
+  assert.match(
+    xml,
+    /<Success>\s*<Check kind="lying" option="back"\/>\s*<True to="GetUpBack"\/>\s*<False to="GetUpFront"\/>/
+  );
+  assert.match(xml, /<\/Success>\s*<Failure event="GetUpRelease"\/>/);
   assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
   assert.equal(compileWorkspace(parseWorkspace(JSON.stringify(captureGraph(w)))), xml);
   assert.throws(() => importWorkspaceXml(SETTLE_XML.replace('option="back"', 'option="side"')));
@@ -596,10 +588,10 @@ test('an event result is drawn to the cards that receive the event, and the QTE 
     // From a QTE card's result pin to an event card listening for that event.
     assert.equal(by.get(e.source).kind, 'qte');
     assert.ok(['pass', 'fail', 'perfect'].includes(e.pin));
-    assert.equal(by.get(e.target).kind, 'markerReceive');
+    assert.ok(['transition', 'startCard'].includes(by.get(e.target).kind));
     const listened = [
       ...w.links.filter(l => l.mode === 'event').map(l => l.event),
-      ...w.actions.filter(a => a.config.start.mode === 'event').map(a => a.config.start.event),
+      ...w.starts.filter(s => s.mode === 'event').map(s => s.event),
     ];
     assert.ok(listened.includes(e.via));
   }

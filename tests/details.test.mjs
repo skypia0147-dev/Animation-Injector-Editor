@@ -5,6 +5,7 @@ import {nodeCatalog} from '../src/nodes/catalog.ts';
 import {markerNames, renameMarker, removeMarker} from '../src/ui/details/markerCatalog.ts';
 import {emptyWorkspace, addAction, addLink, parseWorkspace, compileWorkspace} from '../src/workspace.ts';
 import {switchActionKind} from '../src/actionTypes.ts';
+import {newStart} from '../src/cards.ts';
 
 test('physical keys cover IME-independent letters, numpad, modifiers and punctuation', () => {
   for (const [code, name] of Object.entries({
@@ -41,8 +42,7 @@ test('marker rename preserves references in the registry, windows, globals and c
   const b = addAction(w);
   w.actions.push(b);
   w.eventRegistry = [{id: 'event1', name: 'Old', functions: [{id: 'fn1', values: {op: 'hide'}}]}];
-  a.config.start.mode = 'event';
-  a.config.start.event = 'Old';
+  w.starts.push({...newStart(w, {x: 0, y: 0}, 'event'), event: 'Old', to: {action: a.uid}});
   a.camera = {reset: 'Old', restore: 'end', timeout: 10};
   w.globals.cameraReset = 'Old';
   const l = addLink(w, a.uid, b.uid);
@@ -57,6 +57,7 @@ test('marker rename preserves references in the registry, windows, globals and c
   assert.ok(!markerNames(next).includes('Old'));
   assert.equal(next.links[0].open.event, 'New');
   assert.equal(next.eventRegistry[0].name, 'New');
+  assert.equal(next.starts[0].event, 'New');
   // Camera restore is the action's (10-16): it stays across the kind switch.
   assert.equal(next.actions[0].camera.reset, 'New');
   assert.deepEqual(parseWorkspace(JSON.stringify(next)), next);

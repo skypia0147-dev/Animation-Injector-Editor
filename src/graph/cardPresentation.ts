@@ -7,17 +7,20 @@ import {qteMembers} from './qteGroups.ts';
 import {outcomes, qteTypes, type Outcome, type QteDesign, type QteResult, type QteType} from '../qte.ts';
 import {qteKeyName} from '../qteFace.ts';
 import {tr} from '../i18n/korean.ts';
+import {gamepadXml, gameControlLabel} from '../keys.ts';
+import {choosesOrdinary, frontAngle, frontRange} from '../cards.ts';
 
 export const cardWidth = (n: Pick<FlatNode, 'kind'>) =>
   n.kind === 'entry'
     ? 112
     : n.kind === 'eventRegistry'
       ? 540
-      : ['hkxPlay', 'conditionBranch', 'conditionTable'].includes(n.kind)
+      : n.kind === 'hkxPlay'
         ? 380
-        : 260;
-export const pinTop = (n: Pick<FlatNode, 'kind'>) =>
-  n.kind === 'entry' ? 34 : ['conditionBranch', 'conditionTable'].includes(n.kind) ? 98 : 54;
+        : n.kind === 'conditionCard'
+          ? 340
+          : 260;
+export const pinTop = (n: Pick<FlatNode, 'kind'>) => (n.kind === 'entry' ? 34 : 54);
 export const cardHeight = (n: Pick<FlatNode, 'kind' | 'inputs' | 'outputs'> & {measured?: {height?: number}}) =>
   n.measured?.height ??
   (n.kind === 'entry'
@@ -114,9 +117,12 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
           ? 'entry'
           : n.kind === 'outputPose'
             ? 'output'
-            : n.kind === 'keyInput'
+            : n.kind === 'keyInput' || ((n.kind === 'startCard' || n.kind === 'transition') && /키/.test(n.title))
               ? 'keyboard'
-              : n.kind === 'markerReceive' || n.kind === 'eventEmit'
+              : n.kind === 'markerReceive' ||
+                  n.kind === 'eventEmit' ||
+                  n.kind === 'startCard' ||
+                  n.kind === 'transition'
                 ? 'event'
                 : n.kind.startsWith('condition') || n.kind === 'stateCondition'
                   ? 'branch'
@@ -144,22 +150,73 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   const label =
     n.kind === 'blend'
       ? tr('시간 · 적용')
-      : n.kind === 'keyInput'
+      : n.kind === 'keyInput' || ((n.kind === 'startCard' || n.kind === 'transition') && /키/.test(n.title))
         ? tr('입력')
-        : n.kind === 'markerReceive' || n.kind === 'eventEmit'
+        : n.kind === 'markerReceive' || n.kind === 'eventEmit' || n.kind === 'startCard' || n.kind === 'transition'
           ? tr('이벤트')
           : n.kind === 'stateCondition'
             ? tr('조건')
-            : n.kind === 'conditionTable'
-              ? tr('규칙')
+            : n.kind === 'conditionCard'
+              ? tr('조건')
               : n.kind === 'outputPose'
                 ? tr('종료')
                 : n.kind === 'cameraRestore'
                   ? tr('이벤트')
                   : tr('설정');
-  return {
-    title: n.title,
-    icon,
-    rows: n.kind === 'entry' ? [] : [{label, value: n.summary || tr('설정할 항목을 선택하세요')}],
-  };
+  // A start card reads as its trigger, then what it sets (docs/mockup-format6-editor); it is edited in Details.
+  const start = n.kind === 'startCard' ? w.starts.find(s => 'startCard:' + s.uid === n.id) : undefined;
+  if (start) {
+    const rows = [
+      start.mode === 'event'
+        ? {label: tr('받을 때'), value: start.event || tr('이벤트 미지정')}
+        : {
+            label: start.onKeyUp ? tr('뗄 때') : tr('누를 때'),
+            value: start.control
+              ? gameControlLabel(start.control)
+              : [start.key, start.gamepad ? gamepadXml(start.gamepad) : ''].filter(Boolean).join(' · ') ||
+                tr('키 미지정'),
+          },
+    ];
+    if (start.mode === 'event' && start.actor !== 'both')
+      rows.push({label: tr('보낸 쪽'), value: start.actor === 'player' ? tr('플레이어') : 'NPC'});
+    // A start choosing among ordinary actions names its target (mockup ⑨); a pair's names the combat target only.
+    if (choosesOrdinary(w, start))
+      rows.push({
+        label: tr('대상'),
+        value:
+          start.target === 'combatTarget'
+            ? tr('전투 대상')
+            : tr('전방 대상 · {range} · {angle}°', {
+                range: start.range ?? frontRange,
+                angle: start.angle ?? frontAngle,
+              }),
+      });
+    else if (start.mode === 'event' && start.target === 'combatTarget')
+      rows.push({label: tr('페어 상대'), value: tr('전투 대상')});
+    if (start.cooldown) rows.push({label: tr('쿨다운'), value: tr('{v0}초', {v0: start.cooldown})});
+    if (start.block) rows.push({label: tr('바닐라 차단'), value: start.block.events.join(', ')});
+    return {title: n.title, icon, rows};
+  }
+  // A transition reads the same way: its key or event, its window and blend.
+  const link = n.kind === 'transition' ? w.links.find(l => 'transition:' + l.id === n.id) : undefined;
+  if (link) {
+    const input = w.actions.find(a => a.uid === link.from)?.config.inputs.find(i => i.id === link.input);
+    const rows = [
+      link.mode === 'event'
+        ? {label: tr('받을 때'), value: link.event || tr('이벤트 미지정')}
+        : {
+            label: tr('누를 때'),
+            value: input?.control
+              ? gameControlLabel(input.control)
+              : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||
+                tr('키 미지정'),
+          },
+    ];
+    if (link.window)
+      rows.push({label: tr('감지 구간'), value: timingLabel(link.open) + ' → ' + timingLabel(link.close)});
+    if (link.blend !== undefined) rows.push({label: tr('블렌드'), value: tr('{v0}초', {v0: link.blend})});
+    return {title: n.title, icon, rows};
+  }
+  const rows = n.kind === 'entry' ? [] : [{label, value: n.summary || tr('설정할 항목을 선택하세요')}];
+  return {title: n.title, icon, rows};
 }

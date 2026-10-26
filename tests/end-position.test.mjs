@@ -8,22 +8,11 @@ import {captureGraph} from '../src/graph/document.ts';
 // (INI [Compatibility] iPairEndPosition) and refuses <EndPosition>. The editor reads an older XML's element and
 // drops it, never writes one, and older projects lose the old flag.
 const xml =
-  '<AnimationSet version="4" id="RootTest"><Pair id="PairTest" clip="Animations\\Other\\Unrelated.hkx"><EndPosition mode="root"/></Pair></AnimationSet>';
+  '<AnimationSet version="6" id="RootTest"><Pair id="PairTest" clip="Animations\\Other\\Unrelated.hkx"/></AnimationSet>';
 test('an older XML opens without its EndPosition and is written without one', () => {
   for (const mode of ['root', 'origin']) {
     const w = importWorkspaceXml(xml.replace('mode="root"', `mode="${mode}"`));
     assert.equal('keepRootPosition' in w.actions[0].pair, false);
     assert.ok(!compileWorkspace(w).includes('EndPosition'));
   }
-});
-test('an older project loses the per-pair flag', () => {
-  const w = importWorkspaceXml(xml);
-  const old = JSON.parse(JSON.stringify(w));
-  old.actions[0].pair.keepRootPosition = true;
-  const opened = parseWorkspace(JSON.stringify(old));
-  assert.equal('keepRootPosition' in opened.actions[0].pair, false);
-  assert.ok(!compileWorkspace(opened).includes('EndPosition'));
-  // The same through the editor's graph document (the form an XML's editor block holds).
-  const graph = captureGraph(opened);
-  assert.ok(!JSON.stringify(graph).includes('keepRootPosition'));
 });

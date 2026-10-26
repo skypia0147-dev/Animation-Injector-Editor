@@ -9,7 +9,6 @@ export type PairTrack = {
   from: Mark;
   until: Mark;
   role: string;
-  source: string;
   stamina: number;
   magicka: number;
 };
@@ -23,8 +22,6 @@ export const defaultPairTimeline = (): PairTimeline =>
         from: mark(key === 'cost' ? 0.05 : 0),
         until: mark(0.8),
         role: 'initiator',
-        // Kept for older projects' shape; a clip time has no sender to filter (runtime 0.12.275).
-        source: 'any',
         stamina: 0,
         magicka: 0,
       },

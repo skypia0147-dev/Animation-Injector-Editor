@@ -18,9 +18,10 @@ for (const file of rust(join(root, 'src-tauri', 'src')).sort()) {
   let text = readFileSync(file, 'utf8');
   const tests = text.indexOf('#[cfg(test)]');
   if (tests >= 0) text = text.slice(0, tests);
-  for (const m of text.matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
-    const literal = m[1];
-    if (!HANGUL.test(literal)) continue;
+  // A raw string (r"\\?\") is skipped whole: read as an ordinary one, its backslash would shift every quote after it.
+  for (const m of text.matchAll(/r(#*)"[\s\S]*?"\1|"((?:[^"\\]|\\.)*)"/g)) {
+    const literal = m[2];
+    if (literal === undefined || !HANGUL.test(literal)) continue;
     let n = 0;
     const pattern = literal
       .replace(/\\"/g, '"')

@@ -1,7 +1,7 @@
 // The global event registry (runtime 0.12.222, XML format 3): one list per project of event names
 // and the functions each runs. The runtime runs a registered name's functions whenever any actor's
 // graph sends it, in any animation. docs/계획-전역이벤트등록.md (runtime repo) §3, §5.
-import {clone, mark} from './model.ts';
+import {clone} from './model.ts';
 import type {Issue, Mark} from './model.ts';
 import type {Effect, Workspace} from './workspace.ts';
 import {cameraReset} from './sharedSettings.ts';
@@ -35,6 +35,10 @@ export const eventOps = [
   'cancel',
   'fireArrow',
   'ragdoll',
+  'strike',
+  'sound',
+  'globalSet',
+  'modEvent',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
 /** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
@@ -55,24 +59,6 @@ export const pairRoleLabels: Record<string, string> = {
     return tr('플레이어인 쪽');
   },
 };
-/** An older pair effect's target and sender filter as the role they reached (with every role a sender). */
-export function pairRole(target?: string, from?: string): string {
-  const t = target || 'sender',
-    f = from || 'any';
-  if ((pairRoles as readonly string[]).includes(t)) return t;
-  if (f === 'initiator') return t === 'sender' ? 'initiator' : 'receiver';
-  if (f === 'receiver') return t === 'sender' ? 'receiver' : 'initiator';
-  if (f === 'player' && t === 'sender') return 'player';
-  return 'both';
-}
-/** A pair clip-time effect's values in the 0.12.275 shape: a role (none for both or a player-only op), no `from`. */
-export function pairEffectValues(values: Record<string, string>) {
-  const role = pairRole(values.target, values.from);
-  delete values.from;
-  if (role === 'both' || opInfo[values.op as EventOp]?.player) delete values.target;
-  else values.target = role;
-  return values;
-}
 type OpInfo = {label: string; lasting?: EventOp; player?: boolean; fields: string[]};
 export const opInfo: Record<EventOp, OpInfo> = {
   hide: {
@@ -202,6 +188,50 @@ export const opInfo: Record<EventOp, OpInfo> = {
     // a force; a pair's role first leaves the pair's physics hold, and its get-up is watched.
     fields: ['direction', 'force'],
   },
+  strike: {
+    get label() {
+      return tr('타격');
+    },
+    // The engine's damage on chosen actors, the changed actor attacking (runtime 0.12.293, docs/mockup-strike):
+    // whom (pick, the area's hit), with which hand and block, then the numbers.
+    fields: [
+      'pick',
+      'hit',
+      'hand',
+      'block',
+      'ratio',
+      'amount',
+      'radius',
+      'angle',
+      'up',
+      'down',
+      'edge',
+      'duration',
+      'reaction',
+      'strength',
+      'force',
+      'without',
+    ],
+  },
+  sound: {
+    get label() {
+      return tr('소리 재생');
+    },
+    // A file under Data or a registered sound (runtime 0.12.296), at a bone it follows.
+    fields: ['file', 'plugin', 'form', 'bone', 'volume'],
+  },
+  globalSet: {
+    get label() {
+      return tr('전역 값 설정');
+    },
+    fields: ['plugin', 'form', 'value', 'restore'],
+  },
+  modEvent: {
+    get label() {
+      return tr('모드 이벤트 보내기');
+    },
+    fields: ['name', 'text', 'number'],
+  },
 };
 export const settingKeys = [
   'plugin',
@@ -216,6 +246,27 @@ export const settingKeys = [
   'delay',
   'mode',
   'damage',
+  'pick',
+  'hit',
+  'hand',
+  'block',
+  'ratio',
+  'amount',
+  'radius',
+  'angle',
+  'up',
+  'down',
+  'edge',
+  'reaction',
+  'without',
+  'file',
+  'bone',
+  'volume',
+  'value',
+  'restore',
+  'name',
+  'text',
+  'number',
 ] as const;
 /** Every key a registered event's function may hold; a pair's clip-time effect adds `at`, `target` and `from`. */
 export const functionKeys = ['op', ...settingKeys];
@@ -224,16 +275,6 @@ export const timedKeys = ['at', 'op', 'target', ...settingKeys];
 export function senderOnly(values: Record<string, string>) {
   delete values.target;
   delete values.from;
-  return values;
-}
-/** Retired settings an older file or project may still hold: a shake's `parameters` (runtime 0.12.274: an
- *  annotation's own numbers are AI.CamShake|strength|duration). */
-export function dropRetired(values: Record<string, string>) {
-  delete values.parameters;
-  // A function's own space condition is gone (runtime 0.12.275): a space split is a condition branch.
-  delete values.space;
-  delete values.minSpace;
-  delete values.maxSpace;
   return values;
 }
 export const settingLabels: Record<string, string> = {
@@ -273,7 +314,122 @@ export const settingLabels: Record<string, string> = {
   get damage() {
     return tr('피해 %');
   },
+  get pick() {
+    return tr('대상');
+  },
+  get hit() {
+    return tr('맞는 대상');
+  },
+  get hand() {
+    return tr('손');
+  },
+  get block() {
+    return tr('막기');
+  },
+  get ratio() {
+    return tr('무기 데미지 %');
+  },
+  get amount() {
+    return tr('고정 피해');
+  },
+  get radius() {
+    return tr('반경');
+  },
+  get angle() {
+    return tr('각');
+  },
+  get up() {
+    return tr('위');
+  },
+  get down() {
+    return tr('아래');
+  },
+  get edge() {
+    return tr('가장자리 %');
+  },
+  get reaction() {
+    return tr('반응');
+  },
+  get without() {
+    return tr('따라오는 것');
+  },
+  get file() {
+    return tr('소리 파일');
+  },
+  get bone() {
+    return tr('위치');
+  },
+  get volume() {
+    return tr('음량');
+  },
+  get value() {
+    return tr('값');
+  },
+  get restore() {
+    return tr('동작이 끝나면 되돌림');
+  },
+  get name() {
+    return tr('이벤트 이름');
+  },
+  get text() {
+    return tr('문자열');
+  },
+  get number() {
+    return tr('숫자');
+  },
 };
+/** A sound's bones (runtime 0.12.296): the first is the default and is not written. */
+export const soundBones = (): [string, string][] => [
+  ['spine', tr('몸통')],
+  ['head', tr('머리')],
+  ['rightHand', tr('오른손')],
+  ['leftHand', tr('왼손')],
+  ['root', tr('발밑')],
+];
+/** Settings written as text, not numbers (a sound's file, a mod event's name and text). */
+export const textSettings = ['file', 'name', 'text'];
+/** A strike's choices (runtime 0.12.293): the value written and what it says; the first is the runtime's default
+ *  and is not written. */
+export const strikeChoices: Record<string, () => [string, string][]> = {
+  pick: () => [
+    ['combatTarget', tr('전투 대상')],
+    ['partner', tr('페어 상대')],
+    ['crosshair', tr('십자선 대상')],
+    ['area', tr('범위')],
+  ],
+  hit: () => [
+    ['hostile', tr('적대만')],
+    ['all', tr('전부')],
+  ],
+  hand: () => [
+    ['right', tr('오른손')],
+    ['left', tr('왼손')],
+    ['both', tr('양손 합')],
+  ],
+  block: () => [
+    ['vanilla', tr('바닐라처럼')],
+    ['ignore', tr('무시')],
+  ],
+  reaction: () => [
+    ['none', tr('없음')],
+    ['stagger', tr('경직')],
+    ['push', tr('밀쳐내기')],
+  ],
+};
+/** What a real hit brings along (runtime 0.12.294): each on unless the strike's `without` names it. */
+export const strikeExtras = (): [string, string][] => [
+  ['enchantment', tr('마법부여')],
+  ['poison', tr('독')],
+  ['perks', tr('특성 효과')],
+  ['impact', tr('타격음·피')],
+  ['hitEvent', tr('피격 이벤트')],
+];
+/** A strike's default stagger strength and push force (runtime 0.12.294). */
+export const strikeStagger = 0.5,
+  strikePush = 5;
+/** A strike's settings that only an area (pick="area") has. */
+export const strikeAreaKeys = ['hit', 'radius', 'angle', 'up', 'down', 'edge'];
+const strikeNumberKeys = ['ratio', 'amount', 'radius', 'angle', 'up', 'down', 'edge'];
 /** A fireArrow's ways (runtime 0.12.268): the value written for each and what the menu says. */
 export const arrowModes = (): [string, string][] => [
   ['', tr('당긴 만큼')],
@@ -315,6 +471,16 @@ const numberRanges: Record<string, [number, number]> = {
   factor: [0.05, 5],
   damage: [1, 1000],
   force: [0, 20],
+  ratio: [0, 100],
+  amount: [0, 100000],
+  volume: [0, 1],
+  value: [-1000000, 1000000],
+  number: [-1000000, 1000000],
+  radius: [0, 5000],
+  angle: [1, 360],
+  up: [0, 5000],
+  down: [0, 5000],
+  edge: [0, 1],
 };
 export const settingRange = (key: string) => numberRanges[key];
 export const settingDefault: Record<string, string> = {
@@ -324,22 +490,42 @@ export const settingDefault: Record<string, string> = {
   direction: 'down',
   delay: '0',
   damage: '100',
+  ratio: '1',
+  amount: '10',
+  volume: '1',
+  value: '0',
+  number: '0',
+  radius: '150',
+  angle: '60',
+  up: '150',
+  down: '60',
+  edge: '1',
 };
 
 // ── The numbers on the HKX nodes (runtime 0.12.281, docs/mockup-event-node-values) ────────────────
 // The registry says which functions an event runs and what they act with; each HKX node that sends the event
 // holds the numbers they run with there. An event from an animation without a node runs with the defaults.
 const spellOps = ['spell', 'stateOn', 'stateOff'];
-/** What a registered function acts with, set in the registry: a spell's plugin and form, a ragdoll's direction. */
+/** What a registered function acts with, set in the registry: a spell's plugin and form, a ragdoll's direction, a
+ *  strike's whom and how, a sound's file or form and bone, a global and its restore, a mod event's name and text. */
 export const registryFields = (op: string): string[] =>
-  spellOps.includes(op) ? ['plugin', 'form'] : op === 'ragdoll' ? ['direction'] : [];
+  spellOps.includes(op)
+    ? ['plugin', 'form']
+    : op === 'ragdoll'
+      ? ['direction']
+      : op === 'strike'
+        ? ['pick', 'hit', 'hand', 'block', 'reaction', 'without']
+        : op === 'sound'
+          ? ['file', 'plugin', 'form', 'bone']
+          : op === 'globalSet'
+            ? ['plugin', 'form', 'restore']
+            : op === 'modEvent'
+              ? ['name', 'text']
+              : [];
 /** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
 export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
 /** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
 export const needsValues = (op: string) => op === 'cost' || op === 'timeOn';
-/** The numbers an older registry function still holds (the runtime refuses them there since 0.12.281). */
-export const registryNumbers = (values: Record<string, string>) =>
-  valueFields(values.op).filter(k => values[k] !== undefined && values[k] !== '');
 const pick = (values: Record<string, string>, keys: string[]) =>
   Object.fromEntries(keys.filter(k => values[k] !== undefined && values[k] !== '').map(k => [k, values[k]]));
 /** A registry function's own part: op and what it acts with. */
@@ -388,7 +574,6 @@ function pruneValues(w: Workspace) {
     if (!Object.keys(all).length) delete a!.config.eventValues;
   };
   for (const a of w.actions) prune(a);
-  for (const d of w.drafts ?? []) prune(d.value as Valued | undefined);
 }
 /** Values pair with an event's functions by op, in order (runtime EventValuesMatch.h): a node that gives numbers to
  *  a later function of an op writes the earlier ones of that op too, with their defaults. */
@@ -429,7 +614,9 @@ export function readEventValues(n: Xml, rows: EventRow[], a: Valued) {
   }
   if (Object.keys(out).length) a.config.eventValues = out;
 }
-const valueKeysAll = ['delay', 'stamina', 'magicka', 'strength', 'duration', 'factor', 'mode', 'damage', 'force'];
+// Every number a node may hold for some function: each op's value fields (a hand list here had missed the strike's
+// and the 0.12.296 functions' numbers).
+const valueKeysAll = [...new Set(eventOps.flatMap(op => valueFields(op)))];
 /** Errors of a node's numbers for one function. */
 export function valueErrors(v: Record<string, string>): string[] {
   const out: string[] = [];
@@ -453,28 +640,6 @@ export function valueErrors(v: Record<string, string>): string[] {
   if (v.op === 'timeOn' && !(v.factor ?? '').trim()) out.push(tr('배율을 넣으세요.'));
   return out;
 }
-/** Moves an older registry's numbers to the nodes whose HKX send each event (runtime 0.12.281). A node keeps the
- *  numbers it already has; with no sender the numbers are dropped (the event then runs with the defaults). */
-export function numbersToNodes(w: Workspace, senders: (event: string) => string[], only?: string): Workspace {
-  let next = w;
-  for (const row of w.eventRegistry ?? []) {
-    if (only !== undefined && eventKey(row.name) !== eventKey(only)) continue;
-    for (const f of row.functions) {
-      if (!registryNumbers(f.values).length) continue;
-      for (const uid of senders(eventKey(row.name))) {
-        const a = next.actions.find(x => x.uid === uid);
-        if (a && !nodeValues(a, row, f)) next = setNodeValues(next, uid, row, f, valuePart(f.values));
-      }
-    }
-  }
-  return withRows(next, rows => {
-    for (const row of rows) {
-      if (only !== undefined && eventKey(row.name) !== eventKey(only)) continue;
-      for (const f of row.functions) f.values = registryPart(f.values);
-    }
-  });
-}
-
 const eventNameOk = (s: string) => !!s.trim() && s.length <= 256 && !/[|@\x00-\x1f]/.test(s);
 export const eventKey = (name: string) => name.toLowerCase();
 /** A registered function on a vanilla behavior event name runs across the whole game. An annotation
@@ -494,6 +659,39 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
   // Only a direct shot has a damage, and 100% is the runtime's default.
   if (out.mode !== 'direct' || out.damage === '100') delete out.damage;
   if (out.mode !== 'direct') delete out.mode;
+  // A sound plays at the spine at full volume unless told; a file replaces a registered sound (runtime 0.12.296).
+  if (values.op === 'sound') {
+    if (out.bone === 'spine') delete out.bone;
+    if (out.volume !== undefined && Number(out.volume) === 1) delete out.volume;
+    if (out.file) {
+      delete out.plugin;
+      delete out.form;
+    }
+  }
+  if (values.op === 'modEvent' && out.number !== undefined && Number(out.number) === 0) delete out.number;
+  if (values.op === 'strike') {
+    // The choices' defaults are the runtime's; a fixed amount replaces the weapon's ratio; only an area has its
+    // own settings (a registry's number-free part says nothing about the pick).
+    for (const [k, choices] of Object.entries(strikeChoices)) if (out[k] === choices()[0][0]) delete out[k];
+    if (out.amount !== undefined) delete out.ratio;
+    if ((timed || values.pick !== undefined) && (values.pick ?? 'combatTarget') !== 'area')
+      for (const k of strikeAreaKeys) delete out[k];
+    if (out.duration === '0') delete out.duration;
+    // A stagger's strength and a push's force (the registry's part knows the reaction; a node's numbers do not).
+    const reaction = values.reaction ?? (timed ? 'none' : undefined);
+    if (reaction !== undefined && reaction !== 'stagger') delete out.strength;
+    if (reaction !== undefined && reaction !== 'push') delete out.force;
+    if (out.strength !== undefined && Number(out.strength) === strikeStagger) delete out.strength;
+    if (out.force !== undefined && Number(out.force) === strikePush) delete out.force;
+    if (out.without !== undefined) {
+      const left = new Set(out.without.split(','));
+      out.without = strikeExtras()
+        .map(([k]) => k)
+        .filter(k => left.has(k))
+        .join(',');
+      if (!out.without) delete out.without;
+    }
+  }
   return out;
 }
 /** Chip text: the op and only what differs from the defaults. */
@@ -505,6 +703,10 @@ export function functionParts(values: Record<string, string>): string[] {
   const parts: string[] = [];
   if (values.target && values.target !== 'both') parts.push(pairRoleLabels[values.target] ?? values.target);
   if (values.form) parts.push(values.form);
+  if (values.op === 'sound' && values.file) parts.push(values.file.split(/[\\/]/).pop() ?? values.file);
+  if (values.op === 'globalSet' && values.value !== undefined) parts.push('= ' + values.value);
+  if (values.op === 'globalSet' && values.restore === 'end') parts.push(tr('끝나면 되돌림'));
+  if (values.op === 'modEvent' && values.name) parts.push(values.name);
   if (values.op === 'cost')
     parts.push(
       [values.stamina && tr('스태미나 ') + values.stamina, values.magicka && tr('매지카 ') + values.magicka]
@@ -520,10 +722,20 @@ export function functionParts(values: Record<string, string>): string[] {
     const d = values.direction || 'down';
     parts.push(ragdollLabels[d] ?? d, tr('힘 {f}', {f: values.force || String(ragdollForce[d] ?? 1)}));
   }
+  if (values.op === 'strike') {
+    const pick = values.pick ?? 'combatTarget';
+    if (pick === 'area')
+      parts.push(tr('범위 {angle}° {radius}', {angle: values.angle || '60', radius: values.radius || '150'}));
+    else if (values.pick !== undefined) parts.push(strikeChoices.pick().find(([x]) => x === pick)?.[1] ?? pick);
+    if (values.amount) parts.push(tr('고정 {amount}', {amount: values.amount}));
+    else if (values.ratio) parts.push(tr('무기 {percent}%', {percent: String(Math.round(Number(values.ratio) * 100))}));
+    if (Number(values.duration)) parts.push(tr('{seconds}초 동안', {seconds: values.duration}));
+    if (values.reaction && values.reaction !== 'none')
+      parts.push(strikeChoices.reaction().find(([x]) => x === values.reaction)?.[1] ?? values.reaction);
+  }
   if (values.delay && Number(values.delay)) parts.push(tr('지연 ') + values.delay + tr('초'));
   return parts;
 }
-export const lastingOp = (op: string) => !!opInfo[op as EventOp]?.lasting;
 
 const nextId = (prefix: string, used: Iterable<string>) => {
   const ids = new Set(used);
@@ -559,178 +771,6 @@ export function registerIn(rows: EventRow[], name: string, values?: Record<strin
   return row;
 }
 
-// ── Older documents ─────────────────────────────────────────────────────────────────────────────
-// role/source became target/from (runtime D5). Old roles: other = the sender's partner, target = the
-// pair's target actor (the receiver). Old sources sender/both accepted either pair actor: any.
-const ROLE: Record<string, string> = {other: 'partner', target: 'receiver'};
-const SOURCE: Record<string, string> = {sender: 'any', both: 'any', target: 'receiver'};
-export const liftTarget = (v: string) => ROLE[v] ?? v;
-export const liftFrom = (v: string) => SOURCE[v] ?? v;
-function liftKeys(values: Record<string, string>) {
-  if ('role' in values) {
-    values.target = liftTarget(values.role);
-    delete values.role;
-  }
-  if ('source' in values) {
-    values.from = liftFrom(values.source);
-    delete values.source;
-  }
-}
-const slotOps = {
-  rotate: ['rotateOn', 'rotateOff'],
-  iframe: ['iframeOn', 'iframeOff'],
-  armor: ['armorOn', 'armorOff'],
-  cost: ['cost'],
-} as const;
-const isMark = (m: any): m is Mark => !!m && typeof m === 'object' && typeof m.basis === 'string';
-/**
- * Moves every event-moment function of an older document into the registry (format 3 has them only
- * there): pair effects named by an event, event-timed pair tracks, action windows and costs whose both
- * moments are events, the event shot, extra graph registrations, the project event list and the
- * per-action event lists. Renames role/source values. Idempotent; runs on the raw parsed JSON.
- */
-export function liftToRegistry(w: any) {
-  if (!w || typeof w !== 'object') return;
-  const rows: EventRow[] = Array.isArray(w.eventRegistry) ? w.eventRegistry : [];
-  // What a function acts with goes to the registry; its numbers stay the owning action's (runtime 0.12.281).
-  const register = (name: unknown, values?: Record<string, string>, owner?: any) => {
-    if (typeof name !== 'string' || !name.trim()) return;
-    const v = values && senderOnly({...values}),
-      part = v && registryPart(v);
-    const row = registerIn(rows, name.trim(), part);
-    const own = v && valuePart(v);
-    if (!part || !own || Object.keys(own).length < 2 || !owner?.config || typeof owner.config !== 'object') return;
-    const fn = row.functions.find(f => JSON.stringify(doAttrs(f.values)) === JSON.stringify(doAttrs(part)));
-    if (fn) owner.config.eventValues = {...(owner.config.eventValues ?? {}), [valueKey(row, fn)]: own};
-  };
-  // A function saved with a target or a sender filter changes its sender now (runtime 0.12.273); payload
-  // spellings and shake parameters are gone (0.12.274: AI.CamShake annotations carry the numbers).
-  for (const row of rows) {
-    if (row && typeof row === 'object') delete (row as {values?: unknown}).values;
-    for (const f of row?.functions ?? []) if (f?.values) dropRetired(senderOnly(f.values));
-  }
-  const visit = (a: any) => {
-    if (!a || typeof a !== 'object') return;
-    const p = a.config;
-    if (p && typeof p === 'object') {
-      if (Array.isArray(p.extraEvents)) {
-        p.extraEvents.forEach((n: unknown) => register(n));
-        delete p.extraEvents;
-      }
-      if (Array.isArray(p.events) && p.events.length) {
-        p.events.forEach((n: unknown) => register(n));
-        p.events = [];
-      }
-      if (p.fireArrow && typeof p.fireArrow === 'object' && !('onRelease' in p.fireArrow)) {
-        const m = p.fireArrow.at;
-        if (isMark(m) && m.basis === 'event') {
-          register(m.event, {op: 'fireArrow'});
-          p.fireArrow = {at: null, onRelease: true};
-        } else p.fireArrow = {at: isMark(m) ? m : null, onRelease: true};
-      }
-      for (const key of ['rotate', 'iframe', 'armor'] as const) {
-        const s = p.slots?.[key];
-        if (!s?.enabled || !isMark(s.from) || !isMark(s.until) || s.from.basis !== 'event' || s.until.basis !== 'event')
-          continue;
-        register(s.from.event, {op: slotOps[key][0]});
-        register(s.until.event, {op: slotOps[key][1]});
-        s.enabled = false;
-        s.from = mark();
-        s.until = mark(0, 'end');
-      }
-      if (p.cost?.enabled && isMark(p.cost.at) && p.cost.at.basis === 'event') {
-        register(
-          p.cost.at.event,
-          {
-            op: 'cost',
-            stamina: String(p.cost.stamina ?? 0),
-            magicka: String(p.cost.magicka ?? 0),
-          },
-          a
-        );
-        p.cost.enabled = false;
-        p.cost.at = mark(0.05);
-      }
-    }
-    const pair = a.pair;
-    if (pair && typeof pair === 'object') {
-      if (Array.isArray(pair.effects))
-        pair.effects = pair.effects.filter((e: any) => {
-          const v = e?.values;
-          if (!v || typeof v !== 'object') return true;
-          liftKeys(v);
-          if (v.name !== undefined && v.at === undefined) {
-            register(v.name, (({name, ...rest}) => rest)(v), a);
-            return false;
-          }
-          delete v.name;
-          return true;
-        });
-      for (const [key, t] of Object.entries(pair.timeline ?? {}) as [string, any][]) {
-        if (!t || typeof t !== 'object') continue;
-        if (typeof t.role === 'string') t.role = liftTarget(t.role);
-        if (typeof t.source === 'string') t.source = liftFrom(t.source);
-        const ops = slotOps[key as keyof typeof slotOps];
-        if (!ops || !t.enabled || !isMark(t.from) || !isMark(t.until)) continue;
-        const ends = key === 'cost' ? [t.from] : [t.from, t.until];
-        if (!ends.some(m => m.basis === 'event')) continue;
-        // An event moment moves to the registry; a clip-time moment stays as a clip-time effect.
-        ends.forEach((m, i) => {
-          const values: Record<string, string> = {
-            op: ops[i],
-            target: t.role,
-            from: t.source,
-            ...(key === 'cost' ? {stamina: String(t.stamina), magicka: String(t.magicka)} : {}),
-          };
-          if (m.basis === 'event') register(m.event, values, a);
-          else {
-            pair.effects = Array.isArray(pair.effects) ? pair.effects : [];
-            pair.effects.push({
-              id: nextId(
-                `timeline_${key}_`,
-                pair.effects.map((e: any) => e?.id)
-              ),
-              values: {...values, at: String(m.seconds)},
-            });
-            pair.effectsEnabled = true;
-          }
-        });
-        t.enabled = false;
-        t.from = mark(key === 'cost' ? 0.05 : 0);
-        t.until = mark(0.8);
-      }
-    }
-    for (const v of Object.values(a.variants ?? {})) visit(v);
-  };
-  for (const a of Array.isArray(w.actions) ? w.actions : []) visit(a);
-  for (const d of Array.isArray(w.drafts) ? w.drafts : []) visit(d?.value);
-  // After the renames above: a pair's clip-time effect names a role and no sender filter (0.12.275); an ordinary
-  // action's names none.
-  const roles = (a: any) => {
-    if (!a || typeof a !== 'object') return;
-    for (const e of Array.isArray(a.pair?.effects) ? a.pair.effects : [])
-      if (e?.values && typeof e.values === 'object') pairEffectValues(dropRetired(e.values));
-    for (const e of Array.isArray(a.config?.effects) ? a.config.effects : [])
-      if (e?.values && typeof e.values === 'object') senderOnly(dropRetired(e.values));
-    for (const t of Object.values(a.pair?.timeline ?? {}) as any[])
-      if (t && typeof t === 'object' && 'role' in t) {
-        t.role = pairRole(t.role, t.source);
-        t.source = 'any';
-      }
-    for (const v of Object.values(a.variants ?? {})) roles(v);
-  };
-  for (const a of Array.isArray(w.actions) ? w.actions : []) roles(a);
-  for (const d of Array.isArray(w.drafts) ? w.drafts : []) roles(d?.value);
-  if (Array.isArray(w.eventCatalog)) {
-    w.eventCatalog.forEach((n: unknown) => register(n));
-    delete w.eventCatalog;
-  }
-  // Spell rules grouped name-triggered pair spells; the registry holds those now.
-  delete w.spellGroups;
-  if (rows.length) w.eventRegistry = rows;
-  else delete w.eventRegistry;
-}
-
 // ── Checks ──────────────────────────────────────────────────────────────────────────────────────
 /** Errors of one function's values (a registry function, or a pair clip-time effect with `timed`). */
 export function functionErrors(v: Record<string, string>, timed = false): string[] {
@@ -739,7 +779,6 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   if (timed && v.op === 'fireArrow') out.push(tr('시간 기준 활 발사는 동작의 활 발사에서 지정합니다.'));
   if (v.target !== undefined && !(timed && (pairRoles as readonly string[]).includes(v.target)))
     out.push(tr('적용 값이 잘못되었습니다.'));
-  if (v.from !== undefined) out.push(tr('반응 조건은 없어졌습니다.'));
   if (v.mode !== undefined && v.mode !== '' && !(v.op === 'fireArrow' && ['drawn', 'direct'].includes(v.mode)))
     out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
   if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
@@ -749,11 +788,58 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     !(v.op === 'ragdoll' && (ragdollDirections as readonly string[]).includes(v.direction))
   )
     out.push(tr('방향은 래그돌의 아래·위·앞·뒤·왼쪽·오른쪽입니다.'));
-  if (v.force !== undefined && v.force !== '' && v.op !== 'ragdoll') out.push(tr('힘은 래그돌에서만 씁니다.'));
-  if (['spell', 'stateOn', 'stateOff'].includes(v.op)) {
+  if (v.force !== undefined && v.force !== '' && v.op !== 'ragdoll' && v.op !== 'strike')
+    out.push(tr('힘은 래그돌·타격에서만 씁니다.'));
+  for (const [k, choices] of Object.entries(strikeChoices))
+    if (v[k] !== undefined && v[k] !== '' && !(v.op === 'strike' && choices().some(([x]) => x === v[k])))
+      out.push(tr('{label}: 타격의 선택지가 아닙니다.', {label: settingLabels[k]}));
+  for (const k of strikeNumberKeys)
+    if (v[k] !== undefined && v[k] !== '' && v.op !== 'strike')
+      out.push(tr('{label}: 타격에서만 씁니다.', {label: settingLabels[k]}));
+  if (v.op === 'strike') {
+    if (v.ratio && v.amount) out.push(tr('타격 피해는 무기 데미지 비율과 고정 피해 중 하나만 씁니다.'));
+    if (
+      (timed || v.pick !== undefined) &&
+      (v.pick ?? 'combatTarget') !== 'area' &&
+      strikeAreaKeys.some(k => v[k] !== undefined && v[k] !== '')
+    )
+      out.push(tr('반경·각·높이·감쇠·맞는 대상은 대상이 「범위」일 때만 씁니다.'));
+    if (v.strength !== undefined && v.strength !== '' && !(Number(v.strength) <= 1))
+      out.push(tr('경직 세기는 0~1입니다.'));
+    const reaction = v.reaction ?? (timed ? 'none' : undefined);
+    if (reaction !== undefined && reaction !== 'stagger' && v.strength !== undefined && v.strength !== '')
+      out.push(tr('세기는 반응이 「경직」일 때만 씁니다.'));
+    if (reaction !== undefined && reaction !== 'push' && v.force !== undefined && v.force !== '')
+      out.push(tr('힘은 반응이 「밀쳐내기」일 때만 씁니다.'));
+    const known = new Set(strikeExtras().map(([k]) => k));
+    for (const k of (v.without ?? '').split(',').filter(Boolean))
+      if (!known.has(k)) out.push(tr('따라오는 것에 없는 항목입니다: {name}', {name: k}));
+  } else if (v.without !== undefined && v.without !== '') out.push(tr('따라오는 것은 타격에서만 씁니다.'));
+  // A sound plays a file or a registered sound; a global and the spells name a form (runtime 0.12.296). A node's
+  // numbers carry none of them.
+  const registered = v.plugin !== undefined || v.form !== undefined;
+  if (['spell', 'stateOn', 'stateOff', 'globalSet'].includes(v.op) || (v.op === 'sound' && registered)) {
     if (!v.plugin || /[\\/:]/.test(v.plugin)) out.push(tr('플러그인 파일 이름을 입력하세요.'));
     if (!/^(?:0x)?[\da-f]{1,8}$/i.test(v.form ?? '')) out.push(tr('16진수 폼 ID를 입력하세요.'));
   }
+  if (v.op === 'sound' && v.file && registered) out.push(tr('소리는 파일과 등록 사운드 중 하나만 씁니다.'));
+  if (v.op === 'sound' && !v.file && !registered) out.push(tr('소리 파일 또는 등록 사운드를 정하세요.'));
+  if (v.file !== undefined && v.file !== '' && (v.op !== 'sound' || /^[a-z]:|^[\\/]|\.\./i.test(v.file)))
+    out.push(tr('소리 파일은 Data 아래 상대 경로입니다(sound\\fx\\…\\a.wav).'));
+  // The mod package holds the file at that path, which the game finds only in ASCII (modpack.rs sound_path).
+  else if (v.op === 'sound' && v.file && /[^\x20-\x7e]/.test(v.file))
+    out.push(
+      tr(
+        '소리 파일 경로는 영문·숫자·일반 기호만 씁니다. 한글 등은 게임이 파일을 찾지 못하니 파일·폴더 이름을 바꾸세요.'
+      )
+    );
+  if (v.bone !== undefined && !(v.op === 'sound' && soundBones().some(([b]) => b === v.bone)))
+    out.push(tr('소리 위치를 선택하세요.'));
+  if (v.restore !== undefined && !(v.op === 'globalSet' && v.restore === 'end'))
+    out.push(tr('되돌림은 전역 값 설정에서만 씁니다.'));
+  if (v.op === 'modEvent' && !v.name?.trim()) out.push(tr('모드 이벤트 이름을 입력하세요.'));
+  if ((v.name !== undefined || v.text !== undefined) && v.op !== 'modEvent')
+    out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다.'));
   for (const [k, [min, max]] of Object.entries(numberRanges))
     if (
       v[k] !== undefined &&
@@ -768,13 +854,6 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     out.push(tr('시각은 0~600초입니다.'));
   return out;
 }
-const numbersText = () =>
-  tr(
-    '등록에 수치가 있습니다. 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 이벤트 등록에서 「수치를 노드로 옮기기」를 누르세요.'
-  );
-/** An older file's registry numbers: an error to save, not to open (the registry node moves them to the nodes, which
- *  needs the HKX annotations the open does not have). */
-export const registryNumbersIssue = (i: Issue) => i.node === 'eventRegistry' && i.message.endsWith(numbersText());
 export function registryIssues(w: Workspace): Issue[] {
   const out: Issue[] = [],
     rows = w.eventRegistry ?? [];
@@ -797,8 +876,6 @@ export function registryIssues(w: Workspace): Issue[] {
       out.push({level: 'error', node: 'eventRegistry', message: where(tr('기능은 64개까지입니다.'))});
     for (const f of r.functions)
       for (const m of functionErrors(f.values)) out.push({level: 'error', node: 'eventRegistry', message: where(m)});
-    if (r.functions.some(f => registryNumbers(f.values).length))
-      out.push({level: 'error', node: 'eventRegistry', message: where(numbersText())});
     if (r.functions.length && vanillaName(r.name))
       out.push({
         level: 'warning',
@@ -849,7 +926,7 @@ export function registryXml(w: Workspace): Xml | undefined {
       node(
         'Event',
         {name: r.name},
-        // The numbers are the nodes' (<EventValues>, runtime 0.12.281): an older function's are not written.
+        // The numbers are the nodes' (<EventValues>, runtime 0.12.281).
         r.functions.map(f => node('Do', doAttrs(registryPart(f.values))))
       )
     )
@@ -858,23 +935,12 @@ export function registryXml(w: Workspace): Xml | undefined {
 const eventDoAttrs = functionKeys;
 /** One <Do> of a registered event, or (`timed`) of a pair's <Effects>. */
 export function readDo(n: Xml, timed: boolean): Record<string, string> {
-  // An older file's event function with a target or sender filter opens as one changing its sender (0.12.273).
-  if (!timed) senderOnly(n.attrs);
-  dropRetired(n.attrs);
-  // An older file's clip-time target and sender filter become the role they reached (0.12.275).
-  if (timed && (n.attrs.from !== undefined || n.attrs.target !== undefined)) {
-    const role = pairRole(n.attrs.target, n.attrs.from);
-    delete n.attrs.from;
-    if (role === 'both') delete n.attrs.target;
-    else n.attrs.target = role;
-  }
-  if (n.attrs.releasePhysics !== undefined)
-    throw Error(tr('Do.releasePhysics는 없어졌습니다(런타임 0.12.278): 래그돌은 래그돌 기능(op="ragdoll")을 씁니다.'));
   shapeXml(n, timed ? timedKeys : eventDoAttrs);
   const values = {...n.attrs};
   if (!values.op) throw Error(tr('Do.op: 필수 값'));
-  if (values.op === 'lock' || values.op === 'unlock')
-    throw Error(tr('Do({op}): 조작 잠금(lock·unlock)은 없어졌습니다(런타임 0.12.238).', {op: values.op}));
+  // A registered function's numbers are the nodes' (<EventValues>, runtime 0.12.281).
+  if (!timed && valueFields(values.op).some(k => values[k] !== undefined))
+    throw Error(tr('Do({op}): 수치는 이벤트를 보내는 HKX 노드의 <EventValues>에 씁니다.', {op: values.op}));
   if (values.form) values.form = values.form.replace(/^0x/i, '');
   const errors = functionErrors(values, timed);
   if (errors.length) throw Error(`Do(${values.op}): ${errors[0]}`);
@@ -884,7 +950,7 @@ export function readRegistry(r: Xml, rows: EventRow[]) {
   shapeXml(r, [], ['Event']);
   const names = new Set<string>();
   for (const e of r.children) {
-    shapeXml(e, ['name', 'values'], ['Do', 'QTE']);
+    shapeXml(e, ['name'], ['Do', 'QTE']);
     const name = e.attrs.name ?? '';
     if (!eventNameOk(name)) throw Error(tr('Event.name: 이벤트 이름이 잘못되었습니다: ') + name);
     if (names.has(eventKey(name))) throw Error(tr('같은 이벤트를 두 번 등록했습니다: ') + name);
@@ -892,7 +958,6 @@ export function readRegistry(r: Xml, rows: EventRow[]) {
     // An event that only starts QTEs (runtime 0.12.248) is no registry row: its QTE cards carry it (qte.ts
     // readEventQtes), and writing them back gives the same <Event>.
     const dos = e.children.filter(d => d.name === 'Do');
-    // An older file's payload spellings (values) are dropped: AI.CamShake annotations carry numbers (0.12.274).
     if (!dos.length && e.children.some(d => d.name === 'QTE')) continue;
     registerIn(rows, name);
     for (const d of dos) registerIn(rows, name, readDo(d, false));
@@ -1077,6 +1142,25 @@ export function ownUseLabels(uses: EventUse[], owner: string, step: string | und
   const own = uses.filter(u => u.owner === owner && (!u.step || !step || u.step === step));
   return groupUses(own, u => u.local ?? u.label).map(g => g.text);
 }
+/** An event's uses on its one registry line (docs/mockup-registry-oneline A): each label without the event's own
+ *  name ("시작 트리거 · X" on X is "시작 트리거"), repeats counted ("×2"), and a kind used at several different
+ *  places as its count ("카메라 복구 · 14곳"). */
+export function shortUses(name: string, uses: EventUse[]): string[] {
+  const own = ' · ' + name;
+  const kinds = new Map<string, string[]>();
+  for (const u of uses) {
+    const label = u.label.endsWith(own) ? u.label.slice(0, -own.length) : u.label;
+    const kind = label.split(' · ')[0];
+    kinds.set(kind, [...(kinds.get(kind) ?? []), label]);
+  }
+  return [...kinds].map(([kind, labels]) =>
+    new Set(labels).size > 1
+      ? tr('{kind} · {n}곳', {kind, n: labels.length})
+      : labels.length > 1
+        ? `${labels[0]} ×${labels.length}`
+        : labels[0]
+  );
+}
 /** Uses with the same label, in first-seen order; `text` adds the count ("×21") when repeated. */
 export type UseGroup = {label: string; text: string; uses: EventUse[]};
 export function groupUses(uses: EventUse[], labelOf = (u: EventUse) => u.label): UseGroup[] {
@@ -1103,16 +1187,18 @@ export function eventUses(w: Workspace): Map<string, EventUse[]> {
   for (const s of eventSlots(w))
     if (s.mark.basis === 'event')
       add(s.mark.event, {label: s.label, node: s.node, slot: s.key, owner: s.owner, step: s.step, local: s.local});
+  // A start card on an event (format 6): the event starts what it goes to.
+  for (const s of w.starts)
+    if (s.mode === 'event')
+      add(s.event, {
+        label: tr('시작 트리거 · {name}', {name: s.event}),
+        node: 'startCard:' + s.uid,
+        owner: s.to && 'action' in s.to ? s.to.action : '',
+        local: tr('시작 트리거'),
+      });
   for (const a of w.actions) {
     const p = a.config,
       name = p.name || p.actionId;
-    if (p.start.mode === 'event')
-      add(p.start.event, {
-        label: tr('시작 트리거 · {name}', {name}),
-        node: `start:${a.uid}|markerReceive`,
-        owner: a.uid,
-        local: tr('시작 트리거'),
-      });
     if (a.cameraEnabled && a.camera?.restore === 'event')
       add(cameraReset(w, a.camera), {
         label: tr('카메라 복구 · {name}', {name}),
@@ -1225,10 +1311,8 @@ export function renameEvent(w: Workspace, oldName: string, name: string): Worksp
   for (const r of next.eventRegistry ?? []) if (eventKey(r.name) === key) r.name = name;
   for (const s of eventSlots(next)) if (s.mark.basis === 'event' && eventKey(s.mark.event) === key) s.mark.event = name;
   const same = (v: string | undefined) => !!v && eventKey(v) === key;
-  for (const a of next.actions) {
-    if (same(a.config.start.event)) a.config.start.event = name;
-    if (a.camera && same(a.camera.reset)) a.camera.reset = name;
-  }
+  for (const s of next.starts) if (s.mode === 'event' && same(s.event)) s.event = name;
+  for (const a of next.actions) if (a.camera && same(a.camera.reset)) a.camera.reset = name;
   if (same(next.globals.cameraReset ?? undefined)) next.globals.cameraReset = name;
   for (const l of next.links) if (same(l.event)) l.event = name;
   for (const q of next.qtes ?? []) {

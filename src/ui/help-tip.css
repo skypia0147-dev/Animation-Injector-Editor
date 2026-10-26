@@ -20,11 +20,11 @@ span.help-tip-target {
   overflow: auto;
   box-sizing: border-box;
   padding: 10px 12px;
-  border: 1px solid var(--ue-line, #555);
-  border-radius: 5px;
-  background: #25282e;
+  border: 1px solid var(--pop-line);
+  border-radius: var(--pop-radius);
+  background: var(--pop-bg);
   color: #e3e5e8;
-  box-shadow: 0 6px 20px #0008;
+  box-shadow: var(--pop-shadow);
   font-size: var(--fs-sm);
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -37,8 +37,7 @@ span.help-tip-target {
 .help-tip-popup p {
   margin: 6px 0;
 }
-.help-note,
-.field-heading {
+.help-note {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -61,9 +60,6 @@ span.help-tip-target {
   margin: 6px 0;
   border-top: 1px solid var(--ue-line, #333);
 }
-.clip-window-fields .field-heading {
-  font-weight: 600;
-}
 .time-event-input {
   display: flex;
   align-items: center;
@@ -73,15 +69,6 @@ span.help-tip-target {
 .time-event-input input {
   min-width: 0;
   flex: 1;
-}
-.time-fallback > label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin: 0;
-}
-.time-fallback input[type='checkbox'] {
-  flex: 0 0 auto;
 }
 .detail-panel .row-actions button {
   min-height: 26px;

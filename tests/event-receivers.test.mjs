@@ -1,11 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {addLink, compileWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {flatGraph} from '../src/graph/flat.ts';
 import {compactGraph, shareEventReceivers, synchronizeRules} from '../src/graph/sharing.ts';
-import {tableProjection} from '../src/graph/conditionTables.ts';
+import {newStart} from '../src/cards.ts';
 import {documentReducer} from '../src/graph/state.ts';
 import {authorReducer, captureGraph} from '../src/graph/document.ts';
 
@@ -19,29 +19,30 @@ function imported() {
   ])
     w.links.push({...addLink(w, from, to), event: 'Shared_Go'});
   for (const id of ['a4', 'a5'])
-    Object.assign(w.actions.find(a => a.uid === id).config.start, {mode: 'event', event: 'Shared_Start'});
+    w.starts.push({...newStart(w, {x: 0, y: 0}, 'event'), event: 'Shared_Start', to: {action: id}});
   return importWorkspaceXml(compileWorkspace(w));
 }
+// The transition cards drawn for Shared_Go (equal ones are drawn once).
 const receivers = w =>
-  tableProjection(w, compactGraph(w, flatGraph(w)))
-    .nodes.filter(n => n.kind === 'markerReceive')
+  compactGraph(w, flatGraph(w))
+    .nodes.filter(
+      n => n.kind === 'transition' && w.links.find(l => 'transition:' + l.id === n.id)?.event === 'Shared_Go'
+    )
     .map(n => n.id);
 const route = (w, from) => w.links.find(l => l.from === from && l.event === 'Shared_Go');
 
-test('an import draws one receiver per event and route, like reusing a receiver', () => {
+test('an import draws one transition card per event and destination, like reusing a receiver', () => {
   const w = imported(),
     same = [route(w, 'a3').id, route(w, 'a4').id].sort();
   assert.deepEqual(
     w.sharedRules.map(g => [g.kind, [...g.members].sort()]),
-    [
-      ['link', same],
-      ['node', ['start:a4|markerReceive', 'start:a5|markerReceive']],
-    ]
+    [['link', same]]
   );
   const shown = receivers(w);
-  assert.equal(shown.filter(id => id.startsWith('start:')).length, 1, 'one start trigger for Shared_Start');
-  assert.equal(shown.filter(id => id.startsWith('link:')).length, 2, 'the route to another destination stays apart');
-  assert.ok(shown.includes(`link:${route(w, 'a1').id}|markerReceive`));
+  assert.equal(shown.length, 2, 'the route to another destination stays apart');
+  assert.ok(shown.includes(`transition:${route(w, 'a1').id}`));
+  // Start cards are cards of their own: one per start.
+  assert.equal(w.starts.filter(s => s.event === 'Shared_Start').length, 2);
 });
 
 test('sharing changes the view only, never the exported XML', () => {

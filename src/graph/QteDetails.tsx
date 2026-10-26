@@ -28,6 +28,7 @@ import {markerNames} from '../ui/details/markerCatalog.ts';
 import {EventPicker} from '../ui/details/EventPicker.tsx';
 import {DetailCategory, DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
+import {gameControlLabel, gameControls, isGameControl} from '../keys.ts';
 const names: Record<Outcome, string> = {
   get success() {
     return tr('성공');
@@ -291,15 +292,21 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
             value={q.control ?? 'key'}
             onChange={e =>
               common(q => {
-                q.control = e.target.value === 'rightAttack' ? 'rightAttack' : undefined;
+                q.control = isGameControl(e.target.value) ? e.target.value : undefined;
               })
             }
           >
             <option value="key">{tr('키·컨트롤러 직접 지정')}</option>
-            <option value="rightAttack">{tr('일반 공격 (게임 설정)')}</option>
+            <optgroup label={tr('게임 동작 (게임 설정)')}>
+              {gameControls.map(c => (
+                <option key={c} value={c}>
+                  {gameControlLabel(c)}
+                </option>
+              ))}
+            </optgroup>
           </select>,
           tr(
-            'QTE가 열릴 때 현재 공격키를 조회합니다. 키보드·마우스·게임패드 재설정을 따르고, 화면에는 마지막으로 쓴 장치의 키만 보입니다.'
+            'QTE가 열릴 때 그 게임 동작에 묶인 키를 조회합니다. 키보드·마우스·게임패드 재설정을 따르고, 화면에는 마지막으로 쓴 장치의 키만 보입니다. 미리보기는 게임 기본 키로 보입니다.'
           )
         )}
       {q.control ? null : q.type !== 'keySequence' ? (

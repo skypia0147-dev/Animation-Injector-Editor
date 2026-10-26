@@ -11,6 +11,8 @@ export function ExtendedConditionFields({
 }) {
   const d = definition(test.kind);
   if (!d) return null;
+  // A fall's distance is asked only when switched on (runtime 0.12.296).
+  const compared = d.numeric || (d.optionalNumeric && test.compare !== undefined);
   return (
     <>
       {d.choices && (
@@ -47,7 +49,36 @@ export function ExtendedConditionFields({
           </select>
         </DetailRow>
       )}
-      {d.numeric && (
+      {d.optionalNumeric && (
+        <DetailRow label={tr('낙하 거리')} hint={d.hint}>
+          <label>
+            <input
+              type="checkbox"
+              checked={test.compare !== undefined}
+              onChange={e =>
+                change(
+                  e.target.checked
+                    ? {compare: 'ge', value: test.value ?? 200}
+                    : {compare: undefined, value: undefined, upper: undefined}
+                )
+              }
+            />
+            {tr('떨어진 거리도 비교')}
+          </label>
+        </DetailRow>
+      )}
+      {test.kind === 'actorValue' && (
+        <DetailRow label={tr('비교 기준')} hint={d.hint}>
+          <select
+            value={test.measure ?? 'current'}
+            onChange={e => change({measure: e.target.value as 'current' | 'base'})}
+          >
+            <option value="current">{tr('현재 값')}</option>
+            <option value="base">{tr('기본 값')}</option>
+          </select>
+        </DetailRow>
+      )}
+      {compared && (
         <DetailRow label={tr('비교')} hint={d.hint}>
           <select
             value={test.compare ?? 'le'}
@@ -68,16 +99,20 @@ export function ExtendedConditionFields({
           </select>
         </DetailRow>
       )}
-      {(d.numeric || test.kind === 'chance') && (
+      {(compared || test.kind === 'chance') && (
         <DetailRow
           label={
             test.kind === 'chance'
               ? tr('통과 확률 (%)')
               : test.kind === 'resource' && test.measure === 'percent'
                 ? tr('값 (%)')
-                : test.kind === 'relativeAngle'
+                : test.kind === 'relativeAngle' || test.kind === 'slope'
                   ? tr('각도 (°)')
-                  : tr('값')
+                  : test.kind === 'gameHour'
+                    ? tr('시각 (시)')
+                    : test.kind === 'falling'
+                      ? tr('거리')
+                      : tr('값')
           }
           hint={d.hint}
         >
@@ -91,11 +126,11 @@ export function ExtendedConditionFields({
           />
         </DetailRow>
       )}
-      {d.numeric && test.compare === 'range' && (
+      {compared && test.compare === 'range' && (
         <DetailRow label={tr('끝 값')}>
           <input
             type="number"
-            min={test.value ?? 0}
+            min={test.kind === 'gameHour' ? 0 : (test.value ?? 0)}
             max={extensionMaximum(test)}
             step="any"
             value={test.upper ?? test.value ?? 0}

@@ -19,7 +19,7 @@ import {eventOps, pairRoles, fieldsOf, doAttrs, registryPart, valuePart} from '.
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {parseXml} from '../src/xml.ts';
 import {savedProject, withEditorBlock} from '../src/editorBlock.ts';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {checker, needsChecker} from './local.mjs';
 const dir = resolve('tests/generated/s4');
 mkdirSync(dir, {recursive: true});
@@ -52,21 +52,6 @@ test(
     writeFileSync(resolve(dir, 'Grapple.xml'), withEditorBlock(compileWorkspace(w), JSON.stringify(w)));
   }
 );
-test('S3 migration and XML roundtrip preserve executable semantics', needsChecker, () => {
-  // S3Combo was a combo: projects with combos no longer open (format 4).
-  for (const name of ['S3Single', 'S3Directional', 'S3Event']) {
-    const p = JSON.parse(savedProject(readFileSync('examples/' + name + '.xml', 'utf8')).project);
-    const w = parseWorkspace(JSON.stringify(p));
-    assert.equal(w.schema, 7);
-    for (const v of [1, 2]) {
-      const file = resolve(dir, name + '-v' + v + '.xml');
-      writeFileSync(file, compileWorkspace(importWorkspaceXml(compileWorkspace(w, v)), v));
-      // A directional project keeps its entry clip as one single action (motion is the HKX's, 0.12.231).
-      const expected = name === 'S3Directional' ? 'DirectionalMigrated' : name.slice(2);
-      check('--compare', resolve('tests/fixtures/current-xml/' + expected + '.xml'), file);
-    }
-  }
-});
 test('stable action IDs, guarded deletion, invalid roles and input conflicts', () => {
   const w = emptyWorkspace();
   for (const kind of ['pair', 'single', 'single', 'pair']) w.actions.push(addAction(w, kind));
@@ -81,7 +66,8 @@ test('stable action IDs, guarded deletion, invalid roles and input conflicts', (
   assert.throws(() => compileWorkspace(w));
   l.partnerTo = '';
   l.mode = 'input';
-  l.input = w.actions[0].config.inputs[0].id;
+  w.actions[0].config.inputs.push({id: 'use', label: 'use', key: 'G', gamepad: 0});
+  l.input = 'use';
   l.window = true;
   w.links.push({...clone(l), id: 'other'});
   assert.throws(() => compileWorkspace(w));
@@ -98,15 +84,14 @@ test('unknown XML and schema data fail atomically; entities are bounded and neve
   assert.equal(parseXml('<x a="&#xD55C;&amp;"/>').attrs.a, '한&');
   const originalText = readFileSync(original, 'utf8');
   for (const raw of [
-    originalText.replace('<OnPartnerLost blend=', '<OnPartnerLost typo='),
+    originalText.replace(' lostBlend=', ' lostTypo='),
     originalText.replace('<Exit', '<Unknown'),
     originalText.replace('<Do op="hide"/>', '<Do op="invalid"/>'),
     originalText.replace('<EventRegistry>', '<EventRegistry><Event name="Grapple_unequip"/>'),
   ])
     assert.throws(() => importWorkspaceXml(raw));
-  // An older file's event function target opens as one changing its sender (runtime 0.12.273).
-  const older = importWorkspaceXml(originalText.replace('<Do op="hide"/>', '<Do op="hide" target="lead"/>'));
-  assert.ok(older.eventRegistry.every(r => r.functions.every(f => !('target' in f.values) && !('from' in f.values))));
+  // A registered function has no target (runtime 0.12.273).
+  assert.throws(() => importWorkspaceXml(originalText.replace('<Do op="hide"/>', '<Do op="hide" target="lead"/>')));
   const w = migrateWorkspace(createProject());
   w.actions[0].unknown = true;
   assert.throws(() => parseWorkspace(JSON.stringify(w)));
@@ -141,17 +126,32 @@ const settingValue = {
   move: 'true',
   look: 'true',
   factor: '0.5',
+  // A registered sound, a global set back at the end and a mod event (runtime 0.12.296).
+  bone: 'head',
+  volume: '0.5',
+  value: '2',
+  restore: 'end',
+  name: 'MyMod_Hit',
+  text: 'heavy',
+  number: '3',
 };
-const withSettings = (op, i) => ({
-  op,
-  // A pair's clip-time effect names a role and no sender filter (runtime 0.12.275).
-  target: pairRoles[i % pairRoles.length],
-  ...Object.fromEntries(fieldsOf(op).map(k => [k, settingValue[k]])),
-});
+const withSettings = (op, i) => {
+  const values = {
+    op,
+    // A pair's clip-time effect names a role and no sender filter (runtime 0.12.275).
+    target: pairRoles[i % pairRoles.length],
+    ...Object.fromEntries(fieldsOf(op).map(k => [k, settingValue[k]])),
+  };
+  // A strike's strength is a stagger's and its force a push's (runtime 0.12.294): one reaction, one number.
+  if (op === 'strike') {
+    values.reaction = 'stagger';
+    delete values.force;
+  }
+  return values;
+};
 test('all role operations and supported parameters preserve parser semantics', needsChecker, () => {
   const w = s4sample(),
     p = w.actions[0].pair;
-  p.effectsEnabled = true;
   w.actions[0].cameraEnabled = true;
   w.actions[0].camera = {reset: 'ResetCamera', restore: 'end', timeout: 10};
   p.interruptOnThirdPartyHit = true;
@@ -208,7 +208,7 @@ test('all role operations and supported parameters preserve parser semantics', n
   twice.eventRegistry[1].name = 'event0';
   assert.throws(() => compileWorkspace(twice));
 });
-test('repeated imports never declare inputs: keys stay where they are used (format 4)', needsChecker, () => {
+test('repeated imports never declare inputs: keys stay where they are used (format 6)', needsChecker, () => {
   let xml = compileWorkspace(s4sample());
   for (let i = 0; i < 8; i++) {
     xml = compileWorkspace(importWorkspaceXml(xml));

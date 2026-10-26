@@ -15,15 +15,20 @@ export type Parameter = {
   max: number;
 };
 export type AssetPolicy = {clip: string; mode: 'copy' | 'external'; dependency: string};
+/** A sound file of the library (runtime 0.12.296): `file` is its path under Data, `localPath` its source, which stays
+ *  on this computer (localPaths.ts). A sound's copy or external choice is a policy like an HKX's. */
+export type SoundSource = {file: string; localPath: string};
 export type Packaging = {
   folder: string;
   roots: string[];
   policies: AssetPolicy[];
+  sounds: SoundSource[];
 };
 export const defaultPackaging = (): Packaging => ({
   folder: 'My Animation Mod',
   roots: [],
   policies: [],
+  sounds: [],
 });
 export const parameterDefault = (): Parameter => ({
   id: 'setting1',
@@ -55,7 +60,9 @@ export function authoringShape(w: Workspace) {
     p.roots.length > 12 ||
     p.roots.some(r => !text(r)) ||
     !Array.isArray(p.policies) ||
-    p.policies.length > 500
+    p.policies.length > 500 ||
+    !Array.isArray(p.sounds) ||
+    p.sounds.length > 500
   )
     throw new Error(tr('패키지 설정 형식 오류'));
   const clips = new Set<string>();
@@ -66,6 +73,10 @@ export function authoringShape(w: Workspace) {
     exact(s, ['clip', 'mode', 'dependency'], tr('자산 정책'));
     if (!text(s.clip) || !text(s.dependency) || !['copy', 'external'].includes(s.mode))
       throw new Error(tr('자산 정책 형식 오류'));
+  }
+  for (const s of p.sounds) {
+    exact(s, ['file', 'localPath'], tr('소리 원본'));
+    if (!text(s.file) || !text(s.localPath)) throw new Error(tr('소리 원본 형식 오류'));
   }
   if (!Array.isArray(w.parameters) || w.parameters.length > 200) throw new Error(tr('제작 매개변수 개수 제한'));
   for (const a of w.parameters) {
@@ -84,12 +95,13 @@ export function parameterValue(w: Workspace, p: Parameter): string | number | un
   if (!a) return;
   switch (p.field) {
     case 'inputKey':
-      return a.config.inputs.find(i => i.id === p.input)?.key;
+      // An input of the action (a transition's or carry's key), or a start card's key (its uid).
+      return a.config.inputs.find(i => i.id === p.input)?.key ?? w.starts.find(s => s.uid === p.input)?.key;
     case 'cooldown':
-      return a.config.cooldown;
+      return w.starts.find(s => s.to && 'action' in s.to && s.to.action === a.uid)?.cooldown;
     case 'costStamina':
       return a.pair
-        ? a.pair.effectsEnabled && a.pair.timeline.cost.enabled
+        ? a.pair.timeline.cost.enabled
           ? a.pair.timeline.cost.stamina
           : undefined
         : a.config.cost.enabled
@@ -130,6 +142,11 @@ export function applyParameter(w: Workspace, id: string, value: string | number)
   if (p.field === 'inputKey') {
     if (typeof value !== 'string' || !keyCode(value) || keyCode(value) > 265)
       throw new Error(tr('유효한 물리 키 이름을 선택하세요.'));
+    const start = next.starts.find(s => s.uid === p.input);
+    if (start && !a.config.inputs.some(i => i.id === p.input)) {
+      start.key = value;
+      return next;
+    }
     a.config.inputs.find(i => i.id === p.input)!.key = value;
     const shared = next.sharedInputs.find(i => i.id === p.input);
     if (shared) return updateSharedInput(next, {...shared, key: value});
@@ -137,9 +154,12 @@ export function applyParameter(w: Workspace, id: string, value: string | number)
     if (typeof value !== 'number' || !Number.isFinite(value) || value < p.min || value > p.max)
       throw new Error(tr('공개 설정 범위 안의 숫자가 필요합니다.'));
     switch (p.field) {
-      case 'cooldown':
-        a.config.cooldown = value;
+      case 'cooldown': {
+        const s = next.starts.find(s => s.to && 'action' in s.to && s.to.action === a.uid);
+        if (!s) throw new Error(tr('이 동작으로 바로 가는 시작 카드가 없습니다.'));
+        s.cooldown = value;
         break;
+      }
       case 'costStamina':
         if (a.pair) a.pair.timeline.cost.stamina = value;
         else a.config.cost.stamina = value;
@@ -154,6 +174,7 @@ export function applyParameter(w: Workspace, id: string, value: string | number)
 export function portable(w: Workspace): Workspace {
   const next = clone(w);
   next.packaging.roots = [];
+  next.packaging.sounds = next.packaging.sounds.map(s => ({...s, localPath: ''}));
   for (const a of next.actions)
     for (const config of [a.config, ...Object.values(a.variants).map(v => v!.config)])
       for (const s of config.steps) s.localPath = '';

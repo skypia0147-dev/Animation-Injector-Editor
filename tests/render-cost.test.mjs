@@ -6,14 +6,21 @@ import {markerNames, markerUses, markerUseCounts} from '../src/ui/details/marker
 import {authorReducer, captureGraph, lowerGraph} from '../src/graph/document.ts';
 import {clone} from '../src/model.ts';
 import {savedProject} from '../src/editorBlock.ts';
+import {importWorkspaceXml} from '../src/importXml.ts';
 import {grappleXml} from './local.mjs';
 
 // Stage 3 (E-4): cheaper render paths must give the same answers as the originals.
-const projects = ['examples/S4Grapple.xml', 'examples/S5Packaging.xml', 'examples/S4Connections.xml', grappleXml]
+const projects = ['tests/fixtures/grapple-carry-qte-cuts.xml', grappleXml]
   .filter(p => p && fs.existsSync(p))
   .map(p => [p, savedProject(fs.readFileSync(p, 'utf8')).project])
   .filter(([, project]) => project)
-  .map(([p, project]) => [p, lowerGraph(captureGraph(parseWorkspace(project)))]);
+  .map(([p, project]) => [p, lowerGraph(captureGraph(parseWorkspace(project)))])
+  .concat(
+    fs
+      .readdirSync('tests/fixtures/current-xml')
+      .map(f => 'tests/fixtures/current-xml/' + f)
+      .map(p => [p, lowerGraph(captureGraph(importWorkspaceXml(fs.readFileSync(p, 'utf8'))))])
+  );
 
 test('marker use counts in one pass equal counting per marker name', () => {
   assert.ok(projects.length >= 3);

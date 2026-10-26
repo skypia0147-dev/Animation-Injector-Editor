@@ -4,6 +4,7 @@ import type {QteNode} from '../qte.ts';
 import {qteBoundsOf, qteKeyWidth, qteLayout} from '../qteLayout.ts';
 import {gamepadButtons} from '../ui/details/KeyField.tsx';
 import {QteGamepad} from '../qteGamepad.ts';
+import {gameControlDefaults, gameControlLabel, gamepadNames} from '../keys.ts';
 import {qteFaceMode, qteLook, singleScale, pressSeconds, qteKeyName} from '../qteFace.ts';
 import {convergeFlash, convergeReach, hash, quality} from '../qteConverge.ts';
 import {ConvergePreview} from './ConvergePreview.tsx';
@@ -138,7 +139,7 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
         return;
       }
       for (const e of sample.edges) {
-        const binding = q.control ? 10 : q.gamepad,
+        const binding = q.control ? (gamepadNames[gameControlDefaults[q.control].pad] ?? 0) : q.gamepad,
           sequence = q.type === 'keySequence';
         if (sequence ? !(q.sequence ?? []).some(k => k.gamepad === e.code) : e.code !== binding) continue;
         const token = e.pad + ':' + e.code;
@@ -219,8 +220,8 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
     look = qteLook(q, state.outcome, sinceResult),
     keyFace = q.control
       ? padPreview
-        ? 'RT'
-        : 'LMB'
+        ? gameControlDefaults[q.control].pad || '—'
+        : qteKeyName(gameControlDefaults[q.control].key) || '—'
       : padPreview
         ? padName(q.gamepad) || '—'
         : qteKeyName(q.key) || '—';
@@ -444,7 +445,7 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
           ) : null}
           {face === 'hint' && type !== 'keySequence' && (
             <text y={116} textAnchor="middle" fill={white} fontSize={13}>
-              {q.control ? (padPreview ? 'Pad RT' : 'ATTACK') : keyLabel(q.key, q.gamepad)}
+              {q.control ? gameControlLabel(q.control) + ' · ' + keyFace : keyLabel(q.key, q.gamepad)}
             </text>
           )}
           {face === 'hint' && (

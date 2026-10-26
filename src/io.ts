@@ -28,6 +28,7 @@ export async function probePackage(request: PackageRequest): Promise<PackageRepo
     ...report,
     warnings: report.warnings.map(backendText),
     assets: report.assets.map(a => ({...a, message: backendText(a.message)})),
+    sounds: report.sounds.map(a => ({...a, message: backendText(a.message)})),
     runtime: report.runtime && checkerText(report.runtime),
   };
 }
@@ -55,6 +56,16 @@ export async function pickHkx(): Promise<{path: string; clip: string} | null> {
   if (!isTauri()) throw new Error(t('drop.hkxNeedsDesktop'));
   return invoke('pick_hkx');
 }
+/** A sound file (.wav·.xwm) below a folder named sound: its local path and its path under Data. */
+export async function pickSound(): Promise<{path: string; file: string} | null> {
+  if (!isTauri()) throw new Error(t('export.desktop'));
+  return invoke('pick_sound');
+}
+/** The sound files a mod folder holds (`<root>\sound\…`): their local paths and paths under Data. */
+export async function modSounds(root: string): Promise<{path: string; file: string}[]> {
+  if (!isTauri()) throw new Error(t('export.desktop'));
+  return invoke('mod_sounds', {root});
+}
 /** Dropped HKX paths → relative clip paths. Entries with a non-empty `error` were not registered. */
 export async function resolveHkx(paths: string[]): Promise<ResolvedHkx[]> {
   if (!isTauri()) throw new Error(t('drop.hkxNeedsDesktop'));
@@ -65,14 +76,6 @@ export async function filesExist(paths: string[]): Promise<boolean[]> {
   if (!isTauri()) throw new Error(t('export.desktop'));
   return invoke<boolean[]>('files_exist', {paths});
 }
-export async function checkAssets(
-  files: {id: string; path: string; clip: string}[]
-): Promise<{id: string; message: string}[]> {
-  if (!isTauri()) throw new Error(t('export.desktop'));
-  const results = await invoke<{id: string; message: string}[]>('check_assets', {files});
-  return results.map(r => ({...r, message: backendText(r.message)}));
-}
-
 export async function save(
   kind: 'xml' | 'template',
   contents: string,

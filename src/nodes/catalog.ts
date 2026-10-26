@@ -23,7 +23,7 @@ export const nodeCatalog = {
   },
   stateCondition: {
     layer: 'rule',
-    fields: ['config.air', 'config.cooldown'],
+    fields: ['config.air'],
     inputs: [],
     outputs: ['condition'],
   },
@@ -42,13 +42,13 @@ export const nodeCatalog = {
   },
   findPartner: {
     layer: 'anim',
-    fields: ['pair.range', 'pair.angle', 'pair.target'],
+    fields: ['pair.range', 'pair.angle'],
     inputs: [],
     outputs: ['partner'],
   },
   pairedPlay: {
     layer: 'anim',
-    fields: ['pair.lossEnabled', 'pair.lossBlend', 'pair.interruptOnThirdPartyHit', 'pair.effectsEnabled'],
+    fields: ['pair.lossEnabled', 'pair.lossBlend', 'pair.interruptOnThirdPartyHit'],
     inputs: ['pose', 'partner'],
     outputs: ['pose'],
   },

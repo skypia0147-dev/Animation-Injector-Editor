@@ -1,5 +1,5 @@
 import {extensionErrors, stripExtensions, type Suppression} from './runtimeExtensions.ts';
-import {keyCodes} from './keys.ts';
+import {keyCodes, gameControlLabel, isGameControl, type GameControl} from './keys.ts';
 export type Position = {x: number; y: number};
 export type Mark = {
   basis: 'seconds' | 'end' | 'event';
@@ -8,9 +8,9 @@ export type Mark = {
   fallback: boolean;
   fallbackBasis: 'seconds' | 'end';
 };
-import {t} from './i18n/index.ts';
 import {tr} from './i18n/korean.ts';
-export type Input = {id: string; label: string; key: string; gamepad: number};
+/** A key and button, or a game control (control, runtime 0.12.292) instead of both. */
+export type Input = {id: string; label: string; key: string; gamepad: number; control?: GameControl};
 export type Step = {
   id: string;
   label: string;
@@ -29,15 +29,10 @@ export type Project = {
   entry: string;
   inputs: Input[];
   events: string[];
-  start: {
-    mode: 'input' | 'event' | 'none';
-    input: string;
-    event: string;
-    actor: 'both' | 'player' | 'npc';
-    onKeyUp: boolean;
-  };
+  /** Where it may play: on the ground only (deny), the ground and the air (allow, XML air="both"), the air only. */
   air: 'deny' | 'allow' | 'only';
-  cooldown: number;
+  /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
+   *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;
   /** The action's own shot: at a clip time (`at`, seconds) and/or on the attack button's release; neither keeps
    *  the HKX card's item for the event shots without writing a <FireArrow> (10-22).
@@ -155,15 +150,11 @@ export const keyCode = (key: string): number =>
     : (keyCodes[keys.find(k => k.toLowerCase() === key.toLowerCase()) ?? ''] ?? 0);
 export const inputLabel = (p: Project, id: string) => {
   const i = p.inputs.find(i => i.id === id);
-  return i ? `${i.label} · ${i.key || tr('패드 ') + i.gamepad}` : tr('입력 미지정');
+  return i
+    ? `${i.label} · ${i.control ? gameControlLabel(i.control) : i.key || tr('패드 ') + i.gamepad}`
+    : tr('입력 미지정');
 };
-export const startLabel = (p: Project) =>
-  p.start.mode === 'input'
-    ? inputLabel(p, p.start.input)
-    : p.start.mode === 'event'
-      ? p.start.event || tr('이벤트 미지정')
-      : tr('외부 연결 전용');
-/** A new action: one HKX, started by its own key (format 4 defaults: no cooldown, ground only). */
+/** A new action: one HKX (ground only); a start card starts it (cards.ts). */
 export function createProject(): Project {
   return {
     schema: 2,
@@ -171,11 +162,9 @@ export function createProject(): Project {
     name: 'Single Action',
     actionId: 'EditorSingle',
     entry: 'A1',
-    inputs: [{id: 'use', label: tr('사용'), key: 'Num0', gamepad: 0}],
+    inputs: [],
     events: [],
-    start: {mode: 'input', input: 'use', event: '', actor: 'both', onKeyUp: false},
     air: 'deny',
-    cooldown: 0,
     attack: '',
     enterBlend: 0.1,
     exitBlend: 0.2,
@@ -198,49 +187,11 @@ export function createProject(): Project {
     ],
   };
 }
-/** Combos went with XML format 4 (runtime 0.12.233): an action is one HKX, and the next one is another action
- *  joined by a transition. A project saved with a combo (or a schema 1 file, which was one) cannot open. */
-export const comboGone = (name: string) =>
-  new Error(
-    tr(
-      '{name}: 콤보는 없어졌습니다(XML 형식 4). HKX마다 동작을 만들고 전환으로 이으세요. 이 프로젝트는 이전 에디터로 열어 XML을 확인한 뒤 다시 만드세요.',
-      {name}
-    )
-  );
-/** A saved action's settings before the shape check: a combo is refused; a single action drops the combo
- *  fields it carried (an empty transition list). */
-export function dropCombo(p: any, name = tr('프로젝트')) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return;
-  if (
-    p.kind === 'combo' ||
-    (Array.isArray(p.transitions) && p.transitions.length) ||
-    (Array.isArray(p.steps) && p.steps.length > 1)
-  )
-    throw comboGone(typeof p.name === 'string' && p.name ? p.name : name);
-  delete p.transitions;
-}
-/** Removed in runtime 0.12.238, unused by every installed declaration: the control lock (the Lock window,
- *  the lock/unlock functions), Carry weapon="keep" with weaponShow, and External. A project that uses one
- *  cannot open; an unused one is dropped. */
-export const removedGone = (name: string, what: string) =>
-  new Error(
-    tr('{name}: {what}은(는) 없어졌습니다(런타임 0.12.238). 이 프로젝트는 이전 에디터로 열어 그 설정을 끈 뒤 여세요.', {
-      name,
-      what,
-    })
-  );
-/** A saved action's settings: the lock window. */
-export function dropLock(p: any, name = tr('프로젝트')) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return;
-  if (p.slots?.lock?.enabled) throw removedGone(typeof p.name === 'string' && p.name ? p.name : name, tr('조작 잠금'));
-  if (p.slots && typeof p.slots === 'object') delete p.slots.lock;
-  delete p.lockMove;
-  delete p.lockLook;
-}
 // Strict structural validation keeps unknown fields and hidden timing data from being discarded.
 function shape(p: unknown): asserts p is Project {
   const template = createProject();
   template.events = [''];
+  template.inputs = [{id: 'use', label: 'use', key: 'Num0', gamepad: 0}];
   function visit(value: any, sample: any, path: string) {
     if (Array.isArray(sample)) {
       const max = path === 'events' ? 500 : 100;
@@ -269,13 +220,7 @@ function shape(p: unknown): asserts p is Project {
   }
   visit(stripExtensions(p), template, '');
   const v = p as Project;
-  if (
-    v.schema !== 2 ||
-    v.kind !== 'single' ||
-    !['input', 'event', 'none'].includes(v.start.mode) ||
-    !['both', 'player', 'npc'].includes(v.start.actor) ||
-    !['deny', 'allow', 'only'].includes(v.air)
-  )
+  if (v.schema !== 2 || v.kind !== 'single' || !['deny', 'allow', 'only'].includes(v.air))
     throw new Error(tr('지원하지 않는 설정 값입니다.'));
   for (const m of marks(v))
     if (
@@ -287,44 +232,11 @@ function shape(p: unknown): asserts p is Project {
   for (const pos of [v.trigger, ...v.steps.map(s => s.position)])
     if (!num(pos.x, 1e6, -1e6) || !num(pos.y, 1e6, -1e6)) throw new Error(tr('좌표 범위가 잘못되었습니다.'));
 }
-/** Motion is the HKX's AMR annotations only (runtime 0.12.231). A project saved before drops its declared
- *  motion (curve, keys, none/annotation), its start direction and its per-clip directions; a directional
- *  action keeps its entry clip as a single action (one action per direction replaces it). */
-export function dropMotion(p: any) {
-  if (!p || typeof p !== 'object' || Array.isArray(p)) return;
-  for (const k of ['motion', 'motionKeys', 'distance', 'duration', 'ease']) delete p[k];
-  if (p.start && typeof p.start === 'object') for (const k of ['movement', 'strict', 'direction']) delete p.start[k];
-  if (Array.isArray(p.steps))
-    for (const s of p.steps)
-      if (s && typeof s === 'object') {
-        delete s.motion;
-        delete s.direction;
-      }
-  if (p.kind === 'directional') {
-    p.kind = 'single';
-    if (Array.isArray(p.steps) && p.steps.length) {
-      const entry = p.steps.find((s: any) => s?.id === p.entry) ?? p.steps[0];
-      p.steps = [entry];
-      p.entry = entry?.id;
-    }
-  }
-}
 export function parseProject(contents: string): Project {
   if (contents.length > 2_000_000) throw new Error(tr('프로젝트가 2 MB 제한을 넘었습니다.'));
   const p = JSON.parse(contents);
-  if (p?.schema === 1) throw comboGone(tr('프로젝트'));
-  if (p && p.rotationLocked === undefined) p.rotationLocked = false;
-  dropMotion(p);
-  dropCombo(p);
-  dropLock(p);
-  dropSafety(p);
   shape(p);
   return p;
-}
-/** The maximum play time (Advanced safety) left the editor (10-23, docs/mockup-playback-settings): the runtime
- *  ends a play at its HKX's length and keeps its own default for an HKX it cannot read. A saved value is dropped. */
-export function dropSafety(p: any) {
-  if (p && typeof p === 'object' && !Array.isArray(p)) delete p.safety;
 }
 /** A key window (an HKX's detection window or a transition's own): it opens at a clip time or an event and
  *  closes at the end or an event; an event's fallback is a time of the same kind. */
@@ -347,7 +259,7 @@ export function marks(p: Project): Mark[] {
   ];
 }
 export function eventNames(p: Project): string[] {
-  return [...new Set([...p.events, p.start.event, ...marks(p).map(m => m.event)].filter(Boolean))].sort();
+  return [...new Set([...p.events, ...marks(p).map(m => m.event)].filter(Boolean))].sort();
 }
 export function addEvent(p: Project, name: string): Project {
   if (!eventValid(name) || eventNames(p).includes(name))
@@ -359,21 +271,14 @@ export function renameEvent(p: Project, oldName: string, newName: string): Proje
     throw new Error(tr('이벤트 이름이 잘못되었거나 이미 있습니다.'));
   const next = clone(p);
   next.events = next.events.map(n => (n === oldName ? newName : n));
-  if (next.start.event === oldName) next.start.event = newName;
   for (const m of marks(next)) if (m.event === oldName) m.event = newName;
   return next;
 }
 export function removeEvent(p: Project, name: string): Project {
-  if (p.start.event === name || marks(p).some(m => m.event === name))
-    throw new Error(tr('설정에서 참조하는 이벤트는 삭제할 수 없습니다.'));
+  if (marks(p).some(m => m.event === name)) throw new Error(tr('설정에서 참조하는 이벤트는 삭제할 수 없습니다.'));
   return {...p, events: p.events.filter(e => e !== name)};
 }
-export function removeInput(p: Project, id: string): Project {
-  if (p.start.input === id) throw new Error(tr('시작에서 참조하는 입력은 삭제할 수 없습니다.'));
-  return {...p, inputs: p.inputs.filter(i => i.id !== id)};
-}
-/** `selecting`: the workspace's selectsOnly(action), whose clip is never played nor written (runtime 0.12.244). */
-export function validate(p: Project, selecting = false): Issue[] {
+export function validate(p: Project): Issue[] {
   const out: Issue[] = [];
   const error = (node: string, message: string) => out.push({level: 'error', node, message});
   try {
@@ -385,8 +290,7 @@ export function validate(p: Project, selecting = false): Issue[] {
   if (!p.graph.length || p.graph.some(g => !graphs.includes(g)) || new Set(p.graph).size !== p.graph.length)
     error('project', tr('지원 그래프를 하나 이상 선택하세요.'));
   if (p.attack && !eventValid(p.attack)) error('project', tr('공격 데이터 이름이 잘못되었습니다.'));
-  if (!num(p.enterBlend, 5) || !num(p.exitBlend, 5) || !num(p.cooldown))
-    error('project', tr('블렌드(0~5)와 재사용 간격을 확인하세요.'));
+  if (!num(p.enterBlend, 5) || !num(p.exitBlend, 5)) error('project', tr('블렌드(0~5)를 확인하세요.'));
   if (!num(p.recovery.blend, 5) || !num(p.cost.stamina, 100000) || !num(p.cost.magicka, 100000))
     error('project', tr('리커버리 블렌드 또는 자원 소모 범위를 확인하세요.'));
   const inputIds = new Set<string>();
@@ -395,18 +299,15 @@ export function validate(p: Project, selecting = false): Issue[] {
       error('inputs', tr('입력 ID/표시명이 잘못되었거나 중복입니다.'));
     inputIds.add(i.id.toLowerCase());
     if (
-      (i.key && (!keyCode(i.key) || keyCode(i.key) > 265)) ||
-      (!i.key && !i.gamepad) ||
-      !num(i.gamepad, 65535) ||
-      !Number.isInteger(i.gamepad)
+      i.control !== undefined
+        ? !isGameControl(i.control) || i.key || i.gamepad
+        : (i.key && (!keyCode(i.key) || keyCode(i.key) > 265)) ||
+          (!i.key && !i.gamepad) ||
+          !num(i.gamepad, 65535) ||
+          !Number.isInteger(i.gamepad)
     )
       error('inputs', tr('{label}: 유효한 키 또는 게임패드를 지정하세요.', {label: i.label}));
   }
-  const input = (id: string, node: string) => {
-    if (!p.inputs.some(i => i.id === id)) error(node, tr('정의된 입력을 선택하세요.'));
-  };
-  if (p.start.mode === 'input') input(p.start.input, 'trigger');
-  if (p.start.mode === 'event' && !eventValid(p.start.event)) error('trigger', tr('시작 이벤트 이름을 입력하세요.'));
   if (p.events.some(e => !eventValid(e)) || new Set(p.events).size !== p.events.length)
     error('events', tr('이벤트 목록에 잘못되거나 중복된 이름이 있습니다.'));
   const checkMark = (m: Mark, node: string, allowed: Mark['basis'][], fallback: Mark['fallbackBasis']) => {
@@ -457,13 +358,7 @@ export function validate(p: Project, selecting = false): Issue[] {
     stepIds.add(s.id.toLowerCase());
     if (!s.label.trim()) error(s.id, tr('클립 표시명을 입력하세요.'));
     const path = s.clip.replaceAll('\\', '/');
-    if (selecting) {
-      // A selecting action plays no clip of its own: an empty or leftover path is never written.
-    } else if (
-      !path.toLowerCase().endsWith('.hkx') ||
-      path.includes(':') ||
-      path.split('/').some(v => v === '' || v === '..')
-    )
+    if (!path.toLowerCase().endsWith('.hkx') || path.includes(':') || path.split('/').some(v => v === '' || v === '..'))
       error(s.id, tr('캐릭터 폴더 기준 상대 HKX 경로를 입력하세요.'));
     else if (!hkxPathOk(s.clip))
       error(

@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 import {emptyWorkspace, addAction, parseWorkspace, compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {switchActionKind} from '../src/actionTypes.ts';
 import {pairTimelineEffects, pairTrackKeys} from '../src/pairTimeline.ts';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 import {portable} from '../src/authoring.ts';
 import {checker, needsChecker} from './local.mjs';
 const setup = () => {
@@ -26,7 +26,7 @@ test('same action changes between ordinary and pair, retaining identity and save
   w.actions[0].config.steps[0].clip = 'Animations/Paired.hkx';
   w.actions[0].pair.range = 345;
   w.actions[0].config.name = '共通 이름';
-  w.actions[0].config.inputs[0].key = 'H';
+  w.actions[0].config.inputs.push({id: 'next', label: 'next', key: 'H', gamepad: 0});
   w = parseWorkspace(JSON.stringify(w));
   w = switchActionKind(w, id, 'single');
   a = w.actions[0];
@@ -43,33 +43,12 @@ test('same action changes between ordinary and pair, retaining identity and save
   assert.throws(() => switchActionKind(w, id, 'combo'), /지원하지 않는/);
   assert.ok(Object.values(portable(w).actions[0].variants).every(v => v.config.steps.every(s => !s.localPath)));
 });
-test('legacy schema 5 loads without changing its XML and adds empty authoring state', () => {
-  const old = structuredClone(s4sample());
-  // Construct the exact released schema 5 shape even if the UI fixture has been regenerated.
-  old.schema = 5;
-  delete old.xmlVersion;
-  delete old.layout;
-  delete old.assets;
-  for (const a of old.actions) {
-    delete a.variants;
-    if (a.pair) delete a.pair.timeline;
-  }
-  const w = parseWorkspace(JSON.stringify(old));
-  assert.equal(w.schema, 7);
-  assert.deepEqual(w.actions[0].variants, {});
-  assert.equal(pairTimelineEffects(w.actions[0].pair).length, 0);
-  assert.deepEqual(parseWorkspace(JSON.stringify(w)), w);
-  const invalid = structuredClone(w);
-  invalid.actions[0].variants.future = {};
-  assert.throws(() => parseWorkspace(JSON.stringify(invalid)));
-});
 test('paired feature ranges emit supported role operations and match the actual XML parsers', needsChecker, () => {
   let w = setup();
   w = switchActionKind(w, w.actions[0].uid, 'pair');
   const a = w.actions[0],
     p = a.pair;
   a.config.steps[0].clip = 'Animations/Paired.hkx';
-  p.effectsEnabled = true;
   for (const key of pairTrackKeys) p.timeline[key].enabled = true;
   p.timeline.iframe.role = 'both';
   p.timeline.cost.role = 'receiver';
@@ -103,10 +82,6 @@ test('paired feature ranges emit supported role operations and match the actual 
   assert.doesNotMatch(off, /iframeOn/);
   p.timeline.iframe.enabled = true;
   assert.equal(compileWorkspace(w), xml);
-  p.effectsEnabled = false;
-  assert.doesNotMatch(compileWorkspace(w), /<Effects/);
-  p.effectsEnabled = true;
-  assert.equal(compileWorkspace(parseWorkspace(JSON.stringify(w))), xml);
 });
 test('unsupported pair timing and incompatible external links cannot silently compile', () => {
   const w = s4sample();

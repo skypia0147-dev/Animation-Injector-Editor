@@ -1,5 +1,4 @@
-// Recent documents (user preference, not part of the project): XML and templates. Entries of the retired .aiproj
-// (10-03) are dropped when the list is read and written back without them.
+// Recent documents (user preference, not part of the project): XML and templates.
 export type RecentFile = {path: string; name: string; time: number};
 const KEY = 'aieditor-recent';
 const LIMIT = 8;
@@ -10,7 +9,6 @@ export function getRecent(): RecentFile[] {
     const list = JSON.parse(localStorage.getItem(KEY) ?? '[]');
     if (!Array.isArray(list)) return [];
     const kept = list.filter(r => r && typeof r.path === 'string' && typeof r.name === 'string' && opens(r.path));
-    if (kept.length !== list.length) localStorage.setItem(KEY, JSON.stringify(kept));
     return kept.slice(0, LIMIT);
   } catch {
     return [];

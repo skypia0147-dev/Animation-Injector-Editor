@@ -17,7 +17,6 @@ function grapple() {
     p.actionId = ['GrapplePounding', 'Stage10Attacker', 'Stage10Target'][i - 1];
     p.name = p.actionId;
     p.steps[0].clip = 'Animations\\Test' + i + '.hkx';
-    p.start.mode = 'none';
     const a = wrap(p, 'a' + i);
     if (i === 1) {
       a.pair = defaultPair();
@@ -32,7 +31,7 @@ function grapple() {
   w = qte.workspace;
   const draft = addFlat(w, '', 'markerReceive', {x: 40, y: 40});
   w = draft.workspace;
-  w.drafts.find(d => d.id === draft.id).value.config.start.event = 'Grapple_Stage_Start_10';
+  w.starts.find(s => 'startCard:' + s.uid === draft.id).event = 'Grapple_Stage_Start_10';
   w = connectFlat(w, draft.id, qte.id, 'trigger');
   return {w, qte: qte.id};
 }
@@ -92,7 +91,6 @@ test('drawing an event card to a QTE keeps its partner result', () => {
     p.actionId = id;
     p.name = id;
     p.steps[0].clip = 'Animations\\' + id + '.hkx';
-    p.start.mode = 'none';
     w.actions.push(wrap(p, 'b' + i));
   }
   const added = addFlat(w, '', 'qte', {x: 420, y: 160});
@@ -100,7 +98,7 @@ test('drawing an event card to a QTE keeps its partner result', () => {
   n.qtes[0].results.success = {mode: 'transition', event: '', recipient: 'self', to: 'b0', partnerTo: 'b1'};
   const draft = addFlat(n, '', 'markerReceive', {x: 40, y: 40});
   n = draft.workspace;
-  n.drafts.find(d => d.id === draft.id).value.config.start.event = 'Hit';
+  n.starts.find(s => 'startCard:' + s.uid === draft.id).event = 'Hit';
   n = connectFlat(n, draft.id, added.id, 'trigger');
   assert.equal(n.qtes[0].eventStart, 'Hit');
   assert.equal(n.qtes[0].results.success.partnerTo, 'b1');

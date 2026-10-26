@@ -4,24 +4,27 @@ import {
   addEventRow,
   addFunction,
   bindSlot,
-  groupUses,
   arrowModes,
   ragdollDirections,
   ragdollForce,
   ragdollLabels,
+  strikeChoices,
+  strikeExtras,
+  soundBones,
+  textSettings,
   eventKey,
   eventOps,
   eventSlots,
   functionSummary,
   isBooleanSetting,
   newEventName,
-  numbersToNodes,
   registryFields,
-  registryNumbers,
   opInfo,
   removeEventRow,
   renameEvent,
   setFunctions,
+  shortUses,
+  groupUses,
   settingDefault,
   settingLabels,
   settingRange,
@@ -36,6 +39,7 @@ import {timingLabel} from '../model.ts';
 import './registry.css';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
+import {SoundSourceFields} from '../ui/details/SoundFile.tsx';
 
 // The graph renders only on-screen nodes: a registry node brought into view mounts after the request
 // (and may mount twice while the view moves), so a request stays for two seconds.
@@ -165,6 +169,14 @@ export function RegistryBody() {
         </span>
       </div>
       <div className="registry-rows">
+        {view === 'event' && shown.length > 0 && (
+          // The column heads, once: each row is one line under them (docs/mockup-registry-oneline A).
+          <div className="registry-colhead">
+            <span>{tr('이벤트')}</span>
+            <span>{tr('하는 일')}</span>
+            <span>HKX</span>
+          </div>
+        )}
         {view === 'event' ? (
           shown.map(e => (
             <RegistryRow
@@ -213,35 +225,30 @@ export function RegistryBody() {
   );
 }
 
-function chipsOf(e: RegistryEntry, senders: Sender[]) {
-  const fns = e.row?.functions ?? [],
-    uses = groupUses(e.uses);
+/** What an event does, on its one line (docs/mockup-registry-oneline A): its functions, then its uses (shortUses),
+ *  cut with an ellipsis; the whole text on hover and in the open row. */
+function whatOf(e: RegistryEntry, senders: Sender[]) {
+  const fns = (e.row?.functions ?? []).map(
+    f => functionSummary(f.values) + (opInfo[f.values.op as EventOp]?.lasting ? tr(' · 켜 둠') : '')
+  );
+  const uses = shortUses(e.name, e.uses);
+  const none = !fns.length && !uses.length ? (senders.length ? tr('그래프 등록만') : tr('참조 없음')) : '';
+  const warn = fns.length && vanillaName(e.name) ? tr('⚠ 게임 전체 적용') : '';
   return (
-    <div className="registry-chips">
-      {fns.map(f => (
-        <span key={f.id} className={'registry-chip' + (opInfo[f.values.op as EventOp]?.lasting ? ' lasting' : '')}>
-          {functionSummary(f.values)}
-          {opInfo[f.values.op as EventOp]?.lasting ? tr(' · 켜 둠') : ''}
+    <span className="registry-what" title={[...fns, ...uses, none, warn].filter(Boolean).join(' · ')}>
+      {fns.map((t, i) => (
+        <span key={'f' + i} className="fn">
+          {t}
         </span>
       ))}
-      {uses.slice(0, 2).map(g => (
-        <span key={g.label} className="registry-chip use">
-          {g.text}
+      {uses.map((t, i) => (
+        <span key={'u' + i} className="use">
+          {t}
         </span>
       ))}
-      {uses.length > 2 && (
-        <span className="registry-chip use">
-          +{uses.length - 2}
-          {tr('종')}
-        </span>
-      )}
-      {!fns.length && !e.uses.length && (
-        <span className="registry-chip none">
-          {senders.length ? tr('그래프 등록만 · 기능·용도 없음') : tr('참조 없음 · 그래프 등록만')}
-        </span>
-      )}
-      {!!fns.length && vanillaName(e.name) && <span className="registry-chip warn">{tr('⚠ 게임 전체 적용')}</span>}
-    </div>
+      {none && <span className="none">{none}</span>}
+      {warn && <span className="warn">{warn}</span>}
+    </span>
   );
 }
 
@@ -282,9 +289,6 @@ function RegistryRow({
     [w.eventRegistry]
   );
   const change = (next: Effect[]) => attempt(() => edit(w => setFunctions(w, entry.name, next)));
-  // An older registry's numbers (runtime 0.12.281 refuses them): to every node whose HKX sends this event.
-  const numbered = fns.filter(f => registryNumbers(f.values).length);
-  const nodes = [...new Set(senders.map(s => s.uid))];
   const rename = () => {
     if (name !== entry.name) attempt(() => edit(w => renameEvent(w, entry.name, name.trim())));
   };
@@ -295,13 +299,10 @@ function RegistryRow({
       data-registry-row={eventKey(entry.name)}
     >
       <button className="registry-row-head" aria-expanded={open} onClick={toggle}>
-        <span className="registry-caret">{open ? '▾' : '▸'}</span>
-        <span className="registry-row-main">
-          <span className="registry-name">{entry.name}</span>
-          {chipsOf(entry, senders)}
-        </span>
+        <span className="registry-name">{entry.name}</span>
+        {whatOf(entry, senders)}
         <span className="registry-usage-count" title={tr('이 프로젝트에서 이 이벤트를 보내는 HKX 주석 수')}>
-          HKX {senders.length}
+          {senders.length}
         </span>
       </button>
       {open && (
@@ -330,25 +331,6 @@ function RegistryRow({
               remove={() => change(fns.filter((_, j) => j !== i))}
             />
           ))}
-          {!!numbered.length && (
-            <div className="registry-warn">
-              {nodes.length
-                ? tr(
-                    '⚠ 등록에 수치가 있습니다({fns}). 런타임 0.12.281부터 수치는 이 이벤트를 보내는 HKX 노드에서 넣습니다. 보내는 HKX {n}개에 옮깁니다.',
-                    {fns: numbered.map(f => functionSummary(f.values)).join(', '), n: nodes.length}
-                  )
-                : tr(
-                    '⚠ 등록에 수치가 있습니다({fns}). 이 프로젝트에는 이 이벤트를 보내는 HKX가 없어 수치는 지워지고, 이벤트는 기본값으로 실행됩니다.',
-                    {fns: numbered.map(f => functionSummary(f.values)).join(', ')}
-                  )}{' '}
-              <button
-                className="registry-link"
-                onClick={() => attempt(() => edit(w => numbersToNodes(w, () => nodes, entry.name)))}
-              >
-                {nodes.length ? tr('수치를 노드로 옮기기') : tr('수치 지우기')}
-              </button>
-            </div>
-          )}
           {!fns.length && (
             <div className="registry-empty-line">
               {tr('기능 없음 — 그래프에 이름만 등록합니다(아래 용도나 다른 플러그인이 이 이벤트를 받음).')}
@@ -468,6 +450,58 @@ export function FunctionEditor({
   };
   const setting = (key: string) => {
     const label = settingLabels[key];
+    // What a strike's hit brings along (runtime 0.12.294): each on unless `without` names it.
+    if (key === 'without') {
+      const off = new Set((v.without ?? '').split(',').filter(Boolean));
+      return (
+        <span key={key} className="strike-extras">
+          {strikeExtras().map(([name, text]) => (
+            <label key={name}>
+              <input
+                type="checkbox"
+                checked={!off.has(name)}
+                onChange={e => {
+                  if (e.target.checked) off.delete(name);
+                  else off.add(name);
+                  const list = strikeExtras()
+                    .map(([k]) => k)
+                    .filter(k => off.has(k))
+                    .join(',');
+                  set(key, list || undefined);
+                }}
+              />
+              {text}
+            </label>
+          ))}
+        </span>
+      );
+    }
+    // A strike's whom and how (runtime 0.12.293); the hit choice is an area's only.
+    if (strikeChoices[key]) {
+      if (key === 'hit' && v.pick !== 'area') return null;
+      const choices = strikeChoices[key]();
+      return (
+        <label key={key}>
+          {label}
+          <select
+            value={v[key] ?? choices[0][0]}
+            onChange={e => {
+              const values = {...v};
+              if (e.target.value === choices[0][0]) delete values[key];
+              else values[key] = e.target.value;
+              if (key === 'pick' && e.target.value !== 'area') delete values.hit;
+              change({...fn, values});
+            }}
+          >
+            {choices.map(([value, text]) => (
+              <option key={value} value={value}>
+                {text}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
     if (isBooleanSetting(key))
       return (
         <label key={key}>
@@ -537,16 +571,66 @@ export function FunctionEditor({
         </label>
       );
     }
-    if (key === 'plugin' || key === 'form')
+    // A sound's source (mockup ②): 출처 파일 | 등록 사운드.
+    if (v.op === 'sound' && (key === 'plugin' || key === 'form')) return null;
+    if (key === 'file')
+      return (
+        <SoundSourceFields
+          key={key}
+          values={v}
+          setMany={patch => {
+            const values = {...v};
+            for (const [k, value] of Object.entries(patch))
+              if (value === undefined || value === '') delete values[k];
+              else values[k] = value;
+            change({...fn, values});
+          }}
+          row={(text, control, k) => (
+            <label key={k} className="sound-source-row">
+              {text}
+              {control}
+            </label>
+          )}
+        />
+      );
+    if (key === 'plugin' || key === 'form' || textSettings.includes(key))
       return (
         <label key={key}>
           {label}
           <input
             type="text"
-            className={key === 'plugin' ? 'wide' : ''}
+            className={key === 'plugin' || key === 'text' ? 'wide' : ''}
             value={v[key] ?? ''}
             onChange={e => set(key, e.target.value)}
           />
+        </label>
+      );
+    // A sound's bone and a global's restore (runtime 0.12.296).
+    if (key === 'bone')
+      return (
+        <label key={key}>
+          {label}
+          <select
+            value={v.bone ?? 'spine'}
+            onChange={e => set(key, e.target.value === 'spine' ? undefined : e.target.value)}
+          >
+            {soundBones().map(([value, text]) => (
+              <option key={value} value={value}>
+                {text}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    if (key === 'restore')
+      return (
+        <label key={key}>
+          <input
+            type="checkbox"
+            checked={v.restore === 'end'}
+            onChange={e => set(key, e.target.checked ? 'end' : undefined)}
+          />
+          {label}
         </label>
       );
     const [min, max] = settingRange(key) ?? [0, 600];
@@ -637,11 +721,9 @@ function FunctionView({
           </div>
           {list.map(e => (
             <button key={e.name} className="registry-row-head" onClick={() => jump(eventKey(e.name))}>
-              <span className="registry-caret">·</span>
-              <span className="registry-row-main">
-                <span className="registry-name">{e.name}</span>
-              </span>
-              <span className="registry-usage-count">HKX {senders.get(eventKey(e.name))?.length ?? 0}</span>
+              <span className="registry-name">{e.name}</span>
+              {whatOf(e, senders.get(eventKey(e.name)) ?? [])}
+              <span className="registry-usage-count">{senders.get(eventKey(e.name))?.length ?? 0}</span>
             </button>
           ))}
         </div>

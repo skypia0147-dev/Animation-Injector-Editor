@@ -18,6 +18,17 @@ pub struct Asset {
     pub dependency: String,
     pub expected_sha256: String,
 }
+/// A sound file a function plays (runtime 0.12.296): `file` is its path under Data, written to the same path in
+/// the mod.
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Sound {
+    pub file: String,
+    pub paths: Vec<String>,
+    pub mode: String,
+    pub dependency: String,
+    pub expected_sha256: String,
+}
 #[derive(Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Request {
@@ -25,6 +36,8 @@ pub struct Request {
     pub id: String,
     pub roots: Vec<String>,
     pub assets: Vec<Asset>,
+    #[serde(default)]
+    pub sounds: Vec<Sound>,
     pub plugins: Vec<String>,
     pub xml: String,
 }
@@ -53,6 +66,7 @@ pub struct Plugin {
 #[serde(rename_all = "camelCase")]
 pub struct Report {
     pub assets: Vec<Row>,
+    pub sounds: Vec<Row>,
     pub plugins: Vec<Plugin>,
     pub warnings: Vec<String>,
     pub ready: bool,
@@ -106,6 +120,37 @@ fn relative(s: &str) -> Result<PathBuf, String> {
     }
     Ok(normalized.split('/').collect())
 }
+const SOUND_EXTENSIONS: [&str; 2] = [".wav", ".xwm"];
+const SOUND_PATH_RULE: &str =
+    "소리 파일 경로는 영문·숫자·일반 기호만 씁니다. 한글 등은 게임이 파일을 찾지 못하니 파일·폴더 이름을 바꾸세요.";
+/// A sound's path under Data, as the function names it and the mod holds it.
+fn sound_path(s: &str) -> Result<PathBuf, String> {
+    let normalized = s.replace('\\', "/");
+    let folded = normalized.to_ascii_lowercase();
+    if normalized.len() > 1024
+        || !SOUND_EXTENSIONS.iter().any(|e| folded.ends_with(e))
+        || !normalized.split('/').all(component)
+    {
+        return Err(format!("잘못된 소리 파일 경로(.wav·.xwm): {s}"));
+    }
+    if !crate::game_path_ok(&normalized) {
+        return Err(format!("{SOUND_PATH_RULE} ({s})"));
+    }
+    Ok(normalized.split('/').collect())
+}
+/// A chosen sound file's path under Data: from its folder named `sound` (a mod's or the game's) down.
+pub(crate) fn sound_relative(path: &str) -> Result<String, String> {
+    local(path)?;
+    let normalized = path.replace('\\', "/");
+    let start = normalized
+        .to_ascii_lowercase()
+        .rfind("/sound/")
+        .map(|offset| offset + 1)
+        .ok_or("모드나 Data 폴더의 sound 폴더 아래 소리 파일을 고르세요.")?;
+    let file = &normalized[start..];
+    sound_path(file)?;
+    Ok(file.replace('/', "\\"))
+}
 fn local(s: &str) -> Result<PathBuf, String> {
     let b = s.as_bytes();
     if b.len() < 3
@@ -121,7 +166,7 @@ fn local(s: &str) -> Result<PathBuf, String> {
 fn read_bounded(path: &Path) -> Result<Vec<u8>, String> {
     let m = fs::metadata(path).map_err(|e| e.to_string())?;
     if !m.is_file() || m.len() == 0 || m.len() > FILE_LIMIT {
-        return Err("HKX 파일은 0 초과~64 MB여야 합니다.".into());
+        return Err("원본 파일은 0 초과~64 MB여야 합니다.".into());
     }
     let mut data = Vec::new();
     fs::File::open(path)
@@ -166,6 +211,21 @@ fn validate(r: &Request) -> Result<(), String> {
             return Err("자산 중복 또는 외부 공급 모드 설정 오류".into());
         }
     }
+    if r.sounds.len() > 500 {
+        return Err("패키지 설정/크기 제한을 확인하세요.".into());
+    }
+    let mut files = BTreeSet::new();
+    for s in &r.sounds {
+        sound_path(&s.file)?;
+        if !files.insert(s.file.replace('\\', "/").to_lowercase())
+            || s.paths.len() > 100
+            || !matches!(s.mode.as_str(), "copy" | "external")
+            || !plain(&s.dependency, 256)
+            || s.mode == "external" && s.dependency.trim().is_empty()
+        {
+            return Err("자산 중복 또는 외부 공급 모드 설정 오류".into());
+        }
+    }
     for p in &r.plugins {
         if !component(p)
             || ![".esp", ".esm", ".esl"]
@@ -205,6 +265,82 @@ fn roots(request: &Request, warnings: &mut Vec<String>) -> Vec<PathBuf> {
     dirs.dedup();
     dirs
 }
+/// One file's source: the chosen paths (each must `fit` the file's path) or, without any, what `search` finds in
+/// the search folders. One readable source is ready; none, several or a wrong choice is not.
+#[allow(clippy::too_many_arguments)]
+fn locate(
+    label: &str,
+    mode: &str,
+    dependency: &str,
+    paths: &[String],
+    search: impl Fn(&PathBuf) -> Option<PathBuf>,
+    fits: impl Fn(&str) -> bool,
+    dirs: &[PathBuf],
+    ready: &str,
+) -> Result<Row, String> {
+    let mut row = Row {
+        clip: label.into(),
+        status: "missing".into(),
+        message: String::new(),
+        candidates: vec![],
+        sha256: String::new(),
+        size: 0,
+    };
+    if mode == "external" {
+        row.status = "external".into();
+        row.message = format!("외부 모드 필요: {}", dependency);
+        return Ok(row);
+    }
+    let mut candidates = BTreeMap::new();
+    let explicit = !paths.is_empty();
+    let raw: Vec<PathBuf> = if explicit {
+        paths.iter().map(|p| local(p)).collect::<Result<_, _>>()?
+    } else {
+        dirs.iter().filter_map(&search).collect()
+    };
+    let mut invalid = 0;
+    for p in raw {
+        if p.is_file() {
+            if !explicit || fits(&p.to_string_lossy()) {
+                if let Ok(canonical) = fs::canonicalize(&p) {
+                    let key = canonical.to_string_lossy().to_lowercase();
+                    candidates.entry(key).or_insert(Candidate {
+                        path: p.to_string_lossy().into_owned(),
+                        size: fs::metadata(&p).map(|m| m.len()).unwrap_or(0),
+                    });
+                }
+            } else {
+                invalid += 1;
+            }
+        } else if explicit {
+            invalid += 1;
+        }
+    }
+    row.candidates = candidates.into_values().collect();
+    if invalid > 0 {
+        row.status = "invalid".into();
+        row.message = "지정했던 원본이 없거나 XML 경로와 다릅니다. 다시 선택하세요.".into();
+    } else if row.candidates.len() > 1 {
+        row.status = "ambiguous".into();
+        row.message = "같은 목적지에 여러 원본 후보가 있습니다. 사용할 파일을 선택하세요.".into();
+    } else if let Some(c) = row.candidates.first() {
+        match read_bounded(Path::new(&c.path)) {
+            Ok(data) => {
+                row.status = "ready".into();
+                row.size = data.len() as u64;
+                row.sha256 = sha256(&data);
+                row.message = ready.into();
+            }
+            Err(e) => {
+                row.status = "invalid".into();
+                row.message = e;
+            }
+        }
+    } else {
+        row.message = "파일을 찾지 못했습니다. 원본 선택 또는 외부 공급 모드를 지정하세요.".into();
+    }
+    Ok(row)
+}
 pub fn inspect(r: &Request) -> Result<Report, String> {
     validate(r)?;
     let mut warnings = Vec::new();
@@ -212,83 +348,46 @@ pub fn inspect(r: &Request) -> Result<Report, String> {
     let mut rows = Vec::new();
     let mut total = 0;
     for a in &r.assets {
-        let mut row = Row {
-            clip: a.clip.clone(),
-            status: "missing".into(),
-            message: String::new(),
-            candidates: vec![],
-            sha256: String::new(),
-            size: 0,
-        };
-        if a.mode == "external" {
-            row.status = "external".into();
-            row.message = format!("외부 모드 필요: {}", a.dependency);
-            rows.push(row);
-            continue;
-        }
         let relative = relative(&a.clip)?;
-        let mut candidates = BTreeMap::new();
-        let explicit = !a.paths.is_empty();
-        let raw: Vec<PathBuf> = if explicit {
-            a.paths.iter().map(|p| local(p)).collect::<Result<_, _>>()?
-        } else {
-            dirs.iter()
-                .filter_map(|root| {
-                    a.actor_roots
-                        .iter()
-                        .map(|actor| root.join(actor).join(&relative))
-                        .find(|p| p.is_file())
+        let row = locate(
+            &a.clip,
+            &a.mode,
+            &a.dependency,
+            &a.paths,
+            |root| {
+                a.actor_roots
+                    .iter()
+                    .map(|actor| root.join(actor).join(&relative))
+                    .find(|p| p.is_file())
+            },
+            |text| {
+                crate::hkx_relative(text).is_ok_and(|clip| {
+                    clip.replace('\\', "/").to_lowercase() == a.clip.replace('\\', "/").to_lowercase()
                 })
-                .collect()
-        };
-        let mut invalid = 0;
-        for p in raw {
-            if p.is_file() {
-                let text = p.to_string_lossy();
-                if !explicit
-                    || crate::hkx_relative(&text).is_ok_and(|clip| {
-                        clip.replace('\\', "/").to_lowercase() == a.clip.replace('\\', "/").to_lowercase()
-                    })
-                {
-                    if let Ok(canonical) = fs::canonicalize(&p) {
-                        let key = canonical.to_string_lossy().to_lowercase();
-                        candidates.entry(key).or_insert(Candidate {
-                            path: p.to_string_lossy().into_owned(),
-                            size: fs::metadata(&p).map(|m| m.len()).unwrap_or(0),
-                        });
-                    }
-                } else {
-                    invalid += 1;
-                }
-            } else if explicit {
-                invalid += 1;
-            }
-        }
-        row.candidates = candidates.into_values().collect();
-        if invalid > 0 {
-            row.status = "invalid".into();
-            row.message = "지정했던 원본이 없거나 XML 경로와 다릅니다. 다시 선택하세요.".into();
-        } else if row.candidates.len() > 1 {
-            row.status = "ambiguous".into();
-            row.message = "같은 목적지에 여러 원본 후보가 있습니다. 사용할 파일을 선택하세요.".into();
-        } else if let Some(c) = row.candidates.first() {
-            match read_bounded(Path::new(&c.path)) {
-                Ok(data) => {
-                    row.status = "ready".into();
-                    row.size = data.len() as u64;
-                    row.sha256 = sha256(&data);
-                    row.message = "복사 준비 완료 · HKX 내용/주석 미검사".into();
-                    total += row.size * a.actor_roots.len() as u64;
-                }
-                Err(e) => {
-                    row.status = "invalid".into();
-                    row.message = e;
-                }
-            }
-        } else {
-            row.message = "파일을 찾지 못했습니다. 원본 선택 또는 외부 공급 모드를 지정하세요.".into();
-        }
+            },
+            &dirs,
+            "복사 준비 완료 · HKX 내용/주석 미검사",
+        )?;
+        total += row.size * a.actor_roots.len() as u64;
         rows.push(row);
+    }
+    let mut sounds = Vec::new();
+    for s in &r.sounds {
+        let relative = sound_path(&s.file)?;
+        let tail = format!("/{}", s.file.replace('\\', "/").to_lowercase());
+        let row = locate(
+            &s.file,
+            &s.mode,
+            &s.dependency,
+            &s.paths,
+            |root| Some(root.join(&relative)).filter(|p| p.is_file()),
+            // A chosen file is at the function's path below some folder (a mod's or Data).
+            |text| text.replace('\\', "/").to_lowercase().ends_with(&tail),
+            &dirs,
+            "복사 준비 완료",
+        )?;
+        total += row.size;
+        sounds.push(row);
     }
     let plugins = r
         .plugins
@@ -299,13 +398,17 @@ pub fn inspect(r: &Request) -> Result<Report, String> {
         })
         .collect();
     let ready = warnings.is_empty()
-        && rows.iter().all(|r| r.status == "ready" || r.status == "external")
+        && rows
+            .iter()
+            .chain(&sounds)
+            .all(|r| r.status == "ready" || r.status == "external")
         && total <= 2 * 1024 * 1024 * 1024;
     if total > 2 * 1024 * 1024 * 1024 {
         warnings.push("전체 자산은 2 GB 이하여야 합니다.".into());
     }
     Ok(Report {
         assets: rows,
+        sounds,
         plugins,
         warnings,
         ready,
@@ -340,6 +443,14 @@ pub fn export_to(r: &Request, parent: &Path) -> Result<Exported, String> {
             return Err(format!(
                 "{}: 마지막 검사 이후 원본이 변경되었습니다. 다시 검사하세요.",
                 a.clip
+            ));
+        }
+    }
+    for (s, row) in r.sounds.iter().zip(&report.sounds) {
+        if s.mode == "copy" && (s.expected_sha256.is_empty() || !s.expected_sha256.eq_ignore_ascii_case(&row.sha256)) {
+            return Err(format!(
+                "{}: 마지막 검사 이후 원본이 변경되었습니다. 다시 검사하세요.",
+                s.file
             ));
         }
     }
@@ -384,6 +495,16 @@ pub fn export_to(r: &Request, parent: &Path) -> Result<Exported, String> {
                 add(format!("{}/{}", actor_root, a.clip.replace('\\', "/")), &data)?;
             }
         }
+        for (s, row) in r.sounds.iter().zip(&report.sounds) {
+            if s.mode != "copy" {
+                continue;
+            }
+            let data = read_bounded(Path::new(&row.candidates[0].path))?;
+            if sha256(&data) != row.sha256 {
+                return Err(format!("{}: 복사 도중 원본 변경 감지", s.file));
+            }
+            add(s.file.replace('\\', "/"), &data)?;
+        }
         if target.try_exists().map_err(|e| e.to_string())? {
             return Err("출력 중 같은 이름의 폴더가 생성되었습니다.".into());
         }
@@ -419,6 +540,88 @@ pub async fn pick_asset_root(app: tauri::AppHandle) -> Result<Option<String>, St
         let p = p.into_path().map_err(|e| e.to_string())?;
         local(&p.to_string_lossy())?;
         Ok(Some(p.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[derive(serde::Serialize)]
+pub struct PickedSound {
+    pub path: String,
+    pub file: String,
+}
+/// The sound files a mod folder holds (`<root>\sound\…`, .wav·.xwm): a mod's sounds may be played by its plugin's
+/// sound descriptors from HKX SoundPlay annotations, which the XML never names. Bounded walk; names the game cannot
+/// find (not ASCII) are left out.
+pub fn sounds_in(root: &str) -> Result<Vec<PickedSound>, String> {
+    let mut dirs = vec![local(root)?.join("sound")];
+    let mut found = Vec::new();
+    let mut seen = 0;
+    while let Some(dir) = dirs.pop() {
+        let Ok(children) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for child in children.flatten() {
+            seen += 1;
+            if seen > 20_000 || found.len() >= 500 {
+                return Ok(found);
+            }
+            let path = child.path();
+            match child.file_type() {
+                Ok(t) if t.is_dir() => dirs.push(path),
+                Ok(t) if t.is_file() => {
+                    let text = path.to_string_lossy().into_owned();
+                    if let Ok(file) = sound_relative(&text) {
+                        found.push(PickedSound { path: text, file });
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    found.sort_by(|a, b| a.file.to_lowercase().cmp(&b.file.to_lowercase()));
+    Ok(found)
+}
+/// A sound file's bytes for the editor's preview. Only .wav: the webview cannot decode xWMA.
+#[tauri::command]
+pub async fn sound_bytes(path: String) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = local(&path)?;
+        if !path.to_ascii_lowercase().ends_with(".wav") {
+            return Err("미리듣기는 .wav 파일만 됩니다.".into());
+        }
+        read_bounded(&file).map(tauri::ipc::Response::new)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub async fn mod_sounds(root: String) -> Result<Vec<PickedSound>, String> {
+    tauri::async_runtime::spawn_blocking(move || sounds_in(&root))
+        .await
+        .map_err(|e| e.to_string())?
+}
+/// A sound file for a function: its local path, and its path under Data that the function plays and the mod holds.
+#[tauri::command]
+pub async fn pick_sound(app: tauri::AppHandle) -> Result<Option<PickedSound>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(file) = app
+            .dialog()
+            .file()
+            .add_filter("Sound", &["wav", "xwm"])
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let path = file.into_path().map_err(|e| e.to_string())?;
+        let text = path.to_string_lossy().into_owned();
+        let relative = sound_relative(&text)?;
+        if !fs::metadata(&path).map_err(|e| e.to_string())?.is_file() {
+            return Err("파일이 아닙니다.".into());
+        }
+        Ok(Some(PickedSound {
+            path: text,
+            file: relative,
+        }))
     })
     .await
     .map_err(|e| e.to_string())?
@@ -585,6 +788,7 @@ mod tests {
                 dependency: "".into(),
                 expected_sha256: "".into(),
             }],
+            sounds: vec![],
             plugins: vec![],
             xml: "<?xml version=\"1.0\"?><AnimationSet/>".into(),
         }
@@ -595,6 +799,106 @@ mod tests {
         for (a, row) in r.assets.iter_mut().zip(report.assets) {
             a.expected_sha256 = row.sha256;
         }
+        for (s, row) in r.sounds.iter_mut().zip(report.sounds) {
+            s.expected_sha256 = row.sha256;
+        }
+    }
+    fn sound(file: &str) -> Sound {
+        Sound {
+            file: file.into(),
+            paths: vec![],
+            mode: "copy".into(),
+            dependency: "".into(),
+            expected_sha256: "".into(),
+        }
+    }
+    #[test]
+    fn sounds_are_found_or_chosen_and_written_at_their_data_path() {
+        let t = Temp::new();
+        let mut r = request();
+        r.assets[0].paths.push(t.asset("Source").to_string_lossy().into_owned());
+        r.roots.push(t.0.to_string_lossy().into_owned());
+        r.sounds.push(sound("sound\\fx\\MyMod\\whoosh.wav"));
+        assert_eq!(inspect(&r).unwrap().sounds[0].status, "missing");
+        let found = t.0.join("Source/sound/fx/MyMod/whoosh.wav");
+        fs::create_dir_all(found.parent().unwrap()).unwrap();
+        fs::write(&found, b"RIFF sound").unwrap();
+        assert_eq!(inspect(&r).unwrap().sounds[0].status, "ready");
+        // A file chosen elsewhere must sit at the function's path.
+        let other = t.0.join("Elsewhere/sound/fx/other.wav");
+        fs::create_dir_all(other.parent().unwrap()).unwrap();
+        fs::write(&other, b"other").unwrap();
+        r.sounds[0].paths = vec![other.to_string_lossy().into_owned()];
+        assert_eq!(inspect(&r).unwrap().sounds[0].status, "invalid");
+        r.sounds[0].paths = vec![found.to_string_lossy().into_owned()];
+        ready(&mut r);
+        let output = export_to(&r, &t.0).unwrap();
+        assert_eq!(output.files, 3);
+        assert_eq!(
+            fs::read(Path::new(&output.path).join("sound/fx/MyMod/whoosh.wav")).unwrap(),
+            b"RIFF sound"
+        );
+        // A game or other mod's sound is a requirement, not copied.
+        let mut r = request();
+        r.assets[0].mode = "external".into();
+        r.assets[0].dependency = "Base".into();
+        r.sounds.push(sound("sound/fx/vanilla.wav"));
+        r.sounds[0].mode = "external".into();
+        assert!(inspect(&r).is_err());
+        r.sounds[0].dependency = "Skyrim".into();
+        assert!(inspect(&r).unwrap().ready);
+        let output = export_to(&r, &Temp::new().0).unwrap();
+        assert_eq!(output.files, 1);
+    }
+    #[test]
+    fn a_mod_folder_lists_its_sound_files() {
+        let t = Temp::new();
+        let m = t.0.join("My Mod");
+        for f in [
+            "Sound/FX/FST/a.wav",
+            "Sound/FX/b.xwm",
+            "Sound/FX/c.txt",
+            "Sound/FX/한글.wav",
+            "meshes/d.wav",
+        ] {
+            let p = m.join(f);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, b"x").unwrap();
+        }
+        let found = sounds_in(&m.to_string_lossy()).unwrap();
+        let files: Vec<_> = found.iter().map(|s| s.file.replace('/', "\\")).collect();
+        assert_eq!(files, ["sound\\FX\\b.xwm", "sound\\FX\\FST\\a.wav"]);
+        assert!(found.iter().all(|s| Path::new(&s.path).is_file()));
+        assert!(sounds_in(&t.0.join("none").to_string_lossy()).unwrap().is_empty());
+        // The mod that reported the problem (10-26), when AIE_SOUND_MOD names its folder on this computer.
+        if let Some(real) = std::env::var_os("AIE_SOUND_MOD").filter(|p| Path::new(p).is_dir()) {
+            assert!(!sounds_in(&real.to_string_lossy()).unwrap().is_empty());
+        }
+    }
+    #[test]
+    fn sound_paths_are_data_relative_ascii_sound_files() {
+        for bad in [
+            "C:/sound/a.wav",
+            "../a.wav",
+            "sound/a.mp3",
+            "sound/한글.wav",
+            "sound//a.wav",
+            "sound/CON.wav",
+        ] {
+            let mut r = request();
+            r.sounds.push(sound(bad));
+            assert!(inspect(&r).is_err(), "{bad}");
+        }
+        let mut r = request();
+        r.sounds.push(sound("sound/a.wav"));
+        r.sounds.push(sound("Sound\\A.WAV"));
+        assert!(inspect(&r).is_err());
+        assert_eq!(
+            sound_relative("H:\\Mods\\내 모드\\Sound\\FX\\a.xwm").unwrap(),
+            "Sound\\FX\\a.xwm"
+        );
+        assert!(sound_relative("H:\\Mods\\a.wav").is_err());
+        assert!(sound_relative("sound\\a.wav").is_err());
     }
     #[test]
     fn detects_missing_ambiguous_and_explicit_selection() {
@@ -685,7 +989,7 @@ mod tests {
         r.assets[0].dependency = "Base".into();
         let xml = |blend: &str| {
             format!(
-                r#"<?xml version="1.0" encoding="utf-8"?><AnimationSet version="4" id="E2"><Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs><Action id="First" clip="Animations\A.hkx"><Start input="use"/><Connect to="Second" input="next"{blend}><Window from="0.1" until="end-0.1"/></Connect></Action><Action id="Second" clip="Animations\B.hkx"><Flow entry="C1"><Test id="C1" kind="blocking" subject="self" pass="D1"/><Play id="D1" action="Second"/></Flow></Action></AnimationSet>"#
+                r#"<?xml version="1.0" encoding="utf-8"?><AnimationSet version="6" id="E2"><Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs><Start input="use" to="First"/><Action id="First" clip="Animations\A.hkx"><Transition input="next" from="0.1" until="end-0.1"{blend}><Row to="Second"><Check kind="blocking"/></Row></Transition></Action><Action id="Second" clip="Animations\B.hkx"/></AnimationSet>"#
             )
         };
         r.xml = xml("");

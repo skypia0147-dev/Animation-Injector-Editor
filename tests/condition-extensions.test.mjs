@@ -6,7 +6,8 @@ import {emptyWorkspace, compileWorkspace, parseWorkspace} from '../src/workspace
 import {addFlat} from '../src/graph/flat.ts';
 import {captureGraph} from '../src/graph/document.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
-import {checkFlows} from '../src/graph/conditions.ts';
+import {cardIssues} from '../src/cardChecks.ts';
+import {newCard, newStart} from '../src/cards.ts';
 import {
   extensionKinds,
   definition,
@@ -16,31 +17,39 @@ import {
 } from '../src/graph/conditionExtensions.ts';
 import {readExpression, editExpression} from '../src/graph/conditionExpression.ts';
 import {checker, needsChecker} from './local.mjs';
+// Errors of the project's condition cards (cardChecks.ts).
+const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
+/** An HKX whose start goes through a card with one condition of `kind` (the partner's), True to the HKX. */
 function sample(kind) {
-  let w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
+  const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
-  w = addFlat(w, w.actions[0].uid, 'conditionBranch', {x: 0, y: 0}).workspace;
-  const t = w.actions[0].flow.tests[0];
-  Object.assign(t, {kind, subject: 'partner', ...extensionDefaults(kind)});
+  const t = {id: 'Condition1', kind, subject: 'partner', minimum: 0, ...extensionDefaults(kind)};
   if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
+  // The last action the subject finished names one of the project's (runtime 0.12.296).
+  if (kind === 'previousAction') Object.assign(t, {actions: [w.actions[0].uid], within: 1.5, ended: 'completed'});
+  const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};
+  w.cards.push(card);
+  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', to: {card: card.uid}});
   return w;
 }
+const testOf = w => w.cards[0].tests[0];
 for (const kind of extensionKinds)
   test(`extended condition ${kind}: project, NOT, XML and runtime parser round trip`, needsChecker, () => {
     const w = sample(kind),
-      t = w.actions[0].flow.tests[0];
+      t = testOf(w);
     t.negate = true;
-    assert.deepEqual(checkFlows(w), []);
+    assert.deepEqual(cardErrors(w), []);
     const saved = parseWorkspace(JSON.stringify(captureGraph(w)));
-    assert.deepEqual(saved.actions[0].flow, w.actions[0].flow);
+    assert.deepEqual(saved.cards, w.cards);
     const xml = compileWorkspace(w),
       restored = importWorkspaceXml(xml);
     assert.equal(compileWorkspace(restored), xml);
     assert.ok(extensionSummary(t).includes('상대'));
-    const expression = readExpression(w.actions[0].flow, t.id);
-    const wrapped = editExpression(w, w.actions[0].uid, {type: 'wrap', id: t.id, mode: 'all'});
-    const added = editExpression(wrapped, w.actions[0].uid, {type: 'add', parent: t.id, expression});
-    assert.deepEqual(checkFlows(added), []);
+    const card = w.cards[0];
+    const expression = readExpression(card, t.id);
+    const wrapped = editExpression(w, card.uid, {type: 'wrap', id: t.id, mode: 'all'});
+    const added = editExpression(wrapped, card.uid, {type: 'add', parent: t.id, expression});
+    assert.deepEqual(cardErrors(added), []);
     mkdirSync('tests/generated/condition-extensions', {recursive: true});
     const path = `tests/generated/condition-extensions/${kind}.xml`;
     writeFileSync(path, xml);
@@ -48,7 +57,7 @@ for (const kind of extensionKinds)
   });
 test('resource units, comparisons and ranges reject invalid values', () => {
   const w = sample('resource'),
-    t = w.actions[0].flow.tests[0];
+    t = testOf(w);
   for (const option of ['health', 'stamina', 'magicka'])
     for (const measure of ['current', 'percent'])
       for (const compare of ['lt', 'le', 'eq', 'ge', 'gt', 'range']) {
@@ -65,15 +74,15 @@ test('resource units, comparisons and ranges reject invalid values', () => {
 });
 test('unknown rigs, missing options and irrelevant XML attributes are rejected', () => {
   const w = sample('rig'),
-    t = w.actions[0].flow.tests[0];
+    t = testOf(w);
   t.option = 'unknown';
-  assert.ok(checkFlows(w).length);
+  assert.ok(cardErrors(w).length);
   t.option = 'chicken';
   const xml = compileWorkspace(w);
   assert.throws(() => importWorkspaceXml(xml.replace('option="chicken"', 'option="unrecognized"')));
   assert.throws(() => importWorkspaceXml(xml.replace('option="chicken"', '')));
   assert.throws(() => importWorkspaceXml(xml.replace('option="chicken"', 'option="chicken" value="20"')));
   const chance = sample('chance');
-  chance.actions[0].flow.tests[0].value = 101;
-  assert.ok(checkFlows(chance).length);
+  testOf(chance).value = 101;
+  assert.ok(cardErrors(chance).length);
 });

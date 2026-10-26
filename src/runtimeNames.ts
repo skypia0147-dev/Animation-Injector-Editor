@@ -69,6 +69,8 @@ export function runtimeNameUses(w: Workspace): {node: string; message: string}[]
   scan(w.globals, 'globals', 0);
   scan(w.parameters, 'parameters', 0);
   scan(w.sharedInputs, 'inputs', 0);
-  scan([w.id, w.name, w.qtes, w.eventRegistry, w.blends, w.sharedRules], 'project', 0);
+  scan([w.id, w.name, w.qtes, w.eventRegistry, w.sharedRules], 'project', 0);
+  for (const s of w.starts) scan(s, s.uid, 0);
+  for (const c of w.cards) scan(c, c.uid, 0);
   return out;
 }

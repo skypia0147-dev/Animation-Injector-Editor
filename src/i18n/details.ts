@@ -46,8 +46,8 @@ const entries: Record<string, [string, string]> = {
   'detail.stamina': ['Stamina', '스태미나'],
   'detail.magicka': ['Magicka', '매지카'],
   'detail.delay': ['Delay', '실행 지연'],
-  'detail.plugin': ['Plugin file', '플러그인 파일'],
-  'detail.form': ['Form ID (hex)', 'Form ID (16진수)'],
+  'detail.plugin': ['Plugin', '플러그인'],
+  'detail.form': ['Form ID', 'Form ID'],
   'detail.strength': ['Strength', '세기'],
   'detail.duration': ['Duration (s)', '시간(초)'],
   'detail.factor': ['Time scale', '시간 배율'],
@@ -80,7 +80,10 @@ const entries: Record<string, [string, string]> = {
   ],
   'tip.sender': ['Actor allowed to send the marker.', '이벤트을 보낼 수 있는 배우입니다.'],
   'tip.condition': ['Conditions required before starting playback.', '재생을 시작하기 전에 확인하는 조건입니다.'],
-  'tip.cooldown': ['Minimum time between starts.', '재생을 다시 시작할 때까지의 최소 시간입니다.'],
+  'tip.cooldown': [
+    'After what this start started ends, this start waits this long before it fires again.',
+    '이 시작이 시작시킨 동작이 끝난 뒤, 이 시간 동안 이 시작은 다시 발동하지 않습니다.',
+  ],
   'tip.cost': ['Resource amount consumed by this operation.', '이 동작에서 소모하는 자원량입니다.'],
   'tip.startStamina': [
     'The stamina the actor must have to start. It is not spent; spending is the resource cost item.',

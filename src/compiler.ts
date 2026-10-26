@@ -20,22 +20,35 @@ export function omitDefaults(attrs: Record<string, unknown>, defaults: Record<st
   );
 }
 /** A key written where it is used (format 4): key= and gamepad= by the button's name. */
-export const keyAttrs = (i: Pick<Input, 'key' | 'gamepad'> | undefined) => ({
-  key: i?.key || undefined,
-  gamepad: i?.gamepad ? gamepadXml(i.gamepad) : undefined,
-});
-/** A <Window>'s attributes: from defaults to the clip start, until to its end, and the buffer is on. */
+export const keyAttrs = (i: Pick<Input, 'key' | 'gamepad' | 'control'> | undefined) =>
+  i?.control
+    ? {control: i.control}
+    : {
+        key: i?.key || undefined,
+        gamepad: i?.gamepad ? gamepadXml(i.gamepad) : undefined,
+      };
+/** A transition's window attributes (format 6, on <Transition>/<Vanilla>): from defaults to the clip start, until
+ *  to its end, and the buffer is on. */
 export const windowAttrs = (open: Mark, close: Mark, buffered: boolean) =>
   omitDefaults(
     {...clock2('from', open), ...clock2('until', close), buffer: buffered},
     {from: '0', until: 'end', buffer: true}
   );
-/** An action's own settings as the runtime reads them (format 4). The workspace adds the rest (workspace.ts). */
-export function actionXml(p: Project, pair = false, selecting = false): Xml {
-  const errors = validate(p, selecting).filter(i => i.level === 'error');
+/** An HKX card's own settings as the runtime reads them (format 6, <Action> attributes and its moments). The workspace
+ *  adds the rest (workspace.ts actionElement): QTEs, vanilla transitions, pair settings, functions, transitions. */
+export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendEnabled: boolean}): Xml {
+  const errors = validate(p).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'));
-  // A selecting action (workspace.ts selectsOnly) has no clip of its own (runtime 0.12.244).
-  const out = node('Action', {id: p.actionId, clip: selecting ? undefined : p.steps[0].clip});
+  const attack = p.steps[0].attack || p.attack;
+  const out = node('Action', {
+    id: p.actionId,
+    clip: p.steps[0].clip,
+    air: p.air === 'allow' ? 'both' : p.air === 'only' ? 'only' : undefined,
+    attack: attack || undefined,
+    // The workspace drops a blend that is off (the graph's own transition then applies).
+    enter: a.enterBlendEnabled ? p.enterBlend : undefined,
+    block: p.suppress ? uniqueEvents(p.suppress.events).join(',') : undefined,
+  });
   // An element whose every attribute is the default is left out, unless its presence is the setting.
   const add = (
     name: string,
@@ -46,29 +59,7 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
     const kept = omitDefaults(attrs, defaults);
     if (always || Object.keys(kept).length) out.children.push(node(name, kept));
   };
-  if (p.start.mode === 'input')
-    add(
-      'Start',
-      {...keyAttrs(p.inputs.find(i => i.id === p.start.input)), onKeyUp: p.start.onKeyUp},
-      {onKeyUp: false},
-      true
-    );
-  else if (p.start.mode === 'event')
-    add(
-      'Start',
-      {event: p.start.event, actor: p.start.actor, onKeyUp: p.start.onKeyUp},
-      {actor: 'both', onKeyUp: false},
-      true
-    );
-  add(
-    'Require',
-    // 시작 제한 (runtime 0.12.276): the action's own nature; a state check is a condition branch's test.
-    {air: p.air, cooldown: p.cooldown},
-    {air: 'deny', cooldown: 0}
-  );
-  // The workspace drops a blend that is off (the graph's own transition then applies).
-  add('Enter', {blend: p.enterBlend}, {}, true);
-  add('Exit', {...clock2('at', p.exit), blend: p.exitBlend}, {at: 'end-0.05'}, true);
+  add('Exit', {...clock2('at', p.exit), blend: a.exitBlendEnabled ? p.exitBlend : undefined}, {at: 'end-0.05'});
   if (p.rotationLocked) add('Rotate', {locked: true});
   const names = {rotate: 'Rotate', iframe: 'IFrame', armor: 'HyperArmor'};
   for (const name of Object.keys(names) as (keyof typeof names)[]) {
@@ -77,7 +68,7 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
       add(names[name], {...clock2('from', s.from), ...clock2('until', s.until)}, {from: '0', until: 'end'}, true);
   }
   const recovery = p.steps[0]?.recovery ?? p.recovery;
-  if (recovery.enabled) add('Recovery', {...clock2('at', recovery.at), blend: recovery.blend});
+  if (recovery.enabled) add('MoveCancel', {...clock2('at', recovery.at), blend: recovery.blend});
   if (p.cost.enabled)
     add(
       'Cost',
@@ -101,9 +92,5 @@ export function actionXml(p: Project, pair = false, selecting = false): Xml {
       true
     );
   if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at));
-  if (p.suppress)
-    add('Suppress', {events: uniqueEvents(p.suppress.events).join(','), when: p.suppress.when}, {when: 'startable'});
-  const attack = p.steps[0].attack || p.attack;
-  if (attack) add('Attack', {data: attack});
   return out;
 }

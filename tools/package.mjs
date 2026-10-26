@@ -1,103 +1,70 @@
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { createHash } from "node:crypto";
-import { homedir } from "node:os";
-import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
-import { savedProject } from "../src/editorBlock.ts";
-import { spawnSync } from "node:child_process";
-import { zipDirectory } from "./zip.mjs";
+import {copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {homedir} from 'node:os';
+import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {zipDirectory} from './zip.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const packageInfo = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const packageInfo = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const version = packageInfo.version;
-const releaseRoot = join(root, "release");
+const releaseRoot = join(root, 'release');
 const releaseName = `AnimationInjectorEditor-${version}`;
 const output = join(releaseRoot, releaseName);
 const binaryArchive = join(releaseRoot, `${releaseName}-windows-x64.zip`);
 const releaseChecksums = join(releaseRoot, `${releaseName}-SHA256SUMS.txt`);
 const stageOutput = output;
 
-// Every file in examples/ ships; tests/examples-open.test.mjs opens each one the way File > Open does.
-const EXAMPLES = readdirSync(join(root, "examples"))
-  .filter((name) => /\.(?:xml|aitemplate)$/i.test(name))
-  .sort();
 // The source is the public repositories at the commits printed in SOURCE.txt (the GPL's corresponding source); the
 // development notes and their old screenshots stay out of the package.
-const EDITOR_REPOSITORY = "https://github.com/skypia0147-dev/Animation-Injector-Editor";
-const RUNTIME_REPOSITORY = "https://github.com/skypia0147-dev/Animation-Injector";
+const EDITOR_REPOSITORY = 'https://github.com/skypia0147-dev/Animation-Injector-Editor';
+const RUNTIME_REPOSITORY = 'https://github.com/skypia0147-dev/Animation-Injector';
 /** The commit of a public checkout beside this one (../<folder>), or "main" when there is none. */
 function publicCommit(folder) {
-  const result = spawnSync("git", ["-C", resolve(root, "..", folder), "rev-parse", "HEAD"], { encoding: "utf8" });
-  return result.status === 0 ? result.stdout.trim() : "main";
+  const result = spawnSync('git', ['-C', resolve(root, '..', folder), 'rev-parse', 'HEAD'], {encoding: 'utf8'});
+  return result.status === 0 ? result.stdout.trim() : 'main';
 }
 
 function hashFile(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
 function isInside(parent, candidate) {
   const local = relative(parent, candidate);
-  return local !== "" && !local.startsWith(`..${sep}`) && local !== ".." && !isAbsolute(local);
+  return local !== '' && !local.startsWith(`..${sep}`) && local !== '..' && !isAbsolute(local);
 }
 
 function safeRemoveGenerated(path) {
   if (!existsSync(path)) return;
   if (!isInside(releaseRoot, path)) throw new Error(`unsafe generated cleanup path: ${path}`);
-  rmSync(path, { recursive: true, force: true });
+  rmSync(path, {recursive: true, force: true});
 }
 
 function copyRelative(relativePath) {
   const source = join(root, relativePath);
   const destination = join(stageOutput, relativePath);
   if (!existsSync(source)) throw new Error(`required package file is missing: ${relativePath}`);
-  mkdirSync(dirname(destination), { recursive: true });
+  mkdirSync(dirname(destination), {recursive: true});
   copyFileSync(source, destination);
 }
 
 function verifyVersion() {
-  const tauri = JSON.parse(readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8"));
+  const tauri = JSON.parse(readFileSync(join(root, 'src-tauri', 'tauri.conf.json'), 'utf8'));
   if (tauri.version !== version) {
     throw new Error(`version mismatch: package.json=${version}, tauri.conf.json=${tauri.version}`);
   }
-  for (const readme of ["README.ko.md", "README.en.md", "README.ja.md", "README.zh.md"]) {
-    const heading = readFileSync(join(root, readme), "utf8").split(/\r?\n/, 1)[0];
+  for (const readme of ['README.ko.md', 'README.en.md', 'README.ja.md', 'README.zh.md']) {
+    const heading = readFileSync(join(root, readme), 'utf8').split(/\r?\n/, 1)[0];
     if (!heading.includes(`· ${version}`)) throw new Error(`version heading mismatch: ${readme}`);
-  }
-}
-
-function verifyPortableExamples() {
-  const absolutePathPattern = /^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/])/;
-  for (const file of EXAMPLES.filter((name) => /\.(?:xml|aitemplate)$/i.test(name))) {
-    // A template is JSON; an XML the editor saved holds its project in the editor's block (a plain one holds none).
-    const text = readFileSync(join(root, "examples", file), "utf8");
-    const json = file.endsWith(".xml") ? savedProject(text).project : text;
-    if (!json) continue;
-    const values = [JSON.parse(json)];
-    let containsAbsolutePath = false;
-    while (values.length > 0) {
-      const value = values.pop();
-      if (typeof value === "string") containsAbsolutePath ||= absolutePathPattern.test(value);
-      else if (Array.isArray(value)) values.push(...value);
-      else if (value && typeof value === "object") values.push(...Object.values(value));
-    }
-    if (containsAbsolutePath) throw new Error(`release example contains a local absolute path: ${file}`);
   }
 }
 
 function buildThirdPartyNotices() {
   const notices = [
     `Animation Injector Editor ${version} — third-party notices`,
-    "Generated from the locked local dependency sources.",
-    "",
+    'Generated from the locked local dependency sources.',
+    '',
   ];
   const collected = new Set();
 
@@ -105,61 +72,58 @@ function buildThirdPartyNotices() {
     const key = `${label}\0${path}`;
     if (collected.has(key)) return;
     collected.add(key);
-    notices.push("=".repeat(72), label, readFileSync(path, "utf8"), "");
+    notices.push('='.repeat(72), label, readFileSync(path, 'utf8'), '');
   }
 
   function collect(directory, label) {
     if (!existsSync(directory)) return 0;
     const licenseFiles = readdirSync(directory)
       .filter(
-        (file) =>
-          /^(licen[cs]e|copying|notice|copyright)([.-]|$)/i.test(file) &&
-          statSync(join(directory, file)).isFile(),
+        file => /^(licen[cs]e|copying|notice|copyright)([.-]|$)/i.test(file) && statSync(join(directory, file)).isFile()
       )
       .sort();
     for (const file of licenseFiles) appendText(join(directory, file), `${label} / ${file}`);
     return licenseFiles.length;
   }
 
-  appendText(join(root, "THIRD_PARTY.md"), "Project third-party and porting notice");
-  appendText(join(root, "src-tauri", "assets", "PORTING_SOURCE.md"), "P5 modified port source notice");
+  appendText(join(root, 'THIRD_PARTY.md'), 'Project third-party and porting notice');
+  appendText(join(root, 'src-tauri', 'assets', 'PORTING_SOURCE.md'), 'P5 modified port source notice');
   appendText(
-    join(root, "src-tauri", "assets", "HKX_VIEWER_LICENSE_GPL-3.0.txt"),
-    "HKX_Viewer and HavokLib port license / GPLv3",
+    join(root, 'src-tauri', 'assets', 'HKX_VIEWER_LICENSE_GPL-3.0.txt'),
+    'HKX_Viewer and HavokLib port license / GPLv3'
   );
-  collect(
-    join(root, "vendor", "serde-hkx"),
-    "serde-hkx e8bc1abc015d42567e6b7e7bb3e99447370f306a (MIT OR Apache-2.0)",
-  );
+  collect(join(root, 'vendor', 'serde-hkx'), 'serde-hkx e8bc1abc015d42567e6b7e7bb3e99447370f306a (MIT OR Apache-2.0)');
 
-  const modules = join(root, "node_modules");
-  if (!existsSync(modules)) throw new Error("node_modules is missing; run npm ci before packaging");
-  for (const name of readdirSync(modules).filter((entry) => !entry.startsWith(".")).sort()) {
-    const directories = name.startsWith("@")
+  const modules = join(root, 'node_modules');
+  if (!existsSync(modules)) throw new Error('node_modules is missing; run npm ci before packaging');
+  for (const name of readdirSync(modules)
+    .filter(entry => !entry.startsWith('.'))
+    .sort()) {
+    const directories = name.startsWith('@')
       ? readdirSync(join(modules, name))
           .sort()
-          .map((entry) => join(name, entry))
+          .map(entry => join(name, entry))
       : [name];
     for (const directory of directories) {
-      const manifestPath = join(modules, directory, "package.json");
+      const manifestPath = join(modules, directory, 'package.json');
       if (!existsSync(manifestPath)) continue;
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      collect(join(modules, directory), `${manifest.name} ${manifest.version} (${manifest.license ?? "see source"})`);
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+      collect(join(modules, directory), `${manifest.name} ${manifest.version} (${manifest.license ?? 'see source'})`);
     }
   }
 
-  const registryRoot = join(process.env.CARGO_HOME ?? join(homedir(), ".cargo"), "registry", "src");
+  const registryRoot = join(process.env.CARGO_HOME ?? join(homedir(), '.cargo'), 'registry', 'src');
   if (existsSync(registryRoot)) {
     const registries = readdirSync(registryRoot)
       .sort()
-      .map((directory) => join(registryRoot, directory));
-    const cargoLock = readFileSync(join(root, "src-tauri", "Cargo.lock"), "utf8");
+      .map(directory => join(registryRoot, directory));
+    const cargoLock = readFileSync(join(root, 'src-tauri', 'Cargo.lock'), 'utf8');
     for (const match of cargoLock.matchAll(/\[\[package\]\]\s+name = "([^"]+)"\s+version = "([^"]+)"/g)) {
       for (const registry of registries) collect(join(registry, `${match[1]}-${match[2]}`), `${match[1]} ${match[2]}`);
     }
   }
 
-  writeFileSync(join(stageOutput, "THIRD_PARTY_NOTICES.txt"), notices.join("\n"));
+  writeFileSync(join(stageOutput, 'THIRD_PARTY_NOTICES.txt'), notices.join('\n'));
 }
 
 function listFiles(directory, outputFiles = []) {
@@ -173,15 +137,15 @@ function listFiles(directory, outputFiles = []) {
 
 function verifyReleaseContents() {
   for (const file of listFiles(stageOutput)) {
-    const local = relative(stageOutput, file).split(sep).join("/");
+    const local = relative(stageOutput, file).split(sep).join('/');
     const extension = extname(local).toLowerCase();
-    if (extension === ".hkx" || extension === ".glb") {
+    if (extension === '.hkx' || extension === '.glb') {
       throw new Error(`private viewer asset entered release output: ${local}`);
     }
     if (
-      local.includes("native-pair-response.json") ||
-      local.includes("ui-viewer-fixture.json") ||
-      local.includes("ui-regression-run/")
+      local.includes('native-pair-response.json') ||
+      local.includes('ui-viewer-fixture.json') ||
+      local.includes('ui-regression-run/')
     ) {
       throw new Error(`local or decoded verification artifact entered release output: ${local}`);
     }
@@ -191,47 +155,47 @@ function verifyReleaseContents() {
 function writeOutputChecksums() {
   const checksums = [];
   for (const file of listFiles(stageOutput)) {
-    if (basename(file) === "SHA256SUMS.txt") continue;
-    checksums.push(`${hashFile(file)}  ${relative(stageOutput, file).split(sep).join("/")}`);
+    if (basename(file) === 'SHA256SUMS.txt') continue;
+    checksums.push(`${hashFile(file)}  ${relative(stageOutput, file).split(sep).join('/')}`);
   }
-  writeFileSync(join(stageOutput, "SHA256SUMS.txt"), `${checksums.join("\n")}\n`);
+  writeFileSync(join(stageOutput, 'SHA256SUMS.txt'), `${checksums.join('\n')}\n`);
 }
 
 function main() {
   verifyVersion();
-  verifyPortableExamples();
   for (const path of [output, binaryArchive, releaseChecksums]) {
     if (existsSync(path)) throw new Error(`refusing to overwrite existing release output: ${path}`);
   }
-  const executable = join(root, "src-tauri", "target", "release", "animation-injector-editor.exe");
+  const executable = join(root, 'src-tauri', 'target', 'release', 'animation-injector-editor.exe');
   if (!existsSync(executable)) throw new Error(`release executable is missing: ${executable}`);
   // Runtime XML checker: the plugin's own parser, required beside the editor for export validation.
-  const checker = resolve(root, "..", "AnimationInjector", "build", "Release", "AnimationInjectorXmlCheck.exe");
-  if (!existsSync(checker)) throw new Error(`runtime XML checker is missing: ${checker} (build AnimationInjectorXmlCheck)`);
+  const checker = resolve(root, '..', 'AnimationInjector', 'build', 'Release', 'AnimationInjectorXmlCheck.exe');
+  if (!existsSync(checker))
+    throw new Error(`runtime XML checker is missing: ${checker} (build AnimationInjectorXmlCheck)`);
 
-  mkdirSync(stageOutput, { recursive: true });
+  mkdirSync(stageOutput, {recursive: true});
   let createdBinaryArchive = false;
   try {
-    copyFileSync(executable, join(stageOutput, "AnimationInjectorEditor.exe"));
-    copyFileSync(checker, join(stageOutput, "AnimationInjectorXmlCheck.exe"));
-    for (const file of ["LICENSE", "README.en.md", "README.ko.md", "README.ja.md", "README.zh.md", "THIRD_PARTY.md"]) copyRelative(file);
-    for (const file of EXAMPLES) copyRelative(`examples/${file}`);
-    const editorCommit = publicCommit("AnimationInjectorEditor-public"),
-      runtimeCommit = publicCommit("AnimationInjector-public");
+    copyFileSync(executable, join(stageOutput, 'AnimationInjectorEditor.exe'));
+    copyFileSync(checker, join(stageOutput, 'AnimationInjectorXmlCheck.exe'));
+    for (const file of ['LICENSE', 'README.en.md', 'README.ko.md', 'README.ja.md', 'README.zh.md', 'THIRD_PARTY.md'])
+      copyRelative(file);
+    const editorCommit = publicCommit('AnimationInjectorEditor-public'),
+      runtimeCommit = publicCommit('AnimationInjector-public');
     writeFileSync(
-      join(stageOutput, "SOURCE.txt"),
+      join(stageOutput, 'SOURCE.txt'),
       [
         `Animation Injector Editor ${version} is free software under the GNU GPL version 3 (LICENSE).`,
-        "",
-        "Source code of this program:",
+        '',
+        'Source code of this program:',
         `  ${EDITOR_REPOSITORY}/tree/${editorCommit}`,
-        "Source code of AnimationInjectorXmlCheck.exe (the Animation Injector runtime):",
+        'Source code of AnimationInjectorXmlCheck.exe (the Animation Injector runtime):',
         `  ${RUNTIME_REPOSITORY}/tree/${runtimeCommit}`,
-        "",
-        "The preview skeletons and skins inside AnimationInjectorEditor.exe come from the game and are not part of the",
-        "source (see THIRD_PARTY.md).",
-        "",
-      ].join("\r\n"),
+        '',
+        'The preview skeletons and skins inside AnimationInjectorEditor.exe come from the game and are not part of the',
+        'source (see THIRD_PARTY.md).',
+        '',
+      ].join('\r\n')
     );
     buildThirdPartyNotices();
     verifyReleaseContents();
@@ -241,19 +205,18 @@ function main() {
     createdBinaryArchive = true;
 
     const lines = [`${hashFile(binaryArchive)}  ${basename(binaryArchive)}`];
-    writeFileSync(releaseChecksums, `${lines.join("\n")}\n`);
+    writeFileSync(releaseChecksums, `${lines.join('\n')}\n`);
 
     console.log(output);
     console.log(binaryArchive);
-    console.log(lines.join("\n"));
-    console.log(`${hashFile(join(output, "AnimationInjectorEditor.exe"))}  AnimationInjectorEditor.exe`);
+    console.log(lines.join('\n'));
+    console.log(`${hashFile(join(output, 'AnimationInjectorEditor.exe'))}  AnimationInjectorEditor.exe`);
   } catch (error) {
     if (existsSync(output)) safeRemoveGenerated(output);
     if (createdBinaryArchive || existsSync(binaryArchive)) safeRemoveGenerated(binaryArchive);
     if (existsSync(releaseChecksums)) safeRemoveGenerated(releaseChecksums);
     throw error;
   }
-
 }
 
 try {

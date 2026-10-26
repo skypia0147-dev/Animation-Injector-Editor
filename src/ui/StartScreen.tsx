@@ -7,7 +7,6 @@ export function StartScreen({
   onOpen,
   onOpenRecent,
   onRemoveRecent,
-  onSample,
   onRecover,
 }: {
   recent: RecentFile[];
@@ -15,7 +14,6 @@ export function StartScreen({
   onOpen: () => void;
   onOpenRecent: (r: RecentFile) => void;
   onRemoveRecent: (path: string) => void;
-  onSample: () => void;
   onRecover?: () => void;
 }) {
   return (
@@ -31,9 +29,6 @@ export function StartScreen({
             </button>
             <button type="button" onClick={onOpen}>
               {t('menu.file.open')}
-            </button>
-            <button type="button" onClick={onSample}>
-              {t('start.sample')}
             </button>
             {onRecover && (
               <button type="button" onClick={onRecover}>

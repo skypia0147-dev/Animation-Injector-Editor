@@ -1,16 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {s4sample} from '../src/s4sample.ts';
-import {flatGraph, flatId, addFlat, deleteFlat, connectFlat} from '../src/graph/flat.ts';
+import {s4sample} from './fixtures/s4sample.ts';
+import {flatGraph, flatId, addFlat, deleteFlat, connectFlat, hkxId} from '../src/graph/flat.ts';
 import {compileWorkspace, parseWorkspace} from '../src/workspace.ts';
 import {moveNodes} from '../src/graph/projection.ts';
-test('flat canvas exposes animation, rules and pair nodes with valid pins without changing XML', () => {
+test('flat canvas exposes start, HKX, pair and transition cards with valid pins without changing XML', () => {
   const w = s4sample(),
     xml = compileWorkspace(w),
     g = flatGraph(w);
   assert.ok(g.nodes.some(n => n.kind === 'hkxPlay'));
   assert.ok(g.nodes.some(n => n.kind === 'pairedPlay'));
-  assert.ok(g.nodes.some(n => n.kind === 'keyInput'));
+  assert.ok(g.nodes.some(n => n.kind === 'startCard'));
+  assert.ok(g.nodes.some(n => n.kind === 'transition'));
   assert.ok(g.nodes.every(n => !n.open));
   assert.ok(g.nodes.every(n => !['animMotion', 'distanceMotion', 'detectionWindow'].includes(n.kind)));
   assert.equal(new Set(g.nodes.map(n => n.id)).size, g.nodes.length);
@@ -20,18 +21,20 @@ test('flat canvas exposes animation, rules and pair nodes with valid pins withou
   }
   assert.equal(compileWorkspace(w), xml);
 });
-test('flat notify add/delete and position persist in document and XML', () => {
+test('an item added to an HKX card is its action at once (format 6), survives save and goes with delete', () => {
   const w = s4sample(),
-    a = w.actions[0],
+    a = w.actions.find(a => !a.pair),
     r = addFlat(w, a.uid, 'notify:rotate', {x: 77, y: 99});
   assert.equal(flatGraph(r.workspace).nodes.find(n => n.id === r.id)?.kind, 'notify');
   const loaded = parseWorkspace(JSON.stringify(r.workspace));
-  assert.deepEqual(flatGraph(loaded).nodes.find(n => n.id === r.id).position, {x: 77, y: 99});
-  assert.equal(compileWorkspace(loaded), compileWorkspace(w));
-  assert.notEqual(compileWorkspace(connectFlat(loaded, r.id, a.uid)), compileWorkspace(w));
-  assert.ok(!flatGraph(deleteFlat(loaded, r.id)).nodes.some(n => n.id === r.id));
+  assert.ok(flatGraph(loaded).nodes.some(n => n.id === r.id));
+  assert.notEqual(compileWorkspace(loaded), compileWorkspace(w));
+  assert.match(compileWorkspace(loaded), /<Rotate/);
+  const gone = deleteFlat(loaded, r.id);
+  assert.ok(!flatGraph(gone).nodes.some(n => n.id === r.id));
+  assert.equal(compileWorkspace(gone), compileWorkspace(w));
 });
-test('flat feature delete and reconnect action are executable domain edits', () => {
+test('flat feature delete and a drawn transition are executable domain edits', () => {
   const w = s4sample(),
     a = w.actions[0],
     id = flatId({kind: 'anim', action: a.uid}, 'blendIn');
@@ -45,6 +48,8 @@ test('flat feature delete and reconnect action are executable domain edits', () 
       y: 222,
     }
   );
-  const linked = connectFlat(w, w.actions[0].uid, w.actions[1].uid);
+  // HKX onto HKX: a transition card between them.
+  const linked = connectFlat(w, hkxId(w, w.actions[0].uid), hkxId(w, w.actions[1].uid));
   assert.equal(linked.links.length, w.links.length + 1);
+  assert.deepEqual([linked.links.at(-1).from, linked.links.at(-1).to], [w.actions[0].uid, w.actions[1].uid]);
 });

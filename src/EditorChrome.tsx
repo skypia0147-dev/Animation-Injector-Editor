@@ -1,28 +1,6 @@
-import {useState} from 'react';
 import type {ReactNode} from 'react';
 import {useReactFlow, useViewport} from '@xyflow/react';
-import type {NodeChange} from '@xyflow/react';
 import {tr} from './i18n/korean.ts';
-
-export function useNodeMeasurements() {
-  const [measurements, setMeasurements] = useState<Record<string, {width: number; height: number}>>({});
-  const measure = (changes: NodeChange[]) => {
-    const sizes = changes.filter(c => c.type === 'dimensions');
-    if (!sizes.length) return;
-    setMeasurements(previous => {
-      let next = previous;
-      for (const c of sizes) {
-        if (!c.dimensions) continue;
-        const old = previous[c.id];
-        if (old?.width === c.dimensions.width && old?.height === c.dimensions.height) continue;
-        if (next === previous) next = {...previous};
-        next[c.id] = c.dimensions;
-      }
-      return next;
-    });
-  };
-  return {measurements, measure};
-}
 
 const paths: Record<string, ReactNode> = {
   export: (
@@ -160,14 +138,6 @@ export function Icon({name, size = 18}: {name: string; size?: number}) {
     >
       {paths[name] ?? paths.file}
     </svg>
-  );
-}
-export function Brand({detail}: {detail?: string}) {
-  return (
-    <div className="brand">
-      <span className="brand-title">Animation Injector</span>
-      {detail && <small>{detail}</small>}
-    </div>
   );
 }
 export function CanvasControls() {

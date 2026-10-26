@@ -2,8 +2,10 @@ import type {Workspace, Action} from './workspace.ts';
 import type {Mark} from './model.ts';
 import {mark, keyCode} from './model.ts';
 import {clock2, omitDefaults} from './compiler.ts';
-import {gamepadFromXml, gamepadXml} from './keys.ts';
+import {gamepadFromXml, gamepadXml, isGameControl, type GameControl} from './keys.ts';
 import {node, type Xml} from './xml.ts';
+import {linkDestination, type Writer} from './format6Xml.ts';
+import type {Ref} from './cards.ts';
 import {qteAnchors, type QteAnchor} from './qteLayout.ts';
 import {tr} from './i18n/korean.ts';
 export const outcomes = ['success', 'failure', 'perfect'] as const;
@@ -46,13 +48,16 @@ export type QteResult = {
   event: string;
   recipient: 'self' | 'partner' | 'both';
   to: string;
+  /** Through a condition card (XML format 6): the card's uid; `to` is then empty. */
+  card?: string;
   partnerTo: string;
   soundPlugin?: string;
   soundForm?: string;
 };
 export type QteNode = {
   anchor?: QteAnchor;
-  control?: 'rightAttack';
+  /** A game control (rightAttack, or any of keys.ts gameControls since runtime 0.12.292): the keys bound to it. */
+  control?: GameControl;
   stopEvent?: string;
   replaceActive?: boolean;
   feedback?: number;
@@ -168,7 +173,7 @@ export function qteErrors(w: Workspace): string[] {
       if (q.inputOwner !== 'player') bad(tr('이벤트로 시작하는 QTE는 플레이어가 입력합니다.'));
       for (const k of outcomes) {
         const r = q.results?.[k];
-        if (r?.mode !== 'transition') continue;
+        if (r?.mode !== 'transition' || r.card) continue;
         const dest = w.actions.find(a => a.uid === r.to);
         if (!dest) bad(tr('결과 HKX를 연결하세요.'));
         else if (dest.pair) bad(tr('이벤트로 시작하는 QTE는 일반 동작으로만 전환합니다.'));
@@ -200,7 +205,7 @@ export function qteErrors(w: Workspace): string[] {
           bad(tr('모든 순서에 키보드·마우스 또는 게임패드 키를 지정하세요.'));
       }
     }
-    if ((q.control !== undefined && q.control !== 'rightAttack') || (q.control && q.type === 'keySequence'))
+    if ((q.control !== undefined && !isGameControl(q.control)) || (q.control && q.type === 'keySequence'))
       bad(tr('QTE 조작키 오류'));
     if (q.stopEvent && !validEvent(q.stopEvent)) bad(tr('QTE 종료 이벤트 오류'));
     if (q.feedback !== undefined && (!Number.isFinite(q.feedback) || q.feedback < 0.05 || q.feedback > 10))
@@ -265,7 +270,10 @@ export function qteErrors(w: Workspace): string[] {
         bad(tr('QTE 사운드 플러그인·Form ID를 지정하세요.'));
       if (r.mode === 'event' && !validEvent(r.event)) bad(tr('결과 이벤트 이름을 지정하세요.'));
       if (a && !a.pair && r.mode === 'event' && r.recipient !== 'self') bad(tr('상대 이벤트는 페어 전용입니다.'));
-      if (r.mode === 'transition') {
+      if (r.mode === 'transition' && r.card) {
+        if (!w.cards.some(c => c.uid === r.card)) bad(tr('결과의 조건 카드가 없습니다.'));
+        if (r.partnerTo) bad(tr('상대 동작은 HKX로 바로 가는 결과에만 지정합니다.'));
+      } else if (r.mode === 'transition') {
         const dest = w.actions.find(a => a.uid === r.to),
           partner = w.actions.find(a => a.uid === r.partnerTo);
         if (q.owner && !dest) bad(tr('결과 HKX를 연결하세요.'));
@@ -334,7 +342,7 @@ function qteAttrs(q: QteNode) {
     }
   );
 }
-function qteChildren(w: Workspace, q: QteNode): Xml[] {
+function qteChildren(w: Workspace, q: QteNode, x: Writer): Xml[] {
   const started = q.eventStart !== undefined;
   return [
     ...(q.type === 'keySequence'
@@ -346,35 +354,28 @@ function qteChildren(w: Workspace, q: QteNode): Xml[] {
       const r = q.results[k];
       if (r.mode === 'continue' && !r.soundForm) return [];
       const sound = r.soundForm ? {soundPlugin: r.soundPlugin, soundForm: r.soundForm} : {};
-      return [
-        node(k[0].toUpperCase() + k.slice(1), {
-          ...sound,
-          ...(r.mode === 'continue'
-            ? {}
-            : r.mode === 'event'
-              ? started
-                ? {event: r.event}
-                : {event: r.event, recipient: r.recipient}
-              : {
-                  to: w.actions.find(a => a.uid === r.to)!.config.actionId,
-                  partnerTo: r.partnerTo ? w.actions.find(a => a.uid === r.partnerTo)!.config.actionId : undefined,
-                }),
-        }),
-      ];
+      const e = node(k[0].toUpperCase() + k.slice(1), {
+        ...(r.mode === 'event' ? (started ? {event: r.event} : {event: r.event, recipient: r.recipient}) : {}),
+        ...(r.mode === 'transition' && r.partnerTo
+          ? {partnerTo: w.actions.find(a => a.uid === r.partnerTo)!.config.actionId}
+          : {}),
+        ...sound,
+      });
+      return [r.mode === 'transition' ? linkDestination(x, e, r.to, r.card) : e];
     }),
   ];
 }
-export function qteXml(w: Workspace, a: Action): Xml[] {
+export function qteXml(w: Workspace, a: Action, x: Writer): Xml[] {
   return (w.qtes ?? [])
     .filter(q => q.owner === a.uid && q.eventStart === undefined)
-    .map(q => node('QTE', qteAttrs(q), qteChildren(w, q)));
+    .map(q => node('QTE', qteAttrs(q), qteChildren(w, q, x)));
 }
 /** The QTEs events start (runtime 0.12.248), each with its event's name as written; workspace.ts puts them under
  *  that event's <Event> in the registry. */
-export function eventQteXml(w: Workspace): {event: string; xml: Xml}[] {
+export function eventQteXml(w: Workspace, x: Writer): {event: string; xml: Xml}[] {
   return (w.qtes ?? [])
     .filter(q => q.eventStart !== undefined)
-    .map(q => ({event: q.eventStart!, xml: node('QTE', qteAttrs(q), qteChildren(w, q))}));
+    .map(q => ({event: q.eventStart!, xml: node('QTE', qteAttrs(q), qteChildren(w, q, x))}));
 }
 const ACTION_QTE_ATTRS = [
   'id',
@@ -412,6 +413,7 @@ function readQte(
   xml: Xml,
   a: Action | undefined,
   eventName: string | undefined,
+  through: Through,
   clock?: (s: string, f?: string) => Mark
 ) {
   const q = newQte(w),
@@ -472,18 +474,21 @@ function readQte(
   if (p.hidden !== undefined && !['true', 'false'].includes(p.hidden)) throw Error(tr('QTE hidden 형식 오류'));
   if (p.hidden === 'true') q.hidden = true;
   const resultKeys = eventName
-    ? ['event', 'to', 'partnerTo', 'soundPlugin', 'soundForm']
-    : ['event', 'recipient', 'to', 'partnerTo', 'soundPlugin', 'soundForm'];
+    ? ['event', 'to', 'partnerTo', 'condition', 'soundPlugin', 'soundForm']
+    : ['event', 'recipient', 'to', 'partnerTo', 'condition', 'soundPlugin', 'soundForm'];
   for (const k of outcomes) {
     const matches = xml.children.filter(n => n.name.toLowerCase() === k);
     if (matches.length > 1) throw Error(tr('QTE 결과 중복'));
     const r = matches[0]?.attrs;
     if (!r) continue;
+    // Through a condition card (format 6): `condition`, or common conditions and rows inside it.
+    const card = r.condition !== undefined || matches[0].children.length > 0;
     if (
       Object.keys(r).some(k => !resultKeys.includes(k)) ||
       (r.to && r.event) ||
       (r.partnerTo && !r.to) ||
-      (r.to && r.recipient)
+      (r.to && r.recipient) ||
+      (card && (r.event || r.recipient || r.partnerTo))
     )
       throw Error(tr('QTE 결과 속성 오류'));
     const ref = (s: string) => {
@@ -491,26 +496,30 @@ function readQte(
       if (!dest) throw Error(tr('QTE 결과 HKX가 없습니다: ') + s);
       return dest.uid;
     };
+    const dest = card || r.to ? through(matches[0]) : null;
     q.results[k] = {
       ...(r.soundPlugin || r.soundForm ? {soundPlugin: r.soundPlugin, soundForm: r.soundForm} : {}),
-      mode: r.to ? 'transition' : r.event ? 'event' : 'continue',
+      mode: dest ? 'transition' : r.event ? 'event' : 'continue',
       event: r.event ?? '',
       recipient: (r.recipient ?? 'self') as QteResult['recipient'],
-      to: r.to ? ref(r.to) : '',
+      to: dest && 'action' in dest ? dest.action : '',
+      ...(dest && 'card' in dest ? {card: dest.card} : {}),
       partnerTo: r.partnerTo ? ref(r.partnerTo) : '',
     };
   }
   (w.qtes ??= []).push(q);
 }
-export function readQtes(w: Workspace, root: Xml, clock: (s: string, f?: string) => Mark) {
+/** Reads a result's destination: an action, a card, or null (importXml.ts). */
+type Through = (xml: Xml) => Ref;
+export function readQtes(w: Workspace, root: Xml, clock: (s: string, f?: string) => Mark, through: Through) {
   for (const n of root.children) {
     const a = w.actions.find(a => a.config.actionId === n.attrs.id);
     if (!a) continue;
-    for (const xml of n.children.filter(n => n.name === 'QTE')) readQte(w, xml, a, undefined, clock);
+    for (const xml of n.children.filter(n => n.name === 'QTE')) readQte(w, xml, a, undefined, through, clock);
   }
 }
 /** The QTEs the registry's events start (runtime 0.12.248), after the actions' (their ids come first). */
-export function readEventQtes(w: Workspace, registry: Xml | undefined) {
+export function readEventQtes(w: Workspace, registry: Xml | undefined, through: Through) {
   for (const e of registry?.children ?? [])
-    for (const xml of e.children.filter(n => n.name === 'QTE')) readQte(w, xml, undefined, e.attrs.name ?? '');
+    for (const xml of e.children.filter(n => n.name === 'QTE')) readQte(w, xml, undefined, e.attrs.name ?? '', through);
 }

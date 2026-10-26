@@ -1,12 +1,20 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
-import {PinMenu, openPinMenu} from './PinMenu.tsx';
-import {setBranchTarget} from './conditionCommands.ts';
-import {fanDropSlot, fanSlots, moveFanBranch} from './conditionFans.ts';
-import {FanBadge, fanNumber} from './FanBadge.tsx';
-import {routeTarget} from './ConditionExpressionEditor.tsx';
-import {connectPin, createdLink, pinRows, portLabel, routable, routePins, routeTone, routeEmpty} from './pinTargets.ts';
+import {SlimClipBars} from './ClipBar.tsx';
+import {PinMenu} from './PinMenu.tsx';
+import {
+  connectPin,
+  createdLink,
+  pinRows,
+  portLabel,
+  routable,
+  routeDestination,
+  routePins,
+  routeTone,
+  routeEmpty,
+} from './pinTargets.ts';
 import {parseNodeId} from './nodeRef.ts';
 import {RegistryBody} from './RegistryCard.tsx';
+import {ConditionCardFace} from './ConditionCardFace.tsx';
 import {checklistModel, checklistProjection, copyChecklistNodes, deleteChecklistNode} from './checklist.ts';
 import {actionView, placeStepFile} from '../view.ts';
 import {pasteNodes, nodeClipboard, setNodeClipboard} from './clipboard.ts';
@@ -15,7 +23,6 @@ import {ConnectionEdge} from './ConnectionEdge.tsx';
 import {executeGraphCommand} from './commands.ts';
 import {startRow, type StartRow} from './startRow.ts';
 import {freePlayPosition, visibleNodePosition, visiblePastePosition} from './placement.ts';
-import {visibleEdges} from './disconnect.ts';
 import {fitsAt, neighbors} from './navigation.ts';
 import {arrangeLayout} from './arrange.ts';
 import {HelpTip} from '../ui/HelpTip.tsx';
@@ -39,7 +46,6 @@ import {
   useUpdateNodeInternals,
   useStore,
   applyNodeChanges,
-  ViewportPortal,
 } from '@xyflow/react';
 import type {Node, NodeProps} from '@xyflow/react';
 import type {Workspace} from '../workspace.ts';
@@ -51,7 +57,7 @@ import {moveNodes, addComment} from './projection.ts';
 import {CanvasControls, Icon} from '../EditorChrome.tsx';
 import {presentCard, cardWidth, cardHeight, pinTop, summaryHeight} from './cardPresentation.ts';
 import type {CardPresentation} from './cardPresentation.ts';
-import {useEditorMenu} from '../ContextMenu.tsx';
+import {menuGroups, useEditorMenu} from '../ContextMenu.tsx';
 import {t, useLanguage} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
 /** routeTo: where each route row's pin goes now, by name (routePins). */
@@ -101,7 +107,7 @@ function HkxSummary({node}: {node: Visual['data']}) {
     view = useContext(CardView)!;
   const a = gate.w.actions.find(a => a.uid === node.action),
     step = a?.config.steps.find(s => s.id === node.step);
-  const used = (gate.model.items.get(node.id) ?? []).filter(i => i.enabled),
+  const used = gate.model.items.get(node.id) ?? [],
     shown = used.slice(0, 6);
   return (
     <div className="hkx-summary">
@@ -216,8 +222,38 @@ const CardBody = memo(function CardBody({
   library: unknown;
   fold?: 'open' | 'closed';
 }) {
-  return <ChecklistBody node={node} fold={fold} />;
+  // A card's clip bars are slim (the property list, mockup ⑥-A).
+  return (
+    <SlimClipBars.Provider value={true}>
+      <ChecklistBody node={node} fold={fold} />
+    </SlimClipBars.Provider>
+  );
 });
+/** A condition card draws with every document (a NOT, a condition's value), not only when its card data changes:
+ *  the checklist context is one object for the whole canvas, so the gate is what changes. */
+function GatedConditionCard({
+  node,
+  menu,
+}: {
+  node: Visual['data'];
+  menu: React.ComponentProps<typeof ConditionCardFace>['menu'];
+}) {
+  const gate = useContext(CardGate)!,
+    ctx = useContext(ChecklistContext)!,
+    summary = !!useContext(CardView)?.summary;
+  return (
+    <ConditionCardFace
+      w={gate.w}
+      uid={node.id.slice('conditionCard:'.length)}
+      node={node.id}
+      edit={ctx.edit}
+      status={ctx.status}
+      chosen={gate.selected === node.id}
+      foldWhenLeft={summary}
+      menu={menu}
+    />
+  );
+}
 function GatedChecklist({node}: {node: Visual['data']}) {
   const gate = useContext(CardGate)!,
     items = gate.model.items.get(node.id),
@@ -227,12 +263,7 @@ function GatedChecklist({node}: {node: Visual['data']}) {
     !!s && (s === node.id || !!items?.some(i => i.node.id === s) || !!gate.model.owners.get(s)?.includes(node.id));
   // Summary view: a condition's editor is open while the card (or what it owns) is chosen, as an HKX card is.
   const summary = useContext(CardView)?.summary,
-    fold =
-      summary && (node.kind === 'conditionBranch' || node.kind === 'conditionTable')
-        ? touched
-          ? ('open' as const)
-          : ('closed' as const)
-        : undefined;
+    fold = summary && node.kind === 'conditionCard' ? (touched ? ('open' as const) : ('closed' as const)) : undefined;
   return (
     <CardBody
       fold={fold}
@@ -297,6 +328,17 @@ function StartLine({node, start}: {node: Visual['data']; start: StartRow}) {
     </div>
   );
 }
+/** A head title 「종류 · 이름」 split so the kind reads lighter than the name (graph/cardTheme.css). */
+function CardTitle({title}: {title: string}) {
+  const at = title.indexOf(' · ');
+  if (at < 0) return <span>{title}</span>;
+  return (
+    <span>
+      <span className="card-kind">{title.slice(0, at + 2)}</span>
+      {title.slice(at + 3)}
+    </span>
+  );
+}
 function Card({id, data, selected}: NodeProps<Visual>) {
   // React Flow measures a card's pins when it mounts or resizes: a pin added without a size change (an HKX's
   // victim input once a pair's transition reaches it) needs a new measure, or lines to it are not drawn.
@@ -315,32 +357,11 @@ function Card({id, data, selected}: NodeProps<Visual>) {
     ctx = routable(data) ? context : null;
   // Every pin with a destination list is a row at the card's foot (below); any other pin stays on the card's edge.
   const routes = routePins(data),
-    edgePins = routes.length ? data.outputs.filter(p => !routes.includes(p)) : data.outputs,
-    branch = parseNodeId(data.id),
-    test =
-      branch.kind === 'branch' && context
-        ? context.w.actions.find(a => a.uid === branch.owner)?.flow?.tests.find(t => t.id === branch.test)
-        : undefined;
-  // A condition's route reads from its test (an unconnected one says what then happens: next condition or none).
-  // A fan (graph/conditionFans.ts): the pass names its branches; a branch's empty fail is written as the next
-  // branch but reads "실행하지 않음" (the next branch is tried).
-  const fanText = (p: string) =>
-    p === 'pass' && data.fanCount
-      ? tr('→ 갈래 {n}개 (①부터)', {n: data.fanCount})
-      : p === 'fail' && data.fan && !data.fan.ownFail
-        ? tr('실행하지 않음') + (data.fan.next ? tr(' · 다음 갈래 검사') : '')
-        : p === 'fail' && data.fan?.failTo !== undefined
-          ? tr('{n} 갈래', {n: fanNumber(data.fan.failTo)})
-          : undefined;
+    edgePins = routes.length ? data.outputs.filter(p => !routes.includes(p)) : data.outputs;
+  // A start's, card's or transition's route names where it goes (from the document); a QTE's from its result.
   const routeText = (p: string) =>
-    fanText(p) ??
-    (test && (p === 'pass' || p === 'fail') && context ? routeTarget(context.w, test, p) : data.routeTo?.[p] || '');
-  const routeSet = (p: string) =>
-    p === 'fail' && data.fan && !data.fan.ownFail
-      ? false
-      : test && (p === 'pass' || p === 'fail')
-        ? !!test[p]
-        : !!data.routeTo?.[p];
+    data.kind !== 'qte' && context ? routeDestination(context.w, data.id, p) : data.routeTo?.[p] || '';
+  const routeSet = (p: string) => !!routeText(p);
   // A routing pin's destination is also chosen from a list (graph/pinTargets.ts), read when it opens.
   // The shown document's view comes from the render cache; an edit's copy is projected on its own.
   const view = (w: Workspace) => checklistProjection(w, renderedChecklist(w));
@@ -431,6 +452,7 @@ function Card({id, data, selected}: NodeProps<Visual>) {
       className={
         'p3-node ' +
         data.kind +
+        ' card-themed' +
         (selected ? ' selected' : '') +
         (data.collapsed ? ' collapsed' : '') +
         (data.neighbor ? ' neighbor' : '')
@@ -446,41 +468,28 @@ function Card({id, data, selected}: NodeProps<Visual>) {
         <Handle key={p} id={p} type="target" position={Position.Left} style={{top: pinTop(data) + i * 24}} title={p} />
       ))}
       <strong className="checklist-drag-handle" title={data.presentation.title}>
-        {data.fan && context ? (
-          <FanBadge
-            index={data.fan.index}
-            count={data.fan.count}
-            move={to => {
-              try {
-                context.edit(w =>
-                  moveFanBranch(
-                    w,
-                    branch.kind === 'branch' ? branch.owner : '',
-                    branch.kind === 'branch' ? branch.test : '',
-                    to
-                  )
-                );
-              } catch (e) {
-                context.status(String(e));
-              }
-            }}
-          />
-        ) : (
-          <Icon name={data.presentation.icon} size={19} />
-        )}
-        <span>{data.presentation.title}</span>
-        {data.fan?.back ? (
-          <em className="fan-tag back">{tr('앞 갈래로 되돌아감')}</em>
-        ) : data.fan && !data.fan.reached ? (
-          <em className="fan-tag">{tr('도달하지 않음')}</em>
-        ) : null}
+        <Icon name={data.presentation.icon} size={19} />
+        <CardTitle title={data.presentation.title} />
       </strong>
       {data.start && <StartLine node={data} start={data.start} />}
       {data.kind === 'eventRegistry' ? (
         <GatedRegistry />
       ) : data.collapsed ? (
         <HkxSummary node={data} />
-      ) : ['hkxPlay', 'conditionBranch', 'conditionTable'].includes(data.kind) ? (
+      ) : data.kind === 'conditionCard' && ctx ? (
+        <GatedConditionCard
+          node={data}
+          menu={(p, label, className) => (
+            <PinMenu
+              className={className}
+              label={label}
+              title={portLabel(data, p) + tr(' 연결 대상 고르기')}
+              load={() => pinRows(ctx.w, view(ctx.w), data.id).find(r => r.pin === p)}
+              pick={target => choose(p, target)}
+            />
+          )}
+        />
+      ) : data.kind === 'hkxPlay' ? (
         <GatedChecklist node={data} />
       ) : data.presentation.qte ? (
         <div className="qte-face">
@@ -518,12 +527,13 @@ function Card({id, data, selected}: NodeProps<Visual>) {
       {qteRows ? (
         <div className="branch-routes qte-routes">{qteRows}</div>
       ) : (
-        routes.length > 0 && (
+        routes.length > 0 &&
+        data.kind !== 'conditionCard' && (
           // Routes are rows at the card's foot: what the route is, where it goes, its list (the whole row opens it)
           // and its pin on the row's edge (docs/mockup-branch-pins, docs/mockup-route-rows, 10-15).
           <div className="branch-routes">
             {routes.map(p =>
-              routeRow(p, portLabel(data, p), routeSet(p) || test ? routeText(p) : routeEmpty(data, p), !routeSet(p))
+              routeRow(p, portLabel(data, p), routeSet(p) ? routeText(p) : routeEmpty(data, p), !routeSet(p))
             )}
           </div>
         )
@@ -579,7 +589,8 @@ const edgeTypes = {connection: ConnectionEdge};
 /** The canvas grid: 24 screen pixels at every zoom (Background scales its gap by the zoom). */
 function ScreenGrid() {
   const zoom = useStore(s => s.transform[2]);
-  return <Background variant={BackgroundVariant.Lines} gap={24 / zoom} color="#292929" lineWidth={0.7} />;
+  // Dots, as the card mockups draw the canvas (docs/mockup-design-unify).
+  return <Background variant={BackgroundVariant.Dots} gap={24 / zoom} size={1.4 / zoom} color="#333333" />;
 }
 /** The chosen cards' ring keeps about the same screen width at any zoom (a 2px ring vanishes when zoomed out). */
 function SelectionRing({target}: {target: React.RefObject<HTMLDivElement | null>}) {
@@ -703,9 +714,8 @@ function FlatGraphPanel({
   useEffect(() => {
     if (retained && retained.session !== focusSession) setFocusSession(retained.session);
   }, [retained, focusSession]);
-  const [nodes, setNodes] = useState<Visual[]>([]),
-    [owner, setOwner] = useState('');
-  const {screenToFlowPosition, fitView, getZoom, setCenter, getNodes} = useReactFlow();
+  const [nodes, setNodes] = useState<Visual[]>([]);
+  const {screenToFlowPosition, fitView, getZoom, setCenter, getNodes, getViewport, setViewport} = useReactFlow();
   const presentations = useMemo(
     () => new Map(fullProjection.nodes.map(n => [n.id, presentCard(w, n)])),
     [fullProjection, w]
@@ -761,9 +771,8 @@ function FlatGraphPanel({
   }, [projection, fullProjection, presentations, w]);
   const region = useRef<HTMLDivElement>(null),
     cancelled = useRef(false),
-    // A fanned branch dragged onto another branch of its fan: where it would go (docs/mockup-condition-fan).
-    [fanDrop, setFanDrop] = useState<{id: string; at: number; x: number; y: number; w: number}>(),
     dragFrom = useRef<{id: string; x: number; y: number}>(undefined),
+    pressed = useRef(''),
     right = useRef({x: 0, y: 0});
   const [minimapOpen, setMinimapOpen] = useState(storedMinimap);
   const toggleMinimap = () =>
@@ -780,19 +789,40 @@ function FlatGraphPanel({
   const openCards = useMemo(() => {
     const s = new Set(opened);
     // A chosen condition card opens its editor too (ChecklistBody fold): it floats like an open HKX card.
-    if (selectedNode && ['hkxPlay', 'conditionBranch', 'conditionTable'].includes(selectedNode.kind))
+    if (selectedNode && ['hkxPlay', 'conditionCard', 'startCard', 'transition'].includes(selectedNode.kind))
       s.add(selectedNode.id);
     return s;
   }, [opened, selectedNode?.id, selectedNode?.kind]);
   const collapsedData = useRef(new WeakMap<Visual['data'], Visual['data']>());
-  const actionId = selectedNode?.action || owner || w.actions[0]?.uid || '';
-  const action = w.actions.find(a => a.uid === actionId);
+  const actionId = selectedNode?.action || w.actions[0]?.uid || '';
   const box = (n: Visual) => ({
     x: n.position.x,
     y: n.position.y,
     w: n.measured?.width ?? cardWidth(n.data),
     h: n.measured?.height ?? cardHeight(n.data),
   });
+  // A card chosen on the canvas comes to the middle of the canvas at the same zoom (user request 10-25); a card
+  // taller or wider than the canvas shows its top-left instead. Measured on screen, and again once a summary card
+  // has opened to its full height.
+  const centreCard = (id: string) => {
+    const fit = () => {
+      const card = region.current?.querySelector(`.react-flow__node[data-id="${CSS.escape(id)}"]`),
+        flow = region.current?.querySelector('.react-flow');
+      if (!card || !flow) return;
+      const r = card.getBoundingClientRect(),
+        pane = flow.getBoundingClientRect(),
+        margin = 24;
+      const shift = (start: number, size: number, view: number) =>
+        size > view - 2 * margin ? margin - start : (view - size) / 2 - start;
+      const dx = shift(r.left - pane.left, r.width, pane.width),
+        dy = shift(r.top - pane.top, r.height, pane.height);
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      const {x, y, zoom} = getViewport();
+      void setViewport({x: x + dx, y: y + dy, zoom}, {duration: 250});
+    };
+    setTimeout(fit, 60);
+    setTimeout(fit, 420);
+  };
   const fitNeighbors = (id: string) => {
     const ids = new Set(neighbors(projection, id)),
       pane = region.current?.getBoundingClientRect();
@@ -860,11 +890,9 @@ function FlatGraphPanel({
           height:
             n.kind === 'hkxPlay'
               ? 350 + (checklist.items.get(n.id)?.length ?? 0) * 42
-              : n.kind === 'conditionBranch'
-                ? 420
-                : n.kind === 'conditionTable'
-                  ? 150 + (w.actions.find(a => a.uid === n.action)?.flow?.tests.length ?? 0) * 40
-                  : cardHeight(n),
+              : n.kind === 'conditionCard'
+                ? 200 + (w.cards.find(c => 'conditionCard:' + c.uid === n.id)?.tests.length ?? 0) * 40
+                : cardHeight(n),
         },
       })),
     };
@@ -1031,7 +1059,8 @@ function FlatGraphPanel({
   // A project with nothing in it shows the first steps (canvas-guide) instead of an empty event registry.
   // "이벤트 등록 카드 보기" shows the registry for a project that starts with its events (kept per document).
   const [registryShown, setRegistryShown] = useState('');
-  const bare = !w.actions.length && !w.eventRegistry?.length && !w.drafts?.length && registryShown !== w.id;
+  const bare =
+    !w.actions.length && !w.starts.length && !w.cards.length && !w.eventRegistry?.length && registryShown !== w.id;
   // A new HKX card goes where nothing is (a fresh project shows the event registry in the middle).
   const addPlay = () => {
     const r = addFlat(w, '', 'playNode', freePlayPosition(screenToFlowPosition));
@@ -1346,7 +1375,7 @@ function FlatGraphPanel({
           interactionWidth: 24,
           sourceHandle: e.pin,
           targetHandle: e.targetPin ?? e.pin,
-          label: e.id.startsWith('operand:') ? tr('구성 조건') : e.rank !== undefined ? fanNumber(e.rank) : undefined,
+          label: undefined,
           zIndex: hit || chosenLine ? 10 : 0,
           style: {
             stroke: chosenLine || hit ? lit : routeLine[tone],
@@ -1403,12 +1432,12 @@ function FlatGraphPanel({
       setSelectedEdge('');
       select('');
       status(
-        parseNodeId(edge.source).kind === 'branch' && (edge.pin === 'pass' || edge.pin === 'fail')
-          ? tr('조건 경로를 비웠습니다. Ctrl+Z로 되돌릴 수 있습니다.')
-          : tr('연결선만 해제했습니다. 카드 설정은 유지됩니다. Ctrl+Z로 되돌릴 수 있습니다.')
+        parseNodeId(edge.source).kind === 'transition' || parseNodeId(edge.target).kind === 'transition'
+          ? tr('연결을 해제했습니다. Ctrl+Z로 되돌릴 수 있습니다.')
+          : tr('목적지를 비웠습니다. Ctrl+Z로 되돌릴 수 있습니다.')
       );
     });
-  const kinds = ['conditionBranch', 'keyInput', 'markerReceive', 'qte', 'playNode'];
+  const kinds = ['conditionCard', 'keyInput', 'markerReceive', 'qte', 'playNode'];
   const copySelection = (clicked?: string) =>
     attempt(() => {
       const ids = getNodes()
@@ -1441,77 +1470,6 @@ function FlatGraphPanel({
           : tr('카드와 내부 설정을 붙여넣었습니다.')
       );
     });
-  const fanBranchIds = (parent: string) =>
-    projection.nodes
-      .filter(x => x.fan?.parent === parent)
-      .sort((a, b) => a.fan!.index - b.fan!.index)
-      .map(x => x.id);
-  const fanHeights = (ids: string[]) =>
-    Object.fromEntries(
-      ids.flatMap(id => {
-        const n = projection.nodes.find(x => x.id === id);
-        return n ? [[id, cardHeight(n)]] : [];
-      })
-    );
-  const fanDropAt = (n: Node) => {
-    const fan = projection.nodes.find(x => x.id === n.id)?.fan;
-    if (!fan) return;
-    const placed = getNodes(),
-      box = (m: Node) => ({
-        id: m.id,
-        x: m.position.x,
-        y: m.position.y,
-        w: m.measured?.width ?? 0,
-        h: m.measured?.height ?? 0,
-      });
-    return fanDropSlot(
-      box(n),
-      fanBranchIds(fan.parent).flatMap(id => {
-        const m = id === n.id ? n : placed.find(x => x.id === id);
-        return m ? [box(m)] : [];
-      })
-    );
-  };
-  // A fan whose branch cards stand out of their order: a notice under its card, whose 「정렬」 has the cards trade
-  // places (the order itself is never read from the places).
-  const fanNotes = useMemo(() => {
-    const placed = new Map(nodes.map(v => [v.id, v]));
-    return projection.nodes
-      .filter(p => p.fanCount)
-      .flatMap(p => {
-        const ids = fanBranchIds(p.id),
-          card = placed.get(p.id);
-        if (!card || ids.some(id => !placed.has(id))) return [];
-        const screen = [...ids].sort(
-          (a, b) =>
-            placed.get(a)!.position.y - placed.get(b)!.position.y ||
-            placed.get(a)!.position.x - placed.get(b)!.position.x
-        );
-        if (screen.join() === ids.join()) return [];
-        return [{id: p.id, ids, x: card.position.x, y: card.position.y + (card.measured?.height ?? 0) + 8}];
-      });
-  }, [nodes, projection]);
-  const arrangeFan = (ids: string[]) => {
-    const placed = new Map(nodes.map(v => [v.id, v.position])),
-      slots = fanSlots(ids, Object.fromEntries(ids.map(id => [id, placed.get(id)!])), fanHeights(ids));
-    if (focusAction) setFocusPositions(p => ({...p, ...slots}));
-    else edit(w => moveNodes(w, {kind: 'root'}, slots));
-  };
-  // A fan's branches: the selected branch moves up or down its order with Alt+↑/↓.
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
-      if (!region.current?.contains(e.target as globalThis.Node)) return;
-      const fan = selectedNode?.fan,
-        ref = parseNodeId(selectedNode?.id ?? '');
-      if (!fan || ref.kind !== 'branch') return;
-      e.preventDefault();
-      const to = fan.index + (e.key === 'ArrowUp' ? -1 : 1);
-      if (to >= 0 && to < fan.count) attempt(() => edit(w => moveFanBranch(w, ref.owner, ref.test, to)));
-    };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -1550,8 +1508,7 @@ function FlatGraphPanel({
       select(id);
     }
     const sharedRule = w.sharedRules?.find(g => g.members.some(m => ruleNode(g.kind, m, w) === id));
-    const a = projection.nodes.find(n => n.id === id)?.action || actionId,
-      branch = parseNodeId(id);
+    const a = projection.nodes.find(n => n.id === id)?.action || actionId;
     const add = (kind: string) =>
       attempt(() => {
         const position = visibleNodePosition(screenToFlowPosition, {x, y});
@@ -1559,10 +1516,13 @@ function FlatGraphPanel({
         edit(() => r.workspace);
         select(r.id ?? '');
       });
-    return [
-      ...(id ? [{label: tr('카드 복사'), disabled: id === 'entry', run: () => copySelection(id)}] : []),
-      {label: tr('카드 붙여넣기'), disabled: !nodeClipboard, run: () => pasteSelection({x, y})},
-      ...(id
+    // Groups (docs/mockup-floating-windows ③): clipboard, view, add, delete, the canvas.
+    return menuGroups(
+      [
+        ...(id ? [{label: tr('카드 복사'), disabled: id === 'entry', run: () => copySelection(id)}] : []),
+        {label: tr('카드 붙여넣기'), disabled: !nodeClipboard, run: () => pasteSelection({x, y})},
+      ],
+      id
         ? [
             {label: tr('선택 카드 주변 맞춤'), run: () => fitNeighbors(id)},
             {
@@ -1570,29 +1530,31 @@ function FlatGraphPanel({
               disabled: !projection.nodes.find(n => n.id === id)?.action,
               run: () => focusFlow(id),
             },
+            // Every list and item of an HKX card at once (ChecklistCard listens), instead of a button per section.
+            ...(projection.nodes.find(n => n.id === id)?.kind === 'hkxPlay'
+              ? [
+                  {
+                    label: tr('카드 항목 모두 펼치기'),
+                    run: () => dispatchEvent(new CustomEvent('card-unfold', {detail: {id, open: true}})),
+                  },
+                  {
+                    label: tr('카드 항목 모두 접기'),
+                    run: () => dispatchEvent(new CustomEvent('card-unfold', {detail: {id, open: false}})),
+                  },
+                ]
+              : []),
           ]
-        : []),
-      // A condition's routes: emptied here, changed by a drag or a list (▾), shared only when chosen.
-      ...(branch.kind === 'branch'
-        ? [
-            ...(['pass', 'fail'] as const).flatMap(port =>
-              // A fanned branch's empty fail is written as "the next branch": nothing of its own to clear.
-              (port === 'fail' ? (projection.nodes.find(n => n.id === id)?.fan?.ownFail ?? true) : true) &&
-              w.actions.find(a => a.uid === branch.owner)?.flow?.tests.find(t => t.id === branch.test)?.[port]
-                ? [
-                    {
-                      label: (port === 'pass' ? tr('통과') : tr('실패')) + tr(' 경로 비우기'),
-                      run: () => attempt(() => edit(w => setBranchTarget(w, branch.owner, branch.test, port))),
-                    },
-                  ]
-                : []
-            ),
-            {label: tr('이 조건을 다른 동작에도 공유…'), run: () => openPinMenu(id + '|share')},
-          ]
-        : []),
-      ...(id
+        : [],
+      id
         ? contextualAdds(w, id, rawProjection)
             .filter(option => !option.disabled)
+            // An HKX card's features are added from its own 「+ 기능」 (user request 10-26): its right-click menu adds
+            // only the cards around it (a start, a transition, a condition before it, the next action, a QTE).
+            .filter(
+              option =>
+                projection.nodes.find(n => n.id === id)?.kind !== 'hkxPlay' ||
+                ['keyInput', 'markerReceive', 'playNode', 'conditionCard', 'qte'].includes(option.kind)
+            )
             .map(option => ({
               label: option.label,
               run: () =>
@@ -1605,53 +1567,53 @@ function FlatGraphPanel({
             }))
         : kinds.map(kind => ({
             label:
-              kind === 'conditionBranch'
-                ? tr('조건 분기 추가')
+              kind === 'conditionCard'
+                ? tr('조건 카드 추가')
                 : (kind === 'blend' ? t('row.blend') : kind === 'playNode' ? t('node.hkxPlay') : t('node.' + kind)) +
                   tr(' 추가'),
             run: () => add(kind),
             disabled: false,
-          }))),
-      {
-        label: id.startsWith('conditionTable:')
-          ? tr('조건 분기 펼치기')
-          : sharedRule
-            ? tr('이 동작에서만 제거')
-            : t('menu.edit.delete'),
-        disabled: !id || id === 'entry',
-        run: () =>
-          attempt(() => {
-            edit(w => deleteChecklistNode(w, id));
-            select('');
-          }),
-      },
-      ...(sharedRule
-        ? [
-            {
-              label: tr('공유 규칙 전체 제거'),
-              run: () =>
-                attempt(() => {
-                  edit(w => {
-                    let next = w;
-                    for (const member of sharedRule.members)
-                      next = deleteFlat(next, ruleNode(sharedRule.kind, member, next));
-                    return next;
-                  });
-                  select('');
-                }),
-            },
-          ]
-        : []),
-      {
-        label: t('graph.comment'),
-        run: () => {
-          const r = addComment(w, {kind: 'root'}, screenToFlowPosition({x, y}));
-          edit(() => r.workspace);
-          select(r.id ?? '');
+          })),
+      [
+        {
+          label: sharedRule ? tr('이 동작에서만 제거') : t('menu.edit.delete'),
+          disabled: !id || id === 'entry',
+          run: () =>
+            attempt(() => {
+              edit(w => deleteChecklistNode(w, id));
+              select('');
+            }),
         },
-      },
-      {label: t('menu.view.fit'), run: () => void fitView({padding: 0.15})},
-    ];
+        ...(sharedRule
+          ? [
+              {
+                label: tr('공유 규칙 전체 제거'),
+                run: () =>
+                  attempt(() => {
+                    edit(w => {
+                      let next = w;
+                      for (const member of sharedRule.members)
+                        next = deleteFlat(next, ruleNode(sharedRule.kind, member, next));
+                      return next;
+                    });
+                    select('');
+                  }),
+              },
+            ]
+          : []),
+      ],
+      [
+        {
+          label: t('graph.comment'),
+          run: () => {
+            const r = addComment(w, {kind: 'root'}, screenToFlowPosition({x, y}));
+            edit(() => r.workspace);
+            select(r.id ?? '');
+          },
+        },
+        {label: t('menu.view.fit'), run: () => void fitView({padding: 0.15})},
+      ]
+    );
   }, status);
   // One context object with the latest values: the cards read it when they draw, and CardGate decides when.
   const cardContext = useRef({} as NonNullable<React.ContextType<typeof ChecklistContext>>).current;
@@ -1791,9 +1753,11 @@ function FlatGraphPanel({
                 // Moving a card that is not chosen moves it alone: it becomes the choice before the drag reads it.
                 const handle = target.closest('.checklist-drag-handle') && target.closest('.react-flow__node');
                 const id = handle?.getAttribute('data-id');
+                pressed.current = '';
                 if (id && !e.shiftKey && !e.ctrlKey && !e.metaKey && !chosen().includes(id)) {
                   setPicked([]);
                   select(id);
+                  pressed.current = id;
                 }
               }}
               onContextMenuCapture={e => {
@@ -1814,31 +1778,6 @@ function FlatGraphPanel({
                       w,
                       (e.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id') || ''
                     );
-                  const draft = w.drafts?.find(d => d.id === n?.id);
-                  if (draft) {
-                    if (item.kind !== 'hkx' || draft.kind !== 'hkxPlay')
-                      throw Error(tr('독립 HKX 카드에는 HKX 파일을 놓으세요.'));
-                    edit(w => ({
-                      ...w,
-                      drafts: w.drafts!.map(d =>
-                        d.id === draft.id
-                          ? {
-                              ...d,
-                              value: {
-                                ...d.value,
-                                config: {
-                                  ...d.value.config,
-                                  steps: d.value.config.steps.map((s, i) =>
-                                    i === 0 ? {...s, clip: item.clip, localPath: item.path || ''} : s
-                                  ),
-                                },
-                              },
-                            }
-                          : d
-                      ),
-                    }));
-                    return;
-                  }
                   if (!n?.action && item.kind === 'hkx') {
                     const added = addFlat(w, '', 'playNode', screenToFlowPosition({x: e.clientX, y: e.clientY}));
                     const node = flatNode(added.workspace, added.id)!,
@@ -1851,35 +1790,42 @@ function FlatGraphPanel({
                   }
                   if (!n?.action && item.kind === 'marker') {
                     const added = addFlat(w, '', 'markerReceive', screenToFlowPosition({x: e.clientX, y: e.clientY}));
-                    const draft = added.workspace.drafts?.find(d => d.id === added.id);
-                    if (!draft) throw Error(tr('이벤트 수신 카드를 만들지 못했습니다.'));
-                    draft.value.config.start.mode = 'event';
-                    draft.value.config.start.event = item.name;
+                    const start = added.workspace.starts.find(s => 'startCard:' + s.uid === added.id);
+                    if (!start) throw Error(tr('이벤트 수신 카드를 만들지 못했습니다.'));
+                    start.event = item.name;
                     edit(() => added.workspace);
                     select(added.id);
                     return;
                   }
                   if (!n?.action) throw Error(tr('대상 동작 또는 HKX 카드에 놓으세요.'));
-                  const next = structuredClone(w),
-                    a = next.actions.find(a => a.uid === n.action)!;
+                  const a = w.actions.find(a => a.uid === n.action)!;
                   if (item.kind === 'hkx') {
                     const step = a.config.steps.find(s => s.id === n.step) ?? a.config.steps[0];
                     if (!step) throw Error(tr('HKX 재생 카드를 추가하고 연결하세요.'));
                     edit(w => placeStepFile(w, a.uid, step.id, item.clip, item.path || ''));
                     return;
-                  } else if (item.kind === 'input') {
-                    const input =
-                      w.sharedInputs.find(i => i.id === item.id) ??
-                      w.actions.find(a => a.uid === item.action)?.config.inputs.find(i => i.id === item.id);
-                    if (!input) throw Error(tr('입력을 찾지 못했습니다.'));
-                    if (!a.config.inputs.some(i => i.id === input.id)) a.config.inputs.push(structuredClone(input));
-                    a.config.start.mode = 'input';
-                    a.config.start.input = input.id;
-                  } else if (item.kind === 'marker') {
-                    a.config.start.mode = 'event';
-                    a.config.start.event = item.name;
-                  } else throw Error(tr('지원하지 않는 자산입니다.'));
-                  edit(() => next);
+                  }
+                  // An input or event dropped on an HKX card: a start card in front of it.
+                  const input =
+                    item.kind === 'input'
+                      ? (w.sharedInputs.find(i => i.id === item.id) ??
+                        w.actions.find(a => a.uid === item.action)?.config.inputs.find(i => i.id === item.id))
+                      : undefined;
+                  if (item.kind === 'input' && !input) throw Error(tr('입력을 찾지 못했습니다.'));
+                  if (item.kind !== 'input' && item.kind !== 'marker') throw Error(tr('지원하지 않는 자산입니다.'));
+                  const r = addFlat(w, '', item.kind === 'input' ? 'keyInput' : 'markerReceive', {
+                    x: a.position.x - 320,
+                    y: a.position.y,
+                  });
+                  const start = r.workspace.starts.find(s => 'startCard:' + s.uid === r.id)!;
+                  if (input) {
+                    start.key = input.key;
+                    start.gamepad = input.gamepad;
+                    if (input.control) start.control = input.control;
+                  } else start.event = item.name;
+                  start.to = {action: a.uid};
+                  edit(() => r.workspace);
+                  select(r.id);
                 });
               }}
             >
@@ -1895,8 +1841,12 @@ function FlatGraphPanel({
                     if (!(e.target as HTMLElement).closest('input,select,textarea,button'))
                       choose(toggled(chosen(), n.id));
                   } else {
+                    // Newly chosen by this click (a header press chooses it already, for a drag).
+                    const fresh = visibleSelected !== n.id || pressed.current === n.id;
+                    pressed.current = '';
                     setPicked([]);
                     select(n.id);
+                    if (fresh) centreCard(n.id);
                   }
                   if (!(e.target as HTMLElement).closest('.checklist-body')) region.current?.focus();
                 }}
@@ -1925,6 +1875,7 @@ function FlatGraphPanel({
                 }}
                 onNodeDragStart={(_, n, all) => {
                   dragging.current = true;
+                  pressed.current = '';
                   dragFrom.current = {id: n.id, ...n.position};
                   setSelectedEdge('');
                   cancelled.current = false;
@@ -1933,46 +1884,8 @@ function FlatGraphPanel({
                     select(n.id);
                   }
                 }}
-                onNodeDrag={(_, n, all) => {
-                  const slot = all.length === 1 ? fanDropAt(n) : undefined;
-                  setFanDrop(d =>
-                    slot ? (d?.id === n.id && d.at === slot.at && d.y === slot.y ? d : {id: n.id, ...slot}) : undefined
-                  );
-                }}
                 onNodeDragStop={(_, n, all) => {
                   dragging.current = false;
-                  const drop = all.length === 1 && !cancelled.current ? fanDropAt(n) : undefined;
-                  setFanDrop(undefined);
-                  if (drop) {
-                    // Inserted: the order changes and the branch cards trade places to stand in it.
-                    const ref = parseNodeId(n.id),
-                      fan = projection.nodes.find(x => x.id === n.id)?.fan;
-                    if (ref.kind === 'branch' && fan) {
-                      const branchIds = fanBranchIds(fan.parent),
-                        rest = branchIds.filter(id => id !== n.id);
-                      rest.splice(drop.at, 0, n.id);
-                      const placed = getNodes(),
-                        places = Object.fromEntries(
-                          branchIds.map(id => [
-                            id,
-                            id === n.id && dragFrom.current?.id === id
-                              ? {x: dragFrom.current.x, y: dragFrom.current.y}
-                              : (placed.find(p => p.id === id)?.position ?? {x: 0, y: 0}),
-                          ])
-                        ),
-                        slots = fanSlots(rest, places, fanHeights(rest));
-                      attempt(() => {
-                        if (focusAction) {
-                          edit(w => moveFanBranch(w, ref.owner, ref.test, drop.at));
-                          setFocusPositions(p => ({...p, ...slots}));
-                        } else
-                          edit(w => moveNodes(moveFanBranch(w, ref.owner, ref.test, drop.at), {kind: 'root'}, slots));
-                      });
-                      // Dropped back into its own place the document does not change: the drawn card returns too.
-                      setNodes(ns => ns.map(v => (slots[v.id] ? {...v, position: slots[v.id]} : v)));
-                      return;
-                    }
-                  }
                   if (!cancelled.current)
                     focusAction
                       ? setFocusPositions(p => ({...p, ...Object.fromEntries(all.map(n => [n.id, n.position]))}))
@@ -2019,32 +1932,6 @@ function FlatGraphPanel({
                 colorMode="dark"
               >
                 <ScreenGrid />
-                {fanNotes.length > 0 && (
-                  <ViewportPortal>
-                    {fanNotes.map(note => (
-                      <div
-                        key={note.id}
-                        className="fan-note nodrag nopan"
-                        style={{transform: `translate(${note.x}px, ${note.y}px)`}}
-                      >
-                        {tr('화면 순서와 번호가 다름')}
-                        <button type="button" onClick={() => arrangeFan(note.ids)}>
-                          {tr('정렬')}
-                        </button>
-                      </div>
-                    ))}
-                  </ViewportPortal>
-                )}
-                {fanDrop && (
-                  <ViewportPortal>
-                    <div
-                      className="fan-insert"
-                      style={{transform: `translate(${fanDrop.x}px, ${fanDrop.y}px)`, width: fanDrop.w}}
-                    >
-                      <span>{tr('놓으면 {n}번', {n: fanDrop.at + 1})}</span>
-                    </div>
-                  </ViewportPortal>
-                )}
                 <SelectionRing target={region} />
                 <EdgeWidth target={region} />
                 <CanvasControls />

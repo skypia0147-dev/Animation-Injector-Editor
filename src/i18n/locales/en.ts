@@ -60,7 +60,7 @@ export const en: Record<string, string> = {
   'toolbar.export': 'Export',
   // panels
   'panel.myProject': 'My Project',
-  'panel.hkxBrowser': 'HKX Browser',
+  'panel.hkxBrowser': 'Browser',
   'panel.viewport': 'Viewport',
   'panel.graph': 'Graph',
   'panel.timeline': 'Timeline',
@@ -84,7 +84,7 @@ export const en: Record<string, string> = {
   // rule graph nodes
   'node.keyInput': 'Key Input',
   'node.markerReceive': 'Marker Received',
-  'node.stateCondition': 'Start Limits',
+  'node.stateCondition': 'Air',
   'node.detectionWindow': 'Detection Window',
   'node.result': 'Result',
   // anim graph nodes
@@ -173,6 +173,10 @@ export const en: Record<string, string> = {
   'notify.moveCancel': 'Cancel by Movement',
   'notify.spell': 'Cast Spell',
   'notify.ragdoll': 'Ragdoll',
+  'notify.strike': 'Strike',
+  'notify.sound': 'Play sound',
+  'notify.globalSet': 'Set global',
+  'notify.modEvent': 'Send mod event',
   'notify.cameraShake': 'Camera Shake',
   'notify.weaponHide': 'Hide Weapon',
   'notify.weaponShow': 'Show Weapon',
@@ -202,7 +206,6 @@ export const en: Record<string, string> = {
   'start.begin': 'Begin',
   'actionKind.single': 'Single action',
   'actionKind.pair': 'Paired action',
-  'start.sample': 'Open example project',
   'start.recover': 'Recover autosave',
   'start.noRecent': 'No recent files yet.',
   'start.removeRecent': 'Remove from list',

@@ -1,6 +1,7 @@
 import {extensionConditions, extensionSummary} from './conditionExtensions.ts';
 import type {Workspace} from '../workspace.ts';
-import type {BranchFlow, BranchTest} from './conditions.ts';
+import type {BranchTest} from './conditions.ts';
+import type {CardTest, ConditionCard} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
 
 export type Expression = {settings: Omit<BranchTest, 'id' | 'operands' | 'pass' | 'fail'>; children: Expression[]};
@@ -37,9 +38,6 @@ export const conditionNames: Record<string, string> = {
   get ground() {
     return tr('지면 확보');
   },
-  get unarmedRight() {
-    return tr('오른손 맨손');
-  },
   get magicEffect() {
     return tr('마법 효과');
   },
@@ -59,12 +57,13 @@ export const conditionNames: Record<string, string> = {
     return tr('여성');
   },
 };
-export function readExpression(f: BranchFlow, id: string, seen = new Set<string>()): Expression {
+type Tests = {tests: CardTest[]};
+export function readExpression(f: Tests, id: string, seen = new Set<string>()): Expression {
   if (seen.has(id)) throw Error(tr('조건 그룹이 순환합니다.'));
   seen.add(id);
   const t = f.tests.find(t => t.id === id);
   if (!t) throw Error(tr('구성 조건을 찾지 못했습니다.'));
-  const {id: _, operands, pass, fail, ...settings} = t;
+  const {id: _, operands, ...settings} = t;
   const result = {
     settings: structuredClone(settings),
     children: (operands ?? []).map(id => readExpression(f, id, seen)),
@@ -72,24 +71,23 @@ export function readExpression(f: BranchFlow, id: string, seen = new Set<string>
   seen.delete(id);
   return result;
 }
-export function insertExpression(f: BranchFlow, e: Expression): string {
+export function insertExpression(f: Tests, e: Expression): string {
   let i = 1;
   while (f.tests.some(t => t.id === 'Condition' + i)) i++;
-  const t: BranchTest = {...structuredClone(e.settings), id: 'Condition' + i};
+  const t: CardTest = {...structuredClone(e.settings), id: 'Condition' + i};
   f.tests.push(t);
   if (e.children.length || ['all', 'any'].includes(t.kind)) t.operands = e.children.map(c => insertExpression(f, c));
   return t.id;
 }
-function prune(f: BranchFlow, candidates: Set<string>) {
+/** A card's roots: its common conditions and every row's. */
+export const cardRoots = (c: Pick<ConditionCard, 'guards' | 'rows'>) => [...c.guards, ...c.rows.flatMap(r => r.guards)];
+function prune(c: ConditionCard, candidates: Set<string>) {
   let changed = true;
   while (changed) {
     changed = false;
-    const used = new Set([f.entry]);
-    for (const t of f.tests) {
-      for (const c of t.operands ?? []) used.add(c);
-      for (const end of [t.pass, t.fail]) if (end && 'node' in end) used.add(end.node);
-    }
-    f.tests = f.tests.filter(t => {
+    const used = new Set(cardRoots(c));
+    for (const t of c.tests) for (const o of t.operands ?? []) used.add(o);
+    c.tests = c.tests.filter(t => {
       if (candidates.has(t.id) && !used.has(t.id)) {
         changed = true;
         return false;
@@ -99,16 +97,16 @@ function prune(f: BranchFlow, candidates: Set<string>) {
   }
 }
 /** A group left with one condition after a delete is that condition again (docs/mockup-self-check ⑤): it takes the
- *  group's place, id and routes, and a NOT on the group turns the condition's NOT over so the result stays. A lone
+ *  group's place and id, and a NOT on the group turns the condition's NOT over so the result stays. A lone
  *  switched-off condition keeps its group (that is the empty-group warning, not a condition). */
-function dissolve(f: BranchFlow, id: string) {
+function dissolve(f: Tests, id: string) {
   const g = f.tests.find(t => t.id === id);
   if (!g || !['all', 'any'].includes(g.kind) || g.operands?.length !== 1) return;
   const only = f.tests.find(t => t.id === g.operands![0]);
   if (!only || only.enabled === false) return;
-  const {pass, fail, label, enabled} = g,
+  const {label, enabled} = g,
     negate = !!g.negate !== !!only.negate;
-  const {id: _id, pass: _pass, fail: _fail, label: inner, enabled: _enabled, negate: _negate, ...rest} = only;
+  const {id: _id, label: inner, enabled: _enabled, negate: _negate, ...rest} = only;
   Object.keys(g).forEach(k => delete (g as any)[k]);
   Object.assign(g, {
     id,
@@ -116,13 +114,11 @@ function dissolve(f: BranchFlow, id: string) {
     ...((label ?? inner) !== undefined ? {label: label ?? inner} : {}),
     ...(enabled !== undefined ? {enabled} : {}),
     ...(negate ? {negate: true} : {}),
-    ...(pass ? {pass} : {}),
-    ...(fail ? {fail} : {}),
   });
   f.tests = f.tests.filter(t => t !== only);
 }
 /** Groups side by side (docs/mockup-self-check ⑥): the top condition holds only groups, two or more. */
-export function sideBySide(f: BranchFlow, id: string) {
+export function sideBySide(f: Tests, id: string) {
   const t = f.tests.find(t => t.id === id);
   return (
     !!t &&
@@ -131,7 +127,7 @@ export function sideBySide(f: BranchFlow, id: string) {
     t.operands!.every(c => ['all', 'any'].includes(f.tests.find(t => t.id === c)?.kind ?? ''))
   );
 }
-function descendants(f: BranchFlow, id: string, out = new Set<string>()) {
+function descendants(f: Tests, id: string, out = new Set<string>()) {
   if (out.has(id)) return out;
   out.add(id);
   for (const c of f.tests.find(t => t.id === id)?.operands ?? []) descendants(f, c, out);
@@ -143,10 +139,11 @@ export type ExpressionCommand =
   | {type: 'move'; parent: string; id: string; to: string; index: number}
   | {type: 'wrap'; id: string; mode: 'all' | 'any'}
   | {type: 'group'; id: string};
+/** One edit of a condition card's conditions (the card editor, docs/설계-형식6-에디터.md 3). */
 export function editExpression(w: Workspace, owner: string, command: ExpressionCommand): Workspace {
   const n = structuredClone(w),
-    f = n.actions.find(a => a.uid === owner)?.flow;
-  if (!f) throw Error(tr('조건 분기를 선택하세요.'));
+    f = n.cards.find(c => c.uid === owner);
+  if (!f) throw Error(tr('조건 카드를 찾지 못했습니다.'));
   const find = (id: string) => {
     const t = f.tests.find(t => t.id === id);
     if (!t) throw Error(tr('조건을 찾지 못했습니다.'));
@@ -162,12 +159,12 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
       t.operands = [...t.operands!, empty()];
       return n;
     }
-    // One group: its conditions move into group 1 (fresh ids, the old ones pruned); this test keeps its id and
-    // routes and becomes the OR that joins group 1 and a new empty group 2.
+    // One group: its conditions move into group 1 (fresh ids, the old ones pruned); this condition keeps its id
+    // and becomes the OR that joins group 1 and a new empty group 2.
     const inner = descendants(f, t.id);
     inner.delete(t.id);
     const first = insertExpression(f, readExpression(f, t.id));
-    const {id, pass, fail, label, enabled} = t;
+    const {id, label, enabled} = t;
     Object.keys(t).forEach(k => delete (t as any)[k]);
     Object.assign(t, {
       id,
@@ -177,8 +174,6 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
       subject: 'self',
       minimum: 0,
       operands: [first, empty()],
-      ...(pass ? {pass} : {}),
-      ...(fail ? {fail} : {}),
     });
     prune(f, inner);
     return n;
@@ -190,18 +185,16 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
       return n;
     }
     const child = insertExpression(f, readExpression(f, t.id));
-    const {id, pass, fail, label, enabled} = t;
+    const {id, label, enabled} = t;
     Object.keys(t).forEach(k => delete (t as any)[k]);
     Object.assign(t, {
       id,
-      label,
-      enabled,
+      ...(label !== undefined ? {label} : {}),
+      ...(enabled !== undefined ? {enabled} : {}),
       kind: command.mode,
       subject: 'self',
       minimum: 0,
       operands: [child],
-      ...(pass ? {pass} : {}),
-      ...(fail ? {fail} : {}),
     });
     return n;
   }
@@ -235,31 +228,20 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
     target.operands.splice(Math.max(0, Math.min(command.index, target.operands.length)), 0, command.id);
   return n;
 }
-// Disabled children are authoring data only. Empty active groups remain invalid.
-export function activeConditionFlow(f: BranchFlow): BranchFlow {
-  if (!f.tests.some(t => t.id === f.entry)) return f;
-  const tests = f.tests.map(t => ({
-    ...t,
-    ...(t.operands ? {operands: t.operands.filter(id => f.tests.find(c => c.id === id)?.enabled !== false)} : {}),
-  }));
-  const used = new Set([f.entry]),
-    queue = [f.entry];
-  for (let i = 0; i < queue.length; i++) {
-    const t = tests.find(t => t.id === queue[i]);
-    if (!t) continue;
-    for (const id of [...(t.operands ?? []), ...[t.pass, t.fail].flatMap(e => (e && 'node' in e ? [e.node] : []))])
-      if (!used.has(id)) {
-        used.add(id);
-        queue.push(id);
-      }
-  }
-  return {...f, tests: tests.filter(t => used.has(t.id))};
+/** Change one condition's settings. */
+export function patchTest(w: Workspace, owner: string, id: string, patch: Partial<BranchTest>): Workspace {
+  const n = structuredClone(w),
+    t = n.cards.find(c => c.uid === owner)?.tests.find(t => t.id === id);
+  if (!t) throw Error(tr('조건을 찾지 못했습니다.'));
+  Object.assign(t, patch);
+  return n;
 }
-export function expressionSummary(f: BranchFlow, id: string): string {
+export function expressionSummary(f: Tests, id: string): string {
   const t = f.tests.find(t => t.id === id);
   if (!t) return '';
-  const detail = extensionSummary(t);
+  const detail = extensionSummary(t as never);
   if (detail) return (t.negate ? 'NOT · ' : '') + detail;
+  if (!['all', 'any'].includes(t.kind)) return (t.negate ? 'NOT · ' : '') + (conditionNames[t.kind] ?? t.kind);
   const e = readExpression(f, id);
   let count = 0;
   const visit = (e: Expression) => {

@@ -76,7 +76,12 @@ test('entry and nested decisions run horizontally; candidates share their playba
     assert.ok(p[chain[i - 1]].x < p[chain[i]].x);
     assert.equal(p[chain[i]].y, p[chain[0]].y);
   }
-  assert.equal(p.weapon.y, p.weaponPlay.y);
+  // The HKX the conditions play share one column (10-26), in the order of the lines into them; one stands at its
+  // condition's height unless an HKX above it in the column is in the way.
+  assert.equal(p.normalPlay.x, p.femalePlay.x);
+  assert.equal(p.weaponPlay.x, p.femalePlay.x);
+  assert.ok(p.femalePlay.y < p.normalPlay.y && p.normalPlay.y < p.weaponPlay.y);
+  assert.ok(p.weaponPlay.y >= p.weapon.y);
   assert.ok(p.weapon.x < p.weaponPlay.x);
   assert.ok(p.exitBlend.x > p.weaponPlay.x);
   assert.ok(p.output.x > p.exitBlend.x);

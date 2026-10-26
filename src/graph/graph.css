@@ -4,35 +4,6 @@
   height: 100%;
   min-height: 0;
 }
-.graph-tabs,
-.graph-crumbs {
-  display: flex;
-  flex-shrink: 0;
-  gap: 3px;
-  align-items: center;
-  overflow-x: auto;
-  background: #222;
-  border-bottom: 1px solid #111;
-  padding: 4px 8px;
-}
-.graph-tabs button,
-.graph-crumbs button {
-  font-size: var(--fs-sm);
-  min-height: 26px;
-  border: 0;
-  background: transparent;
-  color: #aaa;
-  white-space: nowrap;
-}
-.graph-tabs .active {
-  background: #363636;
-  color: white;
-  border-top: 2px solid #d7a050;
-}
-.graph-crumbs {
-  height: 30px;
-  background: #191919;
-}
 .p3-canvas {
   position: relative;
   flex: 1;
@@ -212,63 +183,6 @@
   border-radius: 40px;
   background: #35543e;
 }
-.p3-node.transition {
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
-  border-radius: 50%;
-  background: #ddd;
-  color: #333;
-}
-.p3-node.transition strong {
-  padding: 7px;
-  background: transparent;
-  text-align: center;
-}
-.p3-node.transition.invalid {
-  background: #9c383e;
-  color: white;
-}
-.p3-transition-summary {
-  position: absolute;
-  left: -30px;
-  top: 42px;
-  white-space: nowrap;
-  color: #bbb;
-  font-size: var(--fs-xs);
-  background: #181818c0;
-  padding: 3px;
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.p3-palette {
-  position: fixed;
-  z-index: 200;
-  width: 250px;
-  max-height: 330px;
-  overflow: auto;
-  background: #252525;
-  border: 1px solid #666;
-  padding: 8px;
-  box-shadow: 0 10px 30px #000b;
-}
-.p3-palette input {
-  width: 100%;
-  font-size: var(--fs-sm);
-}
-.p3-palette button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  min-height: 29px;
-  font-size: var(--fs-sm);
-}
-.p3-palette button:hover {
-  background: #3b536b;
-}
 .p3-node .react-flow__handle {
   width: 10px;
   height: 10px;
@@ -276,76 +190,6 @@
 .p3-node .react-flow__handle[data-handleid^='pose'] {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-.spell-rules {
-  display: grid;
-  gap: 12px;
-  padding: 10px;
-}
-.spell-rules label {
-  display: grid;
-  gap: 6px;
-}
-.spell-rule-tools {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.spell-rule-tools > * {
-  flex: 1;
-  min-width: 130px;
-}
-.spell-rule-scroll {
-  overflow-x: auto;
-}
-.spell-rules table {
-  border-collapse: collapse;
-  width: 100%;
-  min-width: 610px;
-}
-.spell-rules th,
-.spell-rules td {
-  padding: 6px;
-  border-bottom: 1px solid #393939;
-  text-align: left;
-  vertical-align: top;
-}
-.spell-rules th {
-  font-size: var(--fs-sm);
-  color: #bbb;
-}
-.spell-rules input,
-.spell-rules select,
-.spell-rules textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-}
-.spell-rules textarea {
-  min-height: 64px;
-  resize: vertical;
-}
-.spell-rules td:nth-child(1) {
-  width: 30%;
-}
-.spell-rules td:nth-child(2) {
-  width: 25%;
-}
-.spell-rules td:nth-child(4) {
-  width: 70px;
-}
-.spell-rules td:last-child {
-  width: 58px;
-}
-.spell-rules td button {
-  width: 100%;
-  margin-bottom: 4px;
-}
-.spell-rules td input + input {
-  margin-top: 5px;
-}
-.spell-rules small {
-  color: #aaa;
 }
 .p3-node.hkxPlay {
   border-color: #388ca7;

@@ -22,8 +22,10 @@ import {NumberField} from './NumberField.tsx';
 import {Property as Prop} from './Property.tsx';
 import {t} from '../../i18n/index.ts';
 import {tr} from '../../i18n/korean.ts';
+import {gameControlLabel} from '../../keys.ts';
 
-const keyName = (i: Input) => i.key || (i.gamepad ? 'Pad ' + i.gamepad : tr('키 없음'));
+const keyName = (i: Input) =>
+  i.control ? gameControlLabel(i.control) : i.key || (i.gamepad ? 'Pad ' + i.gamepad : tr('키 없음'));
 
 export function CarryFields({
   action: a,
@@ -49,7 +51,7 @@ export function CarryFields({
   const hold = value.hold,
     patchHold = (fields: Partial<CarryHold>) => patch({hold: {...hold!, ...fields}}),
     preset = custom && hold ? 'custom' : carryHoldPreset(hold);
-  const destinations = w.actions.filter(x => putdownCandidate(x, a));
+  const destinations = w.actions.filter(x => putdownCandidate(x, a, w));
   const input = a.config.inputs.find(i => i.id === c?.input);
   // A project input changes everywhere it is used; the pair's own input changes on the pair.
   const setKey = (next: Input) =>
@@ -200,6 +202,11 @@ export function CarryFields({
                 gamepad={input.gamepad}
                 change={key => setKey({...input, key})}
                 changeGamepad={gamepad => setKey({...input, gamepad})}
+                control={input.control}
+                changeControl={control => {
+                  const {control: _, ...rest} = input;
+                  setKey(control ? {...rest, key: '', gamepad: 0, control} : {...rest, key: 'E'});
+                }}
               />
             </DetailRow>
           )}

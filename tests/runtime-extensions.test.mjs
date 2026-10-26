@@ -3,22 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {importWorkspaceXml} from '../src/importXml.ts';
-import {
-  compileWorkspace,
-  parseWorkspace,
-  emptyWorkspace,
-  wrap,
-  selectsOnly,
-  validateWorkspace,
-} from '../src/workspace.ts';
+import {compileWorkspace, parseWorkspace, emptyWorkspace, wrap, validateWorkspace} from '../src/workspace.ts';
 import {createProject, parseProject} from '../src/model.ts';
 import {parseXml, documentXml} from '../src/xml.ts';
 import {equippedTypes, attackStates, eventListError} from '../src/runtimeExtensions.ts';
 import {captureGraph} from '../src/graph/document.ts';
 import {flatGraph, addFlat, connectFlat, deleteFlat} from '../src/graph/flat.ts';
-import {disconnectEdge} from '../src/graph/disconnect.ts';
+import {disconnectEdge} from '../src/graph/commands.ts';
 import {addConnected, contextualAdds} from '../src/graph/contextAdd.ts';
-import {setBranchTarget} from '../src/graph/conditionCommands.ts';
 import {checker, needsChecker, runtimeSource, needsRuntimeSource} from './local.mjs';
 
 // Every test here reads the runtime's Dynamic Dodge Shot port; most also run the runtime checker.
@@ -26,7 +18,7 @@ const needsRuntime = {skip: needsRuntimeSource.skip || needsChecker.skip};
 
 const folder = 'tests/generated/runtime-extensions';
 fs.mkdirSync(folder, {recursive: true});
-// The Dynamic Dodge Shot port (runtime test data, format 4).
+// The Dynamic Dodge Shot port (runtime test data, format 6).
 const source = `${runtimeSource}/tests/data/dynamic-dodge-shot.xml`;
 // The editor leaves Advanced safety out (10-23): the port without it is what an export means.
 const raw = (fs.existsSync(source) ? fs.readFileSync(source, 'utf8') : '')
@@ -38,159 +30,29 @@ const runtime = (...args) => {
   return r.stdout;
 };
 
-// Compare the predicate/branch tree independently of Editor model and generated node IDs.
-function flowTree(flow) {
-  const byId = new Map(flow.children.map(n => [n.attrs.id, n]));
-  const visit = (id, seen = []) => {
-    if (!id) return {kind: 'Stop'};
-    assert.ok(!seen.includes(id), 'cycle');
-    const n = byId.get(id);
-    assert.ok(n, id);
-    const {id: _, pass, fail, ...attrs} = n.attrs;
-    if (n.name === 'Stop') return {kind: 'Stop'};
-    if (n.name === 'Play') return {kind: 'Play', ...attrs};
-    if (n.name === 'Test') attrs.subject ??= 'self';
-    return {
-      kind: n.name,
-      attrs,
-      operands: n.children.map(c => visit(c.attrs.node, [...seen, id])),
-      pass: visit(pass, [...seen, id]),
-      fail: visit(fail, [...seen, id]),
-    };
-  };
-  return visit(flow.attrs.entry);
-}
-
-test('DDS import → schema8 save/reload → XML preserves branch meaning and native action settings', needsRuntime, () => {
-  const w = importWorkspaceXml(raw),
-    saved = parseWorkspace(JSON.stringify(captureGraph(w))),
-    out = compileWorkspace(saved);
-  const original = parseXml(raw),
-    exported = parseXml(out);
-  for (const action of original.children.filter(n => n.name !== 'Inputs' && n.name !== 'EventRegistry')) {
-    const actual = exported.children.find(n => n.attrs.id === action.attrs.id);
-    const sourceFlow = action.children.find(n => n.name === 'Flow'),
-      actualFlow = actual.children.find(n => n.name === 'Flow');
-    if (sourceFlow) assert.deepEqual(flowTree(actualFlow), flowTree(sourceFlow));
-  }
-  // A selecting action (BowDodge picks a direction and never plays its own clip) is written with its
-  // start, conditions, suppression and flow only: the source without the rest is what the export means.
-  const selecting = w.actions.filter(selectsOnly).map(a => a.config.actionId);
-  assert.deepEqual(selecting, ['BowDodge']);
-  for (const id of selecting) {
-    const kept = ['Start', 'Require', 'Suppress', 'Flow'],
-      source = original.children.find(n => n.attrs.id === id),
-      actual = exported.children.find(n => n.attrs.id === id);
-    assert.deepEqual(
-      actual.children.map(n => n.name),
-      source.children.map(n => n.name).filter(n => kept.includes(n))
-    );
-    source.children = source.children.filter(n => kept.includes(n.name));
-    // Nor its clip (runtime 0.12.244).
-    assert.equal(actual.attrs.clip, undefined);
-    delete source.attrs.clip;
-  }
-  fs.writeFileSync(folder + '/source-selecting.xml', documentXml(original));
-  // The source ends two branches at <Stop>, which the Editor writes as a missing pass/fail; the
-  // runtime checker folds Stop nodes, so the source compares with the export directly.
-  fs.writeFileSync(folder + '/roundtrip.xml', out);
-  runtime('--compare', folder + '/source-selecting.xml', folder + '/roundtrip.xml');
-  // A selecting action's clip is not written (runtime 0.12.244): it reads back empty.
-  assert.deepEqual(
-    importWorkspaceXml(out).actions.map(a => a.config.steps.map(s => s.clip)),
-    w.actions.map(a => a.config.steps.map(s => (selectsOnly(a) ? '' : s.clip)))
-  );
-});
-
-test('removed motion forms are refused by the editor import and the runtime alike (0.12.231)', needsRuntime, () => {
-  const action = body =>
-    '<AnimationSet version="4" id="Test"><Action id="A" clip="a.hkx">' + body + '</Action></AnimationSet>';
-  for (const [name, xml] of [
-    ['motion-none', action('<Motion type="none"/>')],
-    ['motion-annotation', action('<Motion type="annotation"/>')],
-    ['motion-curve', action('<Motion type="curve" distance="300" duration="0.5"/>')],
-    ['motion-keys', action('<Motion type="keys"><Key at="0" x="0" y="0"/><Key at="1" x="0" y="5"/></Motion>')],
-    [
-      'clips',
-      '<AnimationSet version="4" id="Test"><Action id="A"><Clips><Clip file="a.hkx" direction="back" tag="B"/></Clips></Action></AnimationSet>',
-    ],
-    ['start-direction', action('<Start event="E" direction="movement"/>')],
-    ['start-default', action('<Start event="E" defaultDirection="back"/>')],
-    ['start-strict', action('<Start event="E" strict="true"/>')],
-  ]) {
-    assert.throws(() => importWorkspaceXml(xml), /0\.12\.231/, name);
-    fs.writeFileSync(folder + '/removed-' + name + '.xml', xml);
-    runtime('--reject', folder + '/removed-' + name + '.xml');
-  }
-  // Without them the same declaration loads in both.
-  const kept = action('<Start event="E"/>');
-  assert.doesNotThrow(() => importWorkspaceXml(kept));
-  fs.writeFileSync(folder + '/kept-action.xml', kept);
-  runtime(folder + '/kept-action.xml');
-  // A combo is refused by both, naming its replacement (format 4).
-  const combo =
-    '<AnimationSet version="4" id="Test"><Combo id="A" entry="S"><Step id="S" clip="a.hkx"/></Combo></AnimationSet>';
-  assert.throws(() => importWorkspaceXml(combo), /Connect/);
-  fs.writeFileSync(folder + '/removed-combo.xml', combo);
-  runtime('--reject', folder + '/removed-combo.xml');
-});
+// The bow check of the port's start card.
+const bowCheck = w => w.cards.flatMap(c => c.tests).find(t => t.kind === 'equippedType' && t.equipmentType === 'bow');
 
 test(
-  'a project saved with declared motion opens without it; a directional action keeps its entry clip',
+  'the Dynamic Dodge Shot port opens, saves and writes back the same declarations (format 6, 1:1)',
   needsRuntime,
   () => {
-    const single = createProject('single');
-    Object.assign(single, {
-      motion: 'keys',
-      motionKeys: [
-        {at: 0, x: 0, y: 0},
-        {at: 1, x: 0, y: 5},
-      ],
-      distance: 800,
-      duration: 0.55,
-      ease: 2,
-    });
-    Object.assign(single.start, {movement: false, direction: 'back', strict: true});
-    Object.assign(single.steps[0], {direction: 'none', motion: {type: 'curve', distance: 10}});
-    const directional = structuredClone(single);
-    directional.kind = 'directional';
-    directional.actionId = 'Dodge';
-    directional.steps = ['F', 'B', 'L', 'R'].map((id, i) => ({
-      ...structuredClone(single.steps[0]),
-      id,
-      label: id,
-      clip: 'Animations/Dodge' + id + '.hkx',
-      direction: ['forward', 'back', 'left', 'right'][i],
-    }));
-    directional.entry = 'B';
-    const old = emptyWorkspace();
-    old.actions = [wrap(single, 'a1'), wrap(directional, 'a2')];
-    old.actions[0].variants = {directional: {config: structuredClone(directional), pair: null}};
-    const window = {
-      open: {basis: 'seconds', seconds: 0.2, event: '', fallback: false, fallbackBasis: 'seconds'},
-      close: {basis: 'end', seconds: 0, event: '', fallback: false, fallbackBasis: 'seconds'},
-      buffered: true,
-    };
-    old.actions[1].clipWindows = {F: structuredClone(window), B: structuredClone(window)};
-    const opened = parseWorkspace(JSON.stringify(old));
-    for (const a of opened.actions) {
-      for (const k of ['motion', 'motionKeys', 'distance', 'duration', 'ease']) assert.ok(!(k in a.config), k);
-      for (const k of ['movement', 'direction', 'strict']) assert.ok(!(k in a.config.start), k);
-      for (const step of a.config.steps) assert.ok(!('motion' in step) && !('direction' in step));
-    }
-    const dodge = opened.actions[1];
-    assert.equal(dodge.config.kind, 'single');
+    const w = importWorkspaceXml(raw),
+      saved = parseWorkspace(JSON.stringify(captureGraph(w))),
+      out = compileWorkspace(saved);
+    // Its direction picking is the start's condition card (the selecting action of format 4 is gone).
     assert.deepEqual(
-      dodge.config.steps.map(s => [s.id, s.clip]),
-      [['B', 'Animations/DodgeB.hkx']]
+      w.actions.map(a => a.config.actionId),
+      ['BowDodge_B1', 'BowDodge_L1', 'BowDodge_R1', 'SneakBowDodge_B1', 'SneakBowDodge_L1', 'SneakBowDodge_R1']
     );
-    assert.equal(dodge.config.entry, 'B');
-    assert.deepEqual(Object.keys(dodge.clipWindows), ['B']);
-    assert.equal(opened.actions[0].variants.directional, undefined);
-    const xml = compileWorkspace(opened);
-    assert.doesNotMatch(xml, /<Motion|<Clips|direction=|strict=/);
-    fs.writeFileSync(folder + '/migrated.xml', xml);
-    runtime(folder + '/migrated.xml');
+    assert.equal(w.starts.length, 1);
+    assert.ok(w.cards.length >= 3);
+    fs.writeFileSync(folder + '/source.xml', raw);
+    fs.writeFileSync(folder + '/roundtrip.xml', out);
+    runtime('--compare-starts', folder + '/source.xml', folder + '/roundtrip.xml');
+    // Written once by the editor, it reads and writes back the same text.
+    assert.equal(compileWorkspace(importWorkspaceXml(out)), out);
+    assert.match(out, /<Start id="BowDodge" key="Mouse2" cooldown="0.2" block="blockStart,bashStart">/);
   }
 );
 
@@ -205,13 +67,23 @@ test(
     ])
       for (const value of values) {
         const w = importWorkspaceXml(raw),
-          t = w.actions[0].flow.tests.find(t => t.id === 'bow');
-        Object.assign(t, {kind, ...(value ? {[field]: value} : {}), hand: 'right'});
+          t = bowCheck(w);
+        if (kind !== 'equippedType') {
+          delete t.hand;
+          delete t.equipmentType;
+        }
+        Object.assign(t, {
+          kind,
+          ...(value ? {[field]: value} : {}),
+          ...(kind === 'equippedType' ? {hand: 'right'} : {}),
+        });
         const out = compileWorkspace(w);
         fs.writeFileSync(folder + '/predicate.xml', out);
         runtime(folder + '/predicate.xml');
-        const reread = importWorkspaceXml(out).actions[0].flow.tests.find(t => t.id === 'bow');
-        assert.equal(reread.kind, kind);
+        const reread = importWorkspaceXml(out)
+          .cards.flatMap(c => c.tests)
+          .find(x => x.kind === kind && (!value || x[field] === value));
+        assert.ok(reread, kind + ' ' + value);
         if (value) assert.equal(reread[field], value);
       }
     for (const replacement of [
@@ -221,55 +93,45 @@ test(
       'kind="sneaking" hand="left" type="bow"',
       'kind="sneaking" state="none"',
     ])
-      assert.throws(() =>
-        importWorkspaceXml(raw.replace('kind="equippedType" subject="self" hand="left" type="bow"', replacement))
-      );
-    const w = importWorkspaceXml(raw);
-    assert.doesNotThrow(() => setBranchTarget(w, 'a1', 'sneak', 'pass', {action: 'a2'}));
+      assert.throws(() => importWorkspaceXml(raw.replace('kind="equippedType" hand="left" type="bow"', replacement)));
   }
 );
 
-test(
-  'new feature nodes add, attach, edit, disconnect, reconnect and delete without affecting playback',
-  needsRuntime,
-  () => {
-    for (const kind of ['suppress']) {
-      let w = importWorkspaceXml(raw);
-      delete w.actions[1].config[kind];
-      const hkx = 'anim:a2:|clip_A1';
-      assert.ok(contextualAdds(w, hkx).some(o => o.kind === kind));
-      // Registering annotation names moved to the event registry (format 3).
-      assert.ok(!contextualAdds(w, hkx).some(o => o.kind === 'extraEvents'));
-      const added = addConnected(w, hkx, {kind, label: kind}, {x: 200, y: 200});
-      w = added.workspace;
-      w.actions[1].config.suppress = {events: ['blockStart'], when: 'both'};
-      const node = flatGraph(w).nodes.find(n => n.action === 'a2' && n.kind === kind);
-      assert.ok(node);
-      w = parseWorkspace(JSON.stringify(captureGraph(w)));
-      const xml = compileWorkspace(w);
-      assert.match(xml, /events="blockStart" when="both"/);
-      const edge = flatGraph(w).edges.find(e => e.target === node.id);
-      assert.ok(edge);
-      const cut = disconnectEdge(w, edge);
-      assert.ok(cut.actions[1].config[kind]);
-      const exported = importWorkspaceXml(compileWorkspace(cut));
-      assert.equal(exported.actions[1].config[kind], undefined);
-      assert.ok(compileWorkspace(connectFlat(cut, edge.source, edge.target)).includes('<Suppress'));
-      const deleted = deleteFlat(w, node.id);
-      assert.equal(deleted.actions[1].config[kind], undefined);
-      assert.equal(deleted.actions[1].config.steps.length, 1);
-    }
-  }
-);
+test('a block item adds, edits, cuts and deletes on its HKX card without affecting playback', needsRuntime, () => {
+  let w = importWorkspaceXml(raw);
+  const hkx = 'anim:a2:|clip_A1';
+  assert.ok(contextualAdds(w, hkx).some(o => o.kind === 'suppress'));
+  // Registering annotation names moved to the event registry (format 3).
+  assert.ok(!contextualAdds(w, hkx).some(o => o.kind === 'extraEvents'));
+  const added = addConnected(w, hkx, {kind: 'suppress', label: 'suppress'}, {x: 200, y: 200});
+  w = added.workspace;
+  // An HKX blocks while it plays (format 6 <Action block>); a block while it can start is its start card's.
+  assert.deepEqual(w.actions[1].config.suppress, {events: [''], when: 'active'});
+  w.actions[1].config.suppress.events = ['blockStart'];
+  const node = flatGraph(w).nodes.find(n => n.action === 'a2' && n.kind === 'suppress');
+  assert.ok(node);
+  w = parseWorkspace(JSON.stringify(captureGraph(w)));
+  assert.match(compileWorkspace(w), /<Action id="BowDodge_L1" clip="[^"]+" block="blockStart">/);
+  // Cutting its line takes the item off, as deleting it does.
+  const edge = flatGraph(w).edges.find(e => e.target === node.id);
+  assert.ok(edge);
+  const off = disconnectEdge(w, edge);
+  assert.equal(off.actions[1].config.suppress, undefined);
+  assert.doesNotMatch(compileWorkspace(off), /BowDodge_L1" clip="[^"]+" block=/);
+  const deleted = deleteFlat(w, node.id);
+  assert.equal(deleted.actions[1].config.suppress, undefined);
+  assert.equal(deleted.actions[1].config.steps.length, 1);
+});
 
 test(
   'suppression survives input edits; events reject empty, control, byte overflow; corrupt saves rejected',
   needsRuntime,
   () => {
     const w = importWorkspaceXml(raw);
+    // A start card's block: while it can start, while what it started plays, or both.
     for (const when of ['startable', 'active', 'both']) {
-      w.actions[0].config.suppress.when = when;
-      assert.equal(importWorkspaceXml(compileWorkspace(w)).actions[0].config.suppress.when, when);
+      w.starts[0].block.when = when;
+      assert.equal(importWorkspaceXml(compileWorkspace(w)).starts[0].block.when, when);
     }
     for (const events of [[], [''], ['a', ''], ['한'.repeat(22)], ['a\tb']]) assert.ok(eventListError(events));
     assert.equal(eventListError(['한'.repeat(21)]), undefined);
@@ -277,7 +139,7 @@ test(
     p.suppress = {events: ['blockStart'], when: 'always'};
     assert.throws(() => parseProject(JSON.stringify(p)));
     const corrupt = structuredClone(w);
-    corrupt.actions[0].config.suppress.extra = true;
+    corrupt.actions[0].config.suppress = {events: ['blockStart'], when: 'active', extra: true};
     assert.throws(() => parseWorkspace(JSON.stringify(corrupt)));
   }
 );
@@ -303,11 +165,10 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   assert.match(xml, /<FireArrow at="0.67" onRelease="false"\/>/);
   fs.writeFileSync(folder + '/fire.xml', xml);
   runtime(folder + '/fire.xml');
+  // Cutting its line takes the shot off, as deleting it does.
   const edge = flatGraph(w).edges.find(e => e.target === node.id);
   const cut = disconnectEdge(w, edge);
   assert.equal(importWorkspaceXml(compileWorkspace(cut)).actions[1].config.fireArrow, undefined);
-  w = connectFlat(cut, edge.source, edge.target);
-  assert.equal(importWorkspaceXml(compileWorkspace(w)).actions[1].config.fireArrow.at.seconds, 0.67);
   w = deleteFlat(w, node.id);
   assert.equal(w.actions[1].config.fireArrow, undefined);
   const hkx = 'anim:a2:|clip_A1';
@@ -322,7 +183,7 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   // shot still is. An event moment on the action's own shot is refused.
   w.actions[1].config.fireArrow.onRelease = false;
   const eventOnly = compileWorkspace(w);
-  assert.doesNotMatch(eventOnly.slice(eventOnly.indexOf('id="BowDodge_B1"')).split('</Action>')[0], /<FireArrow/);
+  assert.doesNotMatch(eventOnly.slice(eventOnly.indexOf('id="BowDodge_L1"')).split('</Action>')[0], /<FireArrow/);
   assert.match(eventOnly, /<Do op="fireArrow"\/>/);
   fs.writeFileSync(folder + '/fire-event-only.xml', eventOnly);
   runtime(folder + '/fire-event-only.xml');
@@ -349,14 +210,14 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   ]) {
     assert.throws(() =>
       importWorkspaceXml(
-        '<AnimationSet version="4" id="Test"><Action id="A" clip="a.hkx">' + bad + '</Action></AnimationSet>'
+        '<AnimationSet version="6" id="Test"><Action id="A" clip="a.hkx">' + bad + '</Action></AnimationSet>'
       )
     );
   }
   assert.throws(
     () =>
       importWorkspaceXml(
-        '<AnimationSet version="4" id="Test"><Pair id="A" clip="a.hkx"><FireArrow at="0"/></Pair></AnimationSet>'
+        '<AnimationSet version="6" id="Test"><Pair id="A" clip="a.hkx"><FireArrow at="0"/></Pair></AnimationSet>'
       ),
     /페어/
   );
@@ -364,24 +225,13 @@ test('FireArrow timing, graph lifecycle and Pair rejection round-trip through th
   p.fireArrow = {at: null, onRelease: true};
   assert.deepEqual(parseProject(JSON.stringify(p)).fireArrow, {at: null, onRelease: true});
   assert.throws(() => parseProject(JSON.stringify({...p, fireArrow: {at: 0, onRelease: true}})));
-  // An older project's event shot moves to the registry when it is opened.
-  const old = emptyWorkspace();
-  old.actions = [wrap(createProject('single'), 'a1')];
-  old.actions[0].config.fireArrow = {
-    at: {basis: 'event', seconds: 0, event: 'OldFire', fallback: false, fallbackBasis: 'seconds'},
-  };
-  const opened = parseWorkspace(JSON.stringify(old));
-  assert.deepEqual(opened.actions[0].config.fireArrow, {at: null, onRelease: true});
-  assert.deepEqual(opened.eventRegistry, [
-    {id: 'event1', name: 'OldFire', functions: [{id: 'fn1', values: {op: 'fireArrow'}}]},
-  ]);
 });
 
 test(
   'a direct shot (runtime 0.12.268) round-trips on the action and as a node own event shot, checked by the runtime',
   needsRuntime,
   async () => {
-    const {setNodeValues, nodeValues, numbersToNodes} = await import('../src/eventRegistry.ts');
+    const {setNodeValues, nodeValues} = await import('../src/eventRegistry.ts');
     let w = importWorkspaceXml(raw);
     const a = w.actions[1];
     a.config.fireArrow = {
@@ -412,19 +262,11 @@ test(
       damage: '150',
     });
     assert.equal(nodeValues(back.actions[3], row(back), row(back).functions[0]), undefined);
-    // An older file's numbers in the registry are an error until they go to the nodes that send the event.
-    const older = importWorkspaceXml(
-      raw.replace('<Do op="fireArrow"/>', '<Do op="fireArrow" mode="direct" damage="90"/>')
+    // Numbers in the registry are refused: they are the sending nodes' (<EventValues>, runtime 0.12.281).
+    assert.throws(
+      () => importWorkspaceXml(raw.replace('<Do op="fireArrow"/>', '<Do op="fireArrow" mode="direct" damage="90"/>')),
+      /EventValues/
     );
-    assert.ok(validateWorkspace(older).some(i => i.level === 'error' && /수치를 노드로 옮기기/.test(i.message)));
-    const moved = numbersToNodes(older, () => [older.actions[1].uid]);
-    assert.deepEqual(row(moved).functions[0].values, {op: 'fireArrow'});
-    assert.deepEqual(nodeValues(moved.actions[1], row(moved), row(moved).functions[0]), {
-      op: 'fireArrow',
-      mode: 'direct',
-      damage: '90',
-    });
-    assert.ok(!validateWorkspace(moved).some(i => /수치를 노드로 옮기기/.test(i.message)));
     // 100% is the default and left out; the drawn shot writes no mode.
     back.actions[1].config.fireArrow.damage = undefined;
     delete back.actions[1].config.fireArrow.damage;

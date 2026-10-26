@@ -25,7 +25,6 @@ export function inputReferences(w: Workspace, action: string, input: string): st
   const a = w.actions.find(a => a.uid === action);
   if (!a) return [];
   return [
-    ...(a.config.start.mode === 'input' && a.config.start.input === input ? [tr('시작 입력')] : []),
     ...(a.pair?.carry?.input === input ? [tr('운반 내려놓기')] : []),
     ...w.links.filter(l => l.from === action && l.mode === 'input' && l.input === input).map(l => tr('연결 ') + l.id),
     ...w.parameters

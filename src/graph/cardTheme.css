@@ -1,0 +1,982 @@
+/* One card look on the dark canvas (docs/mockup-design-unify, docs/mockup-row-separation, 10-25): every card has the
+   same grey body and a line-drawn frame; its kind shows only in the head band (「머리띠만」). Rows are told apart by
+   faint stripes, not by divider lines (「줄 띠」); sections by space and their bold head. Five parts only: head, row,
+   box (a line, never a fill), chip (a name pointing elsewhere, outline in the colour of what it points at) and
+   badge (a filled outcome: True/False, 성공/실패/완벽). Loaded last (main.tsx): it re-colours what the older sheets
+   set on cards. */
+:root {
+  /* 「테두리로 띄우기」 (docs/mockup-detail-fields ③): a body near the canvas, lifted by a bright frame and a deep
+     shadow. */
+  --card-canvas: #1c1c1c;
+  --card-body: #282828;
+  --card-border: #9a9a9a;
+  --card-head-text: #ececec;
+  --card-head-kind: #b8b8b8;
+  /* Head bands by kind. */
+  --card-hkx-head: #2b5047;
+  --card-cond-head: #5a3046;
+  --card-start-head: #54481f;
+  --card-qte-head: #433669;
+  --card-reg-head: #5a3c22;
+  --card-plain-head: #3d434a;
+  /* What a chip points at (and the handles of that kind). */
+  --card-hkx: #6fd3b8;
+  --card-cond: #f093bd;
+  --card-start: #e3c862;
+  --card-event: #f0a868;
+  --card-plain: #b0b0b0;
+  /* Lines, by contrast against the body: box and field 3.5:1 or more, rule (section, dashed add) 2.2:1. Rows have no
+     line; a stripe tells them apart. */
+  --card-line: #ffffff66;
+  --card-field-line: #ffffff73;
+  --card-rule: #ffffff40;
+  --card-stripe: #ffffff0a;
+  --card-hover: #ffffff12;
+  /* Text: values, labels, notes. */
+  --card-t1: #e6e6e6;
+  --card-t2: #b0b0b0;
+  --card-t3: #868686;
+  /* Outcome badges (white text on them), NOT, warnings. */
+  --card-pass: #2e7d46;
+  --card-fail: #b4502a;
+  --card-perfect: #8a7000;
+  --card-not: #f07a7a;
+  --card-warn: #f0b04a;
+  --card-badge-text: #ffffff;
+  /* Role words. */
+  --card-attacker: #e6a75a;
+  --card-victim: #b8a2f2;
+  --card-player: #8fb4ff;
+  --card-partner: #c4c4c4;
+}
+
+/* The canvas under the cards (its dots: FlatGraph ScreenGrid). */
+.react-flow {
+  --xy-background-color: var(--card-canvas);
+}
+/* The shared controls and texts inside a card read these tokens (ui/graphite.css). */
+.react-flow__viewport .p3-node.card-themed {
+  --ue-text: var(--card-t1);
+  --ue-strong: var(--card-t1);
+  --ue-dim: var(--card-t2);
+  --ue-line: var(--card-rule);
+  --ue-line2: var(--card-line);
+  --control-line: var(--card-field-line);
+  --control-line-hover: var(--card-t2);
+  --control-focus: var(--card-t1);
+  --focus-ring: var(--card-t1);
+  --route-pass: var(--card-pass);
+  --route-fail: var(--card-fail);
+  --route-perfect: var(--card-perfect);
+  --warn: var(--card-warn);
+  --role-attacker: var(--card-attacker);
+  --role-victim: var(--card-victim);
+  --role-player: var(--card-player);
+  --role-partner: var(--card-partner);
+  color-scheme: dark;
+  background: var(--card-body);
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  color: var(--card-t1);
+  box-shadow: 0 6px 18px #000c;
+}
+/* The head: 「종류 · 이름」 on the kind's band, no icon. */
+.react-flow__viewport .p3-node.card-themed > strong {
+  min-height: 0;
+  padding: 7px 12px;
+  border-radius: 6.5px 6.5px 0 0;
+  border-bottom: 0;
+  background: var(--card-plain-head);
+  color: var(--card-head-text);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 20px;
+}
+.react-flow__viewport .p3-node.card-themed > strong svg {
+  display: none;
+}
+.react-flow__viewport .p3-node.card-themed > strong .card-kind {
+  color: var(--card-head-kind);
+  font-weight: 400;
+  margin-right: 5px;
+}
+.react-flow__viewport .p3-node.card-themed.hkxPlay > strong {
+  background: var(--card-hkx-head);
+}
+.react-flow__viewport .p3-node.card-themed.conditionCard > strong {
+  background: var(--card-cond-head);
+}
+.react-flow__viewport .p3-node.card-themed.startCard > strong {
+  background: var(--card-start-head);
+}
+.react-flow__viewport .p3-node.card-themed.qte > strong {
+  background: var(--card-qte-head);
+}
+.react-flow__viewport .p3-node.card-themed.eventRegistry {
+  border-color: var(--card-border);
+}
+.react-flow__viewport .p3-node.card-themed.eventRegistry > strong {
+  background: var(--card-reg-head);
+}
+.react-flow__viewport .p3-node.card-themed.comment {
+  border-style: dashed;
+}
+/* The chosen card keeps the app's selection colour. */
+.react-flow__viewport .p3-node.card-themed.selected {
+  border-color: #8fd3ff;
+  box-shadow:
+    0 0 0 var(--select-ring, 2px) #8fd3ff,
+    0 0 calc(var(--select-ring, 2px) * 7) #8fd3ff66,
+    0 4px 12px #0008;
+}
+.react-flow__viewport .p3-node.card-themed.invalid {
+  border-color: #ed555c;
+}
+.react-flow__viewport .p3-node.card-themed .react-flow__handle {
+  border-color: var(--card-body);
+  background: var(--card-t2);
+}
+
+/* ---------- Rows: a stripe every other row, no lines ---------- */
+.p3-node.card-themed .node-fields {
+  gap: 0;
+  padding: 8px 12px 10px;
+}
+.p3-node.card-themed .node-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 -6px;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+.p3-node.card-themed .node-field:nth-child(even of .node-field) {
+  background: var(--card-stripe);
+}
+.p3-node.card-themed .node-field > span:first-child,
+.p3-node.card-themed .hkx-summary .node-field,
+.p3-node.card-themed .hkx-summary-foot {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .node-value {
+  color: var(--card-t1);
+  text-align: right;
+}
+.p3-node.card-themed .hkx-summary .node-field > :last-child {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .checklist-body {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .checklist-section {
+  border-top: 0;
+}
+.p3-node.card-themed .checklist-section + .checklist-section {
+  margin-top: 8px;
+}
+.p3-node.card-themed .checklist-row {
+  border-bottom: 0;
+  margin: 0 -6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  border-radius: 3px;
+}
+.p3-node.card-themed .checklist-row:nth-child(even of .checklist-row) {
+  background: var(--card-stripe);
+}
+.p3-node.card-themed .checklist-row.active-item {
+  outline-color: var(--card-hkx);
+}
+.p3-node.card-themed .checklist-row-heading small {
+  color: var(--card-t1);
+}
+/* Section heads: the name, its count as a badge; no arrows (docs/mockup-card-layout). */
+.p3-node .section-count {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #ffffff1a;
+  color: var(--card-t2);
+  font-family: Consolas, 'Cascadia Mono', monospace;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  line-height: 15px;
+  text-align: center;
+}
+.shell .p3-node.card-themed .checklist-section-title > button:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--card-t1);
+  text-align: left;
+}
+/* Every section head looks the same, the HKX event list's included. */
+.shell .p3-node.card-themed .checklist-section-title .help-tip-label {
+  color: var(--card-t1);
+  font-weight: 700;
+}
+
+/* ---------- HKX feature rows: what on the left (name and numbers), when on the right ---------- */
+/* The words sit in the middle of their stripe. */
+.p3-node.card-themed .checklist-row-heading {
+  min-height: 0;
+}
+.shell .p3-node.card-themed .checklist-row-heading > button {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 4px 6px;
+  flex-wrap: wrap;
+  min-height: 24px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.shell .p3-node.card-themed .checklist-row-heading > button > span:first-child {
+  flex: none;
+}
+.p3-node.card-themed .checklist-row-heading .row-par {
+  color: var(--card-t2);
+  font-style: normal;
+  font-weight: 400;
+}
+.p3-node.card-themed .checklist-row-heading > button > small {
+  margin-left: auto;
+}
+/* A feature's own numbers sit next to its name, not at the right. */
+.p3-node.card-themed
+  .checklist-section:not(.checklist-playback):not(.checklist-info)
+  .checklist-row:not(.moment)
+  > .checklist-row-heading
+  > button
+  > small {
+  margin-left: 0;
+  color: var(--card-t2);
+}
+/* When: an event is a chip (it points at the registry), a time is plain text. */
+.p3-node.card-themed .checklist-row.moment > .checklist-row-heading small {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--card-event);
+  font-size: var(--fs-xs);
+  line-height: 17px;
+}
+.p3-node.card-themed .checklist-row.moment > .checklist-row-heading small.time {
+  padding: 0;
+  border: 0;
+  color: var(--card-t3);
+}
+.p3-node.card-themed .checklist-row.moment > .checklist-row-heading > button > span:first-child::before {
+  content: none;
+}
+.p3-node.card-themed .checklist-row.registry-moment.missing .row-par {
+  color: var(--card-warn);
+}
+
+/* ---------- Chips ---------- */
+.p3-node.card-themed .hkx-chip {
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--card-t1);
+}
+.p3-node.card-themed .hkx-chip em {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .moment-tag {
+  color: var(--card-t2);
+  border-color: var(--card-line);
+  border-radius: 4px;
+}
+.p3-node.card-themed .moment-own {
+  color: var(--card-pass);
+  border-color: var(--card-pass);
+}
+.p3-node.card-themed .moment-role.initiator {
+  color: var(--card-attacker);
+  border-color: var(--card-attacker);
+}
+.p3-node.card-themed .moment-role.receiver {
+  color: var(--card-victim);
+  border-color: var(--card-victim);
+}
+/* ---------- Route rows (transition, QTE): outcome as a badge, role as a word, destination text ---------- */
+.p3-node.card-themed .branch-routes {
+  border-top: 0;
+  margin-top: 0;
+  padding: 0 0 6px;
+}
+.p3-node.card-themed .branch-route {
+  border-top: 0;
+}
+.p3-node.card-themed .branch-route:nth-child(even of .branch-route) {
+  background: var(--card-stripe);
+}
+.p3-node.card-themed .branch-route-to {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .branch-route-to.empty {
+  color: var(--card-t3);
+}
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-pass .branch-route-kind,
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-fail .branch-route-kind,
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-perfect .branch-route-kind {
+  justify-self: start;
+  padding: 0 7px;
+  border-radius: 4px;
+  color: var(--card-badge-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 18px;
+}
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-pass .branch-route-kind {
+  background: var(--card-pass);
+}
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-fail .branch-route-kind {
+  background: var(--card-fail);
+}
+.p3-node.card-themed .branch-route:not(.qte-role-row).tone-perfect .branch-route-kind {
+  background: var(--card-perfect);
+}
+.p3-node.card-themed .qte-routes .qte-role {
+  padding: 0;
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.p3-node.card-themed .qte-routes .qte-role.attacker {
+  color: var(--card-attacker);
+}
+.p3-node.card-themed .qte-routes .qte-role.victim {
+  color: var(--card-victim);
+}
+.p3-node.card-themed .qte-routes .qte-role.player {
+  color: var(--card-player);
+}
+.p3-node.card-themed .qte-routes .qte-role.partner,
+.p3-node.card-themed .qte-routes .qte-role.next {
+  color: var(--card-partner);
+}
+.p3-node.card-themed .qte-routes .qte-role.event {
+  color: var(--card-event);
+}
+.p3-node.card-themed .qte-face > div {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .qte-face strong {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .qte-face-tag {
+  border-color: var(--card-line);
+  background: transparent;
+  color: var(--card-t2);
+}
+
+/* ---------- Event registry ---------- */
+.p3-node.card-themed .registry-row {
+  border-bottom: 0;
+  border-radius: 3px;
+}
+.p3-node.card-themed .registry-row:nth-child(even of .registry-row) {
+  background: var(--card-stripe);
+}
+.p3-node.card-themed .registry-name {
+  color: var(--card-t1);
+}
+/* A function and a use are what the event does: plain words on the row's line. */
+.p3-node.card-themed .registry-what .fn {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .registry-what .use {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .registry-what .none {
+  color: var(--card-t3);
+}
+.p3-node.card-themed .registry-what .warn {
+  color: var(--card-warn);
+}
+.p3-node.card-themed .registry-row {
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+.p3-node.card-themed .registry-intro {
+  background: transparent;
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  color: var(--card-t2);
+}
+.p3-node.card-themed .registry-intro b {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .registry-intro b.use {
+  color: var(--card-hkx);
+}
+.p3-node.card-themed .registry-seg {
+  border-color: var(--card-field-line);
+}
+.shell .p3-node.card-themed .registry-seg button {
+  background: transparent;
+  color: var(--card-t2);
+}
+.shell .p3-node.card-themed .registry-seg button.on {
+  background: var(--card-t1);
+  color: var(--card-body);
+}
+.p3-node.card-themed .registry-row-body {
+  background: transparent;
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+}
+.shell .p3-node.card-themed .registry-row-head:hover {
+  background: var(--card-hover);
+}
+.p3-node.card-themed .registry-row.flash {
+  outline-color: var(--card-event);
+  background: var(--card-hover);
+}
+
+/* ---------- Shared controls in a card ---------- */
+.shell .p3-node.card-themed button:hover:not(:disabled) {
+  background: var(--card-hover);
+}
+.shell .p3-node.card-themed .detail-category-title,
+.shell .p3-node.card-themed .detail-panel h3 {
+  background: transparent;
+}
+.shell .p3-node.card-themed .detail-advanced {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .card-fold {
+  border-top: 0;
+}
+.p3-node.card-themed .branch-route,
+.p3-node.card-themed .card-start button {
+  border-radius: 4px;
+}
+
+/* HKX card: the start line, item fields, add menu. */
+.p3-node.card-themed .card-start.set,
+.p3-node.card-themed .card-start.via {
+  border: 0;
+  background: transparent;
+  color: var(--card-t2);
+}
+.p3-node.card-themed .card-start.none {
+  background: transparent;
+  color: var(--card-warn);
+}
+.p3-node.card-themed .card-start button {
+  border-color: var(--card-line);
+  background: transparent;
+  color: var(--card-t1);
+}
+/* ---------- An open row's editor (docs/mockup-detail-fields B): indented under a line in the card's kind colour,
+   no box; every field one grammar: a 72px label, then 26px controls drawn with a line ---------- */
+.p3-node.card-themed {
+  --row-label: 72px;
+  --card-edit-line: var(--card-rule);
+}
+.p3-node.card-themed.hkxPlay {
+  --card-edit-line: #4fb39a;
+}
+.p3-node.card-themed.conditionCard {
+  --card-edit-line: #d9739f;
+}
+/* As specific as the stripe rule, so an open row drops its stripe. */
+.p3-node.card-themed .checklist-row:nth-child(n of .checklist-row):has(> .checklist-fields) {
+  background: transparent;
+}
+.p3-node.card-themed .checklist-row:has(> .checklist-fields) > .checklist-row-heading > button > span:first-child {
+  font-weight: 700;
+}
+.p3-node.card-themed .checklist-fields {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 8px 2px;
+  padding: 2px 0 2px 10px;
+  border: 0;
+  border-left: 2px solid var(--card-edit-line);
+  border-radius: 0;
+  background: transparent;
+}
+.p3-node.card-themed .moment-fields {
+  gap: 2px;
+}
+.shell .p3-node.card-themed :is(.moment-line, .clip-bar, .detail-row) {
+  gap: 8px;
+  min-height: 30px;
+  padding: 2px 0;
+  align-items: center;
+}
+.shell .p3-node.card-themed .detail-row {
+  grid-template-columns: var(--row-label) minmax(0, 1fr);
+}
+.shell .p3-node.card-themed :is(.moment-label, .detail-name) {
+  color: var(--card-t2);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: 18px;
+}
+/* Controls: one height, one radius, a line and no fill. */
+.shell
+  .p3-node.card-themed
+  :is(select, input:not([type='checkbox']):not([type='radio']):not([type='range']), .condition-kind-trigger) {
+  height: 26px;
+  min-height: 26px;
+  border: 1px solid var(--card-field-line);
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--card-t1);
+  font-size: var(--fs-sm);
+}
+.shell .p3-node.card-themed .condition-kind-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 8px;
+}
+/* A number shown as text opens its input on a click: drawn as the same field. */
+.shell .p3-node.card-themed .clip-bar-text {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  min-width: 52px;
+  padding: 0 8px;
+  border: 1px solid var(--card-field-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--card-t1);
+}
+.p3-node.card-themed .clip-bar-input {
+  width: 64px;
+}
+.p3-node.card-themed .clip-bar-track {
+  height: 26px;
+  border-radius: 4px;
+}
+.p3-node.card-themed .moment-seg {
+  border-radius: 4px;
+}
+.shell .p3-node.card-themed .moment-seg button {
+  min-height: 24px;
+  height: 24px;
+  font-size: var(--fs-sm);
+}
+/* A note is small dim words; the actions are words at the foot, delete in red. */
+.p3-node.card-themed .moment-note {
+  margin: 2px 0 0;
+  color: var(--card-t3);
+  font-size: var(--fs-xs);
+}
+.p3-node.card-themed .checklist-row-actions {
+  justify-content: flex-end;
+  gap: 4px 14px;
+  margin-top: 4px;
+}
+.p3-node.card-themed .checklist-row-actions:empty {
+  display: none;
+}
+.p3-node.card-themed .checklist-row-actions > .moment-note {
+  margin: 0 auto 0 0;
+}
+.shell .p3-node.card-themed .checklist-row-actions button {
+  min-height: 0;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--card-t2);
+  font-size: var(--fs-xs);
+}
+.shell .p3-node.card-themed .checklist-row-actions button:hover:not(:disabled) {
+  background: none;
+  color: var(--card-t1);
+}
+.shell .p3-node.card-themed .checklist-row-actions button.danger {
+  color: var(--card-not);
+}
+.p3-node.card-themed .checklist-add-menu > div button {
+  border: 1px solid var(--card-line);
+  border-radius: 4px;
+  background: transparent;
+}
+.p3-node.card-themed .checklist-add-menu > div button:disabled {
+  color: var(--card-t3);
+  background: transparent;
+}
+.p3-node.card-themed .checklist-add-menu > button {
+  border-style: dashed;
+  border-color: var(--card-rule);
+  border-radius: 4px;
+  color: var(--card-t2);
+}
+.p3-node.card-themed .checklist-add-group > small {
+  color: var(--card-t3);
+}
+.p3-node.card-themed .checklist-shared {
+  color: var(--card-hkx);
+}
+.p3-node.card-themed .checklist-error {
+  color: var(--card-not);
+}
+.p3-node.card-themed .moment-label {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .moment-seg,
+.shell .p3-node.card-themed .moment-seg button + button {
+  border-color: var(--card-field-line);
+}
+.shell .p3-node.card-themed .moment-seg button {
+  color: var(--card-t2);
+}
+.shell .p3-node.card-themed .moment-seg button[aria-pressed='true'] {
+  background: var(--card-t1);
+  color: var(--card-body);
+}
+.shell .p3-node.card-themed .moment-seg button:disabled {
+  color: var(--card-t3);
+}
+.p3-node.card-themed .clip-bar-track {
+  background: transparent;
+  border-color: var(--card-field-line);
+}
+.p3-node.card-themed .clip-bar-track .tick,
+.p3-node.card-themed .clip-bar-track .other {
+  background: var(--card-rule);
+}
+.p3-node.card-themed .clip-bar-track .span {
+  background: #4f8a5c;
+}
+.p3-node.card-themed .clip-bar-track .edge {
+  background: #7fcf92;
+}
+.p3-node.card-themed .clip-bar-track .me {
+  background: var(--card-event);
+}
+.shell .p3-node.card-themed .clip-bar-text {
+  border-bottom-color: var(--card-t2);
+}
+.p3-node.card-themed .moment-note.global {
+  color: var(--card-event);
+}
+.p3-node.card-themed .moment-note.warn,
+.p3-node.card-themed .checklist-row.annotation-moment.bad > .checklist-row-heading > button > span:first-child {
+  color: var(--card-warn);
+}
+.p3-node.card-themed .moment-table td {
+  border-top-color: var(--card-rule);
+}
+.p3-node.card-themed .fire-shot {
+  border-color: var(--card-line);
+  border-radius: 4px;
+  background: transparent;
+}
+/* An event's name opens its registry row (MomentFields EventLink): drawn as an event chip. */
+.shell .p3-node.card-themed button.event-link {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 1px solid var(--card-event);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--card-event);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.shell .p3-node.card-themed button.event-link:hover {
+  background: var(--card-hover);
+  color: var(--card-t1);
+}
+
+/* The condition editor inside a card (group members, kind picker). */
+.p3-node.card-themed .condition-expression-editor small {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .condition-expression-row,
+.shell .p3-node.card-themed .condition-expression-row.is-group-box {
+  border-color: var(--card-line);
+  border-radius: 4px;
+  background: transparent;
+}
+.p3-node.card-themed .condition-expression-children {
+  border-left-color: var(--card-rule);
+}
+.p3-node.card-themed .condition-expression-row.is-disabled > .condition-expression-heading {
+  color: var(--card-t3);
+}
+.shell .p3-node.card-themed .condition-expression-editor .condition-row-menu > summary {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .condition-row-menu[open] > div {
+  background: var(--card-body);
+  border-color: var(--card-line);
+}
+.p3-node.card-themed .condition-expression-editor p {
+  color: var(--card-warn);
+}
+.shell .p3-node.card-themed .condition-kind-trigger {
+  color: var(--card-t1);
+}
+.p3-node.card-themed .condition-kind-trigger > i {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .condition-join::before,
+.p3-node.card-themed .condition-join::after {
+  border-top-color: var(--card-rule);
+}
+
+/* HKX events (read only). */
+.p3-node.card-themed .hkx-events-hint,
+.p3-node.card-themed .hkx-event-time,
+.p3-node.card-themed .hkx-event-use,
+.p3-node.card-themed .hkx-event-state {
+  color: var(--card-t2);
+}
+.p3-node.card-themed .hkx-event-fn {
+  color: var(--card-hkx);
+}
+.p3-node.card-themed .hkx-event-state.warn {
+  color: var(--card-warn);
+}
+.p3-node.card-themed .hkx-event-role.initiator {
+  color: var(--card-attacker);
+  border-color: var(--card-attacker);
+}
+.p3-node.card-themed .hkx-event-role.receiver {
+  color: var(--card-victim);
+  border-color: var(--card-victim);
+}
+
+/* ---------- The property list (mockup ⑥-A, 10-26) ----------
+   An open item's settings are rows of label (left) and value (right). A value reads as text: its field shows a line
+   only on hover and while it is edited. One hairline between rows, no edit line, no boxes; 복제·삭제 are icons on the
+   item's heading. A clip bar folds to its label and value (ClipBar.tsx FoldClipBars). */
+.p3-node.card-themed .checklist-row-heading {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.shell .p3-node.card-themed .checklist-row-heading > .checklist-row-toggle {
+  flex: 1;
+  min-width: 0;
+}
+.p3-node.card-themed .checklist-row:has(> .checklist-fields) > .checklist-row-heading {
+  border-radius: 4px;
+  background: var(--card-hover);
+}
+.checklist-row-icons {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+.shell .p3-node.card-themed .checklist-row-icons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--card-t2);
+}
+.shell .p3-node.card-themed .checklist-row-icons button:hover {
+  background: var(--card-hover);
+  color: var(--card-t1);
+}
+.shell .p3-node.card-themed .checklist-row-icons button.danger:hover {
+  color: var(--card-not);
+}
+.shell .p3-node.card-themed .checklist-fields {
+  gap: 0;
+  margin: 0 0 6px;
+  padding: 0 8px;
+  border-left: 0;
+}
+.shell .p3-node.card-themed .checklist-fields .moment-fields {
+  gap: 0;
+}
+.shell .p3-node.card-themed .checklist-fields :is(.moment-line, .clip-bar, .detail-row) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  min-height: 32px;
+  padding: 0;
+  border-bottom: 1px solid var(--card-stripe-line, #ffffff14);
+}
+/* The slim bar (ClipBar.tsx SlimClipBars): label and value, below them a thin rail with round handles. */
+.shell .p3-node.card-themed .clip-bar.slim {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding-bottom: 6px;
+}
+.shell .p3-node.card-themed .clip-bar.slim > .moment-label {
+  grid-row: 1;
+  grid-column: 1;
+}
+.shell .p3-node.card-themed .clip-bar.slim > .clip-bar-value {
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: end;
+}
+.shell .p3-node.card-themed .clip-bar.slim > .clip-bar-track {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  height: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.p3-node.card-themed .clip-bar.slim .clip-bar-lane {
+  inset: 0 6px;
+}
+.p3-node.card-themed .clip-bar.slim .rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--card-rule);
+}
+.p3-node.card-themed .clip-bar.slim .span {
+  top: 5px;
+  height: 6px;
+  border-radius: 3px;
+  background: #4f8a5c;
+}
+.p3-node.card-themed .clip-bar.slim :is(.me, .edge) {
+  top: 2px;
+  bottom: auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+}
+.shell .p3-node.card-themed .clip-bar.slim .clip-bar-text {
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--card-t2);
+  border-radius: 0;
+  height: 22px;
+}
+.shell .p3-node.card-themed .checklist-fields :is(.moment-line, .detail-row) > :not(:first-child),
+.shell .p3-node.card-themed .checklist-fields .detail-value {
+  justify-self: end;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+.shell .p3-node.card-themed .checklist-fields :is(.moment-label, .detail-name) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shell .p3-node.card-themed .checklist-fields .detail-name.has-help {
+  text-decoration: none;
+}
+.shell
+  .p3-node.card-themed
+  .checklist-fields
+  :is(select, input:not([type='checkbox']):not([type='radio']):not([type='range'])) {
+  width: auto;
+  max-width: 220px;
+  border-color: transparent;
+  background-color: transparent;
+  text-align: right;
+  text-align-last: right;
+}
+.shell .p3-node.card-themed .checklist-fields input[type='number'] {
+  width: 72px;
+}
+.shell
+  .p3-node.card-themed
+  .checklist-fields
+  :is(select, input:not([type='checkbox']):not([type='radio']):not([type='range'])):hover {
+  background-color: var(--card-hover);
+}
+.shell
+  .p3-node.card-themed
+  .checklist-fields
+  :is(select, input:not([type='checkbox']):not([type='radio']):not([type='range'])):focus {
+  border-color: var(--card-field-line);
+}
+.shell .p3-node.card-themed .checklist-fields .clip-bar-text {
+  min-width: 0;
+  border-color: transparent;
+}
+.shell .p3-node.card-themed .checklist-fields .clip-bar-text:hover {
+  background: var(--card-hover);
+}
+/* A choice of two or more reads as its words, the chosen one bright. */
+.shell .p3-node.card-themed .checklist-fields .moment-seg {
+  border: 0;
+  gap: 2px;
+}
+.shell .p3-node.card-themed .checklist-fields .moment-seg button {
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--card-t3);
+  padding: 0 8px;
+}
+.shell .p3-node.card-themed .checklist-fields .moment-seg button + button {
+  border-left: 0;
+}
+.shell .p3-node.card-themed .checklist-fields .moment-seg button[aria-pressed='true'] {
+  background: var(--card-hover);
+  color: var(--card-t1);
+}
+.shell .p3-node.card-themed .checklist-fields .moment-seg button:hover:not(:disabled) {
+  color: var(--card-t1);
+}
+.shell .p3-node.card-themed .checklist-fields .sound-file {
+  justify-content: flex-end;
+}
+.shell .p3-node.card-themed .checklist-fields .sound-file button {
+  min-height: 0;
+  height: 24px;
+  border: 0;
+  background: none;
+  color: var(--card-t2);
+}
+.shell .p3-node.card-themed .checklist-fields .sound-file .sound-preview {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 11px;
+  background: var(--card-hover);
+  color: var(--card-t1);
+  font-size: 9px;
+}
+.shell .p3-node.card-themed .checklist-fields .sound-file .sound-preview.on {
+  background: #2f5d45;
+  color: #fff;
+}
+.shell .p3-node.card-themed .checklist-fields .sound-file .sound-preview:disabled {
+  opacity: 0.4;
+}
+.p3-node.card-themed .checklist-fields .strike-gap {
+  height: 10px;
+  border-bottom: 1px solid var(--card-stripe-line, #ffffff14);
+}

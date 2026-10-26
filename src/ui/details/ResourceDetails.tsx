@@ -41,6 +41,8 @@ export function InputDetails({
             gamepad={input.gamepad}
             change={key => set({key})}
             changeGamepad={gamepad => set({gamepad})}
+            control={input.control}
+            changeControl={control => set(control ? {control, key: '', gamepad: 0} : {control: undefined, key: 'G'})}
           />
         </DetailRow>
       </Category>

@@ -1,17 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="ImportedSet">
+<AnimationSet version="6" id="ImportedSet">
   <Inputs>
     <Input id="a1_i1" key="Num0"/>
   </Inputs>
-  <Action id="EditorSingle" clip="Animations\ComboTest\test_Attack1.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <Attack data="attackStart"/>
-    <Flow entry="RequireWeapon">
-      <Test id="RequireWeapon" kind="weaponDrawn" subject="self" pass="Self"/>
-      <Play id="Self" action="EditorSingle"/>
-    </Flow>
+  <Start id="EditorSingle_Start" to="EditorSingle" input="a1_i1" cooldown="0.3">
+    <Check kind="weaponDrawn"/>
+  </Start>
+  <Action id="EditorSingle" clip="Animations\ComboTest\test_Attack1.hkx" attack="attackStart" enter="0.1">
+    <Exit blend="0.2"/>
   </Action>
 </AnimationSet>

@@ -283,10 +283,6 @@ export function Timeline({
     ];
   }, status);
   const render = (r: Row) => {
-    const rowNode = r.id.startsWith('runtime:')
-      ? `anim:${action?.uid}:|${r.id.slice(8)}`
-      : `notify:${action?.uid}|${r.id}`;
-    const disabled = !!w.disconnections?.some(c => c.bindings.some(b => b.target === rowNode));
     const a = drag?.row.id === r.id ? drag.na : timeOf(r.from, duration, meta),
       b = drag?.row.id === r.id ? drag.nb : r.until ? timeOf(r.until, duration, meta) : a;
     const unknown = a === undefined || b === undefined,
@@ -297,10 +293,9 @@ export function Timeline({
         data-notify={r.id}
         role="button"
         tabIndex={0}
-        aria-label={r.label + (disabled ? tr(' · 사용 안 함') : '')}
+        aria-label={r.label}
         className={
           'notify-item ' +
-          (disabled ? 'checklist-muted ' : '') +
           (selected === r.id ? 'selected ' : '') +
           (r.until ? 'range ' : 'point ') +
           (unknown ? 'unresolved ' : '') +

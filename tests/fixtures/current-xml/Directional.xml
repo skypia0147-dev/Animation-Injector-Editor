@@ -1,55 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="ImportedSet">
+<AnimationSet version="6" id="ImportedSet">
   <Inputs>
     <Input id="a1_i1" key="NumDot"/>
   </Inputs>
-  <Action id="EditorDirectional_F" clip="Animations\DirectDodge\Dodge_Forward.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <IFrame from="0" until="end"/>
-    <Flow entry="dir">
-      <Test id="dir" kind="movementDirection" subject="self" option="forward" pass="Play"/>
-      <Play id="Play" action="EditorDirectional_F"/>
-    </Flow>
+  <Start id="EditorDirectional_F_Start" to="EditorDirectional_F" input="a1_i1" cooldown="0.3">
+    <Check kind="movementDirection" option="forward"/>
+  </Start>
+  <Action id="EditorDirectional_F" clip="Animations\DirectDodge\Dodge_Forward.hkx" enter="0.1">
+    <Exit blend="0.2"/>
+    <IFrame/>
   </Action>
-  <Action id="EditorDirectional_B" clip="Animations\DirectDodge\Dodge_Back.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <IFrame from="0" until="end"/>
-    <Flow entry="dir">
-      <Any id="dir" pass="Play">
-        <Use node="held"/>
-        <Use node="idle"/>
-      </Any>
-      <Play id="Play" action="EditorDirectional_B"/>
-      <Test id="held" kind="movementDirection" subject="self" option="back"/>
-      <Test id="idle" kind="movementDirection" subject="self" option="none"/>
-    </Flow>
+  <Start id="EditorDirectional_B_Start" to="EditorDirectional_B" input="a1_i1" cooldown="0.3">
+    <Or><Check kind="movementDirection" option="back"/><Check kind="movementDirection" option="none"/></Or>
+  </Start>
+  <Action id="EditorDirectional_B" clip="Animations\DirectDodge\Dodge_Back.hkx" enter="0.1">
+    <Exit blend="0.2"/>
+    <IFrame/>
   </Action>
-  <Action id="EditorDirectional_L" clip="Animations\DirectDodge\Dodge_Left.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <IFrame from="0" until="end"/>
-    <Flow entry="dir">
-      <Test id="dir" kind="movementDirection" subject="self" option="left" pass="Play"/>
-      <Play id="Play" action="EditorDirectional_L"/>
-    </Flow>
+  <Start id="EditorDirectional_L_Start" to="EditorDirectional_L" input="a1_i1" cooldown="0.3">
+    <Check kind="movementDirection" option="left"/>
+  </Start>
+  <Action id="EditorDirectional_L" clip="Animations\DirectDodge\Dodge_Left.hkx" enter="0.1">
+    <Exit blend="0.2"/>
+    <IFrame/>
   </Action>
-  <Action id="EditorDirectional_R" clip="Animations\DirectDodge\Dodge_Right.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <IFrame from="0" until="end"/>
-    <Flow entry="dir">
-      <Test id="dir" kind="movementDirection" subject="self" option="right" pass="Play"/>
-      <Play id="Play" action="EditorDirectional_R"/>
-    </Flow>
+  <Start id="EditorDirectional_R_Start" to="EditorDirectional_R" input="a1_i1" cooldown="0.3">
+    <Check kind="movementDirection" option="right"/>
+  </Start>
+  <Action id="EditorDirectional_R" clip="Animations\DirectDodge\Dodge_Right.hkx" enter="0.1">
+    <Exit blend="0.2"/>
+    <IFrame/>
   </Action>
 </AnimationSet>

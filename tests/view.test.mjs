@@ -41,15 +41,18 @@ function runtimeViews(file) {
   return views;
 }
 const xml = (body, root = '') => `<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="ViewTest"${root}>
+<AnimationSet version="6" id="ViewTest"${root}>
 <Inputs><Input id="use" key="G"/><Input id="drop" key="H"/></Inputs>
 ${body}
 </AnimationSet>`;
 const views = xml(
-  `<Action id="Look" clip="Animations\\ViewTest\\look.hkx"><Start input="use"/></Action>
-<Action id="Roll" clip="Animations\\ViewTest\\roll.hkx" view="third" firstPerson="switch"><Start input="use"/></Action>
+  `<Start input="use" to="Look"/>
+<Action id="Look" clip="Animations\\ViewTest\\look.hkx"/>
+<Start input="use" to="Roll"/>
+<Action id="Roll" clip="Animations\\ViewTest\\roll.hkx" view="third" firstPerson="switch"/>
 <Action id="Wave" clip="Animations\\ViewTest\\wave.hkx" view="both"/>
-<Pair id="Lift" clip="Animations\\ViewTest\\lift.hkx" firstPerson="switch"><Start input="use"/><Target range="200" angle="90"/>
+<Start input="use" to="Lift"/>
+<Pair id="Lift" clip="Animations\\ViewTest\\lift.hkx" firstPerson="switch"><FindPartner range="200" angle="90"/>
 <Carry bone="NPC R Hand [RHnd]" targetRoot="NPC Root [Root]" putdown="Lower" input="drop"/></Pair>
 <Action id="Lower" clip="Animations\\ViewTest\\lower.hkx"><CarryRelease at="0.5"/></Action>`,
   ' view="first"'
@@ -80,7 +83,7 @@ test('views round-trip: the file default, overrides, and third person for pairs 
     w.actions.map(a => [a.view, a.firstPerson])
   );
   const out = compileWorkspace(saved);
-  assert.match(out, /<AnimationSet version="4" id="ViewTest" view="first">/);
+  assert.match(out, /<AnimationSet version="6" id="ViewTest" view="first">/);
   assert.match(out, /<Action id="Roll"[^>]* view="third" firstPerson="switch"/);
   assert.doesNotMatch(out, /<Action id="Look"[^>]* view=/);
   assert.doesNotMatch(out, /<(Pair id="Lift"|Action id="Lower")[^>]* view=/);
@@ -100,14 +103,14 @@ test('views round-trip: the file default, overrides, and third person for pairs 
 
 test('the importer rejects what the runtime rejects', () => {
   const reject = (body, root, pattern) => assert.throws(() => importWorkspaceXml(xml(body, root)), pattern);
-  reject(`<Pair id="P" clip="a.hkx" view="first"><Target/></Pair>`, '', /3인칭/);
+  reject(`<Pair id="P" clip="a.hkx" view="first"/>`, '', /3인칭/);
   reject(`<Action id="A" clip="a.hkx" view="first" firstPerson="switch"/>`, '', /firstPerson/);
   reject(`<Action id="A" clip="a.hkx" firstPerson="switch"/>`, ' view="both"', /firstPerson/);
   reject(`<Action id="A" clip="a.hkx" view="side"/>`, '', /지원하지 않는 값/);
   reject(`<Action id="A" clip="a.hkx"/>`, ' view="side"', /지원하지 않는 값/);
   assert.throws(
-    () => importWorkspaceXml(xml(`<Action id="A" clip="a.hkx" view="first"/>`).replace('version="4"', 'version="3"')),
-    /version="4"/
+    () => importWorkspaceXml(xml(`<Action id="A" clip="a.hkx" view="first"/>`).replace('version="6"', 'version="5"')),
+    /형식 6/
   );
   assert.throws(() => parseWorkspace(JSON.stringify({...importWorkspaceXml(views), view: 'side'})), /인칭/);
 });
@@ -202,7 +205,8 @@ test('a dropped or picked file: its folder decides the person and the view follo
 test('warnings: a view nothing can play', () => {
   let w = importWorkspaceXml(
     xml(
-      `<Action id="Hit" clip="a.hkx"><Start event="HitStart" actor="npc"/><Connect to="Follow" event="Go"/></Action>
+      `<Start event="HitStart" actor="npc" to="Hit"/>
+<Action id="Hit" clip="a.hkx"><Transition to="Follow" event="Go"/></Action>
 <Action id="Follow" clip="b.hkx" view="third"/>`,
       ' view="first"'
     )

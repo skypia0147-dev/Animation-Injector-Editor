@@ -47,12 +47,3 @@ test('drop on a state replaces its clip; unregistering keeps referenced files in
   assert.ok(entry && !entry.registered && entry.users.length === 1);
   assert.throws(() => assignClip(w, 'missing', 'a.hkx', ''));
 });
-
-test('schema 7 files saved before the asset browser still open', () => {
-  const w = setup();
-  const old = JSON.parse(JSON.stringify(w));
-  delete old.assets;
-  const back = parseWorkspace(JSON.stringify(old));
-  assert.deepEqual(back.assets, []);
-  assert.throws(() => parseWorkspace(JSON.stringify({...w, assets: [{clip: 'x'}]})));
-});

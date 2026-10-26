@@ -1,55 +1,28 @@
 import {qteErrors, qteXml, eventQteXml} from './qte.ts';
 import {isPairedRig, type PairedRig} from './pairedRigs.ts';
-import {repairEmptyPlaybacks} from './graph/deletePlayback.ts';
 import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarryRelease} from './carry.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
-import {lowerDisconnected} from './graph/disconnect.ts';
+import {isGameControl} from './keys.ts';
 import {sourceLinks} from './graph/playback.ts';
-import {
-  branchId,
-  checkFlows,
-  flowXml,
-  lowerFlowDrafts,
-  foldNotConditions,
-  olderSpaceCheck,
-  unpairableRoutes,
-} from './graph/conditions.ts';
-import {checkFans} from './graph/conditionFans.ts';
-import {handOverFollowed} from './graph/conditionBinding.ts';
 import {lowerGraph} from './graph/document.ts';
 import type {ActionKind, ActionVariant} from './actionTypes.ts';
-import {lowerBlends} from './graph/blends.ts';
-import type {BlendNode} from './graph/blends.ts';
-import type {DraftNode} from './graph/drafts.ts';
+import {cardIssues, checkCards} from './cardChecks.ts';
+import {writerOf, startXml, sharedXml, rootOrder, linkDestination} from './format6Xml.ts';
+import type {ConditionCard, StartCard} from './cards.ts';
 import {defaultPairTimeline, pairTrackKeys, pairTimelineEffects} from './pairTimeline.ts';
 import type {PairTimeline} from './pairTimeline.ts';
-import {inferredCamera, cameraReset} from './sharedSettings.ts';
+import {cameraReset} from './sharedSettings.ts';
 import type {SharedSettings} from './sharedSettings.ts';
 import {defaultPackaging, authoringShape, validateParameters} from './authoring.ts';
 import type {Packaging, Parameter} from './authoring.ts';
-import {
-  clone,
-  createProject,
-  draftSource,
-  dropCombo,
-  dropMotion,
-  dropLock,
-  dropSafety,
-  removedGone,
-  keyCode,
-  mark,
-  parseProject,
-  validate,
-  windowMarksOk,
-} from './model.ts';
+import {clone, createProject, draftSource, keyCode, mark, parseProject, validate, windowMarksOk} from './model.ts';
 import type {Project, Mark, Position, Issue, Input} from './model.ts';
 import {actionXml, keyAttrs, omitDefaults, windowAttrs} from './compiler.ts';
-import {node, documentXml} from './xml.ts';
+import {node, documentXml, type Xml} from './xml.ts';
 import {runtimeNameUses} from './runtimeNames.ts';
 import {
   timedKeys,
   functionKeys,
-  liftToRegistry,
   registryIssues,
   registryXml,
   eventValuesXml,
@@ -63,7 +36,6 @@ import type {EventRow} from './eventRegistry.ts';
 import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts} from './view.ts';
 import type {View, FirstPersonStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
-import {liftStartLimits, takeStartChecks} from './startLimits.ts';
 import {ordinaryEffectOps} from './clipEffects.ts';
 export const operations = [
   'hide',
@@ -84,6 +56,10 @@ export const operations = [
   'timeOff',
   'stopVelocity',
   'ragdoll',
+  'strike',
+  'sound',
+  'globalSet',
+  'modEvent',
 ] as const;
 /** Keys of a pair's clip-time effect: `at` and a function's (eventRegistry.ts). */
 export const effectKeys = timedKeys;
@@ -97,11 +73,9 @@ export type Pair = {
   angle: number;
   lossBlend: number;
   lossEnabled: boolean;
-  target: 'nearest' | 'combatTarget';
   /** Whether the pair's start turns the two to face each other: false for a pair played from behind. Set from the
    *  HKX's start pose (graph/pairFacing.ts), not by hand. */
   reorientSupport: boolean;
-  effectsEnabled: boolean;
   interruptOnThirdPartyHit: boolean;
   effects: Effect[];
 };
@@ -118,7 +92,6 @@ export type Action = {
   view?: View;
   /** A third-person action the player uses in first person: 'switch' plays it in third person. */
   firstPerson?: FirstPersonStart;
-  flow?: import('./graph/conditions.ts').BranchFlow;
   nodeAuthored?: boolean;
   clipWindows?: Record<string, import('./graph/clipWindows.ts').ClipWindow>;
   cancels: {
@@ -142,6 +115,8 @@ export type Action = {
   pair: Pair | null;
 };
 export type Link = {
+  /** Through a condition card (XML format 6): the card's uid; `to` is then empty. */
+  card?: string;
   blend?: number;
   /** This key transition keeps its own detection window. Otherwise an ordinary HKX's key transitions share the
    *  HKX's window (sourceLinks). Stored only when set. */
@@ -168,15 +143,16 @@ export type Workspace = {
   /** The view of actions that do not set one (<AnimationSet view>); absent = third person. */
   view?: View;
   qtes?: import('./qte.ts').QteNode[];
-  disconnections?: import('./graph/disconnect.ts').Disconnection[];
-  sharedOutputPose?: boolean;
-  conditionTables?: string[];
   sharedRules?: import('./graph/sharing.ts').SharedRule[];
   /** The global event registry: every event name the project registers, with its functions. */
   eventRegistry?: EventRow[];
-  drafts?: DraftNode[];
-  blends?: BlendNode[];
-  schema: 7;
+  schema: 9;
+  /** Start cards (XML format 6 <Start>), in the document's order among themselves. */
+  starts: StartCard[];
+  /** Condition cards: a start's, a transition's, a QTE result's, a row's, a True's or False's content, or shared. */
+  cards: ConditionCard[];
+  /** The root elements' order (start, action and named card uids) as the file had them (format6Xml.ts rootOrder). */
+  order: string[];
   layout: Layout;
   assets: AssetRef[];
   globals: SharedSettings;
@@ -196,9 +172,7 @@ export const defaultPair = (): Pair => ({
   // The survivor's blend out when the partner is lost (OnPartnerLost, 10-20: 0.6 s, what Grapple's pairs use).
   lossBlend: 0.6,
   lossEnabled: true,
-  target: 'nearest',
   reorientSupport: true,
-  effectsEnabled: false,
   interruptOnThirdPartyHit: false,
   effects: [],
 });
@@ -216,7 +190,10 @@ export function wrap(config: Project, uid = 'a1'): Action {
 }
 export function migrateWorkspace(p: Project): Workspace {
   return {
-    schema: 7,
+    schema: 9,
+    starts: [],
+    cards: [],
+    order: [],
     layout: {},
     assets: [],
     globals: {cameraReset: null},
@@ -230,7 +207,10 @@ export function migrateWorkspace(p: Project): Workspace {
   };
 }
 export const emptyWorkspace = (): Workspace => ({
-  schema: 7,
+  schema: 9,
+  starts: [],
+  cards: [],
+  order: [],
   layout: {},
   assets: [],
   globals: {cameraReset: null},
@@ -260,7 +240,6 @@ export function addAction(w: Workspace, kind: 'single' | 'pair' = 'single'): Act
     w.actions.map(a => a.config.actionId)
   );
   a.config.name = kind === 'pair' ? tr('새 페어') : tr('새 일반 동작');
-  a.config.start.mode = 'none';
   a.position = {x: 100 + (w.actions.length % 3) * 500, y: 80 + Math.floor(w.actions.length / 3) * 220};
   if (kind === 'pair') {
     a.pair = defaultPair();
@@ -310,24 +289,31 @@ export function removeAction(w: Workspace, id: string): Workspace {
   if (w.parameters.some(p => p.action === id)) throw new Error(tr('이 동작의 제작 매개변수를 먼저 삭제하세요.'));
   if (w.links.some(l => l.from === id || l.to === id || l.partnerTo === id))
     throw new Error(tr('이 동작을 참조하는 연결을 먼저 삭제하세요.'));
-  const owned = (s: string) =>
-    s === id || s.startsWith(`anim:${id}:`) || s.startsWith(`start:${id}|`) || s.startsWith(`transition:${id}:`);
-  w = handOverFollowed(w, id);
-  // Routes that played it lead nowhere now (the user picks another destination).
-  const actions = structuredClone(w.actions.filter(a => a.uid !== id));
-  for (const a of actions)
-    for (const t of a.flow?.tests ?? [])
-      for (const port of ['pass', 'fail'] as const) {
-        const e = t[port];
-        if (e && 'action' in e && e.action === id) delete t[port];
-      }
-  for (const a of actions)
-    for (const fan of a.flow?.fans ?? [])
-      for (const [k, to] of Object.entries(fan.fails)) if ('action' in to && to.action === id) delete fan.fails[k];
+  // Starts, rows, Trues and Falses that played it lead nowhere now (the user picks another destination); so do QTE
+  // results.
+  const gone = (r: import('./cards.ts').Ref) => (r && 'action' in r && r.action === id ? null : r);
+  const cards = structuredClone(w.cards).map(c => {
+    c.rows = c.rows.map(r => ({...r, to: gone(r.to)}));
+    if (c.true !== undefined) c.true = gone(c.true);
+    c.false = gone(c.false);
+    return c;
+  });
+  const qtes = w.qtes?.map(q => ({
+    ...q,
+    results: Object.fromEntries(
+      Object.entries(q.results).map(([k, r]) => [
+        k,
+        {...r, to: r.to === id ? '' : r.to, partnerTo: r.partnerTo === id ? '' : r.partnerTo},
+      ])
+    ) as typeof q.results,
+  }));
   return {
     ...w,
-    actions,
-    ...(w.blends ? {blends: w.blends.filter(b => !owned(b.source) && !owned(b.target))} : {}),
+    actions: w.actions.filter(a => a.uid !== id),
+    starts: w.starts.map(s => ({...s, to: gone(s.to)})),
+    cards,
+    order: w.order.filter(u => u !== id),
+    ...(qtes ? {qtes} : {}),
   };
 }
 export function arrange(w: Workspace): Workspace {
@@ -397,259 +383,18 @@ function checkValues(values: any, keys: readonly string[], message: string) {
   )
     throw new Error(message);
 }
-/** Workspace schema. Saved files are schema 8, the graph document (graph/document.ts). */
-export const WORKSPACE_SCHEMA = 7;
+/** Workspace schema: the graph document the editor saves (graph/document.ts). Only this one opens: older projects
+ *  are not supported (10-26). */
+export const WORKSPACE_SCHEMA = 9;
 
 // parseWorkspace runs fixed phases on the object JSON.parse returned (owned by this parse):
-//   1. fieldsBeforeMigration: defaults the migration checks rely on; they compare old actions
-//      and pairs against today's shapes (wrap(createProject()), defaultPair()).
-//   2. MIGRATIONS[n]: schema n -> n + 1, one step each, up to WORKSPACE_SCHEMA.
-//   3. fieldsAddedInSchema7: fields added while the schema stayed at 7. A new optional field
-//      gets its default here (or in phase 1 if an action/pair field), and nowhere else.
-//   4. check*: validation only; throws on the first problem and never changes the document.
-//   5. normalizeWorkspace: canonical forms (drafts, action configs, NOT conditions).
+//   1. check*: validation only; throws on the first problem and never changes the document.
+//   2. normalizeWorkspace: canonical forms (drafts, action configs, NOT conditions).
 
-/** Phase 1. Action and pair fields that older schemas lack but today's shapes contain. */
-/** Camera restore moved from a pair's settings to the action (10-16): a project saved before keeps it. */
-function liftCamera(w: any) {
-  if (!Array.isArray(w?.actions)) return;
-  for (const a of w.actions) {
-    const pair = a?.pair;
-    if (!pair || typeof pair !== 'object' || !('cameraEnabled' in pair || 'camera' in pair)) continue;
-    if (pair.cameraEnabled === true) a.cameraEnabled = true;
-    if (pair.camera !== undefined && (pair.cameraEnabled === true || pair.camera?.reset)) a.camera = pair.camera;
-    delete pair.cameraEnabled;
-    delete pair.camera;
-  }
-}
-function fieldsBeforeMigration(w: any) {
-  if (!Array.isArray(w?.actions)) return;
-  for (const a of w.actions) {
-    if (a && a.cancels === undefined) a.cancels = [];
-    if (a?.pair && typeof a.pair === 'object') {
-      if (a.pair.targetRig === undefined) a.pair.targetRig = 'character';
-      // The per-pair end position is gone (runtime 0.12.255): it applies to every pair, set in the runtime INI.
-      delete a.pair.keepRootPosition;
-      // The vanilla sync values are fixed (runtime 0.12.259): the alignment wait, its tolerance, motion from the root.
-      delete a.pair.getToMarkTime;
-      delete a.pair.markErrorThreshold;
-      delete a.pair.applyMotionFromRoot;
-    }
-  }
-}
-
-/** Phase 2. Each step checks the document at schema n and returns it at schema n + 1. */
-const MIGRATIONS: Record<number, (w: any) => any> = {
-  3: w => {
-    exact(w, {schema: 3, id: '', name: '', actions: [], links: []}, tr('구형 프로젝트'));
-    w.schema = 4;
-    w.packaging = defaultPackaging();
-    w.parameters = [];
-    return w;
-  },
-  4: w => {
-    exact(w, {schema: 4, packaging: {}, parameters: [], id: '', name: '', actions: [], links: []}, tr('구형 프로젝트'));
-    w.schema = 5;
-    w.globals = {cameraReset: inferredCamera(Array.isArray(w.actions) ? w.actions : [])};
-    w.sharedInputs = [];
-    return w;
-  },
-  5: w => {
-    exact(
-      w,
-      {
-        schema: 5,
-        globals: {},
-        sharedInputs: [],
-        packaging: {},
-        parameters: [],
-        id: '',
-        name: '',
-        actions: [],
-        links: [],
-      },
-      tr('구형 프로젝트')
-    );
-    if (!Array.isArray(w.actions)) throw new Error(tr('동작 형식 오류'));
-    for (const a of w.actions) {
-      const {variants, ...legacyAction} = wrap(createProject());
-      exact(a, legacyAction, tr('구형 동작'));
-      a.variants = {};
-      if (a.pair) {
-        // A schema 5 pair still carries its camera restore (lifted to the action after the migrations, liftCamera).
-        const {timeline, ...current} = defaultPair(),
-          legacy = {
-            ...current,
-            ...('cameraEnabled' in a.pair ? {cameraEnabled: false} : {}),
-            ...('camera' in a.pair ? {camera: defaultCamera()} : {}),
-          };
-        exact(a.pair, legacy, tr('구형 페어'));
-        a.pair.timeline = defaultPairTimeline();
-      }
-    }
-    w.schema = 6;
-    return w;
-  },
-  // Schema 7 stores node coordinates per graph. Output format is no longer a preference.
-  6: w => {
-    w.schema = 7;
-    w.layout = {};
-    return w;
-  },
-};
-
-// Own numeric keys only: "constructor" or "3" must never select a step.
-const migratable = (schema: unknown): schema is number =>
-  typeof schema === 'number' && Object.hasOwn(MIGRATIONS, schema);
-
-/** Phase 3. Editor additions made while the schema stayed at 7. */
-function fieldsAddedInSchema7(w: any) {
-  // Format 3 (runtime 0.12.222): event functions live in the global registry.
-  liftToRegistry(w);
-  // 시작 제한 (runtime 0.12.276): an action's state checks move into a condition branch.
-  liftStartLimits(w);
-  // Motion is the HKX's AMR annotations only (runtime 0.12.231): declared motion and directions are dropped,
-  // and a directional action keeps its entry clip (with that clip's detection window) as a single action.
-  const withoutMotion = (a: any) => {
-    if (!a || typeof a !== 'object') return;
-    dropMotion(a.config);
-    if (a.variants && typeof a.variants === 'object' && !Array.isArray(a.variants)) {
-      delete a.variants.directional;
-      for (const v of Object.values(a.variants) as any[]) dropMotion(v?.config);
-    }
-    if (a.clipWindows && typeof a.clipWindows === 'object' && Array.isArray(a.config?.steps))
-      for (const step of Object.keys(a.clipWindows))
-        if (!a.config.steps.some((s: any) => s?.id === step)) delete a.clipWindows[step];
-  };
-  if (Array.isArray(w?.actions)) w.actions.forEach(withoutMotion);
-  if (Array.isArray(w?.drafts)) for (const d of w.drafts) withoutMotion(d?.value);
-  // Combos went with XML format 4 (runtime 0.12.233): a saved combo cannot open, a single action drops the
-  // empty combo fields, and a combo kept as a switched-away variant is dropped.
-  const withoutCombo = (a: any) => {
-    if (!a || typeof a !== 'object') return;
-    dropCombo(a.config);
-    if (a.variants && typeof a.variants === 'object' && !Array.isArray(a.variants)) {
-      delete a.variants.combo;
-      for (const v of Object.values(a.variants) as any[]) dropCombo(v?.config);
-    }
-  };
-  if (Array.isArray(w?.actions)) w.actions.forEach(withoutCombo);
-  if (Array.isArray(w?.drafts)) for (const d of w.drafts) withoutCombo(d?.value);
-  // A mod package is its XML and HKX only (2026-09-30): the project switch it never wrote, and the
-  // author, version and license that fed documents it no longer writes, are dropped.
-  if (w?.packaging && typeof w.packaging === 'object' && !Array.isArray(w.packaging))
-    for (const key of ['includeProject', 'author', 'version', 'license', 'licenseText']) delete w.packaging[key];
-  if (w.assets === undefined) w.assets = [];
-  if (Array.isArray(w.assets))
-    for (const asset of w.assets)
-      if (asset && typeof asset === 'object' && asset.preview === undefined) asset.preview = {skeletons: [], skins: []};
-  if (Array.isArray(w.drafts))
-    for (const d of w.drafts)
-      if (d && typeof d === 'object') {
-        d.from ??= '';
-        d.to ??= '';
-      }
-  if (Array.isArray(w.actions))
-    for (const a of w.actions)
-      if (a?.pair?.carry && typeof a.pair.carry === 'object') {
-        delete a.pair.carry.alignStart;
-        // The putdown pair became a one-actor putdown Action (0.12.187): the old pair is not a valid
-        // putdown, so the reference is cleared and the carry card asks for an Action.
-        if ('releaseAction' in a.pair.carry) {
-          delete a.pair.carry.releaseAction;
-          a.pair.carry.putdownAction ??= '';
-        }
-        // Carry stages 2-3 (target handling, carrier hold pose).
-        a.pair.carry.target ??= 'pose';
-        a.pair.carry.part ??= '';
-        if (a.pair.carry.hold === undefined) a.pair.carry.hold = null;
-        // The hold pose's `time` served HKX hold poses, which were dropped (runtime 0.12.206).
-        if (a.pair.carry.hold && 'time' in a.pair.carry.hold) delete a.pair.carry.hold.time;
-        // The fix moment (runtime 0.12.190).
-        if (a.pair.carry.fix === undefined) a.pair.carry.fix = null;
-        // Carrying with a drawn weapon (runtime 0.12.192); weapon="keep" and weaponShow went in 0.12.238.
-        a.pair.carry.weapon ??= 'sheathed';
-        if (a.pair.carry.weapon === 'keep' || a.pair.carry.weaponShow)
-          throw removedGone(
-            a.config?.name || a.config?.actionId || tr('프로젝트'),
-            tr('무기를 든 채 운반(keep·weaponShow)')
-          );
-        delete a.pair.carry.weaponShow;
-      }
-  // The control lock went in runtime 0.12.238: a lock window, a pair's lock track or a lock function that
-  // is on cannot open; an unused one is dropped.
-  const withoutLock = (a: any) => {
-    if (!a || typeof a !== 'object') return;
-    dropLock(a.config);
-    dropSafety(a.config);
-    if (a.variants && typeof a.variants === 'object' && !Array.isArray(a.variants))
-      for (const v of Object.values(a.variants) as any[]) {
-        dropLock(v?.config);
-        dropSafety(v?.config);
-      }
-    const timeline = a.pair?.timeline;
-    if (timeline && typeof timeline === 'object') {
-      if (timeline.lock?.enabled) throw removedGone(a.config?.name || tr('프로젝트'), tr('조작 잠금'));
-      delete timeline.lock;
-      for (const track of Object.values(timeline) as any[])
-        if (track && typeof track === 'object') {
-          delete track.move;
-          delete track.look;
-        }
-    }
-  };
-  if (Array.isArray(w?.actions)) w.actions.forEach(withoutLock);
-  if (Array.isArray(w?.drafts)) {
-    for (const d of w.drafts) withoutLock(d?.value);
-    w.drafts = w.drafts.filter((d: any) => d?.kind !== 'notify:lock');
-  }
-  const lockFunction = (o: any): boolean =>
-    Array.isArray(o)
-      ? o.some(lockFunction)
-      : !!o && typeof o === 'object' && (o.op === 'lock' || o.op === 'unlock' || Object.values(o).some(lockFunction));
-  if (
-    lockFunction(w?.eventRegistry) ||
-    (Array.isArray(w?.actions) && w.actions.some((a: any) => lockFunction(a?.pair?.effects)))
-  )
-    throw removedGone(tr('프로젝트'), tr('조작 잠금 기능(lock·unlock)'));
-}
-
-/** Phase 4: optional workspace collections. */
+/** Phase 1: optional workspace collections. */
 function checkCollections(w: any) {
-  const {drafts, eventRegistry, sharedRules, conditionTables, sharedOutputPose, disconnections, view} = w;
+  const {eventRegistry, sharedRules, view} = w;
   if (view !== undefined && !views.includes(view)) throw Error(tr('기본 인칭 형식 오류'));
-  if (
-    disconnections !== undefined &&
-    (!Array.isArray(disconnections) ||
-      disconnections.length > 10000 ||
-      disconnections.some(
-        (c: any) =>
-          !c ||
-          typeof c.source !== 'string' ||
-          typeof c.target !== 'string' ||
-          typeof c.pin !== 'string' ||
-          !Array.isArray(c.bindings) ||
-          c.bindings.length > 20000 ||
-          c.bindings.some(
-            (e: any) =>
-              !e ||
-              typeof e.source !== 'string' ||
-              typeof e.target !== 'string' ||
-              typeof e.pin !== 'string' ||
-              (e.targetPin !== undefined && typeof e.targetPin !== 'string')
-          )
-      ))
-  )
-    throw Error(tr('연결 해제 정보 형식 오류'));
-  if (sharedOutputPose !== undefined && typeof sharedOutputPose !== 'boolean')
-    throw Error(tr('공통 출력 포즈 형식 오류'));
-  if (
-    conditionTables !== undefined &&
-    (!Array.isArray(conditionTables) ||
-      conditionTables.length > 500 ||
-      conditionTables.some((s: unknown) => typeof s !== 'string'))
-  )
-    throw Error(tr('조건 표 형식 오류'));
   if (eventRegistry !== undefined) {
     if (!Array.isArray(eventRegistry) || eventRegistry.length > 4096) throw Error(tr('이벤트 등록 형식 오류'));
     const ids = new Set();
@@ -680,49 +425,19 @@ function checkCollections(w: any) {
       sharedRules.some(
         (g: any) =>
           !g ||
-          !['effect', 'link', 'camera', 'state', 'feature', 'node'].includes(g.kind) ||
+          g.kind !== 'link' ||
           !Array.isArray(g.members) ||
           g.members.length > 2000 ||
           g.members.some((m: unknown) => typeof m !== 'string')
       ))
   )
     throw Error(tr('공유 규칙 형식 오류'));
-  if (drafts !== undefined) {
-    if (!Array.isArray(drafts) || drafts.length > 500) throw Error(tr('독립 카드 목록 오류'));
-    const ids = new Set();
-    for (const d of drafts) {
-      exact(d, {id: '', kind: '', owner: '', value: {}, local: '', notify: '', from: '', to: ''}, tr('독립 카드'));
-      if (!/^draft:\d+$/.test(d.id) || ids.has(d.id)) throw Error(tr('독립 카드 ID 오류'));
-      ids.add(d.id);
-      // The draft action itself is validated when normalizeWorkspace parses it.
-    }
-  }
 }
 
-/** Phase 4: the workspace shell (everything but actions and links). */
+/** Phase 1: the workspace shell (everything but actions and links). */
 function checkShell(w: any) {
-  const {
-    blends,
-    drafts,
-    qtes,
-    eventRegistry,
-    sharedRules,
-    conditionTables,
-    sharedOutputPose,
-    disconnections,
-    view,
-    ...baseWorkspace
-  } = w;
+  const {qtes, eventRegistry, sharedRules, view, ...baseWorkspace} = w;
   exact(baseWorkspace, emptyWorkspace(), tr('프로젝트'));
-  if (blends !== undefined) {
-    if (!Array.isArray(blends) || blends.length > 2000) throw Error(tr('블렌드 목록 형식 오류'));
-    const ids = new Set();
-    for (const b of blends) {
-      exact(b, {id: '', source: '', target: '', seconds: 0}, tr('블렌드'));
-      if (!b.id || ids.has(b.id) || b.seconds < 0 || b.seconds > 5) throw Error(tr('블렌드 ID 또는 시간 오류'));
-      ids.add(b.id);
-    }
-  }
   if (!Array.isArray(w.assets) || w.assets.length > 500) throw new Error(tr('에셋 개수 제한'));
   for (const a of w.assets) {
     exact(a, {clip: '', localPath: '', preview: {skeletons: [], skins: []}}, tr('에셋'));
@@ -758,16 +473,22 @@ function checkShell(w: any) {
   )
     throw new Error(tr('카메라 복구 이벤트 형식 오류'));
   if (!Array.isArray(w.sharedInputs) || w.sharedInputs.length > 200) throw new Error(tr('공통 입력 개수 제한'));
-  for (const i of w.sharedInputs) exact(i, {id: '', label: '', key: '', gamepad: 0}, tr('공통 입력'));
+  for (const i of w.sharedInputs) {
+    // A game control (runtime 0.12.292) is the one optional field.
+    const {control, ...rest} = i ?? {};
+    exact(rest, {id: '', label: '', key: '', gamepad: 0}, tr('공통 입력'));
+    if (control !== undefined && !isGameControl(control))
+      throw new Error(tr('공통 입력') + tr(': 알 수 없거나 누락된 필드'));
+  }
   authoringShape(w);
   if (!Array.isArray(w.actions) || !Array.isArray(w.links) || w.actions.length > 100 || w.links.length > 500)
     throw new Error(tr('동작/연결 개수 제한'));
 }
 
-/** Phase 4: one action. Stored variants are checked by parsing them as their own action.
+/** Phase 1: one action. Stored variants are checked by parsing them as their own action.
  *  Returns the parsed config, which normalizeWorkspace stores (parsed once). */
 function checkAction(a: any): Project {
-  const {clipWindows, nodeAuthored, flow, view, firstPerson, cameraEnabled, camera: cameraSettings, ...baseAction} = a;
+  const {clipWindows, nodeAuthored, view, firstPerson, cameraEnabled, camera: cameraSettings, ...baseAction} = a;
   if (cameraEnabled !== undefined && typeof cameraEnabled !== 'boolean') throw Error(tr('카메라 복구 형식 오류'));
   if (cameraSettings !== undefined) {
     const {own, ...camera} = cameraSettings ?? {};
@@ -776,39 +497,6 @@ function checkAction(a: any): Project {
   }
   if (view !== undefined && !views.includes(view)) throw Error(tr('동작 인칭 형식 오류'));
   if (firstPerson !== undefined && !firstPersonStarts.includes(firstPerson)) throw Error(tr('1인칭 시작 형식 오류'));
-  if (
-    flow !== undefined &&
-    (!flow ||
-      typeof flow.entry !== 'string' ||
-      (flow.detached !== undefined && typeof flow.detached !== 'boolean') ||
-      (flow.selects !== undefined && flow.selects !== true) ||
-      (flow.unlinked !== undefined && flow.unlinked !== true) ||
-      (flow.follow !== undefined &&
-        (!flow.follow ||
-          typeof flow.follow.owner !== 'string' ||
-          typeof flow.follow.test !== 'string' ||
-          Object.keys(flow.follow).length !== 2)) ||
-      !checkFans(flow) ||
-      !Array.isArray(flow.tests) ||
-      flow.tests.some(
-        (t: any) =>
-          !t ||
-          typeof t.id !== 'string' ||
-          typeof t.kind !== 'string' ||
-          (t.negate !== undefined && typeof t.negate !== 'boolean') ||
-          typeof t.subject !== 'string' ||
-          typeof t.minimum !== 'number' ||
-          [t.pass, t.fail].some(
-            e =>
-              e !== undefined &&
-              (!e ||
-                typeof e !== 'object' ||
-                Object.keys(e).length !== 1 ||
-                !(typeof e.node === 'string' || typeof e.action === 'string'))
-          )
-      ))
-  )
-    throw Error(tr('조건 분기 형식 오류'));
   if (nodeAuthored !== undefined && typeof nodeAuthored !== 'boolean') throw Error(tr('카드 작성 설정 오류'));
   exact(baseAction, wrap(createProject()), tr('동작'));
   if (clipWindows !== undefined) {
@@ -894,7 +582,7 @@ function checkAction(a: any): Project {
   return config;
 }
 
-/** Phase 4: one link. */
+/** Phase 1: one link. */
 function checkLink(l: any) {
   const sample: Link = {
     id: '',
@@ -910,8 +598,9 @@ function checkLink(l: any) {
     buffered: true,
     position: {x: 0, y: 0},
   };
-  const {blend, ownWindow, ...baseLink} = l;
+  const {blend, ownWindow, card, ...baseLink} = l;
   exact(baseLink, sample, tr('연결'));
+  if (card !== undefined && (typeof card !== 'string' || !card)) throw Error(tr('전환 조건 카드 형식 오류'));
   if (ownWindow !== undefined && ownWindow !== true) throw Error(tr('전환 감지 구간 설정 오류'));
   if (blend !== undefined && (typeof blend !== 'number' || !Number.isFinite(blend) || blend < 0 || blend > 5))
     throw Error(tr('연결 블렌드 범위 오류'));
@@ -919,111 +608,34 @@ function checkLink(l: any) {
   for (const t of [l.open, l.close]) exact(t, mark(), tr('시각'));
 }
 
-/** Phase 5. Canonical forms; checks that need them (QTE) run on the result. */
-/** Features no longer share settings (10-23, docs/mockup-card-cleanup ⑥): a group of them is dissolved on open, each
- *  member keeping the values it has. Shared connections (keys, event receivers, conditions) stay. */
-export function keptSharing<T extends {kind: string; members: string[]}>(rules: T[], blendIds: Iterable<string>): T[] {
-  const blends = new Set(blendIds);
-  const feature = (m: string) =>
-    blends.has(m) ||
-    m.startsWith('notify:') ||
-    /\|(stateCondition|suppress|cameraRestore|fireArrow|carryRelease|carryFix)$/.test(m);
-  return rules.filter(
-    g => !['effect', 'feature', 'camera', 'state'].includes(g.kind) && !(g.kind === 'node' && g.members.some(feature))
-  );
-}
-function dissolveFeatureSharing(w: any) {
-  if (!Array.isArray(w.sharedRules)) return;
-  w.sharedRules = keptSharing(
-    w.sharedRules,
-    (w.blends ?? []).map((b: any) => b.id)
-  );
-  if (!w.sharedRules.length) delete w.sharedRules;
-}
+/** Phase 2. Canonical forms; checks that need them (QTE) run on the result. */
 function normalizeWorkspace(w: any, configs: Project[]): Workspace {
-  dissolveFeatureSharing(w);
-  if (Array.isArray(w.drafts))
-    for (const d of w.drafts)
-      d.value = parseWorkspace(JSON.stringify({...emptyWorkspace(), actions: [d.value]})).actions[0];
   w.actions.forEach((a: any, i: number) => (a.config = configs[i]));
   const qerrors = qteErrors(w);
   if (qerrors.length) throw Error(qerrors.join('\n'));
-  return foldNotConditions(w);
+  return w;
 }
 
 export function parseWorkspace(text: string): Workspace {
   if (text.length > 2_000_000) throw new Error(tr('프로젝트는 2 MB 이하여야 합니다.'));
-  let w = JSON.parse(text);
-  if (w && typeof w === 'object') delete w.xmlVersion;
-  if (w?.schema === 8) return repairEmptyPlaybacks(parseWorkspace(JSON.stringify(lowerGraph(w))));
-  fieldsBeforeMigration(w);
-  // Schemas 1-2 (and unversioned files) are single-action projects. Their state checks move into a branch of the
-  // action they become (runtime 0.12.276).
-  if (!migratable(w?.schema) && w?.schema !== WORKSPACE_SCHEMA) {
-    const raw = JSON.parse(text),
-      checks = takeStartChecks(raw);
-    const single = migrateWorkspace(parseProject(JSON.stringify(raw)));
-    if (single.actions[0]) Object.assign(single.actions[0].config, checks);
-    return liftStartLimits(single);
-  }
-  while (w.schema !== WORKSPACE_SCHEMA) w = MIGRATIONS[w.schema](w);
-  fieldsAddedInSchema7(w);
-  liftCamera(w);
+  const w = JSON.parse(text);
+  // The graph document (graph/document.ts) the editor saves, lowered to the workspace it edits.
+  if (w && Array.isArray(w.nodes) && w.schema === WORKSPACE_SCHEMA)
+    return parseWorkspace(JSON.stringify(lowerGraph(w)));
+  if (!w || typeof w !== 'object' || Array.isArray(w) || w.schema !== WORKSPACE_SCHEMA)
+    throw new Error(tr('지원하지 않는 프로젝트 형식입니다. 이 에디터로 저장한 프로젝트만 엽니다.'));
   checkCollections(w);
   checkShell(w);
   const configs = w.actions.map(checkAction);
   for (const l of w.links) checkLink(l);
+  checkCards(w);
   return normalizeWorkspace(w, configs);
 }
 export function validateWorkspace(w: Workspace): Issue[] {
-  try {
-    w = lowerDisconnected(w);
-  } catch (e) {
-    return [{level: 'error', node: 'GRAPH', message: String(e)}];
-  }
   w = sourceLinks(w);
   const out: Issue[] = [],
     err = (node: string, message: string) => out.push({level: 'error', node, message});
-  const drafts = lowerFlowDrafts(w);
-  for (const id of drafts.omitted)
-    out.push({
-      level: 'warning',
-      node: id,
-      message: tr('어떤 시작과도 이어져 있지 않아 판단되지 않는 조건입니다. XML에는 쓰지 않습니다.'),
-    });
-  for (const uid of drafts.dropped)
-    out.push({
-      level: 'warning',
-      node: uid,
-      message: tr('시작도 이어진 조건도 없는 고르기 동작입니다. XML에는 쓰지 않습니다.'),
-    });
-  for (const uid of drafts.stranded)
-    err(uid, tr('전환이 들어오는 고르기 동작에 이어진 조건이 없습니다. 시작 카드에서 조건 분기로 선을 이으세요.'));
-  for (const uid of drafts.idle)
-    out.push({
-      level: 'warning',
-      node: uid,
-      message: tr('시작 「{start}」이 이어진 곳이 없어 이 동작을 시작하지 않습니다.', {
-        start: (a => (a?.config.start.mode === 'event' ? a.config.start.event : a?.config.start.input) ?? '')(
-          w.actions.find(a => a.uid === uid)
-        ),
-      }),
-    });
-  w = drafts.workspace;
-  for (const message of checkFlows(w)) err('Flow', message);
-  // Room checks made before 0.12.280 measured at the partner's spot or from its heading (docs/mockup-space-sentence).
-  for (const a of w.actions)
-    for (const t of a.flow?.tests ?? [])
-      if (olderSpaceCheck(t))
-        out.push({
-          level: 'warning',
-          node: branchId(a.uid, t.id),
-          message: tr('{kind} 「{id}」은 예전 방식(상대 자리·상대 기준)입니다. 방향을 본인 기준으로 다시 고르세요.', {
-            kind: t.kind === 'ground' ? tr('지면 확보') : tr('공간 확보'),
-            id: t.label || t.id,
-          }),
-        });
-  for (const i of unpairableRoutes(w)) out.push({level: 'warning', ...i});
+  out.push(...cardIssues(w));
   for (const i of runtimeNameUses(w)) out.push({level: 'warning', ...i});
   out.push(...registryIssues(w));
   // The numbers an HKX node runs registered functions with (<EventValues>, runtime 0.12.281).
@@ -1032,28 +644,23 @@ export function validateWorkspace(w: Workspace): Issue[] {
   out.push(...viewIssues(w));
   try {
     parseWorkspace(JSON.stringify(w));
-    w = lowerBlends(w);
   } catch (e) {
     return [{level: 'error', node: 'project', message: String(e)}];
   }
   if (w.globals.cameraReset && !eventOk(w.globals.cameraReset))
     err('globals', tr('카메라 복구 이벤트 이름을 확인하세요.'));
-  if (w.drafts?.length)
-    out.push({
-      level: 'warning',
-      node: 'project',
-      message: tr('연결되지 않은 카드 {length}개는 XML에 포함되지 않습니다.', {length: w.drafts.length}),
-    });
   const sharedIds = new Set<string>();
   for (const i of w.sharedInputs) {
     if (
       !idOk(i.id) ||
       sharedIds.has(i.id.toLowerCase()) ||
       !i.label.trim() ||
-      (i.key && (!keyCode(i.key) || keyCode(i.key) > 265)) ||
-      (!i.key && !i.gamepad) ||
-      !number(i.gamepad, 0, 65535) ||
-      !Number.isInteger(i.gamepad)
+      (i.control !== undefined
+        ? !isGameControl(i.control) || !!i.key || !!i.gamepad
+        : (i.key && (!keyCode(i.key) || keyCode(i.key) > 265)) ||
+          (!i.key && !i.gamepad) ||
+          !number(i.gamepad, 0, 65535) ||
+          !Number.isInteger(i.gamepad))
     )
       err('inputs', tr('공통 입력의 ID·키·패드를 확인하세요.'));
     sharedIds.add(i.id.toLowerCase());
@@ -1066,6 +673,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
   out.push(...validateParameters(w));
   if (!idOk(w.id) || !w.name.trim()) err('project', tr('묶음 이름과 영문 ID가 필요합니다.'));
   if (!w.actions.length) err('project', tr('동작을 하나 이상 추가하세요.'));
+
   const ids = new Set<string>(),
     uids = new Set<string>();
   for (const a of w.actions) {
@@ -1073,7 +681,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(a.uid, tr('동작 ID가 중복되었거나 잘못되었습니다.'));
     uids.add(a.uid);
     ids.add(a.config.actionId.toLowerCase());
-    for (const e of validate(a.config, selectsOnly(a) || drafts.stranded.includes(a.uid)))
+    for (const e of validate(a.config))
       // Named as the user sees the action (its display name), not by its XML id.
       out.push({...e, node: a.uid, message: (a.config.name.trim() || a.config.actionId) + ': ' + e.message});
     if (a.pair && a.config.fireArrow) err(a.uid, tr('페어에는 활 발사를 사용할 수 없습니다.'));
@@ -1149,12 +757,6 @@ export function validateWorkspace(w: Workspace): Issue[] {
       a.config.cost.enabled
     )
       err(a.uid, tr('페어는 RootBehaviorGraph의 단일 HKX와 역할별 연출을 사용합니다.'));
-    // The target is a start's (written on <Start>): an action not started by itself has none to check.
-    if (
-      !['nearest', 'combatTarget'].includes(p.target) ||
-      (p.target === 'combatTarget' && !['event', 'none'].includes(a.config.start.mode))
-    )
-      err(a.uid, tr('전투 대상 연결은 이벤트 시작에만 사용하세요.'));
     if (
       !isPairedRig(p.targetRig ?? 'character') ||
       !number(p.range, 0.001, 10000) ||
@@ -1197,24 +799,21 @@ export function validateWorkspace(w: Workspace): Issue[] {
       partner = w.actions.find(a => a.uid === l.partnerTo);
     if (!idOk(l.id) || uids.has(l.id) || linkIds.has(l.id)) err(l.id, tr('연결 ID 중복 또는 형식 오류'));
     linkIds.add(l.id);
-    if (!a || !b || a === b) {
+    if (!a) {
       err(l.id, tr('유효한 출발·도착 동작을 지정하세요.'));
       continue;
     }
+    if (!l.card && (!b || a === b)) {
+      err(l.id, tr('전환의 목적지(HKX 또는 조건 카드)를 고르세요.'));
+      continue;
+    }
     if (
+      b &&
       l.blend !== undefined &&
       (!number(l.blend, 0, 5) || a.pair || b.pair || a.config.steps.length !== 1 || b.config.steps.length !== 1)
     )
       err(l.id, tr('경로별 블렌드는 단일 일반 HKX 사이에서만 지원합니다.'));
-    // The runtime picks the played action by the destination's conditions after the transition (0.12.244).
-    else if (l.blend !== undefined && b.flow)
-      err(
-        l.id,
-        tr(
-          '조건 분기를 거치는 전환에는 블렌드를 둘 수 없습니다(런타임 미지원). 전환의 블렌드를 지우거나 조건을 떼어 내세요.'
-        )
-      );
-    if (l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
+    if (b && l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
       err(l.id, tr('양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.'));
     if (!['input', 'event'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
     if (l.mode === 'event') {
@@ -1231,6 +830,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
         for (const s of [
           input.key ? 'key:' + keyCode(input.key) : '',
           input.gamepad ? 'pad:' + input.gamepad : '',
+          input.control ? 'control:' + input.control : '',
         ].filter(Boolean)) {
           const key = a.uid + ':' + s;
           if (signatures.has(key)) err(l.id, tr('같은 출발 동작에 같은 입력의 전환이 둘 있습니다.'));
@@ -1254,24 +854,6 @@ export function validateWorkspace(w: Workspace): Issue[] {
   }
   return out;
 }
-/**
- * An action whose flow picks other actions and never its own clip: a choice, not a playback. The
- * runtime reads only its start, its conditions (they gate every branch, runtime 0.12.239), the events
- * it suppresses and the flow; its clip settings, QTEs and transitions never apply. It is written
- * without a clip (runtime 0.12.244) and its HKX card is not drawn (graph/sharing.ts).
- */
-export function selectsOnly(a: Action): boolean {
-  const f = a.flow;
-  // A start that follows another's condition, made for it (graph/flat.ts startIntoCondition), only selects.
-  if (f?.follow || (f?.unlinked && f.selects)) return f.selects === true;
-  if (!f?.tests.some(t => t.id === f.entry)) return false;
-  const ends = f.tests.flatMap(t => [t.pass, t.fail]).flatMap(e => (e && 'action' in e ? [e.action] : []));
-  // With no destination yet only a flow made to select (graph/flat.ts splitCondition) selects: a new HKX card
-  // whose condition is emptied keeps its card.
-  return !ends.includes(a.uid) && (ends.length > 0 || f.selects === true);
-}
-const SELECTING = new Set(['Start', 'Require', 'Suppress', 'Flow']);
-
 function cameraNode(w: Workspace, camera: CameraRestore) {
   return node(
     'Camera',
@@ -1281,148 +863,141 @@ function cameraNode(w: Workspace, camera: CameraRestore) {
     )
   );
 }
+/** The XML (format 6, runtime 0.12.291): the event registry, then the starts, HKX cards and named condition cards in
+ *  the document's order (format6Xml.ts). */
 export function compileWorkspace(w: Workspace): string {
-  w = lowerDisconnected(w);
-
   w = sourceLinks(w);
   const errors = validateWorkspace(w).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(e => e.node + ': ' + e.message).join('\n'));
-  w = lowerFlowDrafts(w).workspace;
-  w = lowerBlends(w);
+  const x = writerOf(w);
   const root = node('AnimationSet', {
     version: XML_FORMAT_VERSION,
     id: w.id,
     view: projectView(w) !== 'third' ? projectView(w) : undefined,
   });
-  // Format 4 writes every key where it is used (Start, Connect, Carry); the file has no <Inputs>.
-  for (const a of w.actions) {
-    const config = clone(a.config),
-      pair = a.pair,
-      input = (id: string) => keyAttrs(config.inputs.find(i => i.id === id));
-    const out = actionXml(config, !!pair, selectsOnly(a));
-    root.children.push(out);
-    // The view when it is not the file's; pairs and putdowns play in third person whatever it says.
-    if (!fixedThird(w, a) && actionView(w, a) !== projectView(w)) out.attrs.view = actionView(w, a);
-    if (actionView(w, a) === 'third' && a.firstPerson === 'switch') out.attrs.firstPerson = 'switch';
-    if (a.flow) out.children.push(flowXml(w, a.uid));
-    out.children.push(...qteXml(w, a));
-    if (!a.enterBlendEnabled) out.children = out.children.filter(n => n.name !== 'Enter');
-    if (!a.exitBlendEnabled) delete out.children.find(n => n.name === 'Exit')!.attrs.blend;
-    out.children = out.children.filter(n => n.name !== 'Exit' || Object.keys(n.attrs).length);
-    // A vanilla cancel: its id when it is not the one the runtime gives it (cancel1, cancel2, ... by position);
-    // no <Window> when it is open for the whole clip.
-    (a.cancels ?? []).forEach((c, index) =>
-      out.children.push(
-        node(
-          'Cancel',
-          {
-            id: cancelXmlId(c) === 'cancel' + (index + 1) ? undefined : cancelXmlId(c),
-            to: c.to,
-            blend: c.blend ?? undefined,
-          },
-          c.always ? [] : [node('Window', windowAttrs(c.open, c.close, c.buffered))]
-        )
-      )
-    );
-    if (pair) {
-      out.name = 'Pair';
-      const target = omitDefaults(
-        {range: pair.range, angle: pair.angle, rig: pair.targetRig ?? 'character'},
-        {range: 150, angle: 60, rig: 'character'}
-      );
-      if (Object.keys(target).length) out.children.push(node('Target', target));
-      if (pair.lossEnabled) out.children.push(node('OnPartnerLost', {blend: pair.lossBlend}));
-      const carry = pair.carry;
-      if (carry)
-        out.children.push(
-          node(
-            'Carry',
-            omitDefaults(
-              {
-                bone: carry.bone,
-                targetRoot: carry.targetRoot,
-                putdown: w.actions.find(x => x.uid === carry.putdownAction)!.config.actionId,
-                ...input(carry.input),
-                target: carry.target,
-                part: carry.target === 'physics' && carry.part ? carry.part : undefined,
-                weapon: carry.weapon,
-              },
-              {target: 'pose', weapon: 'sheathed'}
-            ),
-            [
-              ...(carry.fix ? [node('Fix', {at: carry.fix.at.seconds})] : []),
-              ...(carry.hold
-                ? [
-                    node(
-                      'Hold',
-                      omitDefaults(
-                        {blendIn: carry.hold.blendIn, blendOut: carry.hold.blendOut},
-                        {blendIn: 0.2, blendOut: 0.2}
-                      ),
-                      carry.hold.bones.map(b =>
-                        node('Bone', omitDefaults({name: b.name, weight: b.weight}, {weight: 1}))
-                      )
-                    ),
-                  ]
-                : []),
-            ]
-          )
-        );
-      // The pair's synchronisation values are its Advanced; an Advanced left empty is not written.
-      const settings = omitDefaults({reorientSupport: pair.reorientSupport}, {reorientSupport: true});
-      if (Object.keys(settings).length) out.children.push(node('Advanced', settings));
-      if (config.start.mode === 'event' && pair.target !== 'nearest')
-        out.children.find(n => n.name === 'Start')!.attrs.target = pair.target;
-      if (pair.effectsEnabled) {
-        const effects = node(
-          'Effects',
-          omitDefaults({interruptOnThirdPartyHit: pair.interruptOnThirdPartyHit}, {interruptOnThirdPartyHit: false})
-        );
-        if (a.cameraEnabled && a.camera) effects.children.push(cameraNode(w, a.camera));
-        for (const e of [...pair.effects, ...pairTimelineEffects(pair)])
-          effects.children.push(node('Do', doAttrs(e.values, true)));
-        out.children.push(effects);
-      }
-    }
-    // An ordinary action's Effects: its camera restore (runtime 0.12.260) and its clip-time functions (0.12.274).
-    if (!a.pair && ((a.cameraEnabled && a.camera) || a.config.effects?.length))
-      out.children.push(
-        node('Effects', {}, [
-          ...(a.cameraEnabled && a.camera ? [cameraNode(w, a.camera)] : []),
-          ...(a.config.effects ?? []).map(e => node('Do', doAttrs(e.values, true))),
-        ])
-      );
-    // The numbers its clip runs registered functions with (runtime 0.12.281).
-    const values = eventValuesXml(w, a);
-    if (values) out.children.push(values);
-    // Transitions (Connect): no <Window> is the whole clip.
-    for (const l of w.links.filter(l => l.from === a.uid)) {
-      const target = w.actions.find(a => a.uid === l.to)!,
-        partner = w.actions.find(a => a.uid === l.partnerTo);
-      out.children.push(
-        node(
-          'Connect',
-          {
-            to: target.config.actionId,
-            blend: l.blend,
-            partnerTo: partner?.config.actionId,
-            ...(l.mode === 'event' ? {event: l.event} : input(l.input)),
-          },
-          l.window ? [node('Window', windowAttrs(l.open, l.close, l.buffered))] : []
-        )
-      );
-    }
-    if (selectsOnly(a)) out.children = out.children.filter(n => SELECTING.has(n.name));
-  }
   // The global event registry comes first: every name the file registers, with its functions, and the QTEs
   // events start (runtime 0.12.248) under their event (a name registered here or one only they use).
   let registry = registryXml(w);
-  for (const {event, xml} of eventQteXml(w)) {
+  for (const {event, xml} of eventQteXml(w, x)) {
     registry ??= node('EventRegistry', {}, []);
     let e = registry.children.find(c => c.name === 'Event' && eventKey(c.attrs.name ?? '') === eventKey(event));
     if (!e) registry.children.push((e = node('Event', {name: event}, [])));
     e.children.push(xml);
   }
-  if (registry) root.children.unshift(registry);
+  if (registry) root.children.push(registry);
+  for (const e of rootOrder(w, x)) {
+    if (e.kind === 'card') root.children.push(sharedXml(x, e.uid));
+    else if (e.kind === 'start') {
+      const s = w.starts.find(s => s.uid === e.uid)!;
+      // A start that goes nowhere is not written (a warning says so).
+      if (s.to) root.children.push(startXml(x, s));
+    } else
+      root.children.push(
+        actionElement(
+          w,
+          x,
+          w.actions.find(a => a.uid === e.uid)!
+        )
+      );
+  }
   return documentXml(root);
+}
+/** One HKX card: <Action>/<Pair> with its clip and features (format 6, 1.5). */
+function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action): Xml {
+  const config = clone(a.config),
+    pair = a.pair,
+    input = (id: string) => keyAttrs(config.inputs.find(i => i.id === id));
+  const out = actionXml(config, a);
+  // The view when it is not the file's; pairs and putdowns play in third person whatever it says.
+  if (!fixedThird(w, a) && actionView(w, a) !== projectView(w)) out.attrs.view = actionView(w, a);
+  if (actionView(w, a) === 'third' && a.firstPerson === 'switch') out.attrs.firstPerson = 'switch';
+  out.children.push(...qteXml(w, a, x));
+  // A vanilla transition: its id when it is not the one the runtime gives it (cancel1, cancel2, ... by position);
+  // no window when it is open for the whole clip.
+  (a.cancels ?? []).forEach((c, index) =>
+    out.children.push(
+      node('Vanilla', {
+        id: cancelXmlId(c) === 'cancel' + (index + 1) ? undefined : cancelXmlId(c),
+        to: c.to
+          .split(',')
+          .map(t => t.trim().replace(/^vanilla:/, ''))
+          .join(','),
+        ...(c.always ? {} : windowAttrs(c.open, c.close, c.buffered)),
+        blend: c.blend ?? undefined,
+      })
+    )
+  );
+  if (pair) {
+    out.name = 'Pair';
+    const target = omitDefaults(
+      {range: pair.range, angle: pair.angle, rig: pair.targetRig ?? 'character'},
+      {range: 150, angle: 60, rig: 'character'}
+    );
+    if (Object.keys(target).length) out.children.push(node('FindPartner', target));
+    if (pair.lossEnabled) out.attrs.lostBlend = String(pair.lossBlend);
+    if (!pair.reorientSupport) out.attrs.reorient = 'false';
+    const carry = pair.carry;
+    if (carry)
+      out.children.push(
+        node(
+          'Carry',
+          omitDefaults(
+            {
+              bone: carry.bone,
+              targetRoot: carry.targetRoot,
+              putdown: w.actions.find(x => x.uid === carry.putdownAction)!.config.actionId,
+              ...input(carry.input),
+              target: carry.target,
+              part: carry.target === 'physics' && carry.part ? carry.part : undefined,
+              weapon: carry.weapon,
+            },
+            {target: 'pose', weapon: 'sheathed'}
+          ),
+          [
+            ...(carry.fix ? [node('Fix', {at: carry.fix.at.seconds})] : []),
+            ...(carry.hold
+              ? [
+                  node(
+                    'Hold',
+                    omitDefaults(
+                      {blendIn: carry.hold.blendIn, blendOut: carry.hold.blendOut},
+                      {blendIn: 0.2, blendOut: 0.2}
+                    ),
+                    carry.hold.bones.map(b => node('Bone', omitDefaults({name: b.name, weight: b.weight}, {weight: 1})))
+                  ),
+                ]
+              : []),
+          ]
+        )
+      );
+    if (pair.interruptOnThirdPartyHit) out.attrs.interruptOnHit = 'true';
+    if (a.cameraEnabled && a.camera) out.children.push(cameraNode(w, a.camera));
+    for (const e of [...pair.effects, ...pairTimelineEffects(pair)])
+      out.children.push(node('Do', doAttrs(e.values, true)));
+  } else {
+    // An ordinary action's camera restore (runtime 0.12.260) and its clip-time functions (0.12.274).
+    if (a.cameraEnabled && a.camera) out.children.push(cameraNode(w, a.camera));
+    for (const e of a.config.effects ?? []) out.children.push(node('Do', doAttrs(e.values, true)));
+  }
+  // The numbers its clip runs registered functions with (runtime 0.12.281).
+  const values = eventValuesXml(w, a);
+  if (values) out.children.push(values);
+  // Transitions: no from, until or buffer is the whole clip.
+  for (const l of w.links.filter(l => l.from === a.uid)) {
+    const partner = w.actions.find(a => a.uid === l.partnerTo);
+    out.children.push(
+      linkDestination(
+        x,
+        node('Transition', {
+          partnerTo: partner?.config.actionId,
+          ...(l.mode === 'event' ? {event: l.event} : input(l.input)),
+          ...(l.window ? windowAttrs(l.open, l.close, l.buffered) : {}),
+          blend: l.blend,
+        }),
+        l.to,
+        l.card
+      )
+    );
+  }
+  return out;
 }

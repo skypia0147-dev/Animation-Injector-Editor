@@ -6,7 +6,7 @@ import {patch, remove} from '../src/timeline/model.ts';
 import {flatGraph} from '../src/graph/flat.ts';
 import {mark} from '../src/model.ts';
 const xml =
-  '<AnimationSet version="4" id="Test"><Inputs><Input id="use" key="LAlt"/></Inputs><Action id="Dodge" clip="Animations\\Dodge.hkx"><Start input="use"/><Require air="allow"/><Cancel id="cancel" to="vanilla:Attack"><Window from="0.35" until="end" buffer="true"/></Cancel><Advanced safety="0.7"/></Action></AnimationSet>';
+  '<AnimationSet version="6" id="Test"><Inputs><Input id="use" key="LAlt"/></Inputs><Start input="use" to="Dodge"/><Action id="Dodge" clip="Animations\\Dodge.hkx" air="both" safety="0.7"><Vanilla id="cancel" to="Attack" from="0.35"/></Action></AnimationSet>';
 
 test('vanilla cancel survives current XML import, export and project save without changing inherited blend', () => {
   const w = importWorkspaceXml(xml),

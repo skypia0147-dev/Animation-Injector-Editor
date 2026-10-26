@@ -2,7 +2,7 @@
 // shot, at a clip time (the action's FireArrow at) or on an event the clip's annotations send (the registry's
 // fireArrow, run with this node's way and damage: runtime 0.12.281, docs/mockup-event-node-values); and the button's
 // release as the drawn shot's early release. A clip time and an event together, or two events, shoot twice.
-import {putAction, selectsOnly, type Action, type Effect, type Workspace} from '../workspace.ts';
+import {putAction, type Action, type Effect, type Workspace} from '../workspace.ts';
 import {clipKey, sentEvent, type Annotation} from './annotations.ts';
 import {addFunction, eventKey, nodeValues, runValues, setNodeValues, type EventRow} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
@@ -21,8 +21,7 @@ export function sentEvents(w: Workspace, a: Action | undefined, annotations: Map
     if (e && !own.has(eventKey(e.name))) own.set(eventKey(e.name), {name: e.name, time: n.time});
   }
   const senders = new Map<string, number>();
-  // A selecting action plays no clip of its own: it sends nothing.
-  for (const other of w.actions.filter(x => !selectsOnly(x))) {
+  for (const other of w.actions) {
     const seen = new Set<string>();
     for (const n of annotations.get(clipKey(clipOf(other))) ?? []) {
       const e = sentEvent(n.text, !!other.pair);

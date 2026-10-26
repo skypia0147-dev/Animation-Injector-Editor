@@ -79,7 +79,7 @@ test('an ordinary action keeps clip-time functions on its own actor (runtime 0.1
   const xml = compileWorkspace(w);
   assert.match(
     xml,
-    /<Effects>\s*<Do at="0.4" op="shake" strength="1.5"\/>\s*<Do at="0.4" op="spell" plugin="My.esp" form="801"\/>/
+    /<Do at="0.4" op="shake" strength="1.5"\/>\s*<Do at="0.4" op="spell" plugin="My.esp" form="801"\/>/
   );
   fs.writeFileSync(folder + '/ordinary.xml', xml);
   const check = spawnSync(checker, [folder + '/ordinary.xml'], {encoding: 'utf8'});
@@ -96,7 +96,7 @@ test('an ordinary action keeps clip-time functions on its own actor (runtime 0.1
   // Removing the last one leaves no list.
   w = remove(remove(w, a.uid, 'effect:' + effects[0].id), a.uid, 'effect:' + effects[1].id);
   assert.equal(w.actions[0].config.effects, undefined);
-  assert.doesNotMatch(compileWorkspace(w), /<Effects/);
+  assert.doesNotMatch(compileWorkspace(w), /<Do /);
 });
 
 const pairWorkspace = () => {
@@ -158,40 +158,6 @@ test('a clip-time moment becomes an event: the registry gets what it acts with, 
     compileWorkspace(w),
     /<EventValues>\s*<Event name="Grapple_Stom">\s*<Do op="shake" strength="1.5" delay="0.2"\/>\s*<\/Event>\s*<\/EventValues>/
   );
-});
-test('a pair clip-time effect names a role and no sender filter (runtime 0.12.275)', needsChecker, () => {
-  // An older project: target and from as they were.
-  const w = pairWorkspace();
-  w.actions[0].pair.effectsEnabled = true;
-  w.actions[0].pair.effects = [
-    {id: 'e1', values: {op: 'hide', at: '0.1', target: 'sender', from: 'receiver'}},
-    {id: 'e2', values: {op: 'shake', at: '0.2', target: 'initiator', from: 'initiator'}},
-    {
-      id: 'e3',
-      values: {op: 'spell', at: '0.3', target: 'partner', from: 'any', plugin: 'a.esp', form: '1', space: 'back'},
-    },
-  ];
-  const opened = parseWorkspace(JSON.stringify(w));
-  assert.deepEqual(
-    opened.actions[0].pair.effects.map(e => e.values),
-    [
-      {op: 'hide', at: '0.1', target: 'receiver'},
-      {op: 'shake', at: '0.2'},
-      {op: 'spell', at: '0.3', plugin: 'a.esp', form: '1'},
-    ],
-    'the role reached; a player-only function and both name none; the space condition is dropped'
-  );
-  const xml = compileWorkspace(opened);
-  assert.doesNotMatch(xml, / from="| space=/);
-  fs.writeFileSync(folder + '/pair-roles.xml', xml);
-  const check = spawnSync(checker, [folder + '/pair-roles.xml'], {encoding: 'utf8'});
-  assert.equal(check.status, 0, check.stdout + check.stderr);
-  // An older file reads the same way.
-  assert.deepEqual(readDo(parseXml('<Do at="0.5" op="hide" target="partner" from="initiator"/>'), true), {
-    at: '0.5',
-    op: 'hide',
-    target: 'receiver',
-  });
 });
 test('a window and a cost move between the clip and the registry; on and off are one item (docs/mockup-moment-timing)', () => {
   let w = emptyWorkspace();

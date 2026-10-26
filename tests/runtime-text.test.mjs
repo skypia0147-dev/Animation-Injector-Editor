@@ -10,13 +10,18 @@ import {checker, needsChecker} from './local.mjs';
 // the UI language by swapping the known pieces (tools/i18n-runtime.mjs). Real checker output, English UI.
 const head = '<?xml version="1.0" encoding="utf-8"?>\n';
 const cases = {
-  empty: '<AnimationSet version="4" id="A"/>',
-  attribute: '<AnimationSet version="4" id="A"><Action id="X" clip="Animations\\a.hkx" foo="1"/></AnimationSet>',
+  empty: '<AnimationSet version="6" id="A"/>',
+  version: '<AnimationSet version="5" id="A"/>',
+  attribute: '<AnimationSet version="6" id="A"><Action id="X" clip="Animations\\a.hkx" foo="1"/></AnimationSet>',
   boolean:
-    '<AnimationSet version="4" id="A"><Action id="X" clip="Animations\\a.hkx"><Start key="G" onKeyUp="maybe"/></Action></AnimationSet>',
-  flowBlend:
-    '<AnimationSet version="4" id="A"><Action id="F" clip="Animations\\a.hkx"><Start key="G"/><Connect to="S" key="H" blend="0.3"/></Action>' +
-    '<Action id="S" clip="Animations\\b.hkx"><Flow entry="C"><Test id="C" kind="blocking" subject="self" pass="D"/><Play id="D" action="S"/></Flow></Action></AnimationSet>',
+    '<AnimationSet version="6" id="A"><Start key="G" onKeyUp="maybe" to="X"/><Action id="X" clip="Animations\\a.hkx"/></AnimationSet>',
+  inside:
+    '<AnimationSet version="6" id="A"><Action id="X" clip="Animations\\a.hkx"><Start key="G"/></Action></AnimationSet>',
+  cardBlend:
+    '<AnimationSet version="6" id="A"><Start key="G" to="F"/><Action id="F" clip="Animations\\a.hkx"><Transition key="H" blend="0.3"><Row to="S"><Check kind="blocking"/></Row></Transition></Action>' +
+    '<Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',
+  playsNothing:
+    '<AnimationSet version="6" id="A"><Start key="G"><True/></Start><Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',
 };
 
 test('runtime checker findings show without Korean in the English UI', needsChecker, () => {

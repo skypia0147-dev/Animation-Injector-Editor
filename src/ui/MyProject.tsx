@@ -4,9 +4,8 @@ const effectTitle = (e: {id: string; values: Record<string, string>}) =>
   functionSummary(e.values) + (e.values.at !== undefined ? ' · ' + e.values.at + tr('초') : '');
 import {inputLabel, type Issue} from '../model.ts';
 import type {Workspace} from '../workspace.ts';
-import {selectsOnly} from '../workspace.ts';
 import {clipEffects} from '../clipEffects.ts';
-import {gamepadXml} from '../keys.ts';
+import {gamepadXml, gameControlLabel} from '../keys.ts';
 import {memo, useMemo, useRef, useState} from 'react';
 import {markerUseCounts} from './details/markerCatalog.ts';
 import {FolderTree, TreeFolder} from './FolderTree.tsx';
@@ -31,20 +30,21 @@ const NO_NAMES = new Map<string, string>();
 /** What a row shows about its action (10-20, docs/mockup-ux-polish ⑩): its kind by icon, how it starts, and
  *  whether the check found a problem in it. */
 type Kind = 'pair' | 'single' | 'selecting';
-// A pair that only picks the next action plays nothing itself: it shows as a pick.
-const kindOf = (a: Action): Kind => (selectsOnly(a) ? 'selecting' : a.pair ? 'pair' : 'single');
+const kindOf = (a: Action): Kind => (a.pair ? 'pair' : 'single');
 const kindIcon = {pair: 'pair', single: 'play', selecting: 'branch'} as const;
 const kindLabel = (k: Kind) => (k === 'pair' ? tr('페어') : k === 'selecting' ? tr('고르기 전용') : tr('일반 동작'));
 type Problem = 'error' | 'warning' | undefined;
 /** How an action starts by itself, as text the memoized row can compare: 'key:G', 'event:Name', or ''. */
 function startOf(w: Workspace, a: Action): string {
-  const start = a.config.start;
+  const start = w.starts.find(s => s.to && 'action' in s.to && s.to.action === a.uid);
+  if (!start) return '';
   if (start.mode === 'input') {
-    const input = [...a.config.inputs, ...w.sharedInputs].find(i => i.id === start.input);
-    const key = input?.key || (input?.gamepad ? gamepadXml(input.gamepad) : '');
+    const key = start.control
+      ? gameControlLabel(start.control)
+      : start.key || (start.gamepad ? gamepadXml(start.gamepad) : '');
     return key ? 'key:' + key : '';
   }
-  return start.mode === 'event' ? 'event:' + start.event : '';
+  return 'event:' + start.event;
 }
 function StartBadge({start}: {start: string}) {
   const value = start.slice(start.indexOf(':') + 1);
@@ -231,7 +231,7 @@ const InputFolder = memo(function InputFolder({
           >
             <Icon name="entry" size={14} />
             <span>{i.label}</span>
-            <kbd>{i.key || (i.gamepad ? 'pad ' + i.gamepad : '')}</kbd>
+            <kbd>{i.control ? gameControlLabel(i.control) : i.key || (i.gamepad ? 'pad ' + i.gamepad : '')}</kbd>
           </button>
         ))}
     </TreeFolder>

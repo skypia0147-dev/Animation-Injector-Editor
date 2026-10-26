@@ -1,20 +1,28 @@
 import {extensionKinds, formKinds, readExtension} from './graph/conditionExtensions.ts';
-import {foldNotConditions} from './graph/conditions.ts';
 import {shareEventReceivers} from './graph/sharing.ts';
 import {eventListError, uniqueEvents, equippedTypes, attackStates} from './runtimeExtensions.ts';
 import {pairedRigs} from './pairedRigs.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
+import {selfDirections} from './graph/conditions.ts';
 import {createProject, fullBodyGraph, mark} from './model.ts';
 import type {Mark, Input} from './model.ts';
-import {gamepadFromXml} from './keys.ts';
-import {emptyWorkspace, wrap, defaultPair, addLink, arrange, validateWorkspace} from './workspace.ts';
-import {readDo, readEventValues, readRegistry, registryNumbersIssue} from './eventRegistry.ts';
-import {liftStartLimits} from './startLimits.ts';
+import {gamepadFromXml, gameControlFromXml, type GameControl} from './keys.ts';
+import {emptyWorkspace, wrap, defaultPair, arrange, validateWorkspace, uid} from './workspace.ts';
+import {readDo, readEventValues, readRegistry} from './eventRegistry.ts';
 import type {EventRow} from './eventRegistry.ts';
-import type {Workspace, Action} from './workspace.ts';
+import type {Workspace, Link} from './workspace.ts';
 import {parseXml, shapeXml, one} from './xml.ts';
 import type {Xml} from './xml.ts';
 import {views, firstPersonStarts, actionView, fixedThird} from './view.ts';
+import {readQtes, readEventQtes} from './qte.ts';
+import {checkKinds} from './cardChecks.ts';
+import type {CardTest, ConditionCard, Ref, StartCard} from './cards.ts';
+import {tr} from './i18n/korean.ts';
+
+// Opening an XML (format 6, runtime 0.12.291): the document is the file's starts, condition cards and HKX cards, one
+// to one (docs/설계-형식6-에디터.md). Formats 4 and 5 are converted to format 6 first (format6Convert.ts), as the
+// runtime's tools/convert_format6.py converts them.
+
 const get = (n: Xml | undefined, k: string, d = '') => n?.attrs[k] ?? d;
 function num(n: Xml | undefined, k: string, d: number) {
   const s = n?.attrs[k];
@@ -43,258 +51,166 @@ function child(n: Xml, name: string, attrs: string[], children: string[] = []) {
   if (c) shapeXml(c, attrs, children);
   return c;
 }
-function clock(raw: string, fallback = ''): Mark {
+function clock(raw: string): Mark {
   const numeric = (s: string) => {
     s = s.replace(/^@/, '');
     if (/^end(?:-\d+(?:\.\d+)?)?$/.test(s)) return mark(s === 'end' ? 0 : Number(s.slice(4)), 'end');
     if (/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(s)) return mark(Number(s));
     throw new Error(tr('시각 구문 오류: ') + s);
   };
-  // An event moment waits for its event only (runtime 0.12.278): an older file's time for when it does not come is
-  // refused as the runtime refuses it.
-  if (fallback)
-    throw new Error(
-      tr('fallback(이벤트가 안 오면)은 없어졌습니다(런타임 0.12.278): 이벤트로 두면 그 이벤트가 올 때만 동작합니다.')
-    );
   if (!raw.startsWith('event:')) return numeric(raw);
   const result = mark();
   result.basis = 'event';
   result.event = raw.slice(6);
   return result;
 }
-/** A gamepad attribute (format 4: a button name or code:N); 0 when absent. */
+/** A gamepad attribute (a button name or code:N); 0 when absent. */
 const pad = (n: Xml | undefined) =>
   n?.attrs.gamepad === undefined ? 0 : gamepadFromXml(n.attrs.gamepad, n.name + '.gamepad');
 function inputs(n: Xml | undefined): Input[] {
   if (!n) return [];
   shapeXml(n, [], ['Input']);
   return n.children.map(c => {
-    shapeXml(c, ['id', 'key', 'gamepad']);
+    shapeXml(c, ['id', 'key', 'gamepad', 'control']);
     const id = required(c, 'id');
+    if (c.attrs.control !== undefined) {
+      if (c.attrs.key !== undefined || c.attrs.gamepad !== undefined)
+        throw new Error(tr('{name}: control은 key·gamepad와 함께 쓰지 않습니다.', {name: c.name}));
+      return {id, label: id, key: '', gamepad: 0, control: gameControlFromXml(c.attrs.control, 'Input.control')};
+    }
     return {id, label: id, key: key(get(c, 'key')), gamepad: pad(c)};
   });
 }
 function key(k: string) {
   return /^0x[\da-f]+$/i.test(k) ? 'code:' + parseInt(k, 16) : /^\d+$/.test(k) ? 'code:' + k : k === 'None' ? '' : k;
 }
-/** A window's times (format 4): from defaults to the clip start, until to its end. */
-const windowTimes = (win: Xml) => ({
-  open: clock(get(win, 'from', '0'), get(win, 'fromFallback')),
-  close: clock(get(win, 'until', 'end'), get(win, 'untilFallback')),
-  buffered: bool(win, 'buffer', true),
+/** A transition's window (format 6: from, until, buffer on <Transition>/<Vanilla>). */
+const windowTimes = (n: Xml) => ({
+  open: clock(get(n, 'from', '0')),
+  close: clock(get(n, 'until', 'end')),
+  buffered: bool(n, 'buffer', true),
 });
-import {readQtes, readEventQtes} from './qte.ts';
-import {tr} from './i18n/korean.ts';
-// Motion is the HKX's AMR annotations only (runtime 0.12.231); the runtime rejects these forms with the same words.
-function noMotion(n: Xml) {
-  const gone = (what: string, instead: string) => {
-    throw new Error(tr('{what}은(는) 없어졌습니다(0.12.231): {instead}', {what, instead}));
-  };
-  const toFlow = tr('방향마다 동작을 두고 이동 입력 방향 조건(Flow)으로 고르세요');
-  if (one(n, 'Motion'))
-    gone('Motion', tr('이동은 HKX의 AMR 주석(animmotion)으로만 합니다. 움직이지 않게 하려면 주석을 지우세요'));
-  if (one(n, 'Clips')) gone(tr('Clips(방향별 클립)'), toFlow);
-  const start = one(n, 'Start');
-  for (const k of ['direction', 'defaultDirection', 'strict'])
-    if (start?.attrs[k] !== undefined) gone('Start ' + k, toFlow);
-}
-// Format 4 (runtime 0.12.233) refuses these with what replaces them; the editor says the same.
-const comboGone = (what: string) =>
-  new Error(
-    tr('{what}는 콤보와 함께 없어졌습니다(형식 4): HKX마다 Action을 두고 <Connect to="다음" key="…">로 이으세요.', {
-      what,
-    })
-  );
-const gone4 = (what: string, instead: string) =>
-  new Error(tr('{what}은(는) 없어졌습니다(형식 4): {instead}', {what, instead}));
-const removed3 = (what: string) =>
-  new Error(what + tr(': 형식 3에서 없어진 문법입니다. 이벤트 기능은 EventRegistry에 등록합니다.'));
-/** An action's <Effects><Camera>: its camera restore (any action since 10-16). */
-function readCamera(a: Action, fx: Xml) {
-  const camera = child(fx, 'Camera', ['reset', 'restore', 'timeout']);
-  a.cameraEnabled = !!camera;
-  if (camera)
-    a.camera = {
-      reset: get(camera, 'reset'),
-      restore: choice(camera, 'restore', ['end', 'event'], 'end'),
-      timeout: num(camera, 'timeout', 10),
-    };
-}
+const hasWindow = (n: Xml) => ['from', 'until', 'buffer'].some(k => n.attrs[k] !== undefined);
+const readEvents = (text: string) => {
+  const list = text.split(',');
+  const error = eventListError(list);
+  if (error) throw Error(error);
+  return uniqueEvents(list);
+};
+/** What a card holds: its common conditions, rows, True and False. */
+const CARD = ['Check', 'And', 'Or', 'Row', 'True', 'False'];
+const isGuard = (n: Xml) => ['Check', 'And', 'Or'].includes(n.name);
+
 export function importWorkspaceXml(text: string): Workspace {
   const root = parseXml(text);
   if (root.name !== 'AnimationSet')
     throw new Error(tr('지원하지 않는 XML 형식입니다. 현재 AnimationSet XML을 사용하세요.'));
-  const version = get(root, 'version');
-  if (version === '2' || version === '3')
-    throw new Error(
-      tr(
-        '형식 {version} XML은 열 수 없습니다. 이 에디터는 형식 4(version="4")만 엽니다. 에디터에서 동작을 다시 만들어 저장하세요.',
-        {version}
-      )
-    );
-  if (version !== String(XML_FORMAT_VERSION)) throw new Error(tr('XML 버전 불일치'));
-  if (root.children.some(n => n.name === 'Combo')) throw comboGone('Combo');
-  // External (an action another declaration file provides) went in runtime 0.12.238.
-  if (root.children.some(n => n.name === 'External'))
-    throw new Error(tr('External은 없어졌습니다(런타임 0.12.238): 연결·조건 분기는 같은 파일의 동작만 가리킵니다.'));
-  shapeXml(root, ['id', 'version', 'view'], ['Action', 'Pair', 'Inputs', 'EventRegistry']);
+  if (get(root, 'version') !== String(XML_FORMAT_VERSION))
+    throw new Error(tr('형식 {version} XML만 엽니다.', {version: XML_FORMAT_VERSION}));
+  shapeXml(root, ['id', 'version', 'view'], ['Inputs', 'EventRegistry', 'Start', 'Condition', 'Action', 'Pair']);
   const w = emptyWorkspace();
   w.id = required(root, 'id');
   w.name = w.id;
-  // The file's view (runtime 0.12.225); third person is the default and is not stored.
   const fileView = choice(root, 'view', views, 'third');
   if (fileView !== 'third') w.view = fileView;
   const globalInputs = inputs(one(root, 'Inputs'));
+  // A key: an <Inputs> name, key=/gamepad=, or a game control (control=, runtime 0.12.292); only one of them.
+  const inputKey = (n: Xml): {key: string; gamepad: number; control?: GameControl} => {
+    const given = [n.attrs.input, n.attrs.key ?? n.attrs.gamepad, n.attrs.control].filter(v => v !== undefined);
+    if (given.length > 1) throw new Error(tr('{name}: input, key·gamepad, control 중 하나만 씁니다.', {name: n.name}));
+    if (n.attrs.control !== undefined)
+      return {key: '', gamepad: 0, control: gameControlFromXml(n.attrs.control, n.name + '.control')};
+    if (n.attrs.input === undefined) return {key: key(get(n, 'key')), gamepad: pad(n)};
+    const i = globalInputs.find(i => i.id === n.attrs.input);
+    if (!i) throw new Error(tr('정의되지 않은 입력: ') + n.attrs.input);
+    return {key: i.key, gamepad: i.gamepad, ...(i.control ? {control: i.control} : {})};
+  };
+  const keyed = (n: Xml) =>
+    n.attrs.input !== undefined ||
+    n.attrs.key !== undefined ||
+    n.attrs.gamepad !== undefined ||
+    n.attrs.control !== undefined;
   const rows: EventRow[] = [];
   const registryNode = one(root, 'EventRegistry');
   if (registryNode) readRegistry(registryNode, rows);
-  const source = new Map<string, Xml>(),
-    connectKeys = new Map<string, string[]>();
-  for (const n of root.children.filter(n => n.name !== 'Inputs' && n.name !== 'EventRegistry')) {
-    noMotion(n);
+  const source = new Map<string, Xml>();
+  // HKX cards.
+  for (const n of root.children.filter(n => n.name === 'Action' || n.name === 'Pair')) {
     const pair = n.name === 'Pair';
-    for (const old of ['Step', 'Transition']) if (one(n, old)) throw comboGone(old);
-    if (one(n, 'Events')) throw removed3('Events extra');
-    if (one(n, 'Lock')) throw new Error(tr('Lock(조작 잠금 구간)은 없어졌습니다(런타임 0.12.238).'));
     shapeXml(
       n,
-      ['id', 'clip', 'view', 'firstPerson'],
       [
-        'Start',
-        'Require',
-        'Suppress',
-        'FireArrow',
-        'QTE',
-        'Attack',
-        'Enter',
+        'id',
+        'clip',
+        'view',
+        'firstPerson',
+        'air',
+        'attack',
+        'enter',
+        'block',
+        'safety',
+        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : []),
+      ],
+      [
         'Exit',
         'Rotate',
         'IFrame',
         'HyperArmor',
         'Cost',
-        'Recovery',
-        'Cancel',
-        'Connect',
-        'Advanced',
-        'Target',
-        'OnPartnerLost',
-        // Read and dropped: the runtime refuses it since 0.12.255 (the end position applies to every pair), so an
-        // older XML opens and is written without it.
-        'EndPosition',
-        'Carry',
-        'Effects',
-        'Flow',
+        'MoveCancel',
+        'Vanilla',
+        'Transition',
+        'FireArrow',
+        'QTE',
         'CarryRelease',
         'EventValues',
+        'Do',
+        'Camera',
+        ...(pair ? ['FindPartner', 'Carry'] : []),
       ]
     );
-    if (!pair && n.children.some(c => ['Target', 'OnPartnerLost', 'Carry'].includes(c.name)))
-      throw new Error(tr('페어 전용 요소 위치 오류'));
-
     const p = createProject();
     p.actionId = required(n, 'id');
     p.name = p.actionId;
-    p.inputs = structuredClone(globalInputs);
+    p.inputs = [];
     p.events = [];
-    p.start.mode = 'none';
-    p.start.input = '';
     const a = wrap(p, 'a' + (w.actions.length + 1));
     a.config = p;
     a.position = {x: 100 + (w.actions.length % 3) * 500, y: 80 + Math.floor(w.actions.length / 3) * 230};
-    if (pair) {
-      a.pair = defaultPair();
-      a.pair.lossEnabled = false;
-    }
-    if (one(n, 'Advanced')?.attrs.graph !== undefined)
-      throw gone4('Advanced graph', tr('일반 동작은 1·3인칭 모두 FullBody 경로, 페어는 RootBehaviorGraph입니다'));
-    const adv = child(
-      n,
-      'Advanced',
-      pair ? ['safety', 'getToMarkTime', 'markErrorThreshold', 'reorientSupport', 'applyMotionFromRoot'] : ['safety']
-    );
+    if (pair) a.pair = defaultPair();
     p.graph = [pair ? 'RootBehaviorGraph' : fullBodyGraph];
-    // Advanced safety is read and left out: the runtime keeps its own default (10-23).
     p.steps = [
-      // No clip: a selecting action (runtime 0.12.244); the workspace check requires one if it plays itself.
-      {id: 'A1', label: 'A1', clip: n.attrs.clip ?? '', localPath: '', attack: '', position: {x: 360, y: 140}},
+      {id: 'A1', label: 'A1', clip: required(n, 'clip'), localPath: '', attack: '', position: {x: 360, y: 140}},
     ];
     p.entry = 'A1';
-
-    // A key: an <Inputs> name (input=) or the key written in place (key= / gamepad=). A key written again on
-    // the same action is the same editor input.
+    // A key written on this card (a transition's, a carry's): the same key is the same editor input.
     const addInput = (n: Xml) => {
-      const direct = n.attrs.key !== undefined || n.attrs.gamepad !== undefined;
-      if (n.attrs.input !== undefined) {
-        if (direct) throw new Error(tr('{name}: input과 key·gamepad 중 하나만 씁니다.', {name: n.name}));
-        return n.attrs.input;
-      }
-      const k = key(get(n, 'key')),
-        g = pad(n);
-      if (!k && !g) throw new Error(tr('{name}: 키 또는 패드 버튼이 필요합니다.', {name: n.name}));
-      const same = p.inputs.find(i => i.key === k && i.gamepad === g);
+      const k = inputKey(n);
+      if (!k.key && !k.gamepad && !k.control)
+        throw new Error(tr('{name}: 키 또는 패드 버튼이 필요합니다.', {name: n.name}));
+      const same = p.inputs.find(i => i.key === k.key && i.gamepad === k.gamepad && i.control === k.control);
       if (same) return same.id;
       const id = 'binding' + (p.inputs.length + 1);
-      p.inputs.push({id, label: id, key: k, gamepad: g});
+      p.inputs.push({id, label: id, key: k.key, gamepad: k.gamepad, ...(k.control ? {control: k.control} : {})});
       return id;
     };
-    const keyed = (n: Xml) => n.attrs.input !== undefined || n.attrs.key !== undefined || n.attrs.gamepad !== undefined;
-    const start = child(n, 'Start', ['input', 'key', 'gamepad', 'event', 'actor', 'target', 'onKeyUp']);
-    if (start) {
-      const ev = get(start, 'event');
-      if (ev && keyed(start)) throw new Error(tr('Start: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
-      p.start.mode = ev ? 'event' : keyed(start) ? 'input' : 'none';
-      p.start.event = ev;
-      p.start.actor = choice(start, 'actor', ['both', 'player', 'npc'], 'both');
-      p.start.onKeyUp = bool(start, 'onKeyUp', false);
-      if (p.start.mode === 'input') p.start.input = addInput(start);
-      if (a.pair) a.pair.target = choice(start, 'target', ['nearest', 'combatTarget'], 'nearest');
-      else if (get(start, 'target', 'nearest') !== 'nearest')
-        throw new Error(tr('일반 동작에 페어 대상이 지정되었습니다.'));
-    }
-    const require = child(n, 'Require', ['weapon', 'air', 'blockWhileAttacking', 'cooldown', 'stamina']);
-    p.air = choice(require, 'air', ['deny', 'allow', 'only'], 'deny');
-    p.cooldown = num(require, 'cooldown', 0);
-    // An older file's state checks (runtime 0.12.276 refuses them): liftStartLimits moves them into a branch.
-    Object.assign(p, {
-      weapon: choice(require, 'weapon', ['drawn', 'any'], 'any') === 'drawn',
-      requiredStamina: num(require, 'stamina', 0),
-      blockWhileAttacking: bool(require, 'blockWhileAttacking', false),
-    });
-    const readEvents = (text: string) => {
-      const list = text.split(',');
-      const error = eventListError(list);
-      if (error) throw Error(error);
-      return uniqueEvents(list);
-    };
-    const suppress = child(n, 'Suppress', ['events', 'when']);
-    if (suppress)
-      p.suppress = {
-        events: readEvents(required(suppress, 'events')),
-        when: choice(suppress, 'when', ['startable', 'active', 'both'], 'startable'),
-      };
-    if (p.start.mode === 'none' && p.start.onKeyUp)
-      throw new Error(tr('비활성 Trigger의 키업 설정은 지원하지 않습니다.'));
-    p.attack = get(child(n, 'Attack', ['data']), 'data');
-    const enter = child(n, 'Enter', ['blend']),
-      exit = child(n, 'Exit', ['at', 'fallback', 'blend']);
-    a.enterBlendEnabled = enter?.attrs.blend !== undefined;
+    const air = choice(n, 'air', ['both', 'only'] as const, 'both');
+    p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
+    if (n.attrs.block !== undefined) p.suppress = {events: readEvents(required(n, 'block')), when: 'active'};
+    p.attack = get(n, 'attack');
+    a.enterBlendEnabled = n.attrs.enter !== undefined;
+    p.enterBlend = num(n, 'enter', 0.1);
+    const exit = child(n, 'Exit', ['at', 'blend']);
     a.exitBlendEnabled = exit?.attrs.blend !== undefined;
-    p.enterBlend = num(enter, 'blend', 0.1);
     p.exitBlend = num(exit, 'blend', 0.2);
-
-    p.exit = clock(get(exit, 'at', 'end-0.05'), get(exit, 'fallback'));
+    p.exit = clock(get(exit, 'at', 'end-0.05'));
     for (const [xml, k] of [
       ['Rotate', 'rotate'],
       ['IFrame', 'iframe'],
       ['HyperArmor', 'armor'],
     ] as const) {
-      const s = child(n, xml, [
-        ...['from', 'until', 'fromFallback', 'untilFallback'],
-        ...(k === 'rotate' ? ['locked'] : []),
-      ]);
+      const s = child(n, xml, ['from', 'until', ...(k === 'rotate' ? ['locked'] : [])]);
       if (!s) continue;
-      if (['from', 'until'].some(a => get(s, a).startsWith('event:')) || s.attrs.fromFallback || s.attrs.untilFallback)
-        throw removed3(xml + tr('의 이벤트 시각'));
       if (k === 'rotate' && s.attrs.locked !== undefined) {
         if (pair || Object.keys(s.attrs).some(key => key !== 'locked'))
           throw new Error(tr('Rotate locked는 일반 동작 전용이며 구간 설정과 함께 사용할 수 없습니다.'));
@@ -302,23 +218,18 @@ export function importWorkspaceXml(text: string): Workspace {
         p.slots.rotate.enabled = false;
         continue;
       }
-      p.slots[k] = {
-        enabled: true,
-        from: clock(get(s, 'from', '0')),
-        until: clock(get(s, 'until', 'end')),
-      };
+      p.slots[k] = {enabled: true, from: clock(get(s, 'from', '0')), until: clock(get(s, 'until', 'end'))};
     }
-    const release = child(n, 'CarryRelease', ['at', 'fallback']);
+    const release = child(n, 'CarryRelease', ['at']);
     if (release) {
       if (pair) throw Error(tr('대상 놓기(CarryRelease)는 한 사람 일반 동작에만 씁니다.'));
-      p.carryRelease = {at: clock(required(release, 'at'), get(release, 'fallback'))};
+      p.carryRelease = {at: clock(required(release, 'at'))};
     }
     const fire = child(n, 'FireArrow', ['at', 'onRelease', 'mode', 'damage']);
     if (fire) {
       if (pair) throw Error(tr('페어에는 활 발사를 사용할 수 없습니다.'));
       const at = get(fire, 'at'),
         mode = get(fire, 'mode') || 'drawn';
-      if (at.startsWith('event:')) throw removed3(tr('FireArrow의 이벤트 시각'));
       if (!['drawn', 'direct'].includes(mode)) throw Error(tr('FireArrow.mode: drawn 또는 direct입니다.'));
       if (mode === 'direct') {
         if (bool(fire, 'onRelease', false))
@@ -340,45 +251,46 @@ export function importWorkspaceXml(text: string): Workspace {
       }
     }
     const cost = child(n, 'Cost', ['at', 'stamina', 'magicka']);
-    if (cost) {
-      if (get(cost, 'at').startsWith('event:')) throw removed3(tr('Cost의 이벤트 시각'));
+    if (cost)
       p.cost = {
         enabled: true,
         at: clock(get(cost, 'at', '0')),
         stamina: num(cost, 'stamina', 0),
         magicka: num(cost, 'magicka', 0),
       };
-    }
-    const recovery = child(n, 'Recovery', ['at', 'fallback', 'blend']);
-    if (recovery) {
-      p.recovery = {
-        enabled: true,
-        at: clock(required(recovery, 'at'), get(recovery, 'fallback')),
-        blend: num(recovery, 'blend', 0.15),
-      };
-    }
+    const recovery = child(n, 'MoveCancel', ['at', 'blend']);
+    if (recovery)
+      p.recovery = {enabled: true, at: clock(required(recovery, 'at')), blend: num(recovery, 'blend', 0.15)};
     let cancels = 0;
-    for (const t of n.children.filter(c => c.name === 'Cancel')) {
-      shapeXml(t, ['id', 'to', 'blend'], ['Window']);
-      // The runtime names an unnamed cancel by its position among the action's cancels: cancel1, cancel2, ...
+    for (const t of n.children.filter(c => c.name === 'Vanilla')) {
+      shapeXml(t, ['id', 'to', 'blend', 'from', 'until', 'buffer']);
+      // The runtime names an unnamed one by its place among the action's: cancel1, cancel2, ...
       const id = get(t, 'id') || 'cancel' + (cancels + 1);
       cancels++;
-      if (one(t, 'Window')?.attrs.always !== undefined)
-        throw gone4('Window always', tr('<Window>를 쓰지 않으면 클립 전체에서 받습니다'));
-      const win = child(t, 'Window', ['from', 'until', 'fromFallback', 'untilFallback', 'buffer']);
-      // No <Window>: open for the whole clip.
       a.cancels.push({
         id,
-        to: required(t, 'to'),
-        ...(win ? windowTimes(win) : {open: mark(), close: mark(0, 'end'), buffered: true}),
+        to: required(t, 'to')
+          .split(',')
+          .map(x => (x.trim().startsWith('event:') ? x.trim() : 'vanilla:' + x.trim()))
+          .join(','),
+        ...(hasWindow(t) ? windowTimes(t) : {open: mark(), close: mark(0, 'end'), buffered: true}),
         blend: t.attrs.blend === undefined ? null : num(t, 'blend', 0),
-        ...(win ? {} : {always: true as const}),
+        ...(hasWindow(t) ? {} : {always: true as const}),
       });
     }
+    // Camera restore and clip-time functions sit in the action itself (format 6).
+    const camera = child(n, 'Camera', ['reset', 'restore', 'timeout']);
+    a.cameraEnabled = !!camera;
+    if (camera)
+      a.camera = {
+        reset: get(camera, 'reset'),
+        restore: choice(camera, 'restore', ['end', 'event'], 'end'),
+        timeout: num(camera, 'timeout', 10),
+      };
+    const dos = n.children.filter(c => c.name === 'Do');
     if (a.pair) {
       const pair = a.pair,
-        settings = adv,
-        target = child(n, 'Target', ['range', 'angle', 'rig']);
+        target = child(n, 'FindPartner', ['range', 'angle', 'rig']);
       pair.targetRig = choice(
         target,
         'rig',
@@ -387,27 +299,15 @@ export function importWorkspaceXml(text: string): Workspace {
       );
       pair.range = num(target, 'range', 150);
       pair.angle = num(target, 'angle', 60);
-      const loss = child(n, 'OnPartnerLost', ['blend']);
-      pair.lossEnabled = loss?.attrs['blend'] !== undefined;
-      pair.lossBlend = num(loss, 'blend', defaultPair().lossBlend);
-      const carryNode = one(n, 'Carry');
-      if (carryNode?.attrs.release !== undefined)
-        throw new Error(
-          tr('Carry.release: 내려놓기는 이제 putdown(한 사람 Action)과 그 안의 CarryRelease 시점으로 지정합니다.')
-        );
-      if (carryNode?.attrs.alignStart !== undefined) throw gone4('Carry alignStart', tr('쓰이지 않던 값입니다'));
-      if (carryNode && one(carryNode, 'Hold')?.attrs.pose !== undefined)
-        throw gone4('Hold pose', tr('들기의 마지막 자세만 씁니다. <Hold>만 쓰세요'));
-      if (carryNode && (carryNode.attrs.weapon === 'keep' || carryNode.attrs.weaponShow !== undefined))
-        throw new Error(
-          tr(
-            'Carry weapon="keep"·weaponShow는 없어졌습니다(런타임 0.12.238): 무기를 든 채 들려면 weapon="sheathe"(들기 시작 때 넣기)를 쓰세요.'
-          )
-        );
+      pair.lossEnabled = n.attrs.lostBlend !== undefined;
+      pair.lossBlend = num(n, 'lostBlend', defaultPair().lossBlend);
+      pair.reorientSupport = bool(n, 'reorient', true);
+      pair.interruptOnThirdPartyHit = bool(n, 'interruptOnHit', false);
+      pair.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));
       const carry = child(
         n,
         'Carry',
-        ['bone', 'targetRoot', 'putdown', 'input', 'key', 'gamepad', 'target', 'part', 'weapon'],
+        ['bone', 'targetRoot', 'putdown', 'input', 'key', 'gamepad', 'control', 'target', 'part', 'weapon'],
         ['Hold', 'Fix']
       );
       if (carry) {
@@ -416,7 +316,6 @@ export function importWorkspaceXml(text: string): Workspace {
           throw new Error(tr('Carry.part: target="physics"에서 본 이름으로 씁니다.'));
         const weapon = choice(carry, 'weapon', ['sheathed', 'sheathe'], 'sheathed');
         const h = child(carry, 'Hold', ['blendIn', 'blendOut'], ['Bone']);
-        // The fix moment: plain seconds from the lift clip's start, like the runtime.
         const fix = child(carry, 'Fix', ['at']);
         const fixAt = fix ? required(fix, 'at') : '';
         if (fix && (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(fixAt) || Number(fixAt) > 600))
@@ -444,246 +343,245 @@ export function importWorkspaceXml(text: string): Workspace {
           weapon,
         };
       }
-      // getToMarkTime, markErrorThreshold and applyMotionFromRoot are read and dropped (runtime 0.12.259 fixes them).
-      pair.reorientSupport = bool(settings, 'reorientSupport', true);
-      if (one(n, 'Effects') && one(one(n, 'Effects')!, 'Effect')) throw removed3('Effects/Effect');
-      const fx = child(n, 'Effects', ['interruptOnThirdPartyHit'], ['Camera', 'Do']);
-      pair.effectsEnabled = !!fx;
-      if (fx) {
-        pair.interruptOnThirdPartyHit = bool(fx, 'interruptOnThirdPartyHit', false);
-        readCamera(a, fx);
-        pair.effects = [];
-        for (const e of fx.children.filter(c => c.name === 'Do'))
-          pair.effects.push({id: 'effect' + (pair.effects.length + 1), values: readDo(e, true)});
-      }
-    } else {
-      if (n.children.some(c => c.name === 'PairFeatures'))
-        throw new Error(tr('페어 전용 설정이 일반 동작에 있습니다.'));
-      // An ordinary action's Effects: a camera restore (runtime 0.12.260) and clip-time functions (0.12.274).
-      const fx = child(n, 'Effects', [], ['Camera', 'Do']);
-      if (fx) {
-        readCamera(a, fx);
-        const dos = fx.children.filter(c => c.name === 'Do');
-        if (dos.length) a.config.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));
-      }
-    }
+    } else if (dos.length) a.config.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));
     // The numbers its clip runs registered functions with (runtime 0.12.281), matched to the registry read above.
     const values = one(n, 'EventValues');
     if (values) readEventValues(values, rows, a);
     w.actions.push(a);
     source.set(a.uid, n);
-    // Connect keys are this action's editor inputs too; read here, while `addInput` sees this action.
-    connectKeys.set(
-      a.uid,
-      n.children.filter(c => c.name === 'Connect').map(c => (keyed(c) ? addInput(c) : ''))
-    );
+    // Transition keys are this action's editor inputs too.
+    for (const t of n.children.filter(c => c.name === 'Transition'))
+      if (keyed(t)) (t.attrs as Record<string, string>)['data-input'] = addInput(t);
   }
-  for (const a of w.actions) {
-    const flow = one(source.get(a.uid)!, 'Flow');
-    if (flow) {
-      shapeXml(flow, ['entry'], ['Test', 'All', 'Any', 'Not', 'Play', 'Stop']);
-      const ids = new Set<string>();
-      for (const n of flow.children) {
-        const id = required(n, 'id');
-        if (ids.has(id)) throw Error(tr('조건 ID 중복'));
-        ids.add(id);
-      }
-      const target = (id: string | undefined): import('./graph/conditions.ts').BranchTarget | undefined => {
-        if (!id) return undefined;
-        const n = flow.children.find(n => n.attrs.id === id);
-        if (!n) throw Error(tr('없는 조건 목적지'));
-        if (['Test', 'All', 'Any', 'Not'].includes(n.name)) return {node: id};
-        if (n.name === 'Stop') return undefined;
-        const dest = w.actions.find(a => a.config.actionId === n.attrs.action);
-        if (!dest) throw Error(tr('없는 HKX 목적지'));
-        return {action: dest.uid};
+  const actionUid = (id: string, where: string) => {
+    const a = w.actions.find(a => a.config.actionId === id);
+    if (!a) throw new Error(tr('{where}: 없는 HKX {id}', {where, id}));
+    return a.uid;
+  };
+  // Condition cards: the root's named ones first (anything may name them), then each owner's own.
+  const named = new Map<string, string>();
+  const shared = root.children.filter(n => n.name === 'Condition');
+  for (const c of shared) {
+    shapeXml(c, ['id'], CARD);
+    const id = required(c, 'id');
+    if ([...named.keys()].some(k => k.toLowerCase() === id.toLowerCase()))
+      throw new Error(tr('조건 카드 ID 중복: ') + id);
+    const card: ConditionCard = {
+      uid: newUid(w, 'card'),
+      xmlId: id,
+      tests: [],
+      guards: [],
+      rows: [],
+      false: null,
+      position: {x: 0, y: 0},
+    };
+    w.cards.push(card);
+    named.set(id, card.uid);
+  }
+  const condition = (n: Xml) => {
+    const uid = named.get(required(n, 'condition'));
+    if (!uid) throw new Error(tr('정의되지 않은 조건 카드: ') + n.attrs.condition);
+    return uid;
+  };
+  /** One condition (Check, And, Or) into a card's tests: its id. `candidate`: the measured action by default. */
+  const readCondition = (card: ConditionCard, n: Xml): string => {
+    let i = 1;
+    while (card.tests.some(t => t.id === 'Condition' + i)) i++;
+    const id = 'Condition' + i;
+    const negate = bool(n, 'not', false);
+    if (n.name === 'And' || n.name === 'Or') {
+      shapeXml(n, ['not'], ['Check', 'And', 'Or']);
+      const t: CardTest = {
+        id,
+        kind: n.name === 'And' ? 'all' : 'any',
+        subject: 'self',
+        minimum: 0,
+        operands: [],
+        ...(negate ? {negate} : {}),
       };
-      for (const n of flow.children)
-        if (['All', 'Any', 'Not'].includes(n.name)) {
-          shapeXml(n, ['id', 'pass', 'fail'], ['Use']);
-          for (const c of n.children) {
-            shapeXml(c, ['node']);
-            required(c, 'node');
-          }
-        } else
-          shapeXml(
-            n,
-            n.name === 'Test'
-              ? [
-                  'id',
-                  'kind',
-                  'hand',
-                  'type',
-                  'state',
-                  'option',
-                  'compare',
-                  'measure',
-                  'value',
-                  'upper',
-                  'subject',
-                  'minimum',
-                  'pass',
-                  'fail',
-                  'candidate',
-                  'distance',
-                  'direction',
-                  'maxRise',
-                  'maxDrop',
-                  'maxSlope',
-                  'radius',
-                  'plugin',
-                  'form',
-                  'equals',
-                ]
-              : n.name === 'Play'
-                ? ['id', 'action']
-                : ['id']
-          );
-      for (const n of flow.children.filter(n => n.name === 'Test')) {
-        required(n, 'kind');
-        if (n.attrs.kind === 'equippedType') {
-          required(n, 'hand');
-          required(n, 'type');
-        } else if (n.attrs.hand !== undefined || n.attrs.type !== undefined)
-          throw Error(tr('손·장비 종류는 장착 종류 검사에서만 사용하세요.'));
-        if (n.attrs.kind === 'attackState') required(n, 'state');
-        else if (n.attrs.state !== undefined) throw Error(tr('공격 상태는 공격 상태 검사에서만 사용하세요.'));
-        if (formKinds.includes(n.attrs.kind)) {
-          required(n, 'plugin');
-          required(n, 'form');
-        } else if (n.attrs.plugin !== undefined || n.attrs.form !== undefined)
-          throw Error(tr('폼 설정은 폼 검사에서만 사용하세요.'));
-        if (n.attrs.kind === 'global') required(n, 'equals');
-        else if (n.attrs.equals !== undefined) throw Error(tr('일치 값은 전역 값 비교에서만 사용하세요.'));
-        if (['stamina', 'magicka'].includes(n.attrs.kind)) required(n, 'minimum');
-        else if (n.attrs.minimum !== undefined) throw Error(tr('자원 조건에만 최솟값을 지정하세요.'));
-        if (n.attrs.kind === 'space' || n.attrs.kind === 'ground') {
-          required(n, 'candidate');
-          required(n, 'distance');
-          required(n, 'direction');
-        } else if (['candidate', 'distance', 'direction'].some(k => n.attrs[k] !== undefined))
-          throw Error(tr('공간 설정은 공간 조건에서만 사용하세요.'));
-        if (
-          n.attrs.kind !== 'ground' &&
-          ['maxRise', 'maxDrop', 'maxSlope', 'radius'].some(k => n.attrs[k] !== undefined)
-        )
-          throw Error(tr('지면 설정은 지면 조건에서만 사용하세요.'));
-      }
-      a.flow = {
-        entry: required(flow, 'entry'),
-        tests: flow.children
-          .filter(n => ['Test', 'All', 'Any', 'Not'].includes(n.name))
-          .map(n => ({
-            id: required(n, 'id'),
-            ...(n.name !== 'Test' ? {operands: n.children.map(c => required(c, 'node'))} : {}),
-            kind:
-              n.name !== 'Test'
-                ? (n.name.toLowerCase() as 'all' | 'any' | 'not')
-                : choice(
-                    n,
-                    'kind',
-                    [
-                      'air',
-                      'weaponDrawn',
-                      'combat',
-                      'alive',
-                      'stamina',
-                      'magicka',
-                      'space',
-                      'ground',
-                      'unarmedRight',
-                      'equippedType',
-                      'attackState',
-                      'sneaking',
-                      'female',
-                      ...extensionKinds,
-                      'magicEffect',
-                      'global',
-                    ],
-                    'alive'
-                  ),
-            ...(formKinds.includes(n.attrs.kind)
-              ? {form: {plugin: required(n, 'plugin'), id: required(n, 'form')}}
-              : {}),
-            ...readExtension(n.attrs.kind, n.attrs),
-            ...(n.attrs.kind === 'global' ? {equals: num(n, 'equals', 1)} : {}),
-            ...(n.attrs.kind === 'equippedType'
-              ? {
-                  hand: choice(n, 'hand', ['left', 'right'] as const, 'left'),
-                  equipmentType: choice(n, 'type', equippedTypes, 'bow'),
-                }
-              : {}),
-            ...(n.attrs.kind === 'attackState' ? {attackState: choice(n, 'state', attackStates, 'none')} : {}),
-            ...(['space', 'ground'].includes(n.attrs.kind)
-              ? {
-                  space: {
-                    candidate: w.actions.find(x => x.config.actionId === n.attrs.candidate)?.uid ?? '',
-                    distance: num(n, 'distance', 0),
-                    direction: choice(
-                      n,
-                      'direction',
-                      [
-                        'selfForward',
-                        'selfBack',
-                        'selfRight',
-                        'selfLeft',
-                        'partnerForward',
-                        'partnerBack',
-                        'partnerRight',
-                        'partnerLeft',
-                      ],
-                      'selfForward'
-                    ),
-                  },
-                }
-              : {}),
-            ...(n.attrs.kind === 'ground'
-              ? {
-                  ground: {
-                    maxRise: num(n, 'maxRise', 20),
-                    maxDrop: num(n, 'maxDrop', 40),
-                    maxSlope: num(n, 'maxSlope', 45),
-                    radius: num(n, 'radius', 20),
-                  },
-                }
-              : {}),
-            subject: choice(n, 'subject', ['self', 'partner'], 'self'),
-            minimum: num(n, 'minimum', 0),
-            pass: target(n.attrs.pass),
-            fail: target(n.attrs.fail),
-          })),
-      };
-      // Written without a clip, it selects (workspace.ts selectsOnly): it stays so when edits leave its flow
-      // with no destination for a while, rather than turning into an HKX card asking for its file.
-      if (!a.config.steps.some(s => s.clip)) a.flow.selects = true;
+      card.tests.push(t);
+      t.operands = n.children.map(c => readCondition(card, c));
+      return id;
     }
-    const keys = connectKeys.get(a.uid)!;
-    for (const [index, n] of source
-      .get(a.uid)!
-      .children.filter(c => c.name === 'Connect')
-      .entries()) {
-      shapeXml(n, ['blend', 'to', 'partnerTo', 'event', 'input', 'key', 'gamepad'], ['Window']);
-      const target = (name: string) =>
-        w.actions.find(a => a.config.actionId === get(n, name).replace(/^action:/, ''))?.uid ?? '';
-      const to = target('to'),
-        partner = target('partnerTo');
-      if (!to || (get(n, 'partnerTo') && !partner))
-        throw new Error(tr('다른 파일의 목적지는 관련 동작을 같은 XML에 넣은 후 가져오세요.'));
-      const l = addLink(w, a.uid, to);
-      if (get(n, 'blend') !== '') l.blend = num(n, 'blend', 0);
-      l.partnerTo = partner;
-      l.event = get(n, 'event');
-      l.mode = l.event ? 'event' : 'input';
-      l.input = keys[index];
-      if (l.event && l.input) throw new Error(tr('Connect: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
-      if (!l.event && !l.input) throw new Error(tr('Connect: 키(input 또는 key·gamepad) 또는 event가 필요합니다.'));
-      // No <Window>: the whole clip.
-      const win = child(n, 'Window', ['from', 'until', 'fromFallback', 'untilFallback', 'buffer']);
-      l.window = !!win;
-      if (win) Object.assign(l, windowTimes(win));
+    if (n.name !== 'Check') throw new Error(tr('조건은 <Check>·<And>·<Or>로 씁니다.'));
+    card.tests.push({id, ...checkSettings(w, n), ...(negate ? {negate} : {})});
+    return id;
+  };
+  /** A card's content (common conditions, rows or True, False) into `card`. */
+  const readContent = (card: ConditionCard, n: Xml) => {
+    for (const c of n.children) {
+      if (isGuard(c)) card.guards.push(readCondition(card, c));
+      else if (c.name === 'Row') {
+        shapeXml(c, ['to', 'condition'], ['Check', 'And', 'Or', 'Condition']);
+        const row = {id: 'row' + (card.rows.length + 1), guards: [] as string[], to: null as Ref};
+        for (const g of c.children.filter(isGuard)) row.guards.push(readCondition(card, g));
+        const inner = c.children.find(g => g.name === 'Condition');
+        if (c.attrs.to !== undefined) row.to = {action: actionUid(c.attrs.to, 'Row')};
+        else if (c.attrs.condition !== undefined) row.to = {card: condition(c)};
+        else if (inner) {
+          shapeXml(inner, [], CARD);
+          row.to = inner.children.length ? {card: newCard(inner)} : null;
+        }
+        card.rows.push(row);
+      } else if (c.name === 'True') card.true = destination(c);
+      else if (c.name === 'False') card.false = destination(c);
+      else throw new Error(tr('조건 카드에 쓸 수 없는 요소: ') + c.name);
+    }
+  };
+  const newCard = (n: Xml): string => {
+    const card: ConditionCard = {
+      uid: newUid(w, 'card'),
+      tests: [],
+      guards: [],
+      rows: [],
+      false: null,
+      position: {x: 0, y: 0},
+    };
+    w.cards.push(card);
+    readContent(card, n);
+    return card.uid;
+  };
+  /** A True's or False's destination: to, condition or the card it holds. */
+  const destination = (n: Xml): Ref => {
+    shapeXml(n, ['to', 'condition'], CARD);
+    if (n.attrs.to !== undefined) return {action: actionUid(n.attrs.to, n.name)};
+    if (n.attrs.condition !== undefined) return {card: condition(n)};
+    return n.children.length ? {card: newCard(n)} : null;
+  };
+  /** A start's, transition's or QTE result's destination: to (with common conditions, a card whose True is it),
+   *  condition, or the card it holds. */
+  const owner = (n: Xml): Ref => {
+    const guards = n.children.filter(c => CARD.includes(c.name));
+    if (n.attrs.condition !== undefined) return {card: condition(n)};
+    if (n.attrs.to !== undefined) {
+      const to: Ref = {action: actionUid(n.attrs.to, n.name)};
+      if (!guards.length) return to;
+      const card: ConditionCard = {
+        uid: newUid(w, 'card'),
+        tests: [],
+        guards: [],
+        rows: [],
+        false: null,
+        position: {x: 0, y: 0},
+      };
+      w.cards.push(card);
+      for (const g of guards) {
+        if (!isGuard(g)) throw new Error(tr('to를 쓴 곳에는 공통 조건(<Check>·<And>·<Or>)만 붙입니다.'));
+        card.guards.push(readCondition(card, g));
+      }
+      card.true = to;
+      return {card: card.uid};
+    }
+    return guards.length ? {card: newCard({...n, children: guards})} : null;
+  };
+  for (const c of shared)
+    readContent(
+      w.cards.find(x => x.uid === named.get(c.attrs.id))!,
+      c
+    );
+  // Starts, in the file's order.
+  for (const n of root.children.filter(n => n.name === 'Start')) {
+    shapeXml(
+      n,
+      [
+        'id',
+        'to',
+        'condition',
+        'input',
+        'key',
+        'gamepad',
+        'control',
+        'event',
+        'actor',
+        'target',
+        'range',
+        'angle',
+        'onKeyUp',
+        'cooldown',
+        'block',
+        'blockWhen',
+      ],
+      CARD
+    );
+    const event = get(n, 'event');
+    if (event && keyed(n)) throw new Error(tr('Start: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
+    const k: {key: string; gamepad: number; control?: GameControl} = keyed(n) ? inputKey(n) : {key: '', gamepad: 0};
+    const s: StartCard = {
+      uid: newUid(w, 'start'),
+      ...(n.attrs.id ? {xmlId: n.attrs.id} : {}),
+      mode: event ? 'event' : 'input',
+      key: k.key,
+      gamepad: k.gamepad,
+      ...(k.control ? {control: k.control} : {}),
+      event,
+      actor: choice(n, 'actor', ['both', 'player', 'npc'], 'both'),
+      target: choice(n, 'target', ['nearest', 'combatTarget'], 'nearest'),
+      ...(n.attrs.range !== undefined ? {range: num(n, 'range', 200)} : {}),
+      ...(n.attrs.angle !== undefined ? {angle: num(n, 'angle', 90)} : {}),
+      onKeyUp: bool(n, 'onKeyUp', false),
+      cooldown: num(n, 'cooldown', 0),
+      ...(n.attrs.block !== undefined
+        ? {
+            block: {
+              events: readEvents(required(n, 'block')),
+              when: choice(n, 'blockWhen', ['startable', 'active', 'both'], 'startable'),
+            },
+          }
+        : {}),
+      to: owner(n),
+      position: {x: 0, y: 0},
+    };
+    w.starts.push(s);
+    (n.attrs as Record<string, string>)['data-uid'] = s.uid;
+  }
+  // Transitions (after every card: they name actions and cards).
+  for (const a of w.actions)
+    for (const n of source.get(a.uid)!.children.filter(c => c.name === 'Transition')) {
+      shapeXml(
+        n,
+        [
+          'to',
+          'condition',
+          'partnerTo',
+          'input',
+          'key',
+          'gamepad',
+          'control',
+          'event',
+          'from',
+          'until',
+          'buffer',
+          'blend',
+          'data-input',
+        ],
+        CARD
+      );
+      const to = owner(n);
+      const partner = n.attrs.partnerTo ? actionUid(n.attrs.partnerTo, 'Transition') : '';
+      const l: Link = {
+        id: uid(
+          'link',
+          w.links.map(l => l.id)
+        ),
+        from: a.uid,
+        to: to && 'action' in to ? to.action : '',
+        ...(to && 'card' in to ? {card: to.card} : {}),
+        partnerTo: partner,
+        mode: n.attrs.event ? 'event' : 'input',
+        input: n.attrs['data-input'] ?? '',
+        event: get(n, 'event'),
+        window: hasWindow(n),
+        open: mark(0.3),
+        close: mark(1.5),
+        buffered: true,
+        position: {x: 0, y: 0},
+      };
+      if (n.attrs.blend !== undefined) l.blend = num(n, 'blend', 0);
+      if (l.window) Object.assign(l, windowTimes(n));
+      if (l.event && l.input) throw new Error(tr('Transition: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
+      if (!l.event && !l.input) throw new Error(tr('Transition: 키(input 또는 key·gamepad) 또는 event가 필요합니다.'));
       w.links.push(l);
     }
-  }
   for (const a of w.actions)
     if (a.pair?.carry) {
       const destination = w.actions.find(x => x.config.actionId === a.pair!.carry!.putdownAction);
@@ -709,11 +607,130 @@ export function importWorkspaceXml(text: string): Workspace {
       );
     if (start === 'switch') a.firstPerson = start;
   }
-  readQtes(w, root, clock);
-  readEventQtes(w, registryNode);
+  // QTE results may go through a card too.
+  readQtes(w, root, clock, owner);
+  readEventQtes(w, registryNode, owner);
   if (rows.length) w.eventRegistry = rows;
-  liftStartLimits(w);
-  const errors = validateWorkspace(w).filter(i => i.level === 'error' && !registryNumbersIssue(i));
+  // The file's order of starts, HKX cards and named cards.
+  for (const n of root.children) {
+    if (n.name === 'Start') w.order.push(n.attrs['data-uid']);
+    else if (n.name === 'Action' || n.name === 'Pair')
+      w.order.push(w.actions.find(a => a.config.actionId === n.attrs.id)!.uid);
+    else if (n.name === 'Condition') w.order.push(named.get(n.attrs.id)!);
+  }
+  const errors = validateWorkspace(w).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(i => i.node + ': ' + i.message).join('\n'));
-  return shareEventReceivers(arrange(foldNotConditions(w)));
+  return shareEventReceivers(arrange(w));
+}
+const newUid = (w: Workspace, prefix: 'card' | 'start') => {
+  const taken = new Set(prefix === 'card' ? w.cards.map(c => c.uid) : w.starts.map(s => s.uid));
+  let i = 1;
+  while (taken.has(prefix + i)) i++;
+  return prefix + i;
+};
+/** A <Check>'s settings (the runtime's ReadCheck): its kind and that kind's attributes. */
+function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
+  shapeXml(n, [
+    'kind',
+    'not',
+    'hand',
+    'type',
+    'state',
+    'option',
+    'compare',
+    'measure',
+    'value',
+    'upper',
+    'subject',
+    'minimum',
+    'distance',
+    'direction',
+    'maxRise',
+    'maxDrop',
+    'maxSlope',
+    'radius',
+    'plugin',
+    'form',
+    'equals',
+    'actions',
+    'within',
+    'ended',
+  ]);
+  const kind = required(n, 'kind');
+  if (!checkKinds.includes(kind)) throw Error(tr('지원하지 않는 조건입니다: ') + kind);
+  if (kind === 'equippedType') {
+    required(n, 'hand');
+    required(n, 'type');
+  } else if (n.attrs.hand !== undefined || n.attrs.type !== undefined)
+    throw Error(tr('손·장비 종류는 장착 종류 검사에서만 사용하세요.'));
+  if (kind === 'attackState') required(n, 'state');
+  else if (n.attrs.state !== undefined) throw Error(tr('공격 상태는 공격 상태 검사에서만 사용하세요.'));
+  if (formKinds.includes(kind)) {
+    required(n, 'plugin');
+    required(n, 'form');
+  } else if (n.attrs.plugin !== undefined || n.attrs.form !== undefined)
+    throw Error(tr('폼 설정은 폼 검사에서만 사용하세요.'));
+  // The last action the subject finished (runtime 0.12.296): actions by XML id, within, ended.
+  if (kind === 'previousAction') required(n, 'actions');
+  else if (['actions', 'within', 'ended'].some(k => n.attrs[k] !== undefined))
+    throw Error(tr('직전 동작 설정은 직전 동작 조건에서만 사용하세요.'));
+  if (kind === 'global') required(n, 'equals');
+  else if (n.attrs.equals !== undefined) throw Error(tr('일치 값은 전역 값 비교에서만 사용하세요.'));
+  if (['stamina', 'magicka'].includes(kind)) required(n, 'minimum');
+  else if (n.attrs.minimum !== undefined) throw Error(tr('자원 조건에만 최솟값을 지정하세요.'));
+  if (kind === 'space' || kind === 'ground') {
+    required(n, 'distance');
+    required(n, 'direction');
+  } else if (['distance', 'direction'].some(k => n.attrs[k] !== undefined))
+    throw Error(tr('공간 설정은 공간 조건에서만 사용하세요.'));
+  if (kind !== 'ground' && ['maxRise', 'maxDrop', 'maxSlope', 'radius'].some(k => n.attrs[k] !== undefined))
+    throw Error(tr('지면 설정은 지면 조건에서만 사용하세요.'));
+  return {
+    kind: kind as CardTest['kind'],
+    ...(formKinds.includes(kind) ? {form: {plugin: required(n, 'plugin'), id: required(n, 'form')}} : {}),
+    ...(extensionKinds.includes(kind as never) ? readExtension(kind, n.attrs) : {}),
+    ...(kind === 'global' ? {equals: num(n, 'equals', 1)} : {}),
+    ...(kind === 'previousAction'
+      ? {
+          actions: required(n, 'actions')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(id => {
+              const a = w.actions.find(x => x.config.actionId === id);
+              if (!a) throw Error(tr('직전 동작이 없는 동작을 가리킵니다: ') + id);
+              return a.uid;
+            }),
+          ...(n.attrs.within !== undefined ? {within: num(n, 'within', 0)} : {}),
+          ended: choice(n, 'ended', ['any', 'completed', 'cancelled'] as const, 'any'),
+        }
+      : {}),
+    ...(kind === 'equippedType'
+      ? {
+          hand: choice(n, 'hand', ['left', 'right'] as const, 'left'),
+          equipmentType: choice(n, 'type', equippedTypes, 'bow'),
+        }
+      : {}),
+    ...(kind === 'attackState' ? {attackState: choice(n, 'state', attackStates, 'none')} : {}),
+    ...(kind === 'space' || kind === 'ground'
+      ? {
+          space: {
+            distance: num(n, 'distance', 0),
+            direction: choice(n, 'direction', selfDirections, 'selfForward'),
+          },
+        }
+      : {}),
+    ...(kind === 'ground'
+      ? {
+          ground: {
+            maxRise: num(n, 'maxRise', 20),
+            maxDrop: num(n, 'maxDrop', 40),
+            maxSlope: num(n, 'maxSlope', 45),
+            radius: num(n, 'radius', 20),
+          },
+        }
+      : {}),
+    subject: choice(n, 'subject', ['self', 'partner'], 'self'),
+    minimum: num(n, 'minimum', 0),
+  };
 }

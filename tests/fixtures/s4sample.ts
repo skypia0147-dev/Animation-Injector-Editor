@@ -1,6 +1,7 @@
-import {emptyWorkspace, addAction, addLink} from './workspace.ts';
-import type {Workspace} from './workspace.ts';
-import {tr} from './i18n/korean.ts';
+import {emptyWorkspace, addAction, addLink} from '../../src/workspace.ts';
+import type {Workspace} from '../../src/workspace.ts';
+import {newStart} from '../../src/cards.ts';
+import {tr} from '../../src/i18n/korean.ts';
 export function s4sample(): Workspace {
   const w = emptyWorkspace();
   w.id = 'EditorS4';
@@ -22,11 +23,15 @@ export function s4sample(): Workspace {
       {id: 'pairNext', label: tr('다음 페어'), key: 'NumMul', gamepad: 0},
       {id: 'leave', label: tr('양쪽 일반 동작'), key: 'NumMinus', gamepad: 0},
     ];
-    a.config.start.mode = key ? 'input' : 'none';
-    a.config.start.input = 'use';
+    if (key)
+      w.starts.push({
+        ...newStart(w, {x: -320, y: w.starts.length * 200}),
+        key,
+        cooldown: 0.3,
+        to: {action: a.uid},
+      });
     a.config.graph = ['RootBehaviorGraph'];
     a.config.cost.enabled = false;
-    a.config.cooldown = 0.3;
     if (!a.pair) a.config.attack = 'attackStart';
     w.actions.push(a);
   }

@@ -34,7 +34,8 @@ export function playbackLink(w: Workspace, from: string, to: string, trigger: In
           return (
             x &&
             ((input.key && x.key && keyCode(x.key) === keyCode(input.key)) ||
-              (input.gamepad && x.gamepad === input.gamepad))
+              (input.gamepad && x.gamepad === input.gamepad) ||
+              (input.control && x.control === input.control))
           );
         })()
     )
@@ -71,17 +72,3 @@ export function sourceLinks(w: Workspace): Workspace {
     }),
   };
 }
-
-export const needsLinkEnd = (w: Workspace) =>
-  sourceLinks(w).links.some(
-    l =>
-      l.window &&
-      (l.close.basis === 'end' || (l.close.basis === 'event' && l.close.fallback && l.close.fallbackBasis === 'end'))
-  );
-
-export const needsDirectLinks = (w: Workspace) =>
-  w.links.some(l => {
-    const from = w.actions.find(a => a.uid === l.from),
-      to = w.actions.find(a => a.uid === l.to);
-    return from && to && !from.pair && !to.pair && from.config.steps.length === 1 && to.config.steps.length === 1;
-  });

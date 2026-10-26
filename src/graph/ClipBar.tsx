@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {createContext, useContext, useState} from 'react';
 import {rulerDrag, rulerGrab, type RulerGrab} from './hkxMoments.ts';
 import {barSeconds, barText, readTyped, settle, snapTime, type BarTime} from './clipBar.ts';
 import {tr} from '../i18n/korean.ts';
@@ -6,9 +6,14 @@ import {tr} from '../i18n/korean.ts';
 // The one-line clip bar (docs/mockup-clip-bar): label, the clip with its HKX's annotation times as ticks, and the value
 // written at the end of the line. Drag the moment, a window's ends or the whole window (drawn to the ticks, the start
 // and 「끝」); a focused handle moves by ←/→ (0.01 s, Shift 0.1 s); a click on the value types it in place. Without the
-// clip's length (the HKX not read) only the value is shown, typed the same way.
+// clip's length (the HKX not read) only the value is shown, typed the same way. The ticks and handles sit in a lane
+// inset by half a handle (mockup ④, 10-26), so a handle at 0 or the end stays inside the box. In a card (the
+// property list, mockup ⑥-A) the bar is slim: label and value on one line, below them a thin rail with round handles
+// and no ticks (dragging still snaps to them).
 
 export type BarTick = {t: number; name: string};
+/** Inside a card (the property list, mockup ⑥-A) every clip bar is slim. */
+export const SlimClipBars = createContext(false);
 type Key = 'at' | 'from' | 'until';
 
 export function ClipBar({
@@ -31,6 +36,7 @@ export function ClipBar({
   onAt?: (t: BarTime) => void;
   onSpan?: (from: BarTime, until: BarTime) => void;
 }) {
+  const slim = useContext(SlimClipBars);
   const [drag, setDrag] = useState<{
     grab: RulerGrab;
     origin: {t: number; at: number; from: number; until: number};
@@ -94,8 +100,10 @@ export function ClipBar({
     );
   };
   const place = (t: number) => (known ? Math.min(100, Math.max(0, (t / length!) * 100)) : 0);
+  // Times are measured on the lane inside the track, where the ticks and handles are drawn.
+  const lane = (el: HTMLElement) => (el.querySelector('.clip-bar-lane') as HTMLElement | null) ?? el;
   const timeAt = (el: HTMLElement, x: number) => {
-    const r = el.getBoundingClientRect();
+    const r = lane(el).getBoundingClientRect();
     return Math.min(length!, Math.max(0, ((x - r.left) / r.width) * length!));
   };
   const points = ticks.map(k => k.t);
@@ -120,14 +128,14 @@ export function ClipBar({
   };
   const shown = drag?.now ?? values;
   return (
-    <div className={'clip-bar' + (known ? '' : ' no-track')}>
+    <div className={'clip-bar' + (known ? '' : ' no-track') + (slim ? ' slim' : '')}>
       <span className="moment-label">{label}</span>
       {known && (
         <div
           className={'clip-bar-track nodrag nopan' + (drag ? ' dragging' : '')}
           onPointerDown={e => {
             if ((e.target as HTMLElement).closest('[data-handle]') && e.button !== 0) return;
-            const width = e.currentTarget.getBoundingClientRect().width,
+            const width = lane(e.currentTarget).getBoundingClientRect().width,
               near = (length! * 8) / Math.max(1, width);
             const t = timeAt(e.currentTarget, e.clientX);
             const grab = rulerGrab(
@@ -141,7 +149,7 @@ export function ClipBar({
           }}
           onPointerMove={e => {
             if (!drag) return;
-            const width = e.currentTarget.getBoundingClientRect().width;
+            const width = lane(e.currentTarget).getBoundingClientRect().width;
             const t = timeAt(e.currentTarget, e.clientX);
             setDrag({
               ...drag,
@@ -163,52 +171,60 @@ export function ClipBar({
           }}
           onPointerCancel={() => setDrag(undefined)}
         >
-          {ticks.map((k, i) => (
-            <span key={i} className="tick" style={{left: `${place(k.t)}%`}} title={k.name} />
-          ))}
-          {others.map((t, i) => (
-            <span key={'o' + i} className="other" style={{left: `${place(t)}%`}} />
-          ))}
-          {span && (
-            <>
-              <span
-                className="span"
-                style={{
-                  left: `${place(shown.from)}%`,
-                  width: `${Math.max(0, place(shown.until) - place(shown.from))}%`,
-                }}
-              />
-              {(['from', 'until'] as const).map(key => (
+          <div className="clip-bar-lane">
+            {slim ? (
+              <span className="rail" />
+            ) : (
+              <>
+                {ticks.map((k, i) => (
+                  <span key={i} className="tick" style={{left: `${place(k.t)}%`}} title={k.name} />
+                ))}
+                {others.map((t, i) => (
+                  <span key={'o' + i} className="other" style={{left: `${place(t)}%`}} />
+                ))}
+              </>
+            )}
+            {span && (
+              <>
                 <span
-                  key={key}
-                  data-handle
-                  className="edge"
-                  tabIndex={0}
-                  role="slider"
-                  aria-label={label + (key === 'from' ? ' · ' + tr('시작') : ' · ' + tr('끝'))}
-                  aria-valuemin={0}
-                  aria-valuemax={length}
-                  aria-valuenow={shown[key]}
-                  style={{left: `${place(shown[key])}%`}}
-                  onKeyDown={e => nudge(key, e)}
+                  className="span"
+                  style={{
+                    left: `${place(shown.from)}%`,
+                    width: `${Math.max(0, place(shown.until) - place(shown.from))}%`,
+                  }}
                 />
-              ))}
-            </>
-          )}
-          {at !== undefined && (
-            <span
-              data-handle
-              className="me"
-              tabIndex={0}
-              role="slider"
-              aria-label={label}
-              aria-valuemin={0}
-              aria-valuemax={length}
-              aria-valuenow={shown.at}
-              style={{left: `${place(shown.at)}%`}}
-              onKeyDown={e => nudge('at', e)}
-            />
-          )}
+                {(['from', 'until'] as const).map(key => (
+                  <span
+                    key={key}
+                    data-handle
+                    className="edge"
+                    tabIndex={0}
+                    role="slider"
+                    aria-label={label + (key === 'from' ? ' · ' + tr('시작') : ' · ' + tr('끝'))}
+                    aria-valuemin={0}
+                    aria-valuemax={length}
+                    aria-valuenow={shown[key]}
+                    style={{left: `${place(shown[key])}%`}}
+                    onKeyDown={e => nudge(key, e)}
+                  />
+                ))}
+              </>
+            )}
+            {at !== undefined && (
+              <span
+                data-handle
+                className="me"
+                tabIndex={0}
+                role="slider"
+                aria-label={label}
+                aria-valuemin={0}
+                aria-valuemax={length}
+                aria-valuenow={shown.at}
+                style={{left: `${place(shown.at)}%`}}
+                onKeyDown={e => nudge('at', e)}
+              />
+            )}
+          </div>
         </div>
       )}
       <span className="clip-bar-value">

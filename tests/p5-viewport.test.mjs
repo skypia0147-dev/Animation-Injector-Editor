@@ -38,20 +38,6 @@ const viewer = {
   annotations: [{time: 0.5, text: 'Hit', track: 'NPC'}],
 };
 
-test('old schema 7 files gain empty preview mappings without changing executable XML', () => {
-  const old = emptyWorkspace();
-  const action = addAction(old);
-  action.config.steps[0].clip = 'Animations\\Test.hkx';
-  old.actions.push(action);
-  old.assets.push({clip: action.config.steps[0].clip, localPath: 'H:\\Test.hkx', preview: {skeletons: [], skins: []}});
-  const before = compileWorkspace(old);
-  const json = JSON.parse(JSON.stringify(old));
-  delete json.assets[0].preview;
-  const restored = parseWorkspace(JSON.stringify(json));
-  assert.deepEqual(restored.assets[0].preview, {skeletons: [], skins: []});
-  assert.equal(compileWorkspace(restored), before);
-});
-
 test('clip-local A1/A2 sources roundtrip and portable export removes every local path', () => {
   let workspace = emptyWorkspace();
   workspace = setPreviewAsset(workspace, 'Animations\\Pair.hkx', 'skeletons', 0, 'H:\\A1\\skeleton.hkx');

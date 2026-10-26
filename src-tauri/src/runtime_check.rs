@@ -230,36 +230,34 @@ mod tests {
         found
     }
     const VALID: &str = r#"<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="E2Check">
+<AnimationSet version="6" id="E2Check">
   <Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs>
+  <Start input="use" onKeyUp="false" to="First"/>
   <Action id="First" clip="Animations\ComboTest\test_Attack1.hkx">
-    <Start input="use" onKeyUp="false"/>
-    <Connect to="Second" input="next"BLEND><Window from="0.1" until="end-0.1" buffer="true"/></Connect>
+    <Transition input="next" from="0.1" until="end-0.1" buffer="true"BLEND><Row to="Second"><Check kind="blocking"/></Row></Transition>
   </Action>
-  <Action id="Second" clip="Animations\ComboTest\test_Attack2.hkx">
-    <Flow entry="Condition1">
-      <Test id="Condition1" kind="blocking" subject="self" pass="Destination1"/>
-      <Play id="Destination1" action="Second"/>
-    </Flow>
-  </Action>
+  <Action id="Second" clip="Animations\ComboTest\test_Attack2.hkx"/>
 </AnimationSet>"#;
     #[test]
     fn accepts_what_the_plugin_loads() {
         let Some(checker) = checker() else { return };
         let verdict = check_with(&checker, &VALID.replace("BLEND", ""));
         assert!(verdict.available && verdict.valid, "{verdict:?}");
-        assert_eq!(verdict.actions, ["First", "Second"]);
+        // A transition through a condition card goes through a selecting action the runtime makes for it (format 6).
+        assert_eq!(verdict.actions, ["First", "Second", "First_Transition"]);
         assert!(verdict.errors.is_empty() && verdict.warnings.is_empty());
     }
     #[test]
     fn reports_a_file_the_plugin_would_skip() {
-        // Review E-2: the editor could write a Connect blend into a Flow action; the plugin skips the whole file.
+        // Review E-2: a blend on a transition through a condition card; the plugin skips the whole file.
         let Some(checker) = checker() else { return };
         let verdict = check_with(&checker, &VALID.replace("BLEND", r#" blend="0.3""#));
         assert!(verdict.rejected(), "{verdict:?}");
         assert!(verdict.actions.is_empty());
         assert!(
-            verdict.summary().contains("Flow 목적지의 명시적 Connect blend"),
+            verdict
+                .summary()
+                .contains("조건 카드를 거치는 전환에는 blend를 쓸 수 없습니다"),
             "{}",
             verdict.summary()
         );
@@ -278,7 +276,7 @@ mod tests {
             .join("runtime-check-tests")
             .join(format!("{}-{:?}", std::process::id(), std::thread::current().id()).replace(['(', ')'], ""));
         fs::create_dir_all(&folder).unwrap();
-        let verdict = check_in(&checker, "<AnimationSet version=\"4\"", &folder);
+        let verdict = check_in(&checker, "<AnimationSet version=\"6\"", &folder);
         // pugixml failures are logged as warnings; the verdict is still a rejection with a reason.
         assert!(
             verdict.rejected() && !(verdict.errors.is_empty() && verdict.warnings.is_empty()),

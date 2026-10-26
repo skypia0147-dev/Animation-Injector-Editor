@@ -33,6 +33,7 @@ import {
   nodeValues,
   opInfo,
   ragdollLabels,
+  strikeChoices,
   registryFields,
   runValues,
   setNodeValues,
@@ -338,8 +339,14 @@ const Roles = ({roles}: {roles: Set<'initiator' | 'receiver'>}) => (
   </>
 );
 
+/** An event's name that opens the registry node on that event's row (no separate link, user request 10-25). */
+export const EventLink = ({event}: {event: string}) => (
+  <button type="button" className="event-link" title={tr('등록에서 보기')} onClick={() => showRegistry(event)}>
+    {event}
+  </button>
+);
 /** Where a registry function is shown from a card: the registry node, that event's row open. */
-export const RegistryLink = ({event, text = tr('등록에서 보기')}: {event: string; text?: string}) => (
+export const RegistryLink = ({event, text}: {event: string; text: string}) => (
   <button type="button" className="moment-link" onClick={() => showRegistry(event)}>
     {text} ↗
   </button>
@@ -348,13 +355,42 @@ export const RegistryLink = ({event, text = tr('등록에서 보기')}: {event: 
 function RegistryPart({event, values}: {event: string; values: Record<string, string>}) {
   const keys = registryFields(values.op);
   if (!keys.length) return null;
+  // A strike's whom and how (runtime 0.12.293): each choice as the registry set it, the hit choice an area's only.
+  const choice = (key: string) =>
+    strikeChoices[key]().find(([x]) => x === (values[key] ?? strikeChoices[key]()[0][0]))?.[1];
   const text =
     values.op === 'ragdoll'
       ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
-      : [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 마법이 없습니다');
+      : values.op === 'sound'
+        ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
+        : values.op === 'modEvent'
+          ? [values.name, values.text].filter(Boolean).join(' · ')
+          : values.op === 'strike'
+            ? [
+                choice('pick'),
+                values.pick === 'area' && choice('hit'),
+                choice('hand'),
+                choice('block'),
+                values.reaction && values.reaction !== 'none' && choice('reaction'),
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 마법이 없습니다');
+  const label =
+    values.op === 'ragdoll'
+      ? settingLabels.direction
+      : values.op === 'strike'
+        ? tr('대상·방식')
+        : values.op === 'sound'
+          ? tr('소리')
+          : values.op === 'globalSet'
+            ? tr('전역 값')
+            : values.op === 'modEvent'
+              ? tr('이벤트')
+              : tr('마법');
   return (
     <div className="moment-line">
-      <span className="moment-label">{values.op === 'ragdoll' ? settingLabels.direction : tr('마법')}</span>
+      <span className="moment-label">{label}</span>
       <span className="moment-inline">
         <code>{text}</code>
         <RegistryLink event={event} text={tr('등록에서 바꾸기')} />
@@ -441,24 +477,23 @@ export function RegistryMomentRow({
   return (
     <div className={'checklist-row moment registry-moment' + (missing ? ' missing' : '')}>
       <div className="checklist-row-heading">
+        {/* What on the left (the function and its numbers), when on the right (docs/mockup-design-unify A). */}
         <button aria-expanded={open} onClick={() => setOpen(!open)}>
           <span>{name}</span>
+          {(missing || functionParts(run).length > 0) && (
+            <em className="row-par">{missing ? tr('수치를 넣으세요') : functionParts(run).join(' · ')}</em>
+          )}
           <small title={item.event}>
             {slotOfOp(op) ? item.event + ' → ' + (item.off ? item.off.event : tr('동작 끝')) : item.event}
           </small>
-          <span>{open ? '▾' : '▸'}</span>
         </button>
-      </div>
-      <div className="moment-sub">
-        {missing ? tr('수치를 넣으세요') : functionParts(run).join(' · ') || tr('수치 없음')}
       </div>
       {open && (
         <div className="checklist-fields moment-fields">
           <div className="moment-line">
             <span className="moment-label">{slotOfOp(op) ? tr('켜는 시점') : tr('시점')}</span>
             <span className="moment-inline">
-              {tr('이벤트')} <code>{item.event}</code> <span className="moment-unit">· {times(item.sent)}</span>
-              <RegistryLink event={item.event} />
+              {tr('이벤트')} <EventLink event={item.event} /> <span className="moment-unit">· {times(item.sent)}</span>
             </span>
           </div>
           {slotOfOp(op) && (
@@ -505,25 +540,27 @@ export function CommandMomentRow({item}: {item: CommandMoment}) {
   return (
     <div className={'checklist-row moment annotation-moment' + (item.bad.length && !item.rows.length ? ' bad' : '')}>
       <div className="checklist-row-heading">
-        <span
-          className="moment-lock"
+        {/* What on the left (the command and its numbers), when on the right: the HKX annotation's time, plain text
+            since it points at nothing to open (docs/mockup-design-unify A). */}
+        <button
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
           title={tr('HKX 주석에서 만든 항목입니다. 끄거나 고치려면 HKX의 주석을 고치세요.')}
         >
-          {tr('HKX 주석')}
-        </span>
-        <button aria-expanded={open} onClick={() => setOpen(!open)}>
           <span>{item.rows.length ? item.label : tr('알 수 없는 주석 명령')}</span>
-          <small>{item.rows.length ? times + tr('초') : item.bad.map(b => fmt(b.time)).join(' · ') + tr('초')}</small>
-          <span>{open ? '▾' : '▸'}</span>
+          {item.rows.length > 0 && (
+            <em className="row-par">
+              {one
+                ? tr('세기 {s} · {d}초', {s: one.strength, d: one.duration})
+                : tr('{n}곳 · 시점마다 세기·시간', {n: item.rows.length})}
+            </em>
+          )}
+          <small className="time">
+            {tr('HKX 주석')} ·{' '}
+            {item.rows.length ? times + tr('초') : item.bad.map(b => fmt(b.time)).join(' · ') + tr('초')}
+          </small>
         </button>
       </div>
-      {item.rows.length > 0 && (
-        <div className="moment-sub">
-          {one
-            ? tr('세기 {s} · {d}초', {s: one.strength, d: one.duration})
-            : tr('{n}곳 · 시점마다 세기·시간', {n: item.rows.length})}
-        </div>
-      )}
       {open && (
         <div className="checklist-fields moment-fields">
           {item.rows.length > 0 && (

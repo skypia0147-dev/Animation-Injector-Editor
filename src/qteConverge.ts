@@ -17,8 +17,6 @@ export function convergeTiming(q: Timed) {
 export const speedForApproach = (seconds: number) => Math.min(10, Math.max(0.1, (qteTarget * 2.4) / seconds));
 /** How far the lines have come at `elapsed`: 0 at the edges, 1 met in the middle. */
 export const convergeHead = (q: Timed, elapsed: number) => elapsed / convergeTiming(q).approach;
-/** Converging lines have crossed once the success window is over. */
-export const convergeMissed = (q: Timed, progress: number) => progress > qteTarget + q.successWindow;
 export const quality = (o: Outcome) => (o === 'perfect' ? 1 : 0.62);
 /** The mockup's bloom makes a broad soft light about this much brighter; the game (and this preview) draws such
  *  lights this much brighter instead of blurring. */

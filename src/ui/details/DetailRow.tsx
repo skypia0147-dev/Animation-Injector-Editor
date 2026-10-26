@@ -16,7 +16,7 @@ export const ItemTitle = createContext('');
 /** The item a row sits in: a row named as its item draws no second name, only its field
  *  (docs/mockup-layout-audit ⑩). */
 const RowOwner = createContext('');
-/** Categories drawn as the HKX card's item rows (재생 설정, docs/mockup-playback-settings): name, summary and ▸ on
+/** Categories drawn as the HKX card's item rows (재생 설정, docs/mockup-playback-settings): name, summary on
  *  one line, opening in place. Each starts closed; allOpen opens or closes all of them (전체 펼치기). */
 export const CategoryRows = createContext<{allOpen?: boolean} | null>(null);
 export function DetailPanel({children}: {children: ReactNode}) {
@@ -149,7 +149,6 @@ export function DetailCategory({
           <button aria-expanded={expanded} aria-controls={id} onClick={() => setOpen(!open)}>
             <span>{title}</span>
             <small title={summary}>{summary === title ? '' : summary}</small>
-            <span>{expanded ? '▾' : '▸'}</span>
           </button>
         </div>
         {expanded && (

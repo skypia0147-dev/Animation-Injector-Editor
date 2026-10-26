@@ -69,7 +69,6 @@ test('pair ranges and ordinary ranges edit through the same marks without changi
   const next = patch(n.workspace, a.uid, n.id, {until: mark(1.2)});
   assert.equal(next.actions[0].pair.timeline.iframe.until.seconds, 1.2);
   assert.equal(next.actions[0].pair.timeline.iframe.role, 'receiver');
-  assert.equal(next.actions[0].pair.effectsEnabled, true);
 });
 test('event position uses actual annotations including time zero, never the saved fallback', () => {
   const event = {...mark(99), basis: 'event', event: 'Open', fallback: true};

@@ -1,11 +1,9 @@
 import type {Workspace, Link} from '../../workspace.ts';
-import {mark} from '../../model.ts';
 import {t} from '../../i18n/index.ts';
 import {DetailPanel, DetailCategory as Category} from './DetailRow.tsx';
 import {Property as Prop} from './Property.tsx';
 import {WindowFields} from './ClipWindowFields.tsx';
 import {markerNames} from './markerCatalog.ts';
-import {labelText} from '../../labels.ts';
 import {sharesSourceWindow} from '../../graph/playback.ts';
 import {sourceWindow} from '../../graph/clipWindows.ts';
 import {HelpNote} from '../HelpTip.tsx';

@@ -42,17 +42,6 @@ struct HkxResolved {
     clip: String,
     error: String,
 }
-#[derive(serde::Deserialize)]
-struct AssetRequest {
-    id: String,
-    path: String,
-    clip: String,
-}
-#[derive(serde::Serialize)]
-struct AssetResult {
-    id: String,
-    message: String,
-}
 
 #[derive(serde::Serialize)]
 struct SearchRoots {
@@ -117,8 +106,7 @@ pub(crate) fn rig_roots() -> &'static [String] {
 }
 pub(crate) const GAME_PATH_RULE: &str =
     "HKX 경로(캐릭터 폴더 아래)는 영문·숫자·일반 기호만 씁니다. 한글 등은 게임이 파일을 찾지 못하니 파일·폴더 이름을 바꾸세요.";
-// The editor's documents: runtime XML (the project rides in its editor block) and templates. The .aiproj file was
-// retired on 10-03 and is neither opened nor written.
+// The editor's documents: runtime XML (the project rides in its editor block) and templates.
 const DOCUMENT_EXTENSIONS: [&str; 2] = ["xml", "aitemplate"];
 
 fn hkx_relative(path: &str) -> Result<String, String> {
@@ -271,37 +259,6 @@ async fn files_exist(paths: Vec<String>) -> Result<Vec<bool>, String> {
     .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-async fn check_assets(files: Vec<AssetRequest>) -> Result<Vec<AssetResult>, String> {
-    if files.len() > 100 {
-        return Err("한 번에 100개까지 확인합니다.".into());
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        files
-            .into_iter()
-            .map(|file| {
-                let message = if file.path.is_empty() {
-                    "실제 파일 미선택 · 상대 경로만 지정됨".into()
-                } else {
-                    match hkx_relative(&file.path) {
-                        Ok(clip) if clip.eq_ignore_ascii_case(&file.clip.replace('/', "\\")) => {
-                            match fs::metadata(&file.path) {
-                                Ok(m) if m.is_file() => format!("파일 존재 · {} bytes · HKX 내용 미검사", m.len()),
-                                _ => "파일 없음 또는 접근 불가".into(),
-                            }
-                        }
-                        Ok(_) => "선택했던 파일과 현재 상대 경로가 다릅니다. 다시 선택하세요.".into(),
-                        Err(e) => e,
-                    }
-                };
-                AssetResult { id: file.id, message }
-            })
-            .collect()
-    })
-    .await
-    .map_err(|e| e.to_string())
-}
-
 /// Refuses to write over a file whose bytes are no longer the ones the editor read or wrote (`expected`).
 /// An empty `expected` (a new file, or the user chose to overwrite) and a file that is gone write as before.
 fn unchanged_on_disk(path: &Path, expected: &str) -> Result<(), String> {
@@ -315,7 +272,7 @@ fn unchanged_on_disk(path: &Path, expected: &str) -> Result<(), String> {
 }
 
 /// A draft: work saved while the project still has errors. Its runtime body is an empty set
-/// (`<AnimationSet version="4" id="…"/>`), which the plugin skips as a whole, and the editor block after it holds
+/// (`<AnimationSet version="6" id="…"/>`, XML format 6), which the plugin skips as a whole, and the editor block after it holds
 /// the project. Only this exact body may be written without the runtime check.
 fn draft_body(contents: &str) -> bool {
     let body = contents
@@ -331,7 +288,7 @@ fn draft_body(contents: &str) -> bool {
         return false;
     };
     let Some(id) = rest
-        .strip_prefix("<AnimationSet version=\"4\" id=\"")
+        .strip_prefix("<AnimationSet version=\"6\" id=\"")
         .and_then(|r| r.strip_suffix("\"/>"))
     else {
         return false;
@@ -522,8 +479,10 @@ fn main() {
             resolve_hkx,
             files_exist,
             resolve_search_roots,
-            check_assets,
             modpack::pick_asset_root,
+            modpack::pick_sound,
+            modpack::mod_sounds,
+            modpack::sound_bytes,
             modpack::probe_package,
             modpack::export_mod,
             runtime_check::check_runtime_xml
@@ -649,14 +608,14 @@ mod tests {
     #[test]
     fn a_draft_is_only_an_empty_set_with_the_editor_block() {
         let block = "\n<!-- AnimationInjectorEditor {\"version\":1} -->\n";
-        let empty = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<AnimationSet version=\"4\" id=\"My_Set1\"/>";
+        let empty = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<AnimationSet version=\"6\" id=\"My_Set1\"/>";
         assert!(draft_body(&format!("{empty}{block}")));
         assert!(writable_xml(&format!("{empty}{block}"), true).is_ok());
         for body in [
-            "<?xml version=\"1.0\"?><AnimationSet version=\"4\" id=\"A\"><Action id=\"X\"/></AnimationSet>",
-            "<?xml version=\"1.0\"?><AnimationSet version=\"3\" id=\"A\"/>",
-            "<?xml version=\"1.0\"?><AnimationSet version=\"4\" id=\"a b\"/>",
-            "<AnimationSet version=\"4\" id=\"A\"/>",
+            "<?xml version=\"1.0\"?><AnimationSet version=\"6\" id=\"A\"><Action id=\"X\"/></AnimationSet>",
+            "<?xml version=\"1.0\"?><AnimationSet version=\"5\" id=\"A\"/>",
+            "<?xml version=\"1.0\"?><AnimationSet version=\"6\" id=\"a b\"/>",
+            "<AnimationSet version=\"6\" id=\"A\"/>",
         ] {
             assert!(!draft_body(&format!("{body}{block}")), "{body}");
             assert!(writable_xml(&format!("{body}{block}"), true).is_err(), "{body}");

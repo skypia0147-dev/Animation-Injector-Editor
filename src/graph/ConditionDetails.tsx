@@ -1,49 +1,92 @@
-import {ConditionExpressionEditor} from './ConditionExpressionEditor.tsx';
 import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
-import {extensionKinds, definition, extensionDefaults, formKinds} from './conditionExtensions.ts';
+import {definition, extensionDefaults, formKinds} from './conditionExtensions.ts';
 import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 import {t} from '../i18n/index.ts';
 import {useState} from 'react';
-import {setConditionOperands} from './conditionCommands.ts';
+import {patchTest} from './conditionExpression.ts';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
-import {olderSpaceCheck, selfDirections} from './conditions.ts';
+import {selfDirections} from './conditions.ts';
 import {DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
+/** The last action the subject finished (runtime 0.12.296): which of this project's actions, how long ago, and
+ *  whether it played to its end. */
+function PreviousActionFields({
+  w,
+  test,
+  change,
+}: {
+  w: Workspace;
+  test: BranchTest;
+  change: (patch: Partial<BranchTest>) => void;
+}) {
+  const chosen = new Set(test.actions ?? []);
+  return (
+    <>
+      <DetailRow label={tr('동작')} hint={definition('previousAction')?.hint}>
+        <span className="previous-actions">
+          {w.actions.map(a => (
+            <label key={a.uid}>
+              <input
+                type="checkbox"
+                checked={chosen.has(a.uid)}
+                onChange={e => {
+                  const next = new Set(chosen);
+                  if (e.target.checked) next.add(a.uid);
+                  else next.delete(a.uid);
+                  change({actions: w.actions.map(x => x.uid).filter(uid => next.has(uid))});
+                }}
+              />
+              {a.config.name || a.config.actionId}
+            </label>
+          ))}
+        </span>
+      </DetailRow>
+      <DetailRow label={tr('끝난 지')} hint={tr('비워 두면 시간과 상관없이 마지막으로 끝낸 동작만 봅니다.')}>
+        <span className="strike-inline">
+          <input
+            type="number"
+            className="strike-number"
+            min="0"
+            max="600"
+            step="0.1"
+            placeholder={tr('제한 없음')}
+            value={test.within ?? ''}
+            onChange={e => change({within: e.target.value === '' ? undefined : Number(e.target.value)})}
+          />
+          {tr('초 이내')}
+        </span>
+      </DetailRow>
+      <DetailRow label={tr('끝난 방식')}>
+        <select value={test.ended ?? 'any'} onChange={e => change({ended: e.target.value as BranchTest['ended']})}>
+          <option value="any">{tr('상관없음')}</option>
+          <option value="completed">{tr('끝까지 재생')}</option>
+          <option value="cancelled">{tr('중간에 끝남')}</option>
+        </select>
+      </DetailRow>
+    </>
+  );
+}
+/** One condition of a condition card (`owner`: the card's uid, `id`: the condition's). */
 export function ConditionFields({
   w,
-  id,
+  owner,
+  id: key,
   edit,
   embedded = false,
 }: {
   w: Workspace;
+  owner: string;
   id: string;
   embedded?: boolean;
   edit: (f: (w: Workspace) => Workspace) => void;
 }) {
-  const [error, setError] = useState('');
-  const attempt = (fn: () => void) => {
-    try {
-      fn();
-      setError('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const [, owner, key] = id.split(':'),
-    a = w.actions.find(a => a.uid === owner),
-    test = a?.flow?.tests.find(t => t.id === key);
-  if (!test) return null;
-  const change = (patch: Partial<BranchTest>) =>
-    edit(w => {
-      const n = structuredClone(w);
-      Object.assign(
-        n.actions.find(a => a.uid === owner)!.flow!.tests.find(t => t.id === key)!,
-        patch
-      );
-      return n;
-    });
+  const [error] = useState('');
+  const card = w.cards.find(c => c.uid === owner),
+    test = card?.tests.find(t => t.id === key);
+  if (!card || !test) return null;
+  const change = (patch: Partial<BranchTest>) => edit(w => patchTest(w, owner, key, patch));
   return (
     <DetailPanel>
       {!embedded && <h3>{tr('조건 분기')}</h3>}
@@ -65,7 +108,6 @@ export function ConditionFields({
                 ? {
                     subject: 'self' as const,
                     space: {
-                      candidate: a?.pair ? owner : '',
                       distance: kind === 'ground' ? 0 : 200,
                       direction: 'selfForward' as const,
                     },
@@ -125,59 +167,10 @@ export function ConditionFields({
           </select>
         </DetailRow>
       )}
-      {!embedded && ['all', 'any'].includes(test.kind) && (
-        <DetailRow
-          label={tr('구성 조건')}
-          hint={tr('구성 조건은 통과·실패 연결 없이 사용합니다. 검사 불능은 NOT에서도 통과로 바뀌지 않습니다.')}
-        >
-          <div>
-            {a!
-              .flow!.tests.filter(t => t.id !== key)
-              .map(t => (
-                <label key={t.id} style={{display: 'block'}}>
-                  <input
-                    type="checkbox"
-                    checked={test.operands?.includes(t.id) ?? false}
-                    onChange={e =>
-                      attempt(() =>
-                        edit(w =>
-                          setConditionOperands(
-                            w,
-                            owner,
-                            key,
-                            e.target.checked
-                              ? [...(test.operands ?? []), t.id]
-                              : (test.operands ?? []).filter(x => x !== t.id)
-                          )
-                        )
-                      )
-                    }
-                  />
-                  {t.id}
-                </label>
-              ))}
-            <button
-              onClick={() =>
-                edit(w => {
-                  const n = structuredClone(w),
-                    f = n.actions.find(a => a.uid === owner)!.flow!;
-                  let serial = 1;
-                  while (f.tests.some(t => t.id === 'Condition' + serial)) serial++;
-                  const id = 'Condition' + serial;
-                  f.tests.push({id, kind: 'alive', subject: 'self', minimum: 0});
-                  const group = f.tests.find(t => t.id === key)!;
-                  group.operands = [...(group.operands ?? []), id];
-                  return n;
-                })
-              }
-            >
-              {tr('구성 조건 추가')}
-            </button>
-          </div>
-        </DetailRow>
-      )}
       {/* A room check is always measured at the actor's own spot (docs/mockup-space-sentence): no target field. */}
-      {!['all', 'any', 'global', 'space', 'ground'].includes(test.kind) && (
+      {test.kind === 'previousAction' && <PreviousActionFields w={w} test={test} change={change} />}
+      {/* The time of day and the weather are the world's: no target. */}
+      {!['all', 'any', 'global', 'space', 'ground', 'gameHour', 'weather'].includes(test.kind) && (
         <DetailRow
           label={tr('검사 대상')}
           hint={tr(
@@ -246,29 +239,25 @@ export function ConditionFields({
       )}
       {(test.kind === 'space' || test.kind === 'ground') && (
         <>
-          {/* Where it measures is no field (docs/mockup-free-conditions ⑤): the pair the pass leads to, at save. */}
+          {/* Measured where the actor stands, for no particular action (mockup ⑩, runtime 0.12.299). */}
           <DetailRow
             label={tr('방향')}
             hint={
-              tr(
-                '통과하면 할 페어가 시작될 때 본인이 설 자리에서, 본인이 바라볼 방향을 기준으로 잽니다. 다음 동작은 통과·실패 선이 정합니다.'
-              ) +
+              tr('지금 서 있는 자리에서 지금 바라보는 방향으로 잽니다. 본인과 시작의 대상은 장애물로 보지 않습니다.') +
               (test.kind === 'ground'
                 ? ' ' +
                   tr(
-                    '예상 배치 높이를 기준으로 25단위 이하 간격마다 중심과 주변 4점을 검사합니다. 작은 틈을 모두 감지하거나 착지를 보장하지는 않습니다. 동적 물체 등 불명확한 결과는 실패로 보냅니다.'
+                    '지금 발 높이를 기준으로 25단위 이하 간격마다 중심과 주변 4점을 검사합니다. 작은 틈을 모두 감지하거나 착지를 보장하지는 않습니다. 동적 물체 등 불명확한 결과는 실패로 보냅니다.'
                   )
                 : '')
             }
           >
             <select
-              value={olderSpaceCheck(test) ? 'older' : (test.space?.direction ?? 'selfForward')}
+              value={test.space?.direction ?? 'selfForward'}
               onChange={e =>
-                e.target.value !== 'older' &&
                 change({
                   subject: 'self',
                   space: {
-                    candidate: '',
                     distance: 200,
                     ...test.space,
                     direction: e.target.value as NonNullable<BranchTest['space']>['direction'],
@@ -276,27 +265,9 @@ export function ConditionFields({
                 })
               }
             >
-              {/* An older check (the partner's spot or heading) shows what it is until a direction is chosen. */}
-              {olderSpaceCheck(test) && (
-                <option value="older" disabled>
-                  {tr('예전: {who} 자리 · {side}', {
-                    who: test.subject === 'partner' ? tr('상대') : tr('본인'),
-                    side: {
-                      partnerForward: tr('상대 기준 앞'),
-                      partnerBack: tr('상대 기준 뒤'),
-                      partnerLeft: tr('상대 기준 왼쪽'),
-                      partnerRight: tr('상대 기준 오른쪽'),
-                      selfForward: tr('본인 기준 앞'),
-                      selfBack: tr('본인 기준 뒤'),
-                      selfLeft: tr('본인 기준 왼쪽'),
-                      selfRight: tr('본인 기준 오른쪽'),
-                    }[test.space?.direction ?? 'partnerForward'],
-                  })}
-                </option>
-              )}
               {selfDirections.map((d, i) => (
                 <option key={d} value={d}>
-                  {[tr('본인 기준 앞'), tr('본인 기준 뒤'), tr('본인 기준 왼쪽'), tr('본인 기준 오른쪽')][i]}
+                  {[tr('앞'), tr('뒤'), tr('왼쪽'), tr('오른쪽')][i]}
                 </option>
               ))}
             </select>
@@ -312,7 +283,7 @@ export function ConditionFields({
               value={test.space?.distance ?? 200}
               onChange={e =>
                 change({
-                  space: {candidate: '', direction: 'selfForward', ...test.space, distance: Number(e.target.value)},
+                  space: {direction: 'selfForward', ...test.space, distance: Number(e.target.value)},
                 })
               }
             />
@@ -326,7 +297,7 @@ export function ConditionFields({
             <DetailRow
               key={key}
               label={[tr('허용 위쪽 높이'), tr('허용 아래쪽 높이'), tr('최대 경사각'), tr('검사 반경')][i]}
-              hint={tr('높이는 후보의 예상 배치 높이 기준입니다. 거리·반경은 게임 단위, 경사는 도 단위입니다.')}
+              hint={tr('높이는 지금 발 높이 기준입니다. 거리·반경은 게임 단위, 경사는 도 단위입니다.')}
             >
               <input
                 type="number"
@@ -338,29 +309,6 @@ export function ConditionFields({
             </DetailRow>
           );
         })}
-      {!embedded && (
-        <>
-          <button
-            disabled={a!.flow!.entry === key}
-            onClick={() =>
-              edit(w => {
-                const n = structuredClone(w),
-                  f = n.actions.find(a => a.uid === owner)!.flow!;
-                f.entry = key;
-                delete f.detached;
-                return n;
-              })
-            }
-          >
-            {tr('진입 조건으로 지정')}
-          </button>
-          {/* Pass and fail routes: the "연결" section above (graph/pinTargets.ts). */}
-        </>
-      )}
     </DetailPanel>
   );
-}
-
-export function ConditionDetails(props: {w: Workspace; id: string; edit: (f: (w: Workspace) => Workspace) => void}) {
-  return <ConditionExpressionEditor {...props} />;
 }

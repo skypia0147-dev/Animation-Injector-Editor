@@ -15,6 +15,8 @@ import {
   ragdollDirections,
   ragdollForce,
   ragdollLabels,
+  soundBones,
+  textSettings,
   type EventOp,
 } from '../../eventRegistry.ts';
 import type {LabelId} from '../../labels.ts';
@@ -22,6 +24,8 @@ import {t} from '../../i18n/index.ts';
 import {Property as Prop} from './Property.tsx';
 import {DetailRow} from './DetailRow.tsx';
 import {tr} from '../../i18n/korean.ts';
+import {StrikeFields} from './StrikeFields.tsx';
+import {SoundSourceFields} from './SoundFile.tsx';
 
 const advanced = ['delay'];
 /**
@@ -54,6 +58,13 @@ export function EffectDetails({
       if (value === undefined) delete values[key];
       else values[key] = value;
       change({...effect, values});
+    },
+    setMany = (patch: Record<string, string | undefined>) => {
+      const values = {...v};
+      for (const [key, value] of Object.entries(patch))
+        if (value === undefined) delete values[key];
+        else values[key] = value;
+      change({...effect, values});
     };
   const info = opInfo[v.op as EventOp];
   const field = (key: string) => {
@@ -68,25 +79,73 @@ export function EffectDetails({
           change={value => set(key, String(value))}
         />
       );
+    // A sound's source (mockup ②): 출처 파일 | 등록 사운드, its file from the library or 찾아보기 (runtime 0.12.296).
+    if (v.op === 'sound' && (key === 'plugin' || key === 'form')) return null;
+    if (key === 'file')
+      return (
+        <SoundSourceFields
+          key={key}
+          values={v}
+          setMany={setMany}
+          row={(label, control, k) => (
+            <DetailRow key={k} label={label}>
+              {control}
+            </DetailRow>
+          )}
+        />
+      );
     if (key === 'plugin' || key === 'form')
       return <Prop key={key} id={id} value={v[key] ?? ''} change={value => set(key, value || undefined)} />;
+    // A mod event's name and text (runtime 0.12.296): text, not numbers.
+    if (textSettings.includes(key))
+      return (
+        <Prop
+          key={key}
+          id={id}
+          label={settingLabels[key]}
+          value={v[key] ?? ''}
+          change={value => set(key, value || undefined)}
+        />
+      );
+    if (key === 'bone')
+      return (
+        <Prop
+          key={key}
+          id="kind"
+          label={settingLabels.bone}
+          value={v.bone ?? 'spine'}
+          change={value => set('bone', value === 'spine' ? undefined : value)}
+          options={soundBones()}
+        />
+      );
+    if (key === 'restore')
+      return (
+        <DetailRow key={key} label={settingLabels.restore}>
+          <input
+            type="checkbox"
+            checked={v.restore === 'end'}
+            onChange={e => set('restore', e.target.checked ? 'end' : undefined)}
+          />
+        </DetailRow>
+      );
+
     if (key === 'damage' && v.mode !== 'direct') return null;
     // A ragdoll's direction picks where the push comes from; its force defaults by direction (runtime 0.12.278).
     if (key === 'direction')
       return (
         <DetailRow key={key} label={settingLabels.direction}>
-          <span className="moment-seg" role="group" aria-label={settingLabels.direction}>
+          {/* Six directions are a list (mockup ⑦). */}
+          <select
+            aria-label={settingLabels.direction}
+            value={v.direction ?? 'down'}
+            onChange={e => set('direction', e.target.value === 'down' ? undefined : e.target.value)}
+          >
             {ragdollDirections.map(d => (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={(v.direction ?? 'down') === d}
-                onClick={() => set('direction', d === 'down' ? undefined : d)}
-              >
+              <option key={d} value={d}>
                 {ragdollLabels[d]}
-              </button>
+              </option>
             ))}
-          </span>
+          </select>
         </DetailRow>
       );
     if (key === 'force') {
@@ -122,7 +181,7 @@ export function EffectDetails({
           options={arrowModes()}
         />
       );
-    const [, max] = settingRange(key) ?? [0, 600],
+    const [min, max] = settingRange(key) ?? [0, 600],
       def = Number(settingDefault[key] ?? 0);
     return (
       <Prop
@@ -131,6 +190,7 @@ export function EffectDetails({
         label={settingLabels[key]}
         value={v[key] === undefined ? def : Number(v[key])}
         initial={def}
+        min={min}
         max={max}
         change={value => set(key, String(value))}
       />
@@ -168,13 +228,18 @@ export function EffectDetails({
       {pair && !registry && !self && !info?.player && (
         <Prop
           id="receiver"
-          label={tr('적용')}
+          label={v.op === 'strike' ? tr('공격하는 쪽') : tr('적용')}
           value={v.target ?? 'both'}
           change={value => set('target', value === 'both' ? undefined : value)}
           options={pairRoles.map(x => [x, pairRoleLabels[x]])}
         />
       )}
-      {fields.filter(k => !advanced.includes(k)).map(field)}
+      {v.op === 'strike' ? (
+        // Whom and how are the registry's, the numbers a node's (runtime 0.12.281); a clip-time strike holds both.
+        <StrikeFields values={v} set={set} setMany={setMany} kinds={!valuesOnly} numbers={!registry} />
+      ) : (
+        fields.filter(k => !advanced.includes(k)).map(field)
+      )}
       {info?.lasting && (
         <p
           className="effect-note"

@@ -44,27 +44,6 @@ export function uniqueQteGroup(w: Workspace, base: string) {
   while (w.qtes?.some(q => q.group === name)) name = base + ' ' + i++;
   return name;
 }
-export function disconnectQte(w: Workspace, source: string, target: string, pin: string, sourceAction?: string) {
-  const members = qteMembers(w, source.startsWith('qte:') ? source : target);
-  if (target.startsWith('qte:')) {
-    // An event QTE's start line: the QTE no longer starts from its event.
-    if (source.startsWith('qte-event:')) for (const q of members) delete q.eventStart;
-    else for (const q of members) if (!sourceAction || q.owner === sourceAction) q.owner = '';
-  } else {
-    const r = qtePinRule(members, pin);
-    if (r) {
-      if (r.partner) r.q.results[r.outcome].partnerTo = '';
-      else r.q.results[r.outcome].mode = 'continue';
-    }
-  }
-}
-
-export function remapQtePin(pin: string, map: Map<string, string>) {
-  const parts = pin.split(':');
-  if (parts[0] === 'choice' && outcomes.includes(parts[2] as Outcome) && map.has('qte:' + parts[1]))
-    parts[1] = map.get('qte:' + parts[1])!.slice(4);
-  return parts.join(':');
-}
 export function removeQteRule(w: Workspace, visual: string, id: string) {
   const n = structuredClone(w),
     members = qteMembers(n, visual),
@@ -81,11 +60,5 @@ export function removeQteRule(w: Workspace, visual: string, id: string) {
     replacement.xmlId = qteXmlId(replacement);
     replacement.id = removed.id;
   }
-  n.disconnections = n.disconnections?.flatMap(c => {
-    const bindings = c.bindings
-      .filter(b => !(b.source === visual && b.pin.startsWith('choice:' + id + ':')))
-      .map(b => ({...b, pin: remapQtePin(b.pin, map)}));
-    return bindings.length ? [{...c, pin: remapQtePin(c.pin, map), bindings}] : [];
-  });
   return n;
 }

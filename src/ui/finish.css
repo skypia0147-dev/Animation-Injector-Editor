@@ -149,9 +149,6 @@
 .details-body {
   overflow-x: hidden;
 }
-.toolbar .tb-right {
-  min-width: 0;
-}
 .viewport-toolbar {
   flex-wrap: wrap;
 }

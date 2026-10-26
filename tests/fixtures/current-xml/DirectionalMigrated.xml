@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A schema 2 directional project opened after 0.12.231: its entry clip as one single action, no motion. -->
-<AnimationSet version="4" id="ImportedSet">
+<AnimationSet version="6" id="ImportedSet">
   <Inputs>
     <Input id="a1_i1" key="NumDot"/>
   </Inputs>
-  <Action id="EditorDirectional" clip="Animations\DirectDodge\Dodge_Forward.hkx">
-    <Start input="a1_i1" onKeyUp="false"/>
-    <Require air="deny" cooldown="0.3"/>
-    <Enter blend="0.1"/>
-    <Exit at="end-0.05" blend="0.2"/>
-    <IFrame from="0" until="end"/>
+  <Start to="EditorDirectional" input="a1_i1" cooldown="0.3"/>
+  <Action id="EditorDirectional" clip="Animations\DirectDodge\Dodge_Forward.hkx" enter="0.1">
+    <Exit blend="0.2"/>
+    <IFrame/>
   </Action>
 </AnimationSet>

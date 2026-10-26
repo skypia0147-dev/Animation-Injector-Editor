@@ -1,7 +1,7 @@
 // Writes src/runtimeText.ts: the Korean pieces of the messages the bundled runtime checker (AnimationInjectorXmlCheck,
-// built from the runtime's Settings.cpp, XmlV2.cpp, ConditionFlowXml.cpp and RagdollProfile.cpp) writes. The checker
-// joins Korean pieces and values ("알 수 없는 속성 '" + name + "'"), so the editor swaps each known piece for its
-// translation (longest first) instead of matching whole sentences. Adjacent C++ literals count as one piece; a
+// built from the runtime's Settings.cpp, XmlV2.cpp, Cards.cpp, ConditionFlowXml.cpp and RagdollProfile.cpp)
+// writes. The checker joins Korean pieces and values ("알 수 없는 속성 '" + name + "'"), so the editor swaps each
+// known piece for its translation (longest first) instead of matching whole sentences. Adjacent C++ literals count as one piece; a
 // piece is split at {} format holes. Run again after the runtime changes a message, then translate what
 // tools/i18n-merge.mjs --missing lists.
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -13,6 +13,7 @@ const runtime = join(root, '..', 'AnimationInjector', 'src');
 const sources = [
   'Settings.cpp',
   'declarations/XmlV2.cpp',
+  'declarations/Cards.cpp',
   'declarations/ConditionFlowXml.cpp',
   'runtime/RagdollProfile.cpp',
 ];

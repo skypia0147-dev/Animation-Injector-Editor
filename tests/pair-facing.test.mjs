@@ -12,38 +12,16 @@ const grapple = () =>
   parseWorkspace(projectText(fileURLToPath(new URL('./fixtures/grapple-carry-qte-cuts.xml', import.meta.url))));
 const byName = (w, name) => w.actions.find(a => a.config.name === name);
 
-test('a project saved with the removed pair values opens without them and never writes them', () => {
-  const w = grapple();
-  const back = byName(w, 'GrappleSuplex');
-  assert.equal(back.pair.reorientSupport, false);
-  for (const a of w.actions.filter(a => a.pair))
-    for (const key of ['getToMarkTime', 'markErrorThreshold', 'applyMotionFromRoot']) assert.ok(!(key in a.pair), key);
-  // An old project still carrying them opens too.
-  const old = JSON.parse(JSON.stringify(w));
-  Object.assign(old.actions.find(a => a.pair).pair, {
-    getToMarkTime: 0.5,
-    markErrorThreshold: 3,
-    applyMotionFromRoot: true,
-  });
-  const opened = parseWorkspace(JSON.stringify(old));
-  assert.ok(!('getToMarkTime' in opened.actions.find(a => a.pair).pair));
-  const xml = compileWorkspace(w);
-  assert.doesNotMatch(xml, /getToMarkTime|markErrorThreshold|applyMotionFromRoot/);
-  assert.equal((xml.match(/reorientSupport="false"/g) ?? []).length, 4);
-});
-
 test('an XML carrying the removed values imports; only reorientSupport is kept', () => {
   const w = importWorkspaceXml(`<?xml version="1.0" encoding="utf-8"?>
-<AnimationSet version="4" id="Facing">
-  <Pair id="Behind" clip="Animations\\Behind.hkx">
-    <Start key="G"/>
-    <Advanced getToMarkTime="0.3" markErrorThreshold="2" applyMotionFromRoot="true" reorientSupport="false"/>
-  </Pair>
+<AnimationSet version="6" id="Facing">
+  <Start key="G" to="Behind"/>
+  <Pair id="Behind" clip="Animations\\Behind.hkx" reorient="false"/>
 </AnimationSet>`);
   const p = w.actions[0].pair;
   assert.equal(p.reorientSupport, false);
   assert.ok(!('getToMarkTime' in p) && !('applyMotionFromRoot' in p));
-  assert.match(compileWorkspace(w), /<Advanced reorientSupport="false"\/>/);
+  assert.match(compileWorkspace(w), /<Pair id="Behind" clip="[^"]+" reorient="false"\/>/);
 });
 
 test('a facing read from the HKX sets the pair; a pair facing each other writes nothing', () => {

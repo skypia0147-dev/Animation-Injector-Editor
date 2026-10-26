@@ -6,6 +6,8 @@ import {
   assets,
   assetKey,
   selectAsset,
+  selectSound,
+  sounds,
   policy,
   plugins,
   request,
@@ -14,7 +16,7 @@ import {
   runtimeSummary,
 } from './package';
 import {MINIMUM_RUNTIME_VERSION} from './xmlFormat.ts';
-import type {PackageReport, RuntimeVerdict} from './package';
+import type {PackageReport, ReportRow, RuntimeVerdict} from './package';
 import {t} from './i18n/index.ts';
 import * as io from './io';
 import {tr} from './i18n/korean.ts';
@@ -33,6 +35,94 @@ function RuntimeStatus({verdict}: {verdict: RuntimeVerdict}) {
         </p>
       ))}
     </>
+  );
+}
+
+/** One file of the package, an HKX or a sound: copy it (its source found or chosen) or name who provides it. */
+function AssetRow({
+  name,
+  copyText,
+  file,
+  row,
+  busy,
+  edit,
+  choose,
+  clear,
+  pick,
+}: {
+  name: string;
+  /** The copy choice's words: an HKX's by default. */
+  copyText?: string;
+  file: {paths: string[]; mode: 'copy' | 'external'; dependency: string};
+  row?: ReportRow;
+  busy: boolean;
+  edit: (fn: (w: Workspace) => Workspace) => void;
+  choose: () => void;
+  clear: () => void;
+  pick: (path: string) => void;
+}) {
+  return (
+    <fieldset disabled={busy} className="package-asset">
+      <legend>{name}</legend>
+      <div className="package-asset-controls">
+        <select
+          aria-label={t('export.policy') + ' ' + name}
+          value={file.mode}
+          onChange={e => edit(w => policy(w, name, e.target.value as 'copy' | 'external', file.dependency))}
+        >
+          <option value="copy">{copyText ?? t('export.copy')}</option>
+          <option value="external">{t('export.external')}</option>
+        </select>
+        {file.mode === 'copy' ? (
+          <>
+            <button onClick={choose}>{t('export.source')}</button>
+            <button disabled={!file.paths.length} onClick={clear}>
+              {t('export.clearSource')}
+            </button>
+          </>
+        ) : (
+          <input
+            aria-label={t('export.provider') + ' ' + name}
+            value={file.dependency}
+            placeholder={t('export.provider')}
+            onChange={e => edit(w => policy(w, name, 'external', e.target.value))}
+          />
+        )}
+      </div>
+      {file.paths.map(path => (
+        <p className="asset-path" key={path}>
+          {path}
+        </p>
+      ))}
+      <p className={row?.status === 'ready' || row?.status === 'external' ? 'ok-status' : 'warning-status'}>
+        {row?.message ??
+          t(
+            file.mode === 'external'
+              ? 'export.externalHint'
+              : file.paths.length
+                ? 'export.sourceHint'
+                : 'export.missingHint'
+          )}
+      </p>
+      {row?.status === 'ambiguous' && (
+        <Field label={t('export.candidate')}>
+          <select
+            defaultValue=""
+            onChange={e => {
+              if (e.target.value) pick(e.target.value);
+            }}
+          >
+            <option value="">{t('export.choose')}</option>
+            {row.candidates.map(c => (
+              <option key={c.path} value={c.path}>
+                {c.path} ({c.size} bytes)
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {row?.sha256 && <HelpNote label={tr('파일 검증')}>SHA-256 {row.sha256}</HelpNote>}
+    </fieldset>
   );
 }
 
@@ -59,6 +149,7 @@ export function PackagePanel({
     setMessage('');
   }, [signature]);
   const files = assets(w),
+    played = sounds(w),
     problems = packageProblems(w),
     notices = packageNotices(w);
   const patch = (values: Partial<typeof w.packaging>) =>
@@ -89,6 +180,16 @@ export function PackagePanel({
       if (!selected) return;
       if (assetKey(selected.clip) !== assetKey(clip)) throw new Error(t('export.pathMismatch'));
       edit(w => selectAsset(w, clip, selected.path));
+    });
+  const chooseSound = (file: string) =>
+    run(async () => {
+      const before = w,
+        selected = await io.pickSound();
+      unchanged(before);
+      if (!selected) return;
+      if (assetKey(selected.file) !== assetKey(file))
+        throw new Error(tr('고른 파일의 sound 아래 경로가 함수의 소리 파일과 다릅니다.'));
+      edit(w => selectSound(w, file, selected.path));
     });
   const probe = () =>
     run(async () => {
@@ -157,75 +258,43 @@ export function PackagePanel({
           <span>{report ? (report.totalBytes / 1048576).toFixed(2) + ' MB' : t('export.unchecked')}</span>
         </div>
         <div className="package-assets">
-          {files.map(file => {
-            const row = report?.assets.find(r => assetKey(r.clip) === assetKey(file.clip));
-            return (
-              <fieldset disabled={busy} className="package-asset" key={assetKey(file.clip)}>
-                <legend>{file.clip}</legend>
-                <div className="package-asset-controls">
-                  <select
-                    aria-label={t('export.policy') + ' ' + file.clip}
-                    value={file.mode}
-                    onChange={e =>
-                      edit(w => policy(w, file.clip, e.target.value as 'copy' | 'external', file.dependency))
-                    }
-                  >
-                    <option value="copy">{t('export.copy')}</option>
-                    <option value="external">{t('export.external')}</option>
-                  </select>
-                  {file.mode === 'copy' ? (
-                    <>
-                      <button onClick={() => void choose(file.clip)}>{t('export.source')}</button>
-                      <button disabled={!file.paths.length} onClick={() => edit(w => selectAsset(w, file.clip, ''))}>
-                        {t('export.clearSource')}
-                      </button>
-                    </>
-                  ) : (
-                    <input
-                      aria-label={t('export.provider') + ' ' + file.clip}
-                      value={file.dependency}
-                      placeholder={t('export.provider')}
-                      onChange={e => edit(w => policy(w, file.clip, 'external', e.target.value))}
-                    />
-                  )}
-                </div>
-                {file.paths.map(path => (
-                  <p className="asset-path" key={path}>
-                    {path}
-                  </p>
-                ))}
-                <p className={row?.status === 'ready' || row?.status === 'external' ? 'ok-status' : 'warning-status'}>
-                  {row?.message ??
-                    t(
-                      file.mode === 'external'
-                        ? 'export.externalHint'
-                        : file.paths.length
-                          ? 'export.sourceHint'
-                          : 'export.missingHint'
-                    )}
-                </p>
-                {row?.status === 'ambiguous' && (
-                  <Field label={t('export.candidate')}>
-                    <select
-                      defaultValue=""
-                      onChange={e => {
-                        if (e.target.value) edit(w => selectAsset(w, file.clip, e.target.value));
-                      }}
-                    >
-                      <option value="">{t('export.choose')}</option>
-                      {row.candidates.map(c => (
-                        <option key={c.path} value={c.path}>
-                          {c.path} ({c.size} bytes)
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
-                {row?.sha256 && <HelpNote label={tr('파일 검증')}>SHA-256 {row.sha256}</HelpNote>}
-              </fieldset>
-            );
-          })}
+          {files.map(file => (
+            <AssetRow
+              key={assetKey(file.clip)}
+              name={file.clip}
+              file={file}
+              row={report?.assets.find(r => assetKey(r.clip) === assetKey(file.clip))}
+              busy={busy}
+              edit={edit}
+              choose={() => void choose(file.clip)}
+              clear={() => edit(w => selectAsset(w, file.clip, ''))}
+              pick={path => edit(w => selectAsset(w, file.clip, path))}
+            />
+          ))}
         </div>
+        {played.length > 0 && (
+          <>
+            <div className="package-summary">
+              <b>{tr('소리 파일 {n}개', {n: played.length})}</b>
+            </div>
+            <div className="package-assets">
+              {played.map(sound => (
+                <AssetRow
+                  key={assetKey(sound.file)}
+                  name={sound.file}
+                  copyText={tr('소리 파일 복사 포함')}
+                  file={sound}
+                  row={report?.sounds.find(r => assetKey(r.clip) === assetKey(sound.file))}
+                  busy={busy}
+                  edit={edit}
+                  choose={() => void chooseSound(sound.file)}
+                  clear={() => edit(w => selectSound(w, sound.file, ''))}
+                  pick={path => edit(w => selectSound(w, sound.file, path))}
+                />
+              ))}
+            </div>
+          </>
+        )}
         <details>
           <summary>{t('export.dependencies')}</summary>
           <p>{t('export.required', {version: MINIMUM_RUNTIME_VERSION})}</p>

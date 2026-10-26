@@ -143,6 +143,7 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
     for (const k of outcomes) {
       const r = q.results[k];
       if (r.mode !== 'transition') continue;
+      if (r.card) wire(id, 'conditionCard:' + r.card, q.group ? qteRulePin(q.id, k) : resultPin(k));
       for (const [uid, pin] of [
         [r.to, q.group ? qteRulePin(q.id, k) : resultPin(k)],
         [r.partnerTo, q.group ? qteRulePin(q.id, k, true) : `choice:${k}:partner`],
@@ -161,9 +162,8 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
     if (!list) receivers.set(event, [node]);
     else if (!list.includes(node)) list.push(node);
   };
-  for (const l of w.links) if (l.mode === 'event') listen(l.event, `link:${l.id}|markerReceive`);
-  for (const a of w.actions)
-    if (a.config.start.mode === 'event') listen(a.config.start.event, `start:${a.uid}|markerReceive`);
+  for (const l of w.links) if (l.mode === 'event') listen(l.event, 'transition:' + l.id);
+  for (const s of w.starts) if (s.mode === 'event') listen(s.event, 'startCard:' + s.uid);
   for (const q of qtes) if (q.eventStart) listen(q.eventStart, qteEventId(q.id));
   const drawn = new Map<string, GraphEdge>();
   for (const q of qtes)
@@ -242,25 +242,22 @@ export function connectQte(
   if (!q) throw Error(tr('QTE가 없습니다.'));
   if (target.startsWith('qte:')) {
     const s = nodes.find(n => n.id === source);
-    // An event card made on the canvas (a draft): the QTE starts from that event, with no HKX (runtime 0.12.248).
-    const draft = n.drafts?.find(d => d.id === source && d.kind === 'markerReceive');
-    if (draft) {
-      if (q.group) throw Error(tr('규칙 묶음 QTE는 HKX에서 시작합니다.'));
-      const event = draft.value.config.start.event;
-      if (!event) throw Error(tr('이벤트 수신 카드에 이벤트 이름을 먼저 지정하세요.'));
-      if (
-        outcomes.some(k => q.results[k].mode === 'transition' && n.actions.find(a => a.uid === q.results[k].to)?.pair)
-      )
-        throw Error(tr('이벤트로 시작하는 QTE는 일반 동작으로만 전환합니다. 페어로 가는 결과를 먼저 바꾸세요.'));
-      const at = graphPosition(n, {kind: 'root'}, draft.id, {x: 200, y: 200});
-      q.eventStart = event;
+    if (s?.id.startsWith('qte-event:')) throw Error(tr('이벤트 카드는 자기 QTE에만 연결됩니다.'));
+    // An event start card going nowhere onto a QTE: the event starts that QTE (runtime 0.12.248), and the card
+    // becomes the QTE's own event card.
+    const start = source.startsWith('startCard:') ? n.starts.find(x => 'startCard:' + x.uid === source) : undefined;
+    if (start) {
+      if (start.mode !== 'event') throw Error(tr('QTE는 이벤트 시작 카드로만 시작합니다.'));
+      if (start.to) throw Error(tr('이미 목적지가 있는 시작 카드입니다. 목적지를 비운 뒤 QTE에 이으세요.'));
+      if (q.group) throw Error(tr('묶음 QTE는 이벤트로 시작할 수 없습니다.'));
+      q.eventStart = start.event;
       q.owner = '';
       q.step = '';
       q.inputOwner = 'player';
-      n.drafts = n.drafts!.filter(d => d.id !== draft.id);
-      return moveNodes(n, {kind: 'root'}, {[qteEventId(q.id)]: at});
+      n.starts = n.starts.filter(x => x !== start);
+      n.order = n.order.filter(x => x !== start.uid);
+      return n;
     }
-    if (s?.id.startsWith('qte-event:')) throw Error(tr('이벤트 카드는 자기 QTE에만 연결됩니다.'));
     if (s?.kind !== 'hkxPlay' || !s.action) throw Error(tr('HKX 출력에서 QTE 시작 입력에 연결하세요.'));
     if (q.eventStart !== undefined) delete q.eventStart;
     if (!q.group) {

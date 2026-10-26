@@ -96,22 +96,14 @@ textarea:focus-visible,
 select:focus-visible {
   outline-color: var(--ue-blue2);
 }
-.tree-row.active,
 .row.on {
   background: #1c3a5e;
   border-color: #1c3a5e;
   color: var(--ue-strong);
 }
-.catalog-item,
-.info-box,
-.timing-fields {
+.info-box {
   background: var(--ue-panel2);
   border-color: var(--ue-line);
-}
-.inspector-divider {
-  background: var(--ue-header);
-  border-color: var(--ue-line);
-  color: var(--ue-strong);
 }
 .field > span {
   color: var(--ue-text);
@@ -129,12 +121,6 @@ select:focus-visible {
 }
 .canvas {
   background: #1b1b1b;
-}
-.graph-card.selected {
-  border-color: var(--ue-select);
-  box-shadow:
-    0 0 0 1px var(--ue-select),
-    0 4px 12px #0006;
 }
 
 /* shell grid */
@@ -367,9 +353,6 @@ select:focus-visible {
   color: var(--ue-blue2);
   text-align: center;
 }
-.menu-arrow {
-  color: var(--ue-dim);
-}
 .menu-sub {
   position: absolute;
   left: 100%;
@@ -454,25 +437,6 @@ select:focus-visible {
 .tb-dropdown .menu-popup {
   top: calc(100% + 4px);
 }
-.tb-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--ue-dim);
-  font-size: var(--fs-sm);
-}
-.tb-right select {
-  width: auto;
-  height: 28px;
-  padding: 0 24px 0 8px;
-}
-.sep {
-  width: 1px;
-  height: 22px;
-  background: #444;
-  margin: 0 4px;
-}
 
 /* my project / hkx browser */
 .dock-search {
@@ -537,17 +501,6 @@ select:focus-visible {
 .row:hover {
   background: #2a2a2a;
 }
-.row.static:hover {
-  background: none;
-}
-.row.l2 {
-  padding-left: 30px;
-}
-.row.l3 {
-  padding-left: 46px;
-  color: var(--ue-dim);
-  font-size: var(--fs-sm);
-}
 .row small {
   color: var(--ue-dim);
   margin-left: 6px;
@@ -588,9 +541,6 @@ select:focus-visible {
   min-height: 34px;
   gap: 8px;
   align-items: center;
-}
-.row.asset .asset-icon {
-  color: var(--ue-dim);
 }
 .row.asset .asset-name {
   flex: 1;
@@ -648,15 +598,6 @@ select:focus-visible {
 }
 
 /* center */
-.viewport-placeholder {
-  height: var(--viewport-h);
-  display: grid;
-  place-items: center;
-  color: var(--ue-dim);
-  font-size: var(--fs-sm);
-  background: radial-gradient(ellipse at 50% 70%, #1c1c1c 0, #0f0f0f 70%), var(--ue-ground);
-  border-bottom: 1px solid var(--ue-line);
-}
 .graph-area {
   position: relative;
   display: flex;
@@ -666,26 +607,10 @@ select:focus-visible {
 .graph-area .canvas {
   flex: 1;
 }
-.crumb {
-  position: absolute;
-  left: 12px;
-  top: 8px;
-  z-index: 4;
-  font-size: var(--fs-sm);
-  color: var(--ue-dim);
-  pointer-events: none;
-}
-.crumb b {
-  color: var(--ue-strong);
-  font-weight: 500;
-}
 .bottom-dock {
   height: var(--bottom-h);
   border-top: 1px solid var(--ue-line);
   background: var(--ue-panel);
-}
-.bottom-dock .timeline-editor {
-  height: 100%;
 }
 .results {
   overflow: auto;

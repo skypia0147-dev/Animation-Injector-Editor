@@ -6,7 +6,8 @@ import {importWorkspaceXml} from '../src/importXml.ts';
 import {compileWorkspace, parseWorkspace, removeAction, validateWorkspace} from '../src/workspace.ts';
 import {flatGraph, deleteFlat, connectFlat} from '../src/graph/flat.ts';
 import {addConnected, contextualAdds} from '../src/graph/contextAdd.ts';
-import {disconnectEdge} from '../src/graph/disconnect.ts';
+import {disconnectEdge} from '../src/graph/commands.ts';
+import {newCard, newStart} from '../src/cards.ts';
 import {deleteSharedInput, inputReferences} from '../src/sharedSettings.ts';
 import {
   validBoneName,
@@ -19,7 +20,7 @@ import {
 } from '../src/carry.ts';
 import {checklistModel} from '../src/graph/checklist.ts';
 import {t} from '../src/i18n/index.ts';
-import {blendNodes, editBlend, animId} from '../src/graph/blends.ts';
+import {editBlend, animId} from '../src/graph/blends.ts';
 import {timelineRows, patch, remove} from '../src/timeline/model.ts';
 import {checker, needsChecker} from './local.mjs';
 
@@ -27,9 +28,10 @@ import {checker, needsChecker} from './local.mjs';
 export const carryXml = (
   bone = 'NPC R Hand [RHnd]',
   release = '<CarryRelease at="0.8"/>'
-) => `<AnimationSet version="4" id="CarryDemo">
+) => `<AnimationSet version="6" id="CarryDemo">
 <Inputs><Input id="use" key="G"/><Input id="drop" key="H" gamepad="A"/></Inputs>
-<Pair id="Lift" clip="Animations/Carry/Lift.hkx"><Start input="use"/><Target rig="chicken" range="250" angle="160"/>
+<Start input="use" to="Lift"/>
+<Pair id="Lift" clip="Animations/Carry/Lift.hkx"><FindPartner rig="chicken" range="250" angle="160"/>
 <Carry bone="${bone}" targetRoot="NPC Root [Root]" putdown="Lower" input="drop"/>
 <Exit at="end-0.05" blend="0.2"/></Pair>
 <Action id="Lower" clip="Animations/Carry/Lower.hkx">${release}<Exit at="end-0.05" blend="0.2"/></Action>
@@ -55,10 +57,10 @@ test('carry XML/project roundtrip preserves custom bones, putdown/input identity
 });
 test('event start with release-only input exports its input definition', () => {
   const w = importWorkspaceXml(
-    carryXml().replace('<Start input="use"/>', '<Start event="LiftRequest" actor="player"/>')
+    carryXml().replace('<Start input="use" to="Lift"/>', '<Start event="LiftRequest" actor="player" to="Lift"/>')
   );
   const restored = importWorkspaceXml(compileWorkspace(w));
-  assert.equal(restored.actions[0].config.start.event, 'LiftRequest');
+  assert.equal(restored.starts[0].event, 'LiftRequest');
   const c = restored.actions[0].pair.carry;
   assert.equal(restored.actions[0].config.inputs.find(i => i.id === c.input).key, 'H');
 });
@@ -99,12 +101,11 @@ test('context add creates a carry attached to pair; the putdown Action can be co
   assert.throws(() => connectFlat(w, added.id, hkx.id), /한 사람 일반 동작/);
 });
 
-test('carry start alignment survives action renaming, blend-node edits and project/XML roundtrips', () => {
-  let w = importWorkspaceXml(carryXml().replaceAll('<Exit ', '<Enter blend="0.4"/><Exit '));
+test('carry start alignment survives action renaming, blend item edits and project/XML roundtrips', () => {
+  let w = importWorkspaceXml(carryXml().replaceAll('.hkx">', '.hkx" enter="0.4">'));
   assert.equal(w.actions[0].pair.carry.alignStart, undefined);
   w.actions[0].config.actionId = 'PickupOnHand';
   w.actions[1].config.actionId = 'PutDownOnGround';
-  w.blends = blendNodes(w);
   w = editBlend(w, animId(w.actions[0].uid, 'blendIn'), {seconds: 0.65});
   w = editBlend(w, animId(w.actions[1].uid, 'blendIn'), {seconds: 0.25});
   const xml = compileWorkspace(parseWorkspace(JSON.stringify(w))),
@@ -121,18 +122,6 @@ test('carry start alignment survives action renaming, blend-node edits and proje
   assert.doesNotThrow(() => importWorkspaceXml(compileWorkspace(w)));
 });
 
-test('carry alignment is automatic; the obsolete switch is dropped from projects and refused in XML (format 4)', () => {
-  const w = importWorkspaceXml(carryXml());
-  assert.equal(w.actions[0].pair.carry.alignStart, undefined);
-  w.actions[0].pair.carry.alignStart = false;
-  assert.equal(parseWorkspace(JSON.stringify(w)).actions[0].pair.carry.alignStart, undefined);
-  assert.doesNotMatch(compileWorkspace(w), /alignStart=/);
-  for (const value of ['true', 'false', 'yes', ''])
-    assert.throws(
-      () => importWorkspaceXml(carryXml().replace('<Carry ', `<Carry alignStart="${value}" `)),
-      /alignStart/
-    );
-});
 test(
   'bad bones, missing input, a pair or startable putdown, a missing or stray release moment are rejected',
   needsChecker,
@@ -163,15 +152,13 @@ test(
     }
     for (const field of ['flow', 'start', 'release']) {
       const w = importWorkspaceXml(carryXml());
-      if (field === 'flow')
-        w.actions[1].flow = {
-          entry: 'C',
-          tests: [{id: 'C', kind: 'air', subject: 'self', minimum: 0, pass: {action: w.actions[1].uid}}],
-        };
-      if (field === 'start') {
-        w.actions[1].config.start.mode = 'input';
-        w.actions[1].config.start.input = 'use';
+      // A putdown starts from its carry only: no start card goes to it, directly or through a condition card.
+      if (field === 'flow') {
+        const card = {...newCard(w, {x: 0, y: 0}), true: {action: w.actions[1].uid}};
+        w.cards.push(card);
+        w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', to: {card: card.uid}});
       }
+      if (field === 'start') w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', to: {action: w.actions[1].uid}});
       if (field === 'release') delete w.actions[1].config.carryRelease;
       assert.throws(() => compileWorkspace(w), /내려놓기/);
     }
@@ -183,9 +170,9 @@ test(
 test('deleting referenced putdown/input cannot silently break carry', () => {
   const w = importWorkspaceXml(carryXml());
   assert.throws(() => removeAction(w, w.actions[1].uid));
-  assert.ok(inputReferences(w, w.actions[0].uid, 'drop').includes('운반 내려놓기'));
+  assert.ok(inputReferences(w, w.actions[0].uid, w.actions[0].pair.carry.input).includes('운반 내려놓기'));
   w.sharedInputs = structuredClone(w.actions[0].config.inputs);
-  assert.throws(() => deleteSharedInput(w, 'drop'));
+  assert.throws(() => deleteSharedInput(w, w.actions[0].pair.carry.input));
 });
 test('individual connection removal suppresses carry or diagnoses a missing putdown', () => {
   const w = importWorkspaceXml(carryXml()),
@@ -197,11 +184,6 @@ test('individual connection removal suppresses carry or diagnoses a missing putd
   assert.throws(() => compileWorkspace(disconnectEdge(w, outgoing)), /내려놓기/);
 });
 test('the putdown release moment: XML, project, timeline and the runtime parser', needsChecker, () => {
-  // An event moment waits for its event only (runtime 0.12.278): an older file's fallback is refused.
-  assert.throws(
-    () => importWorkspaceXml(carryXml(undefined, '<CarryRelease at="event:PutDownRelease" fallback="0.9"/>')),
-    /0\.12\.278/
-  );
   const source = carryXml(undefined, '<CarryRelease at="event:PutDownRelease"/>');
   let w = importWorkspaceXml(source);
   const lower = w.actions[1];
@@ -241,17 +223,6 @@ test('choosing a putdown adds its release moment 0.3 s before the clip end, neve
   assert.equal(setPutdown(w, lift, lower, 0.2).actions[1].config.carryRelease.at.seconds, 1);
   assert.equal(setPutdown(w, lift, lower, 1.5).actions[0].pair.carry.putdownAction, lower);
 });
-test('projects with the old putdown pair open with the putdown to choose again', () => {
-  const json = JSON.parse(JSON.stringify(importWorkspaceXml(carryXml())));
-  const carry = json.actions[0].pair.carry;
-  carry.releaseAction = carry.putdownAction;
-  delete carry.putdownAction;
-  const w = parseWorkspace(JSON.stringify(json));
-  assert.equal(w.actions[0].pair.carry.putdownAction, '');
-  assert.equal('releaseAction' in w.actions[0].pair.carry, false);
-  assert.ok(validateWorkspace(w).some(i => i.level === 'error' && /내려놓기 동작을 고르세요/.test(i.message)));
-});
-
 // Carry stages 2-3: target handling (pose/physics), the fixed body and the carrier hold pose.
 const heldXml = (carry = 'target="physics" part="Neck2"', hold = '<Bone name="NPC R Clavicle [RClv]" weight="1"/>') =>
   carryXml().replace('input="drop"/>', `input="drop" ${carry}><Hold blendOut="0.3">${hold}</Hold></Carry>`);
@@ -281,17 +252,6 @@ test('carry target, fixed body and hold pose survive XML, project and the runtim
   w.actions[0].pair.carry = {...c, target: 'pose', part: '', hold: null};
   assert.doesNotMatch(compileWorkspace(w), /target="|part="|<Hold/);
 });
-test('projects saved before carry stages 2-3 open as pose handling without a hold', () => {
-  const w = importWorkspaceXml(carryXml()),
-    json = JSON.parse(JSON.stringify(w));
-  for (const key of ['target', 'part', 'hold']) delete json.actions[0].pair.carry[key];
-  const c = parseWorkspace(JSON.stringify(json)).actions[0].pair.carry;
-  assert.equal(c.target, 'pose');
-  assert.equal(c.part, '');
-  assert.equal(c.hold, null);
-  json.actions[0].pair.carry.hold = {...defaultCarryHold(), extra: 1};
-  assert.throws(() => parseWorkspace(JSON.stringify(json)), /운반 자세/);
-});
 test('invalid carry target, fixed body and hold are rejected like the runtime', () => {
   for (const invalid of [
     heldXml('target="ragdoll"'),
@@ -313,10 +273,6 @@ test('invalid carry target, fixed body and hold are rejected like the runtime', 
   assert.deepEqual(w.actions[0].pair.carry.hold.bones, [{name: 'NPC L Clavicle [LClv]', weight: 1}]);
   // Defaults are not written (format 4): blendIn 0.2, a bone's weight 1.
   assert.match(compileWorkspace(w), /<Hold blendOut="0.3">\s*<Bone name="NPC L Clavicle \[LClv\]"\/>/);
-  // A project saved with the retired `time` opens without it.
-  const json = JSON.parse(JSON.stringify(w));
-  json.actions[0].pair.carry.hold.time = 0;
-  assert.equal('time' in parseWorkspace(JSON.stringify(json)).actions[0].pair.carry.hold, false);
 });
 test('the release moment is an event item on the putdown card: add, show and disconnect', () => {
   let w = importWorkspaceXml(carryXml());
@@ -410,7 +366,7 @@ test('every carry has the fix item on its lift card: the lift end by default, a 
     .items.get(clip(lift).id)
     .find(i => i.node.kind === 'carryFix');
   assert.equal(item.category, 'event');
-  assert.equal(item.toggleable, false);
+  assert.equal(item.removable, false);
   assert.doesNotMatch(compileWorkspace(w), /<Fix /);
   // A moment moves the fix into the lift.
   w.actions[0].pair.carry.fix = defaultCarryFix();
@@ -428,32 +384,8 @@ test('every carry has the fix item on its lift card: the lift end by default, a 
   const bare = importWorkspaceXml(carryXml(undefined, '').replace(/<Carry [^>]*\/>\n/, ''));
   assert.ok(!flatGraph(bare).nodes.some(n => n.kind === 'carryFix'));
 });
-test('projects saved before the fix moment open without one; a malformed one is rejected', () => {
-  const json = JSON.parse(JSON.stringify(importWorkspaceXml(fixedXml())));
-  const c = json.actions[0].pair.carry;
-  delete c.fix;
-  assert.equal(parseWorkspace(JSON.stringify(json)).actions[0].pair.carry.fix, null);
-  c.fix = {at: {basis: 'seconds', seconds: 1, event: '', fallback: false, fallbackBasis: 'seconds'}, extra: 1};
-  assert.throws(() => parseWorkspace(JSON.stringify(json)), /운반 고정/);
-});
-
 // The carry weapon setting: sheathed (default) or sheathe. weapon="keep" and weaponShow went in runtime 0.12.238.
 const keepXml = (attrs = 'weapon="sheathe"') => heldXml(`target="physics" part="Neck2" ${attrs}`);
-test('removed carry weapon settings are refused by the editor and the runtime alike', needsChecker, () => {
-  mkdirSync('tests/generated/carry', {recursive: true});
-  for (const attrs of [
-    'weapon="keep"',
-    'weapon="keep" weaponShow="Grapple_equip"',
-    'weapon="sheathe" weaponShow="Grapple_equip"',
-    'weaponShow="Grapple_equip"',
-  ]) {
-    assert.throws(() => importWorkspaceXml(keepXml(attrs)), /0\.12\.238/, attrs);
-    writeFileSync('tests/generated/carry/reject-weapon.xml', keepXml(attrs));
-    const r = spawnSync(checker, ['--json', 'tests/generated/carry/reject-weapon.xml'], {encoding: 'utf8'});
-    assert.match(r.stdout, /"valid":false.*0\.12\.238/, attrs);
-  }
-  assert.throws(() => importWorkspaceXml(keepXml('weapon="drawn"')), undefined, 'drawn');
-});
 // Drawn at the lift, put away when it starts (runtime 0.12.195): <Carry weapon="sheathe">.
 test('carry weapon sheathe: XML, project and the runtime parser', needsChecker, () => {
   const w = importWorkspaceXml(keepXml('weapon="sheathe"'));
@@ -474,25 +406,15 @@ test('carry weapon sheathe: XML, project and the runtime parser', needsChecker, 
   w.actions[0].pair.carry.weapon = 'sheathed';
   assert.doesNotMatch(compileWorkspace(w), /<Carry [^>]*weapon=/);
 });
-test('saved projects: no weapon setting opens as sheathed, an empty show event is dropped, keep cannot open', () => {
-  const json = JSON.parse(JSON.stringify(importWorkspaceXml(keepXml())));
-  delete json.actions[0].pair.carry.weapon;
-  assert.equal(parseWorkspace(JSON.stringify(json)).actions[0].pair.carry.weapon, 'sheathed');
-  json.actions[0].pair.carry.weaponShow = '';
-  assert.equal('weaponShow' in parseWorkspace(JSON.stringify(json)).actions[0].pair.carry, false);
-  json.actions[0].pair.carry.weapon = 'keep';
-  assert.throws(() => parseWorkspace(JSON.stringify(json)), /0\.12\.238/);
-  json.actions[0].pair.carry.weapon = 'sheathe';
-  json.actions[0].pair.carry.weaponShow = 'Grapple_equip';
-  assert.throws(() => parseWorkspace(JSON.stringify(json)), /0\.12\.238/);
-});
-
 test('a carry without its own putdown input takes a new key or a project input', () => {
   let w = importWorkspaceXml(carryXml());
   const lift = () => w.actions.find(a => a.pair?.carry),
     put = a => (w = {...w, actions: w.actions.map(x => (x.uid === a.uid ? a : x))});
   // As a pair reached by a transition: no input for the putdown.
-  put({...lift(), config: {...lift().config, inputs: lift().config.inputs.filter(i => i.id !== 'drop')}});
+  put({
+    ...lift(),
+    config: {...lift().config, inputs: lift().config.inputs.filter(i => i.id !== lift().pair.carry.input)},
+  });
   put(chooseCarryInput(w, lift(), NEW_CARRY_INPUT));
   assert.equal(lift().pair.carry.input, 'PutDown');
   assert.ok(
@@ -512,7 +434,7 @@ test('a carry without its own putdown input takes a new key or a project input',
   put(chooseCarryInput(w, lift(), 'Drop'));
   assert.deepEqual(
     lift().config.inputs.map(i => i.id),
-    ['use', 'PutDown', 'Drop']
+    ['PutDown', 'Drop']
   );
   assert.equal(lift().pair.carry.input, 'Drop');
 });

@@ -21,10 +21,13 @@ const runtime = (...args) => {
   const r = spawnSync(checker, args, {encoding: 'utf8'});
   assert.equal(r.status, 0, r.stdout + r.stderr);
 };
-const SOURCE = `<AnimationSet version="4" id="PairLinks">
-  <Inputs><Input id="use" key="E"/></Inputs>
-  <Pair id="Grab" clip="Animations\\Test\\Grab.hkx"><Start input="use"/></Pair>
-  <Pair id="Carry" clip="Animations\\Test\\Carry.hkx"></Pair>
+const SOURCE = `<AnimationSet version="6" id="PairLinks">
+  <Inputs>
+    <Input id="use" key="E"/>
+  </Inputs>
+  <Start input="use" to="Grab"/>
+  <Pair id="Grab" clip="Animations\\Test\\Grab.hkx"/>
+  <Pair id="Carry" clip="Animations\\Test\\Carry.hkx"/>
   <Action id="Attacker" clip="Animations\\Test\\Attacker.hkx"/>
   <Action id="Victim" clip="Animations\\Test\\Victim.hkx"/>
   <Action id="Chain" clip="Animations\\Test\\S1.hkx"/>
@@ -35,7 +38,7 @@ const base = () => importWorkspaceXml(SOURCE);
 const connects = xml =>
   parseXml(xml)
     .children.filter(n => n.name !== 'Inputs' && n.name !== 'EventRegistry')
-    .flatMap(a => a.children.filter(c => c.name === 'Connect').map(c => ({from: a.attrs.id, ...c.attrs})));
+    .flatMap(a => a.children.filter(c => c.name === 'Transition').map(c => ({...c.attrs, from: a.attrs.id})));
 const check = (name, w) => {
   const xml = compileWorkspace(w),
     file = resolve(out, name + '.xml'),
@@ -51,18 +54,20 @@ const check = (name, w) => {
 function eventTransition(w, from, to, event) {
   const added = addConnected(w, hkx(from), {kind: 'markerReceive', label: '전환 이벤트 추가'}, {x: 0, y: 0});
   const next = added.workspace;
-  next.drafts.find(d => d.id === added.id).value.config.start.event = event;
+  next.links.find(l => 'transition:' + l.id === added.id).event = event;
   return connectFlat(next, added.id, to);
 }
 /** "전환 키 입력 추가", its key set, then dragged to the destination HKX. */
 function keyTransition(w, from, to, key) {
   const added = addConnected(w, hkx(from), {kind: 'keyInput', label: '전환 키 입력 추가'}, {x: 0, y: 0});
   const next = added.workspace,
-    q = next.drafts.find(d => d.id === added.id).value.config;
-  q.inputs.find(i => i.id === q.start.input).key = key;
+    l = next.links.find(l => 'transition:' + l.id === added.id),
+    a = next.actions.find(a => a.uid === l.from);
+  // The details' key field: the transition's binding on the source HKX.
+  a.config.inputs.find(i => i.id === l.input).key = key;
   return connectFlat(next, added.id, to);
 }
-const linkNode = l => `link:${l.id}|${l.mode === 'event' ? 'markerReceive' : 'keyInput'}`;
+const linkNode = l => `transition:${l.id}`;
 
 test('a pair card offers transition keys and events; an ordinary card offers transition events', () => {
   const w = base();
@@ -169,8 +174,8 @@ test('a key transition keeps its own detection window when asked, through save a
   assert.equal(saved.links.find(l => l.id === shared.id).ownWindow, undefined);
   const windows = parseXml(check('own-window', saved))
     .children.find(n => n.attrs.id === 'Attacker')
-    .children.filter(c => c.name === 'Connect')
-    .map(c => [c.attrs.to, c.children.find(x => x.name === 'Window').attrs.from]);
+    .children.filter(c => c.name === 'Transition')
+    .map(c => [c.attrs.to, c.attrs.from]);
   assert.deepEqual(windows, [
     ['Victim', '0.45'],
     ['Grab', '0.1'],

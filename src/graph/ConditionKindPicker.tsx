@@ -38,7 +38,6 @@ function kindList(withGroups: boolean) {
     .map((item, i) => ({kind: item[0], label: item[1], category: item[2], i}))
     .sort((a, b) => rank(a.category) - rank(b.category) || a.i - b.i);
 }
-export const conditionKindLabel = (kind: string) => kindList(true).find(k => k.kind === kind)?.label ?? kind;
 
 const RECENT_KEY = 'aieditor-condition-recent';
 function readRecent(): string[] {

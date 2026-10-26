@@ -2,35 +2,18 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyWorkspace, parseWorkspace, compileWorkspace} from '../src/workspace.ts';
 import {request} from '../src/package.ts';
-import {s4sample} from '../src/s4sample.ts';
+import {s4sample} from './fixtures/s4sample.ts';
 
+// A schema 6 project held no start or condition cards (an action's start was its own); its actions here start nowhere.
+const startless = () => ({...s4sample(), starts: [], cards: [], order: []});
 const asSchema6 = w => {
   const old = structuredClone(w);
   old.schema = 6;
   delete old.xmlVersion;
   delete old.layout;
+  for (const k of ['starts', 'cards', 'order']) delete old[k];
   return old;
 };
-
-test('schema 6 projects load as schema 7 without an output version and with an empty layout, without changing the XML', () => {
-  const w = parseWorkspace(JSON.stringify(asSchema6(s4sample())));
-  assert.equal(w.schema, 7);
-  assert.equal(w.xmlVersion, undefined);
-  assert.deepEqual(w.layout, {});
-  assert.equal(compileWorkspace(w), compileWorkspace(s4sample(), 2));
-  assert.deepEqual(parseWorkspace(JSON.stringify(w)), w);
-});
-
-test('retired XML output preferences are ignored and removed on load', () => {
-  const w = s4sample();
-  const before = compileWorkspace(w);
-  w.xmlVersion = 1;
-  assert.equal(compileWorkspace(w), before);
-  assert.match(compileWorkspace(w), /<AnimationSet version="4"/);
-  assert.equal(request(w).xml, compileWorkspace(w));
-  const reloaded = parseWorkspace(JSON.stringify(w));
-  assert.equal(reloaded.xmlVersion, undefined);
-});
 
 test('layout keeps per-graph node coordinates and rejects malformed entries', () => {
   const w = emptyWorkspace();

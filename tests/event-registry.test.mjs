@@ -19,6 +19,7 @@ import {
   vanillaName,
 } from '../src/eventRegistry.ts';
 import {checker, needsChecker} from './local.mjs';
+import {newStart} from '../src/cards.ts';
 
 const folder = 'tests/generated/event-registry';
 fs.mkdirSync(folder, {recursive: true});
@@ -28,100 +29,6 @@ const runtime = file => {
   return r.stdout;
 };
 const eventMark = (event, seconds = 0) => ({...mark(seconds), basis: 'event', event});
-
-test('an older project moves its event functions into the registry once, renaming role/source', needsChecker, () => {
-  const w = emptyWorkspace();
-  const pair = addAction(w, 'pair');
-  w.actions.push(pair);
-  const one = addAction(w, 'single');
-  w.actions.push(one);
-  pair.pair.effectsEnabled = true;
-  pair.pair.effects = [
-    {id: 'a', values: {op: 'spell', name: 'Grapple_Stom', role: 'sender', plugin: 'FH_Grapple.esp', form: '80B'}},
-    {id: 'b', values: {op: 'hide', name: 'grapple_stom', role: 'other', source: 'target'}},
-    {id: 'c', values: {op: 'show', at: '0.75', role: 'both', source: 'both'}},
-  ];
-  pair.pair.timeline.iframe = {
-    ...pair.pair.timeline.iframe,
-    enabled: true,
-    from: eventMark('GuardOn'),
-    until: mark(0.9),
-  };
-  one.config.extraEvents = ['SoundPlay.X'];
-  one.config.fireArrow = {at: eventMark('Shoot')};
-  one.config.slots.armor = {enabled: true, from: eventMark('ArmorOn'), until: eventMark('ArmorOff')};
-  one.config.cost = {enabled: true, at: eventMark('Pay'), stamina: 5, magicka: 0};
-  const legacy = {...structuredClone(w), eventCatalog: ['Declared']};
-  const opened = parseWorkspace(JSON.stringify(legacy));
-  const rows = Object.fromEntries(opened.eventRegistry.map(r => [r.name, r.functions.map(f => f.values)]));
-  // An event function changes its sender (runtime 0.12.273): an older target or sender filter is dropped.
-  assert.deepEqual(rows.Grapple_Stom, [{op: 'spell', plugin: 'FH_Grapple.esp', form: '80B'}, {op: 'hide'}]);
-  assert.equal(rows.grapple_stom, undefined, 'one row per name, first spelling');
-  assert.deepEqual(rows.GuardOn, [{op: 'iframeOn'}]);
-  assert.deepEqual(rows['SoundPlay.X'], []);
-  assert.deepEqual(rows.Shoot, [{op: 'fireArrow'}]);
-  assert.deepEqual(rows.ArmorOn, [{op: 'armorOn'}]);
-  assert.deepEqual(rows.ArmorOff, [{op: 'armorOff'}]);
-  // The cost's amounts stay the action's numbers there (runtime 0.12.281).
-  assert.deepEqual(rows.Pay, [{op: 'cost'}]);
-  assert.deepEqual(Object.values(opened.actions[1].config.eventValues), [{op: 'cost', stamina: '5', magicka: '0'}]);
-  assert.deepEqual(rows.Declared, []);
-  const p = opened.actions[0].pair;
-  assert.deepEqual(
-    p.effects.map(e => e.values),
-    [
-      // A role and no sender filter (runtime 0.12.275): both is left out.
-      {op: 'show', at: '0.75'},
-      {op: 'iframeOff', target: 'initiator', at: '0.9'},
-    ]
-  );
-  assert.equal(p.timeline.iframe.enabled, false);
-  const a = opened.actions[1].config;
-  assert.deepEqual(a.fireArrow, {at: null, onRelease: true});
-  assert.equal(a.slots.armor.enabled, false);
-  assert.equal(a.cost.enabled, false);
-  assert.equal('extraEvents' in a, false);
-  assert.equal(opened.eventCatalog, undefined);
-  assert.deepEqual(parseWorkspace(JSON.stringify(opened)), opened, 'idempotent');
-  assert.equal(validateWorkspace(opened).filter(i => i.level === 'error').length, 0);
-  const file = folder + '/lifted.xml';
-  fs.writeFileSync(file, compileWorkspace(opened));
-  assert.match(runtime(file), /registered events/);
-});
-
-test('formats 2 and 3 are refused naming the converter; format 4 refuses the removed forms like the runtime', () => {
-  for (const version of ['2', '3'])
-    assert.throws(
-      () =>
-        importWorkspaceXml(`<AnimationSet version="${version}" id="Old"><Action id="A" clip="a.hkx"/></AnimationSet>`),
-      /version="4"/
-    );
-  const v3 = body => `<AnimationSet version="4" id="New"><Action id="A" clip="a.hkx">${body}</Action></AnimationSet>`;
-  for (const body of [
-    '<Events extra="X"/>',
-    '<FireArrow at="event:Fire"/>',
-    '<IFrame from="event:On" until="end"/>',
-    '<Cost at="event:Pay"/>',
-  ])
-    assert.throws(() => importWorkspaceXml(v3(body)), /형식 3/);
-  assert.throws(() =>
-    importWorkspaceXml(
-      '<AnimationSet version="4" id="New"><Pair id="P" clip="p.hkx"><Effects><Effect at="1" op="hide"/></Effects></Pair></AnimationSet>'
-    )
-  );
-  assert.throws(() =>
-    importWorkspaceXml(
-      '<AnimationSet version="4" id="Old"><EventRegistry><Event name="X"/></EventRegistry></AnimationSet>'
-    )
-  );
-  assert.throws(
-    () =>
-      importWorkspaceXml(
-        '<AnimationSet version="4" id="New"><EventRegistry><Event name="X"/><Event name="x"/></EventRegistry><Action id="A" clip="a.hkx"/></AnimationSet>'
-      ),
-    /두 번/
-  );
-});
 
 test('summaries and XML leave defaults out; checks warn about game-wide names and lasting functions', () => {
   assert.deepEqual(doAttrs({op: 'hide', target: 'sender', from: 'any', plugin: 'x.esp'}), {op: 'hide'});
@@ -149,7 +56,7 @@ test('summaries and XML leave defaults out; checks warn about game-wide names an
   w = addFunction(w, 'Shoot', 'fireArrow');
   // A registered function holds no target (runtime 0.12.273).
   w.eventRegistry.at(-1).functions[0].values.target = 'partner';
-  assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('적용')));
+  assert.ok(validateWorkspace(w).some(i => i.level === 'error' && /적용|등록 기능 속성/.test(i.message)));
   delete w.eventRegistry.at(-1).functions[0].values.target;
   w = addFunction(w, 'Cast', 'stateOn');
   assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('플러그인')));
@@ -162,8 +69,7 @@ test('the registry lists registrations and referenced names; rename, bind and un
   w.actions.push(a);
   a.nodeAuthored = true;
   a.clipWindows = {A1: {open: eventMark('MCO_WinOpen', 0.45), close: mark(0, 'end'), buffered: true}};
-  a.config.start.mode = 'event';
-  a.config.start.event = 'Start';
+  w.starts.push({...newStart(w, {x: 0, y: 0}, 'event'), event: 'Start', to: {action: a.uid}});
   w = addFunction(w, 'Swing', 'hide');
   const entries = registryEntries(w);
   assert.deepEqual(
@@ -194,7 +100,7 @@ test('the registry lists registrations and referenced names; rename, bind and un
   assert.equal(n.actions[0].clipWindows.A1.open.event, 'Swing2');
   assert.throws(() => renameEvent(n, 'Swing2', 'start'), /이미/);
   n = renameEvent(n, 'Start', 'Begin');
-  assert.equal(n.actions[0].config.start.event, 'Begin');
+  assert.equal(n.starts[0].event, 'Begin');
   assert.ok(eventSlots(n).every(s => s.node));
   assert.equal(validateWorkspace(n).filter(i => i.level === 'error').length, 0);
 });
@@ -284,29 +190,20 @@ test('the registry lists repeated uses once with a count; unbinding a group free
   assert.equal(eventUses(w).get('open'), undefined);
 });
 
-test('values and shake parameters are gone (runtime 0.12.274): an older file opens without them', needsChecker, () => {
-  const old =
-    '<AnimationSet version="4" id="V"><EventRegistry>' +
-    '<Event name="Grapple_CamShake" values="1.5|0.5 3.0|1.0"><Do op="shake" parameters="true"/></Event>' +
-    '<Event name="Grapple_HealthDamage" values="2|1"/>' +
-    '</EventRegistry><Action id="A" clip="a.hkx"/></AnimationSet>';
-  fs.writeFileSync(folder + '/values-old.xml', old);
-  assert.match(spawnSync(checker, [folder + '/values-old.xml'], {encoding: 'utf8'}).stdout, /0\.12\.274/);
-  const w = importWorkspaceXml(old);
+test('a registry line shortens its uses: no own name, repeats counted, a kind at several places as a count', async () => {
+  const {shortUses} = await import('../src/eventRegistry.ts');
+  const use = label => ({name: 'X', label, node: 'n'});
+  assert.deepEqual(shortUses('Air_ContactBack', [use('시작 트리거 · Air_ContactBack')]), ['시작 트리거']);
+  assert.deepEqual(shortUses('S', [use('QTE 시작 · Pounding'), use('QTE 시작 · Pounding')]), [
+    'QTE 시작 · Pounding ×2',
+  ]);
   assert.deepEqual(
-    w.eventRegistry.map(r => [r.name, r.functions.map(f => f.values)]),
-    [
-      ['Grapple_CamShake', [{op: 'shake'}]],
-      ['Grapple_HealthDamage', []],
-    ]
+    shortUses('C', [
+      use('카메라 복구 · Front'),
+      use('카메라 복구 · Rear'),
+      use('카메라 복구 · Rear'),
+      use('QTE 중지 · P'),
+    ]),
+    ['카메라 복구 · 3곳', 'QTE 중지 · P']
   );
-  const xml = compileWorkspace(w);
-  assert.doesNotMatch(xml, /values=|parameters=/);
-  fs.writeFileSync(folder + '/values-new.xml', xml);
-  assert.match(runtime(folder + '/values-new.xml'), /2 registered events/);
-  // A saved project with them opens the same way.
-  const project = JSON.parse(JSON.stringify(w));
-  project.eventRegistry[0].values = ['1.5|0.5'];
-  project.eventRegistry[0].functions[0].values.parameters = 'true';
-  assert.deepEqual(parseWorkspace(JSON.stringify(project)).eventRegistry, w.eventRegistry);
 });

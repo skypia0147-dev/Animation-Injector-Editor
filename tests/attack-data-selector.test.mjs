@@ -20,7 +20,7 @@ test('Dropdown preserves custom names and exact casing across project reload', (
   const options = attackDataOptions(reloaded, 'ExternalValue');
   assert.deepEqual(options.custom, ['AttackStart', 'ExternalValue', 'MyMod_Attack']);
   assert.ok(options.human.some(a => a.name === 'attackStart'));
-  assert.ok(compileWorkspace(reloaded).includes('<Attack data="AttackStart"/>'));
+  assert.ok(compileWorkspace(reloaded).includes('attack="AttackStart"'));
 });
 
 test('Clearing clip override restores default; clearing both removes attack assignment', () => {
@@ -28,9 +28,9 @@ test('Clearing clip override restores default; clearing both removes attack assi
     a = w.actions[0];
   a.config.attack = 'attackStart';
   a.config.steps[0].attack = 'attackPowerStartInPlace';
-  assert.ok(compileWorkspace(w).includes('<Attack data="attackPowerStartInPlace"/>'));
+  assert.ok(compileWorkspace(w).includes('attack="attackPowerStartInPlace"'));
   a.config.steps[0].attack = '';
-  assert.ok(compileWorkspace(w).includes('<Attack data="attackStart"/>'));
+  assert.ok(compileWorkspace(w).includes('attack="attackStart"'));
   a.config.attack = '';
   assert.ok(!compileWorkspace(w).includes('<Attack '));
 });

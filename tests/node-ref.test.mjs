@@ -4,22 +4,18 @@ import {readFileSync, readdirSync} from 'node:fs';
 import {parseWorkspace} from '../src/workspace.ts';
 import {flatGraph, flatId} from '../src/graph/flat.ts';
 import {nodeId, parseNodeId} from '../src/graph/nodeRef.ts';
-import {branchId} from '../src/graph/conditions.ts';
 import {animId} from '../src/graph/blends.ts';
-import {tableId} from '../src/graph/conditionTables.ts';
+import {startCardId, conditionCardId, transitionId} from '../src/graph/flat.ts';
 import {qteId} from '../src/graph/qteGraph.ts';
 import {savedProject} from '../src/editorBlock.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 
 // E-3: one codec for node IDs. Every ID a real project's flat graph produces must decode to a
-// typed reference and encode back to the same text. The projects are the examples' editor blocks (editorBlock.ts)
-// and the current runtime XML fixtures as File > Open reads them (flow conditions among them).
+// typed reference and encode back to the same text. The projects are a saved editor block (editorBlock.ts) and the
+// current runtime XML fixtures as File > Open reads them (condition cards among them).
+const block = 'tests/fixtures/grapple-carry-qte-cuts.xml';
 const projects = [
-  ...readdirSync('examples')
-    .filter(f => f.endsWith('.xml'))
-    .map(f => ['examples/' + f, savedProject(readFileSync('examples/' + f, 'utf8')).project])
-    .filter(([, project]) => project)
-    .map(([file, project]) => [file, () => parseWorkspace(project)]),
+  [block, () => parseWorkspace(savedProject(readFileSync(block, 'utf8')).project)],
   ...readdirSync('tests/fixtures/current-xml')
     .filter(f => f.endsWith('.xml'))
     .map(f => 'tests/fixtures/current-xml/' + f)
@@ -41,11 +37,11 @@ test('every flat graph node ID round-trips through the codec', () => {
     // The codec agrees with the typed view flatGraph already has.
     for (const n of g.nodes) {
       const ref = parseNodeId(n.id);
-      if (n.kind === 'conditionBranch' && n.id.startsWith('flow:')) assert.equal(ref.kind, 'branch', n.id);
+      if (['startCard', 'conditionCard', 'transition'].includes(n.kind)) assert.equal(ref.kind, n.kind, n.id);
       if (
         n.scope.kind !== 'root' &&
         !n.id.startsWith('notify:') &&
-        !n.id.startsWith('flow:') &&
+        !n.id.startsWith('transition:') &&
         !n.id.startsWith('qte:')
       ) {
         assert.equal(ref.kind, 'scoped', n.id);
@@ -55,11 +51,14 @@ test('every flat graph node ID round-trips through the codec', () => {
     }
   }
   assert.ok(count > 500, 'enough IDs checked: ' + count);
-  for (const kind of ['branch', 'scoped', 'notify', 'plain']) assert.ok(kinds.has(kind), kind);
+  for (const kind of ['startCard', 'conditionCard', 'transition', 'scoped', 'notify', 'plain'])
+    assert.ok(kinds.has(kind), kind);
 });
 
 test('the codec agrees with the existing encoders and keeps separators inside locals', () => {
-  assert.deepEqual(parseNodeId(branchId('a1', 'Cond1')), {kind: 'branch', owner: 'a1', test: 'Cond1'});
+  assert.deepEqual(parseNodeId(startCardId('start1')), {kind: 'startCard', uid: 'start1'});
+  assert.deepEqual(parseNodeId(conditionCardId('card2')), {kind: 'conditionCard', uid: 'card2'});
+  assert.deepEqual(parseNodeId(transitionId('link3')), {kind: 'transition', link: 'link3'});
   assert.deepEqual(parseNodeId(animId('a2', 'clip_s1')), {
     kind: 'scoped',
     scope: {kind: 'anim', action: 'a2'},
@@ -75,10 +74,8 @@ test('the codec agrees with the existing encoders and keeps separators inside lo
     scope: {kind: 'link', link: 'l4'},
     local: 'keyInput',
   });
-  assert.deepEqual(parseNodeId(tableId('a5')), {kind: 'table', owner: 'a5'});
   assert.deepEqual(parseNodeId(qteId('GrappleFront_Q1_A')), {kind: 'qte', id: 'GrappleFront_Q1_A'});
   assert.deepEqual(parseNodeId('notify:a1|pair:cost'), {kind: 'notify', owner: 'a1', local: 'pair:cost'});
-  assert.deepEqual(parseNodeId('draft:12'), {kind: 'draft', id: 'draft:12'});
   assert.deepEqual(parseNodeId('shared:outputPose'), {kind: 'shared', name: 'outputPose'});
   // Blend IDs and malformed prefixes stay opaque root IDs.
   for (const id of [

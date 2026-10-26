@@ -5,7 +5,7 @@
 ## 运行需求
 
 - Windows 10/11 x64，Microsoft Edge WebView2 运行时（Windows 11 已自带）
-- 在游戏中使用需要 **Animation Injector 0.12.289 或更高版本**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）及其前置模组
+- 在游戏中使用需要 **Animation Injector 0.12.292 或更高版本**（[GitHub](https://github.com/skypia0147-dev/Animation-Injector)）及其前置模组
 - 请将随附的 `AnimationInjectorXmlCheck.exe` 与 `AnimationInjectorEditor.exe` 放在同一文件夹。保存时会执行与游戏运行时相同的检查，不会写出会被游戏整体忽略的 XML。缺少该文件时会在不检查的情况下保存并给出警告。
 
 不需要 Node.js、Rust、Python 等开发工具。
@@ -37,6 +37,8 @@
 - 如果文件在此编辑器之外（其他编辑器窗口、文本编辑器、同步工具）被更改，覆盖前会先询问。
 - **导出 → XML（Ctrl+E）** 在没有错误时另存一个 XML。
 - **导出 → 模组文件夹（Ctrl+Shift+E）** 输出 `<模组名>\SKSE\Plugins\AnimationInjector\<模组名>\<模组名>.xml` 以及使用的 HKX。指定搜索文件夹以检查资源，由其他模组提供的 HKX 标记为外部提供。已存在同名文件夹时不会覆盖。
+- 保存的 XML 为格式 6（`version="6"`，需要 Animation Injector 0.12.291 或更高版本）：画布上的启动卡片、条件卡片和 HKX 卡片与文件中的 `<Start>`、条件卡片（`<Check>`、`<Row>`、`<True>`、`<False>`）和 `<Action>` 一一对应，被两处以上指向的条件卡片在根级以 `<Condition>` 写一次。格式 4、5 的 XML 会转换为格式 6 打开，保存后为格式 6。
+- 按键输入可以直接指定按键和手柄按钮，也可以选择游戏操作（跳跃、冲刺、潜行、激活……；需要 Animation Injector 0.12.292 或更高版本）。选择游戏操作后，玩家绑定到该操作的键盘、鼠标和手柄按键都会生效；该输入启动动作时，游戏原本的动作（实际跳跃）不会发生。可用于启动、转换、QTE 和搬运放下。
 - 无法打开旧格式（version 1～3）的 XML 和含连招的模板。请在编辑器中重新制作并保存。
 
 ## 查看器
