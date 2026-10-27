@@ -23,7 +23,7 @@
     <MoveCancel at="1.647" blend="0.35"/>
     <EventValues>
       <Event name="DodgeShotFire">
-        <Do op="fireArrow" mode="direct" damage="50"/>
+        <Do op="fireArrow" damage="50"/>
       </Event>
     </EventValues>
   </Action>
@@ -31,31 +31,26 @@
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
-    <FireArrow/>
   </Action>
   <Action id="Dodge3" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
-    <FireArrow/>
   </Action>
   <Action id="Dodge4" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
-    <FireArrow/>
   </Action>
   <Action id="Dodge5" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
-    <FireArrow/>
   </Action>
   <Action id="Dodge6" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
-    <FireArrow/>
   </Action>
   <Start id="Pick7" key="E">
     <Row to="Dodge1"><Check kind="movementDirection" option="back"/></Row>

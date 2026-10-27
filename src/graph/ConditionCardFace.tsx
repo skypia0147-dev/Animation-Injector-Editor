@@ -31,8 +31,9 @@ import {tr} from '../i18n/korean.ts';
 import './conditionCard.css';
 import {errorText} from '../errorText.ts';
 
-// A condition card on the canvas (docs/mockup-card-layout): its common conditions as chips, then a line per row (its
-// conditions, where it goes), True and False the same way. No row numbers, no icons: rows read top to bottom. A
+// A condition card on the canvas (docs/mockup-card-layout): its common conditions as chips with True and False under
+// them in the same box (10-27, user request: at the bottom they read as the rows' results), each saying when it is
+// taken; then a line per row (its conditions, where it goes). No row numbers, no icons: rows read top to bottom. A
 // part opens in its own box: its conditions one per line, the picked one's fields under it, text actions at the foot.
 
 type Edit = (f: (w: Workspace) => Workspace) => void;
@@ -546,8 +547,9 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
       </div>
     </div>
   );
-  /** One line: its badge (True/False), its conditions or their count while open, where it goes, its pin. */
-  const line = (pin: string, kind: 'row' | 'true' | 'false', ids: string[], part: string) => {
+  /** One line: its badge (True/False) and when it is taken (`why`), or a row's conditions or their count while open;
+   *  where it goes, its pin. */
+  const line = (pin: string, kind: 'row' | 'true' | 'false', ids: string[], part: string, why = '') => {
     const to = routeDestination(w, node, pin),
       ref = kind === 'true' ? c.true : kind === 'false' ? c.false : c.rows.find(r => rowPin(r.id) === pin)?.to;
     const target = !to ? ' none' : refCard(ref ?? null) ? ' card' : ' hkx';
@@ -583,7 +585,11 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
           ) : (
             <Chips c={c} ids={ids} list={part as CardPlace} />
           ))}
-        {kind !== 'row' && <span />}
+        {kind !== 'row' && (
+          <span className="cond-why" title={why}>
+            {to ? why : tr('{why} → 재생 안 함', {why})}
+          </span>
+        )}
         <span className="cond-to-wrap nodrag" onClick={e => e.stopPropagation()}>
           {menu(pin, to || tr('없음'), 'cond-to' + target)}
         </span>
@@ -601,7 +607,21 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
       />
     );
   const guardsOpen = isOpen('guards'),
-    guardDrop = box('guards', c.guards.length);
+    guardDrop = box('guards', c.guards.length),
+    hasRows = c.true === undefined && c.rows.length > 0,
+    many = c.guards.length > 1;
+  // When False is taken: the common conditions failing and, with rows, none of them holding; with neither True nor a
+  // row it always is.
+  const falseWhy =
+    c.true !== undefined
+      ? many
+        ? tr('하나라도 거짓')
+        : tr('거짓')
+      : !hasRows
+        ? tr('항상')
+        : c.guards.length
+          ? tr('공통 거짓 · 맞는 행 없음')
+          : tr('맞는 행 없음');
   return (
     <DragContext.Provider value={kit}>
       {drag &&
@@ -660,15 +680,24 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
                 </>
               ) : undefined
             )}
-        </div>
-        {c.true !== undefined ? (
-          // True: the card's common conditions alone. A condition or row let go on it (or the gap above) becomes the
-          // card's first row, which takes True's destination; True comes back once no row is left.
-          <div className={'cond-box' + (over === 'true' ? ' drop-into' : '')} {...dropZone('true', 'newRow', 0)}>
-            {gap(0)}
-            {line('true', 'true', [], 'true')}
+          {/* True and False under the common conditions, whose results they are (a click on them is theirs). */}
+          <div className="cond-results" onClick={e => e.stopPropagation()}>
+            {c.true !== undefined && (
+              // True: the card's common conditions alone. A condition or row let go on it becomes the card's first
+              // row, which takes True's destination; True comes back once no row is left.
+              <div className={'cond-result' + (over === 'true' ? ' drop-into' : '')} {...dropZone('true', 'newRow', 0)}>
+                {line('true', 'true', [], 'true', many ? tr('모두 참') : tr('참'))}
+              </div>
+            )}
+            <div className="cond-result">{line('false', 'false', [], 'false', falseWhy)}</div>
           </div>
-        ) : (
+        </div>
+        {hasRows && (
+          <div className="cond-flow">
+            {c.guards.length ? tr('공통 참 → 위에서부터 처음 맞는 행 하나') : tr('위에서부터 처음 맞는 행 하나')}
+          </div>
+        )}
+        {c.true === undefined &&
           c.rows.map((r, i) => {
             const part = 'row:' + r.id,
               rowDrop = box(`row:${r.id}`, r.guards.length);
@@ -705,35 +734,33 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
                   )}
               </div>
             );
-          })
-        )}
-        <div className="cond-box">
+          })}
+        <div className="cond-tail">
           {gap(c.rows.length)}
-          {line('false', 'false', [], 'false')}
+          <button
+            type="button"
+            className={'cond-add nodrag' + (over === 'newRow' ? ' drop-into' : '')}
+            title={tr('조건을 끌어 놓으면 그 조건으로 새 행을 만듭니다.')}
+            {...dropZone('newRow', 'newRow', c.rows.length)}
+            onClick={() => {
+              let id = '',
+                first = '';
+              attempt(w => {
+                const r = addRow(w, uid);
+                const made = r.workspace.cards.find(x => x.uid === uid)!.rows.at(-1)!;
+                id = made.id;
+                first = made.guards[0] ?? '';
+                return r.workspace;
+              });
+              if (id) {
+                setOpen(o => [...o, 'row:' + id]);
+                if (first) setPicked(p => [...p, first]);
+              }
+            }}
+          >
+            {tr('＋ 조건 추가')}
+          </button>
         </div>
-        <button
-          type="button"
-          className={'cond-add nodrag' + (over === 'newRow' ? ' drop-into' : '')}
-          title={tr('조건을 끌어 놓으면 그 조건으로 새 행을 만듭니다.')}
-          {...dropZone('newRow', 'newRow', c.rows.length)}
-          onClick={() => {
-            let id = '',
-              first = '';
-            attempt(w => {
-              const r = addRow(w, uid);
-              const made = r.workspace.cards.find(x => x.uid === uid)!.rows.at(-1)!;
-              id = made.id;
-              first = made.guards[0] ?? '';
-              return r.workspace;
-            });
-            if (id) {
-              setOpen(o => [...o, 'row:' + id]);
-              if (first) setPicked(p => [...p, first]);
-            }
-          }}
-        >
-          {tr('＋ 조건 추가')}
-        </button>
       </div>
     </DragContext.Provider>
   );

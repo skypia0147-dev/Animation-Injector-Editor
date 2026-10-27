@@ -6,7 +6,7 @@ import {defaultCarryFix} from '../../carry.ts';
 import type {Action, Workspace, Pair, CameraRestore} from '../../workspace.ts';
 import {defaultPair, defaultCamera} from '../../workspace.ts';
 import {cameraReset} from '../../sharedSettings.ts';
-import {createProject, mark} from '../../model.ts';
+import {createProject} from '../../model.ts';
 import type {Project} from '../../model.ts';
 import {playbackKind, playbackKinds} from '../../actionTypes.ts';
 import type {ActionKind} from '../../actionTypes.ts';
@@ -213,109 +213,6 @@ export function StateDetails({
           )}
         </p>
       </Category>
-      {p.fireArrow && !pair && (
-        <Category title={t('node.fireArrow')} initialOpen>
-          {/* How the arrow leaves the bow (docs/mockup-direct-arrow, runtime 0.12.268). */}
-          <DetailRow
-            label={tr('발사 방식')}
-            hint={
-              p.fireArrow.mode === 'direct'
-                ? tr(
-                    '당기지 않아도 바로 쏩니다. 속도·거리는 끝까지 당긴 것과 같고, 피해는 아래 %를 곱합니다. 장착 화살 1개를 소모하고, 화살이 없으면 쏘지 않습니다. 활 마법부여·독은 아직 적용하지 않습니다.'
-                  )
-                : tr('시위를 당기고 있을 때만 쏩니다. 그 순간까지 당긴 만큼 속도·거리·피해가 정해집니다.')
-            }
-          >
-            <div className="qte-seg fire-mode" role="group" aria-label={tr('발사 방식')}>
-              {(
-                [
-                  ['drawn', tr('당긴 만큼')],
-                  ['direct', tr('바로 발사')],
-                ] as const
-              ).map(([mode, name]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  aria-pressed={(p.fireArrow!.mode ?? 'drawn') === mode}
-                  onClick={() => {
-                    const {mode: _, damage: __, ...rest} = p.fireArrow!;
-                    // A direct shot has no draw to release: it fires at its time (a shot on an event is the registry's).
-                    patch({
-                      fireArrow:
-                        mode === 'direct'
-                          ? {...rest, mode: 'direct', onRelease: false, at: rest.at ?? mark(0.5)}
-                          : {...rest, onRelease: rest.at ? rest.onRelease : true},
-                    });
-                  }}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </DetailRow>
-          {p.fireArrow.mode === 'direct' && (
-            <DetailRow label={tr('피해 %')} hint={tr('끝까지 당긴 피해에 곱합니다. 1~1000%, 기본 100%.')}>
-              <input
-                type="number"
-                aria-label={tr('피해 %')}
-                min={1}
-                max={1000}
-                step={5}
-                value={p.fireArrow.damage ?? 100}
-                onChange={e => {
-                  const value = Number(e.target.value);
-                  if (!Number.isFinite(value)) return;
-                  const {damage: _, ...rest} = p.fireArrow!;
-                  patch({fireArrow: value === 100 ? rest : {...rest, damage: value}});
-                }}
-              />
-            </DetailRow>
-          )}
-          <DetailRow
-            label={tr('버튼 떼기 발사')}
-            hint={tr(
-              '이 동작 중에 공격 버튼을 떼면 당긴 화살을 자동 발사 경로로 쏩니다. 이벤트로 쏘려면 이벤트 등록에 활 발사를 등록하세요.'
-            )}
-          >
-            <input
-              type="checkbox"
-              aria-label={tr('버튼 떼기 발사')}
-              checked={p.fireArrow.onRelease && p.fireArrow.mode !== 'direct'}
-              disabled={p.fireArrow.mode === 'direct'}
-              title={
-                p.fireArrow.mode === 'direct' ? tr('바로 발사는 당김이 없어 버튼 떼기로 쏠 수 없습니다.') : undefined
-              }
-              onChange={e => patch({fireArrow: {...p.fireArrow!, onRelease: e.target.checked}})}
-            />
-          </DetailRow>
-          <DetailRow label={tr('시각 발사')} hint={t('fireArrow.hint')}>
-            <input
-              type="checkbox"
-              aria-label={tr('시각 발사')}
-              checked={!!p.fireArrow.at}
-              onChange={e => patch({fireArrow: {...p.fireArrow!, at: e.target.checked ? mark(0.5) : null}})}
-            />
-          </DetailRow>
-          {p.fireArrow.at && (
-            <DetailRow label={t('fireArrow.at')}>
-              <TimeField
-                value={p.fireArrow.at}
-                change={at => patch({fireArrow: {...p.fireArrow!, at}})}
-                label={t('fireArrow.at')}
-                bases={['seconds']}
-              />
-            </DetailRow>
-          )}
-          {!p.fireArrow.at && p.fireArrow.mode === 'direct' && (
-            <p className="field-error" role="alert">
-              {tr('바로 발사는 시각 발사를 켜거나, 이벤트 등록의 활 발사로 쏘세요.')}
-            </p>
-          )}
-          {!p.fireArrow.at && !p.fireArrow.onRelease && p.fireArrow.mode !== 'direct' && (
-            <p className="fire-shot-hint">{tr('이 동작 자체로는 쏘지 않습니다. 이벤트 등록의 활 발사로만 쏩니다.')}</p>
-          )}
-        </Category>
-      )}
       {p.carryRelease && !pair && (
         <Category title={t('node.carryRelease')} initialOpen>
           <DetailRow label={t('carryRelease.at')} hint={t('carryRelease.hint')}>

@@ -99,8 +99,38 @@
   grid-template-columns: 44px minmax(0, 1fr) auto;
   cursor: default;
 }
-.cond-box:has(> div > .cond-line.true) {
-  cursor: pointer;
+/* True and False under the common conditions (10-27): a dashed rule between, each line as wide as the box so its pin
+   sits on the card's edge with the rows' pins. */
+.cond-results {
+  display: grid;
+  margin: 1px -8px -6px;
+  border-top: 1px dashed var(--card-rule);
+  cursor: default;
+}
+.cond-result {
+  position: relative;
+}
+.cond-result.drop-into {
+  outline: 2px solid var(--card-cond);
+  outline-offset: -1px;
+}
+.cond-why {
+  min-width: 0;
+  color: var(--card-t3);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Above the rows: how they are read. */
+.cond-flow {
+  margin: 0 2px -2px;
+  color: var(--card-t3);
+  font-size: var(--fs-xs);
+}
+.cond-tail {
+  position: relative;
+  display: grid;
 }
 .cond-tf {
   text-align: center;
@@ -148,7 +178,8 @@
   border-style: dashed;
   font-style: italic;
 }
-.p3-node .cond-box .react-flow__handle {
+.p3-node .cond-box .react-flow__handle,
+.p3-node .cond-result .react-flow__handle {
   z-index: 2;
   top: 15px;
   background: var(--card-cond);

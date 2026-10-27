@@ -1,11 +1,13 @@
 import type {Action, Effect, Workspace} from '../workspace.ts';
 import {putAction, uid} from '../workspace.ts';
-import {clipEffects, setClipEffects} from '../clipEffects.ts';
-import {sentEvent, type Annotation} from './annotations.ts';
+import {clipEffects, ordinaryEffectOps, setClipEffects} from '../clipEffects.ts';
+import {clipKey, sentEvent, type Annotation} from './annotations.ts';
 import {
   eventKey,
+  nodeValues,
   registryEntries,
   registryPart,
+  runValues,
   senderOnly,
   setFunctions,
   setNodeValues,
@@ -113,6 +115,144 @@ export function costToEvent(w: Workspace, action: string, event: string): Worksp
   );
 }
 
+// ── an event's function, edited from the card (10-27): which event, or back to the clip ──────────
+// The registry is global: a function on an event runs for every HKX that sends it. Moving it moves it for all of
+// them; the card says which of this project's HKX send the event too.
+/** This project's other actions whose HKX is seen sending `event`. */
+export function otherSenders(w: Workspace, action: Action, event: string, annotations: Map<string, Annotation[]>) {
+  return w.actions.filter(
+    a =>
+      a.uid !== action.uid &&
+      sentEvents(annotations.get(clipKey(actionClip(w, a))), !!a.pair).some(s => eventKey(s.name) === eventKey(event))
+  );
+}
+const rowOf = (w: Workspace, event: string) => w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event));
+const sameAct = (a: Record<string, string>, b: Record<string, string>) =>
+  JSON.stringify(registryPart(a)) === JSON.stringify(registryPart(b));
+/** Moves a registered function from `from` to `to`, every node's numbers with it; an equal function already on `to`
+ *  takes them. The emptied event stays registered (its name may be what lets its annotation be sent). Returns the
+ *  function's id on `to`. */
+export function moveFunction(w: Workspace, from: string, fnId: string, to: string): {w: Workspace; fn?: string} {
+  const src = rowOf(w, from),
+    fn = src?.functions.find(f => f.id === fnId);
+  if (!src || !fn || eventKey(from) === eventKey(to)) return {w, fn: fn?.id};
+  const dst0 = rowOf(w, to),
+    same = dst0?.functions.find(f => sameAct(f.values, fn.values));
+  const target = same ?? {
+    id: uid(
+      'fn',
+      (dst0?.functions ?? []).map(f => f.id)
+    ),
+    values: {...fn.values},
+  };
+  const carried = w.actions
+    .map(a => ({uid: a.uid, values: nodeValues(a, src, fn)}))
+    .filter((x): x is {uid: string; values: Record<string, string>} => !!x.values);
+  let next = same ? w : setFunctions(w, dst0?.name ?? to, [...(dst0?.functions ?? []), target]);
+  next = setFunctions(
+    next,
+    src.name,
+    src.functions.filter(f => f.id !== fnId)
+  );
+  const dst = rowOf(next, to)!;
+  for (const c of carried) next = setNodeValues(next, c.uid, dst, target, c.values);
+  return {w: next, fn: target.id};
+}
+/** Sets where a window's on function on `event` turns off: an event (its off function there) or the action's end. */
+export function setOffEvent(
+  w: Workspace,
+  key: SlotKey,
+  current: {event: string; fn: string} | null | undefined,
+  to: string | null
+): Workspace {
+  let next = w;
+  if (current) {
+    const row = rowOf(next, current.event);
+    if (row)
+      next = setFunctions(
+        next,
+        row.name,
+        row.functions.filter(f => f.id !== current.fn)
+      );
+  }
+  if (to) {
+    const row = rowOf(next, to),
+      off = slotOps[key][1];
+    if (!row?.functions.some(f => f.values.op === off))
+      next = setFunctions(next, row?.name ?? to, [
+        ...(row?.functions ?? []),
+        {
+          id: uid(
+            'fn',
+            (row?.functions ?? []).map(f => f.id)
+          ),
+          values: {op: off},
+        },
+      ]);
+  }
+  return next;
+}
+/** Why a registered function cannot go back to this action's clip, or '' when it can. */
+export function clipBlocked(action: Action, op: string, shared: Action[]): string {
+  if (shared.length)
+    return tr('{names}도 이 이벤트를 보내 이 기능을 씁니다. 클립으로 옮기면 그 HKX에서 빠지므로 등록에서 정리하세요.', {
+      names: shared.map(a => a.config.name).join(', '),
+    });
+  if (action.pair) return op === 'fireArrow' || slotOfOp(op) ? tr('페어의 클립 시각 기능이 아닙니다.') : '';
+  return slotOfOp(op) || op === 'cost' || ordinaryEffectOps.includes(op)
+    ? ''
+    : tr('일반 동작의 클립 시각 기능이 아닙니다.');
+}
+/** A registered function back on this action's clip at `at` seconds: a window or a cost is the action's own slot
+ *  again (its clip times kept from before), any other a clip-time function with this node's numbers. The function
+ *  and a window's off function leave the registry. Returns the card item id to open. */
+export function eventToClip(
+  w: Workspace,
+  action: string,
+  event: string,
+  fnId: string,
+  at: number,
+  off?: {event: string; fn: string} | null
+): {w: Workspace; item?: string} {
+  const row = rowOf(w, event),
+    fn = row?.functions.find(f => f.id === fnId),
+    a0 = w.actions.find(x => x.uid === action);
+  if (!row || !fn || !a0) return {w};
+  const values = runValues(a0, row, fn),
+    op = values.op,
+    key = slotOfOp(op);
+  let next = setFunctions(
+    w,
+    row.name,
+    row.functions.filter(f => f.id !== fnId)
+  );
+  if (key && off) next = setOffEvent(next, key, off, null);
+  const a = structuredClone(next.actions.find(x => x.uid === action)!);
+  let item: string;
+  if (key && !a.pair) {
+    a.config.slots[key].enabled = true;
+    item = key;
+  } else if (op === 'cost' && !a.pair) {
+    a.config.cost = {
+      ...a.config.cost,
+      enabled: true,
+      at: {...a.config.cost.at, basis: 'seconds', seconds: at, event: '', fallback: false, fallbackBasis: 'seconds'},
+      stamina: Number(values.stamina ?? 0),
+      magicka: Number(values.magicka ?? 0),
+    };
+    item = 'cost';
+  } else {
+    const effects = clipEffects(a);
+    const id = uid(
+      'effect',
+      effects.map(e => e.id)
+    );
+    setClipEffects(a, [...effects, {id, values: {...values, at: fmt(at)}}]);
+    item = 'effect:' + id;
+  }
+  return {w: putAction(next, a), item};
+}
+
 export type RegistryMoment = {
   key: string;
   event: string;
@@ -127,13 +267,25 @@ export type CommandMoment = {key: string; label: string; rows: CommandRow[]; bad
 export function hkxMoments(w: Workspace, action: Action | undefined, annotations: Annotation[] | undefined) {
   const registry: RegistryMoment[] = [],
     commands: CommandMoment[] = [];
-  if (!action || !annotations) return {registry, commands, read: !!annotations};
+  if (!action) return {registry, commands, read: !!annotations};
+  // Values this HKX holds for a registered function it is not seen sending (its HKX not read, or the annotation
+  // gone) still show, so they can be read and changed: an event's 활 발사 is only this (runtime 0.12.302).
+  const valued = () => {
+    for (const row of w.eventRegistry ?? [])
+      for (const fn of row.functions) {
+        const key = `reg:${eventKey(row.name)}:${fn.id}`;
+        if (nodeValues(action, row, fn) && !registry.some(r => r.key === key))
+          registry.push({key, event: row.name, fn, sent: {name: row.name, times: [], roles: new Set()}});
+      }
+  };
+  if (!annotations) {
+    valued();
+    return {registry, commands, read: false};
+  }
   const pair = !!action.pair;
   const entries = new Map(registryEntries(w).map(e => [eventKey(e.name), e]));
   for (const sent of sentEvents(annotations, pair))
     for (const fn of entries.get(eventKey(sent.name))?.row?.functions ?? []) {
-      // An action with a 활 발사 item shows its event shot there (FireArrowShots.tsx), not a second time here.
-      if (fn.values.op === 'fireArrow' && action.config.fireArrow) continue;
       registry.push({
         key: `reg:${eventKey(sent.name)}:${fn.id}`,
         event: entries.get(eventKey(sent.name))!.name,
@@ -165,6 +317,7 @@ export function hkxMoments(w: Workspace, action: Action | undefined, annotations
       });
   }
   if (shake.rows.length || shake.bad.length) commands.push(shake);
+  valued();
   // A window's on and off functions are one item (docs/mockup-moment-timing): the off one shows inside its on one.
   const paired = new Set<string>();
   for (const r of registry) {

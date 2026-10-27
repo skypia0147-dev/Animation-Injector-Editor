@@ -1694,7 +1694,17 @@ function FlatGraphPanel({
   }, status);
   // One context object with the latest values: the cards read it when they draw, and CardGate decides when.
   const cardContext = useRef({} as NonNullable<React.ContextType<typeof ChecklistContext>>).current;
-  Object.assign(cardContext, {w, model: checklist, library, edit, status, select, selected, globalSettings});
+  Object.assign(cardContext, {
+    w,
+    model: checklist,
+    library,
+    edit,
+    status,
+    select,
+    show: goCard,
+    selected,
+    globalSettings,
+  });
   const gateRef = useRef(gateState()),
     registry = renderedRegistry(w);
   const documentGate = useMemo(

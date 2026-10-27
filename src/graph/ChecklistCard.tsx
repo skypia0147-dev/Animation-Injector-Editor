@@ -23,11 +23,10 @@ import {detachInspectorNode} from '../ui/details/inspectorModel.ts';
 import {switchPlaybackKind, playbackKind, playbackKinds, actionKindLabels} from '../actionTypes.ts';
 import {duplicate, rows} from '../timeline/model.ts';
 import {type ChecklistItem, checklistModel, transferItem} from './checklist.ts';
-import {FireArrowShots, useFireArrowSummary} from './FireArrowShots.tsx';
 import './checklist.css';
 import './registry.css';
 import {useClipAnnotations, clipKey, sentEvent, roleLabel} from './annotations.ts';
-import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName} from '../eventRegistry.ts';
+import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName, playerOnlyHint} from '../eventRegistry.ts';
 import {commandSummary} from '../annotationCommands.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
 import {MomentFields, useHkxMoments, RegistryMomentRow, CommandMomentRow, useClipLength} from './MomentFields.tsx';
@@ -54,6 +53,8 @@ type Context = {
   edit: (fn: (w: Workspace) => Workspace) => void;
   status: (s: string) => void;
   select: (s: string) => void;
+  /** Chooses a card and brings it into view at this zoom (the registry's "보기"). */
+  show: (s: string) => void;
   selected: string;
   globalSettings: () => void;
 };
@@ -161,7 +162,6 @@ export function ChecklistBody({node}: {node: FlatNode}) {
   const blends = items.filter(i => i.node.kind === 'blend');
   const eventOption = (kind: string) =>
     kind === 'cameraRestore' ||
-    kind === 'fireArrow' ||
     kind === 'carryRelease' ||
     kind === 'carryFix' ||
     (kind.startsWith('notify:') &&
@@ -523,8 +523,6 @@ function ChecklistRow({
     addEventListener('pointerup', up);
     addEventListener('pointercancel', up);
   };
-  // The 활 발사 item says every moment it shoots, its registry event shots included (FireArrowShots.tsx).
-  const fireSummary = useFireArrowSummary(w, n.kind === 'fireArrow' ? a : undefined);
   const attempt = (fn: () => void) => {
     try {
       fn();
@@ -554,7 +552,9 @@ function ChecklistRow({
       <div className="checklist-row-heading" onPointerDown={begin}>
         <button
           className="checklist-row-toggle"
-          title={item.scope}
+          title={[item.scope, playerOnlyHint(rows(w, a).find(r => r.id === n.notify)?.kind ?? '')]
+            .filter(Boolean)
+            .join(' · ')}
           aria-expanded={open}
           onClick={() => {
             setOpen(!open);
@@ -565,7 +565,7 @@ function ChecklistRow({
           {/* A moment's when: an event is a chip, a clip time plain text (graph/cardTheme.css). */}
           <small title={summary} className={moment && /^[\d.]/.test(summary) ? 'time' : undefined}>
             {/* A summary that only repeats the title ("상태 조건 · 상태 조건") is left out. */}
-            {fireSummary || (summary === title ? '' : summary)}
+            {summary === title ? '' : summary}
           </small>
         </button>
         {open && (
@@ -626,9 +626,7 @@ function ChecklistRow({
         <div className="checklist-fields">
           <NestedDetailPanel.Provider value={true}>
             <ItemTitle.Provider value={title}>
-              {n.kind === 'fireArrow' && a ? (
-                <FireArrowShots w={w} action={a} edit={edit} />
-              ) : n.kind === 'stateCondition' && a ? (
+              {n.kind === 'stateCondition' && a ? (
                 <AirRule action={a} edit={edit} />
               ) : item.category === 'event' || n.notify ? (
                 // Moments and timed features alike: 시점 [클립 | 이벤트] first (docs/mockup-moment-timing).

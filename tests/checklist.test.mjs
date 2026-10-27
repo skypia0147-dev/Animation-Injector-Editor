@@ -83,14 +83,19 @@ test('a pair`s camera restore is an item of its card; deleting it switches it of
   assert.equal(off.actions[0].cameraEnabled, false);
   assert.doesNotThrow(() => compileWorkspace(off));
 });
-test('fire timing is edited through the same data by card and timeline', () => {
-  let {w, a} = sample();
-  a.config.fireArrow = {at: {basis: 'seconds', seconds: 0.3, event: '', fallback: false, fallbackBasis: 'seconds'}};
-  let row = timelineRows(w, a).find(r => r.id === 'runtime:fireArrow');
-  assert.equal(row.from.seconds, 0.3);
+test('a clip-time shot is edited through the same data by card and timeline (0.12.302)', () => {
+  let {w, a, id} = sample();
+  w = addConnected(w, id, {kind: 'notify:fireArrow', label: '활 발사'}, {x: 0, y: 0}).workspace;
+  let row = timelineRows(w, w.actions[0]).find(r => r.kind === 'fireArrow');
+  assert.ok(row);
   w = patchTime(w, a.uid, row.id, {from: {...row.from, seconds: 0.7}});
-  assert.equal(w.actions[0].config.fireArrow.at.seconds, 0.7);
-  assert.equal(checklistModel(w).raw.nodes.filter(n => n.kind === 'fireArrow').length, 1);
+  assert.equal(w.actions[0].config.effects.find(e => e.values.op === 'fireArrow').values.at, '0.7');
+  assert.equal(
+    checklistModel(w)
+      .items.get(id)
+      .filter(i => /fireArrow/.test(i.node.title + i.node.notify) || i.node.title === '활 발사').length,
+    1
+  );
 });
 test('presentation neither mutates document nor runtime XML and retains real endpoints', () => {
   let {w, id} = sample();

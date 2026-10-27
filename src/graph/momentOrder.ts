@@ -33,15 +33,6 @@ export function itemPlace(
   length?: number
 ): Place {
   if (n.kind === 'blend') return blend === 'exit' ? {group: 2, t: 0} : WHOLE;
-  if (n.kind === 'fireArrow') {
-    const f = a.config.fireArrow;
-    if (f?.at) return at(f.at.seconds);
-    // An event shot: when the first event this clip sends that the registry shoots on comes.
-    const shots = [...eventTimes].filter(([key]) =>
-      w.eventRegistry?.some(r => eventKey(r.name) === key && r.functions.some(fn => fn.values.op === 'fireArrow'))
-    );
-    return at(Math.min(Infinity, ...shots.map(([, t]) => t)));
-  }
   if (n.kind === 'cameraRestore') {
     // At the action's end, or when its reset event comes.
     const c = a.camera;

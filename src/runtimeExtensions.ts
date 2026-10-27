@@ -2,7 +2,6 @@ import type {Project, Step} from './model.ts';
 import {tr} from './i18n/korean.ts';
 import {isGameControl} from './keys.ts';
 /** A new action shot: on the attack button's release, no clip time (an event shot is a registry function). */
-export const defaultFireArrow = (): {at: null; onRelease: boolean} => ({at: null, onRelease: true});
 export type Suppression = {events: string[]; when: 'startable' | 'active' | 'both'};
 export const equippedTypes = [
   'bow',
@@ -93,25 +92,11 @@ export function stripExtensions(value: any): unknown {
       delete i.control;
       i.key = 'Num0';
     }
-  // Optional one-point slot {at: Mark}; the action shot {at: Mark | null, onRelease}.
+  // Optional one-point slot {at: Mark}.
   if (p?.carryRelease !== undefined) {
     const f = p.carryRelease;
     if (!f || Object.keys(f).join() !== 'at' || !markOk(f.at)) fail();
     delete p.carryRelease;
-  }
-  if (p?.fireArrow !== undefined) {
-    const f = p.fireArrow;
-    const keys = f ? Object.keys(f).filter(k => k !== 'mode' && k !== 'damage') : [];
-    if (
-      !f ||
-      keys.sort().join() !== 'at,onRelease' ||
-      typeof f.onRelease !== 'boolean' ||
-      (f.at !== null && !markOk(f.at)) ||
-      (f.mode !== undefined && f.mode !== 'direct') ||
-      (f.damage !== undefined && (f.mode !== 'direct' || typeof f.damage !== 'number' || !Number.isFinite(f.damage)))
-    )
-      fail();
-    delete p.fireArrow;
   }
   if (p?.effects !== undefined) {
     const list = p.effects;

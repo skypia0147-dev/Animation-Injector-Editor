@@ -619,4 +619,5 @@ export const notifyKinds = [
   'sound',
   'globalSet',
   'modEvent',
+  'fireArrow',
 ];

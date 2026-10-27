@@ -144,239 +144,85 @@ test(
   }
 );
 
-test('FireArrow timing, graph lifecycle and Pair rejection round-trip through the runtime', needsRuntime, () => {
+// Firing an arrow is the direct shot only (runtime 0.12.303): an event's shot the registry's fireArrow with each
+// HKX's damage; a clip-time shot an ordinary action's timed fireArrow. No way to pick, no button release, no delay.
+test('an event shot: the HKX holds its damage, checked by the runtime', needsRuntime, async () => {
+  const {setNodeValues, nodeValues, functionErrors, fieldsOf, valueFields} = await import('../src/eventRegistry.ts');
+  assert.deepEqual(fieldsOf('fireArrow'), ['damage'], 'its damage is its one setting');
+  assert.deepEqual(valueFields('fireArrow'), ['damage'], "an HKX's values: no delay row");
   let w = importWorkspaceXml(raw);
-  const a = w.actions[1];
-  // The action keeps the release shot; the event shot is a registered function.
-  assert.deepEqual(a.config.fireArrow, {at: null, onRelease: true});
-  const shot = w.eventRegistry.find(r => r.name === 'DodgeShotFire');
-  assert.deepEqual(
-    shot.functions.map(f => f.values),
-    [{op: 'fireArrow'}]
-  );
-  let node = flatGraph(w).nodes.find(n => n.action === a.uid && n.kind === 'fireArrow');
-  assert.ok(node);
-  a.config.fireArrow = {
-    at: {basis: 'seconds', seconds: 0.67, event: '', fallback: false, fallbackBasis: 'seconds'},
-    onRelease: false,
-  };
-  w = parseWorkspace(JSON.stringify(captureGraph(w)));
+  const row = w => w.eventRegistry.find(r => r.name === 'DodgeShotFire'),
+    fn = w => row(w).functions[0];
+  assert.deepEqual(fn(w).values, {op: 'fireArrow'}, 'the registry holds no numbers');
+  assert.equal(nodeValues(w.actions[0], row(w), fn(w)), undefined, 'the port shoots at 100%');
+  w = setNodeValues(w, w.actions[0].uid, row(w), fn(w), {damage: '50'});
+  assert.deepEqual(nodeValues(w.actions[0], row(w), fn(w)), {op: 'fireArrow', damage: '50'});
   let xml = compileWorkspace(w);
-  assert.match(xml, /<FireArrow at="0.67" onRelease="false"\/>/);
-  fs.writeFileSync(folder + '/fire.xml', xml);
-  runtime(folder + '/fire.xml');
-  // Cutting its line takes the shot off, as deleting it does.
-  const edge = flatGraph(w).edges.find(e => e.target === node.id);
-  const cut = disconnectEdge(w, edge);
-  assert.equal(importWorkspaceXml(compileWorkspace(cut)).actions[1].config.fireArrow, undefined);
-  w = deleteFlat(w, node.id);
-  assert.equal(w.actions[1].config.fireArrow, undefined);
-  const hkx = 'anim:a2:|clip_A1';
-  assert.ok(contextualAdds(w, hkx).some(o => o.kind === 'fireArrow'));
-  w = addConnected(w, hkx, {kind: 'fireArrow', label: '활 발사'}, {x: 200, y: 300}).workspace;
-  assert.deepEqual(w.actions[1].config.fireArrow, {at: null, onRelease: true});
+  assert.match(xml, /<EventValues>\s*<Event name="DodgeShotFire">\s*<Do op="fireArrow" damage="50"\/>/);
+  assert.doesNotMatch(xml, /<FireArrow|onRelease|mode="/);
+  fs.writeFileSync(folder + '/fire-event.xml', xml);
+  runtime(folder + '/fire-event.xml');
+  // Only the damage is kept: what the shot no longer has is not written.
+  w = setNodeValues(w, w.actions[1].uid, row(w), fn(w), {damage: '80', mode: 'direct', onRelease: 'true', delay: '1'});
+  assert.deepEqual(nodeValues(w.actions[1], row(w), fn(w)), {op: 'fireArrow', damage: '80'});
   xml = compileWorkspace(w);
-  assert.match(xml, /<FireArrow\/>/);
-  fs.writeFileSync(folder + '/fire-release.xml', xml);
-  runtime(folder + '/fire-release.xml');
-  // Neither own shot (10-22): the item stays for the event shots and no <FireArrow> is written; the registry's event
-  // shot still is. An event moment on the action's own shot is refused.
-  w.actions[1].config.fireArrow.onRelease = false;
-  const eventOnly = compileWorkspace(w);
-  assert.doesNotMatch(eventOnly.slice(eventOnly.indexOf('id="BowDodge_L1"')).split('</Action>')[0], /<FireArrow/);
-  assert.match(eventOnly, /<Do op="fireArrow"\/>/);
-  fs.writeFileSync(folder + '/fire-event-only.xml', eventOnly);
-  runtime(folder + '/fire-event-only.xml');
-  assert.deepEqual(
-    parseWorkspace(JSON.stringify(captureGraph(w))).actions[1].config.fireArrow,
-    w.actions[1].config.fireArrow,
-    'the item is kept in the project'
+  assert.match(
+    xml.split('id="BowDodge_L1"')[1].split('</Action>')[0],
+    /<EventValues>\s*<Event name="DodgeShotFire">\s*<Do op="fireArrow" damage="80"\/>/
   );
-  w.actions[1].config.fireArrow.at = {
-    basis: 'event',
-    seconds: 0,
-    event: 'Fire',
-    fallback: false,
-    fallbackBasis: 'seconds',
-  };
-  assert.throws(() => compileWorkspace(w));
-  for (const bad of [
-    '<FireArrow onRelease="false"/>',
-    '<FireArrow at="-1"/>',
-    '<FireArrow at="end"/>',
-    '<FireArrow at="0" fallback="1"/>',
-    '<FireArrow at="event:Fire"/>',
-    '<FireArrow at="0"/><FireArrow at="1"/>',
-  ]) {
+  fs.writeFileSync(folder + '/fire-damage.xml', xml);
+  runtime(folder + '/fire-damage.xml');
+  // 100% is the default: nothing written, the values gone.
+  w = setNodeValues(w, w.actions[2].uid, row(w), fn(w), {damage: '100'});
+  assert.equal(compileWorkspace(w).split('id="BowDodge_R1"')[1].split('</Action>')[0].includes('EventValues'), false);
+  assert.deepEqual(
+    parseWorkspace(JSON.stringify(captureGraph(w))).actions[1].config.eventValues,
+    w.actions[1].config.eventValues
+  );
+  assert.ok(functionErrors({op: 'fireArrow', delay: '0.2'}).length, 'a shot has no delay');
+  assert.ok(functionErrors({op: 'hide', damage: '50'}).length, "damage is a shot's");
+  for (const attr of ['mode="direct"', 'onRelease="true"', 'delay="0.2"'])
+    assert.throws(
+      () => importWorkspaceXml(raw.replace('<Do op="fireArrow"/>', `<Do op="fireArrow" ${attr}/>`)),
+      undefined,
+      attr
+    );
+  for (const bad of ['<FireArrow/>', '<FireArrow at="0.5"/>'])
     assert.throws(() =>
       importWorkspaceXml(
         '<AnimationSet version="6" id="Test"><Action id="A" clip="a.hkx">' + bad + '</Action></AnimationSet>'
       )
     );
-  }
-  assert.throws(
-    () =>
-      importWorkspaceXml(
-        '<AnimationSet version="6" id="Test"><Pair id="A" clip="a.hkx"><FireArrow at="0"/></Pair></AnimationSet>'
-      ),
-    /페어/
-  );
-  const p = createProject('single');
-  p.fireArrow = {at: null, onRelease: true};
-  assert.deepEqual(parseProject(JSON.stringify(p)).fireArrow, {at: null, onRelease: true});
-  assert.throws(() => parseProject(JSON.stringify({...p, fireArrow: {at: 0, onRelease: true}})));
 });
 
-test(
-  'a direct shot (runtime 0.12.268) round-trips on the action and as a node own event shot, checked by the runtime',
-  needsRuntime,
-  async () => {
-    const {setNodeValues, nodeValues} = await import('../src/eventRegistry.ts');
-    let w = importWorkspaceXml(raw);
-    const a = w.actions[1];
-    a.config.fireArrow = {
-      at: {basis: 'seconds', seconds: 0.6, event: '', fallback: false, fallbackBasis: 'seconds'},
-      onRelease: false,
-      mode: 'direct',
-      damage: 80,
-    };
-    const row = w => w.eventRegistry.find(r => r.name === 'DodgeShotFire');
-    // The event shot's way is the node's (runtime 0.12.281): another node sending the event keeps the drawn shot.
-    w = setNodeValues(w, w.actions[2].uid, row(w), row(w).functions[0], {mode: 'direct', damage: '150'});
-    w = parseWorkspace(JSON.stringify(captureGraph(w)));
-    const xml = compileWorkspace(w);
-    assert.match(xml, /<FireArrow at="0.6" mode="direct" damage="80"\/>/);
-    assert.match(xml, /<Event name="DodgeShotFire">\s*<Do op="fireArrow"\/>/);
-    assert.match(
-      xml,
-      /<EventValues>\s*<Event name="DodgeShotFire">\s*<Do op="fireArrow" mode="direct" damage="150"\/>/
-    );
-    fs.writeFileSync(folder + '/fire-direct.xml', xml);
-    runtime(folder + '/fire-direct.xml');
-    const back = importWorkspaceXml(xml);
-    assert.deepEqual(back.actions[1].config.fireArrow, a.config.fireArrow);
-    assert.deepEqual(back.eventRegistry.find(r => r.name === 'DodgeShotFire').functions[0].values, {op: 'fireArrow'});
-    assert.deepEqual(nodeValues(back.actions[2], row(back), row(back).functions[0]), {
-      op: 'fireArrow',
-      mode: 'direct',
-      damage: '150',
-    });
-    assert.equal(nodeValues(back.actions[3], row(back), row(back).functions[0]), undefined);
-    // Numbers in the registry are refused: they are the sending nodes' (<EventValues>, runtime 0.12.281).
-    assert.throws(
-      () => importWorkspaceXml(raw.replace('<Do op="fireArrow"/>', '<Do op="fireArrow" mode="direct" damage="90"/>')),
-      /EventValues/
-    );
-    // 100% is the default and left out; the drawn shot writes no mode.
-    back.actions[1].config.fireArrow.damage = undefined;
-    delete back.actions[1].config.fireArrow.damage;
-    assert.match(compileWorkspace(back), /<FireArrow at="0.6" mode="direct"\/>/);
-    // A direct shot needs a time and has no release shot; damage is only for it.
-    back.actions[1].config.fireArrow.at = null;
-    assert.throws(() => compileWorkspace(back), /바로 발사/);
-    for (const bad of [
-      '<FireArrow mode="direct"/>',
-      '<FireArrow at="0.6" mode="direct" onRelease="true"/>',
-      '<FireArrow at="0.6" damage="80"/>',
-      '<FireArrow at="0.6" mode="direct" damage="0"/>',
-      '<FireArrow at="0.6" mode="full"/>',
-    ])
-      assert.throws(() => importWorkspaceXml(raw.replace('<FireArrow/>', bad)), bad);
-    const p = createProject('single');
-    p.fireArrow = {at: null, onRelease: true, damage: 80};
-    assert.throws(() => parseProject(JSON.stringify(p)), 'damage without a direct shot');
-  }
-);
-
-test(
-  'the Fire bow item has one automatic shot; an event shot runs with each node own way (0.12.281)',
-  needsRuntime,
-  async () => {
-    const {sentEvents, fireTiming, fireArrowSummary, fireToEvent, setShotWay, dropClipTime} =
-      await import('../src/graph/fireArrowMoments.ts');
-    const {hkxMoments} = await import('../src/graph/hkxMoments.ts');
-    const {clipKey} = await import('../src/graph/annotations.ts');
-    const {setFunctions} = await import('../src/eventRegistry.ts');
-    let w = importWorkspaceXml(raw);
-    const uid = w.actions[1].uid,
-      other = w.actions[2].uid;
-    const one = [
-      {time: 0.15, text: 'SoundPlay.WPNBowPullLPM'},
-      {time: 0.62, text: 'DodgeShotFire'},
-    ];
-    // The clip's annotations as the HKX gives them (desktop only).
-    const annotations = new Map(
-      w.actions.filter(x => x.config.steps[0]?.clip).map(x => [clipKey(x.config.steps[0].clip), one])
-    );
-    const a = (id = uid) => w.actions.find(x => x.uid === id);
-    const sent = (id = uid) => sentEvents(w, a(id), annotations);
-    assert.deepEqual(
-      sent().map(s => [s.name, s.time, s.senders]),
-      [
-        ['SoundPlay.WPNBowPullLPM', 0.15, 6],
-        ['DodgeShotFire', 0.62, 6],
-      ]
-    );
-    // DDS: the button first, else DodgeShotFire. Its registry shot is the item's, not a second registry row.
-    assert.equal(fireTiming(w, a(), sent()).kind, 'event');
-    assert.equal(fireArrowSummary(w, a(), sent()), 'DodgeShotFire 주석 · 당긴 만큼 · 버튼 먼저');
-    assert.equal(
-      hkxMoments(w, a(), one).registry.some(r => r.fn.values.op === 'fireArrow'),
-      false,
-      'no registry row for the item own shot'
-    );
-    // This node shoots direct at 80%; another node sending the same event keeps the drawn shot.
-    w = setShotWay(w, uid, fireTiming(w, a(), sent()).shot, {mode: 'direct', damage: '80'});
-    assert.equal(fireArrowSummary(w, a(), sent()), 'DodgeShotFire 주석 · 바로 발사 80%');
-    assert.equal(fireArrowSummary(w, a(other), sent(other)), 'DodgeShotFire 주석 · 당긴 만큼 · 버튼 먼저');
-    let xml = compileWorkspace(w);
-    assert.match(xml, /<Event name="DodgeShotFire">\s*<Do op="fireArrow"\/>/, 'the registry holds no way');
-    assert.equal(xml.match(/<Do op="fireArrow" mode="direct" damage="80"\/>/g)?.length, 1, 'one node own way');
-    // A clip time beside the event shot shoots twice; the clip time can go, the event is the registry's.
-    w.actions = w.actions.map(x =>
-      x.uid === uid
-        ? {
-            ...x,
-            config: {
-              ...x.config,
-              fireArrow: {
-                ...x.config.fireArrow,
-                at: {basis: 'seconds', seconds: 0.5, event: '', fallback: false, fallbackBasis: 'seconds'},
-              },
-            },
-          }
-        : x
-    );
-    assert.equal(fireTiming(w, a(), sent()).kind, 'conflict');
-    assert.equal(fireArrowSummary(w, a(), sent()), '자동 발사 시점 2개');
-    w = dropClipTime(w, uid);
-    assert.equal(fireTiming(w, a(), sent()).kind, 'event');
-    // A direct clip shot moves to an event with its damage, which stays this node's.
-    w = setFunctions(w, 'DodgeShotFire', []);
-    w.actions = w.actions.map(x =>
-      x.uid === uid
-        ? {
-            ...x,
-            config: {
-              ...x.config,
-              fireArrow: {
-                at: {basis: 'seconds', seconds: 0.5, event: '', fallback: false, fallbackBasis: 'seconds'},
-                mode: 'direct',
-                damage: 70,
-                onRelease: false,
-              },
-            },
-          }
-        : x
-    );
-    w = fireToEvent(w, uid, 'DodgeShotFire');
-    const t = fireTiming(w, a(), sent());
-    assert.deepEqual([t.kind, t.shot.fn.values], ['event', {op: 'fireArrow'}]);
-    assert.equal(a().config.fireArrow.at, null);
-    assert.equal(fireArrowSummary(w, a(), sent()), 'DodgeShotFire 주석 · 바로 발사 70%');
-    xml = compileWorkspace(w);
-    assert.match(xml, /<EventValues>\s*<Event name="DodgeShotFire">\s*<Do op="fireArrow" mode="direct" damage="70"\/>/);
-    fs.writeFileSync(folder + '/fire-moments.xml', xml);
-    runtime(folder + '/fire-moments.xml');
-  }
-);
+test("a clip-time shot: an ordinary action's timed fireArrow, checked by the runtime", needsRuntime, () => {
+  let w = importWorkspaceXml(raw);
+  const hkx = 'anim:a2:|clip_A1',
+    option = () => contextualAdds(w, hkx).find(o => o.kind === 'notify:fireArrow');
+  assert.ok(option() && !option().disabled, '「＋ 기능 › 활 발사」 is a moment');
+  assert.equal(option().label, '활 발사 추가', 'named as the registry names it, not fireArrow');
+  w = addConnected(w, hkx, option(), {x: 0, y: 0}).workspace;
+  const shots = () => w.actions[1].config.effects.filter(e => e.values.op === 'fireArrow');
+  assert.equal(shots().length, 1);
+  assert.ok(!option().disabled, 'more than one may be added');
+  shots()[0].values.at = '0.55';
+  shots()[0].values.damage = '50';
+  w.actions[1].config.effects.push({id: 'effect9', values: {op: 'fireArrow', at: '0.9'}});
+  assert.deepEqual(
+    validateWorkspace(w).filter(i => i.level === 'error'),
+    [],
+    'two clip-time shots are fine'
+  );
+  const xml = compileWorkspace(w);
+  const own = xml.split('id="BowDodge_L1"')[1].split('</Action>')[0];
+  assert.match(own, /<Do at="0.55" op="fireArrow" damage="50"\/>/);
+  assert.match(own, /<Do at="0.9" op="fireArrow"\/>/);
+  fs.writeFileSync(folder + '/fire-clip.xml', xml);
+  runtime(folder + '/fire-clip.xml');
+  const back = importWorkspaceXml(xml);
+  assert.deepEqual(back.actions[1].config.effects.find(e => e.values.op === 'fireArrow').values, {
+    op: 'fireArrow',
+    at: '0.55',
+    damage: '50',
+  });
+});

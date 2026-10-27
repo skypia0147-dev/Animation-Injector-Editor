@@ -685,7 +685,6 @@ export function validateWorkspace(w: Workspace): Issue[] {
     for (const e of validate(a.config))
       // Named as the user sees the action (its display name), not by its XML id.
       out.push({...e, node: a.uid, message: (a.config.name.trim() || a.config.actionId) + ': ' + e.message});
-    if (a.pair && a.config.fireArrow) err(a.uid, tr('페어에는 활 발사를 사용할 수 없습니다.'));
     // An ordinary action's clip-time functions (runtime 0.12.274) change the actor playing it.
     if (a.config.effects) {
       if (a.pair) err(a.uid, tr('페어의 시각 기능은 페어 연출에 둡니다.'));
@@ -700,6 +699,8 @@ export function validateWorkspace(w: Workspace): Issue[] {
         for (const m of functionErrors(e.values, true)) err(a.uid, e.id + ': ' + m);
       }
     }
+    if (a.pair?.effects.some(e => e.values.op === 'fireArrow'))
+      err(a.uid, tr('활 발사는 플레이어가 재생하는 일반 동작에서만 씁니다.'));
     for (const message of carryErrors(w, a)) err(a.uid, message);
     if (strayCarryRelease(w, a))
       err(

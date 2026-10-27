@@ -76,21 +76,6 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
       {at: '0', stamina: 0, magicka: 0},
       true
     );
-  // A direct shot (runtime 0.12.268) has no release shot: no onRelease, its damage percent instead. Without its own
-  // shot (no time, no release) the action writes none: the HKX shoots only on the registry's events.
-  if (p.fireArrow && (p.fireArrow.at || p.fireArrow.onRelease))
-    add(
-      'FireArrow',
-      p.fireArrow.mode === 'direct'
-        ? {
-            ...(p.fireArrow.at ? clock2('at', p.fireArrow.at) : {}),
-            mode: 'direct',
-            damage: p.fireArrow.damage ?? 100,
-          }
-        : {...(p.fireArrow.at ? clock2('at', p.fireArrow.at) : {}), onRelease: p.fireArrow.onRelease},
-      {onRelease: true, damage: 100},
-      true
-    );
   if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at));
   return out;
 }

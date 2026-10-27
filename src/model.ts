@@ -35,11 +35,6 @@ export type Project = {
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;
-  /** The action's own shot: at a clip time (`at`, seconds) and/or on the attack button's release; neither keeps
-   *  the HKX card's item for the event shots without writing a <FireArrow> (10-22).
-   *  A shot on an event is a registry function (fireArrow). `mode` 'direct' (runtime 0.12.268): no draw, a full
-   *  draw's speed and range, `damage` percent of its damage (absent = 100), one arrow taken; it has no release shot. */
-  fireArrow?: {at: Mark | null; onRelease: boolean; mode?: 'direct'; damage?: number};
   /** Putdown Action of a carry: when the carried target is released as a ragdoll. */
   carryRelease?: {at: Mark};
   /** Clip-time functions on the actor playing it (runtime 0.12.274, clipEffects.ts): values as a pair effect's,
@@ -254,7 +249,6 @@ export function marks(p: Project): Mark[] {
     p.recovery.at,
     ...p.steps.flatMap(s => (s.recovery ? [s.recovery.at] : [])),
     p.cost.at,
-    ...(p.fireArrow?.at ? [p.fireArrow.at] : []),
     ...(p.carryRelease ? [p.carryRelease.at] : []),
     ...Object.values(p.slots).flatMap(s => [s.from, s.until]),
   ];
@@ -338,17 +332,6 @@ export function validate(p: Project): Issue[] {
       checkMark(s.recovery.at, s.id, ['seconds', 'event'], 'seconds');
     }
   if (p.cost.enabled) checkMark(p.cost.at, 'project', ['seconds'], 'seconds');
-  if (p.fireArrow?.mode === 'direct') {
-    if (!p.fireArrow.at)
-      error(
-        'project',
-        tr('활 발사: 바로 발사는 시각 발사가 필요합니다. 이벤트로 쏘려면 이벤트 등록의 활 발사를 쓰세요.')
-      );
-    if (p.fireArrow.damage !== undefined && !num(p.fireArrow.damage, 1000, 1))
-      error('project', tr('활 발사: 피해는 1~1000%입니다.'));
-  }
-  // Neither its own shot is fine (10-22): the item stays for the HKX's event shots and no FireArrow is written.
-  if (p.fireArrow?.at) checkMark(p.fireArrow.at, 'project', ['seconds'], 'seconds');
   if (p.carryRelease) checkMark(p.carryRelease.at, 'project', ['seconds', 'event'], 'seconds');
   if (p.steps.length !== 1)
     error('project', tr('동작은 HKX 하나입니다. 다음 HKX는 다른 동작으로 만들어 전환으로 이으세요.'));
@@ -381,11 +364,3 @@ export const timingLabel = (m: Mark) =>
         : tr('클립 끝')
       : tr('{seconds}초', {seconds: m.seconds});
 /** The action shot's summary: its clip time and/or the button-release shot. */
-export const fireArrowLabel = (f: NonNullable<Project['fireArrow']>) =>
-  [
-    f.mode === 'direct' ? tr('바로 발사 · 피해 {damage}%', {damage: f.damage ?? 100}) : '',
-    f.at ? timingLabel(f.at) + tr(' 발사') : '',
-    f.onRelease && f.mode !== 'direct' ? tr('버튼 떼기 발사') : '',
-  ]
-    .filter(Boolean)
-    .join(' · ') || tr('발사 없음');

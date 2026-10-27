@@ -3,8 +3,6 @@ import type {Effect, Workspace} from '../workspace.ts';
 import {
   addEventRow,
   addFunction,
-  bindSlot,
-  arrowModes,
   ragdollDirections,
   ragdollForce,
   ragdollLabels,
@@ -14,7 +12,6 @@ import {
   textSettings,
   eventKey,
   eventOps,
-  eventSlots,
   functionSummary,
   isBooleanSetting,
   newEventName,
@@ -31,11 +28,11 @@ import {
   vanillaName,
   type EventOp,
   type RegistryEntry,
+  playerOnlyHint,
 } from '../eventRegistry.ts';
 import {ChecklistContext} from './ChecklistCard.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {clipKey, roleLabel, sentEvent, useClipAnnotations} from './annotations.ts';
-import {timingLabel} from '../model.ts';
 import './registry.css';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
@@ -268,7 +265,7 @@ function RegistryRow({
   senders: Sender[];
   attempt: (fn: () => void) => void;
 }) {
-  const {w, edit, select} = useContext(ChecklistContext)!;
+  const {w, edit, show} = useContext(ChecklistContext)!;
   const ref = useRef<HTMLDivElement>(null);
   const [name, setName] = useState(entry.name);
   useEffect(() => setName(entry.name), [entry.name]);
@@ -284,7 +281,6 @@ function RegistryRow({
     });
   }, [flash]);
   const fns = entry.row?.functions ?? [];
-  const slots = useMemo(() => (open ? eventSlots(w) : []), [open, w]);
   const registeredOps = useMemo(
     () => new Set((w.eventRegistry ?? []).flatMap(r => r.functions.map(f => f.values.op))),
     [w.eventRegistry]
@@ -349,54 +345,26 @@ function RegistryRow({
               {tr('＋ 기능 추가')}
             </button>
           </div>
-          <div className="registry-sub-title">
-            {tr('용도')} <span>{tr('이 프로젝트의 HKX 시점 — 여기서도, 해당 항목에서도 지정')}</span>
-          </div>
+          {/* Uses are set where they are (QTE, Start, HKX and link cards); here they are only listed. */}
+          <div className="registry-sub-title">{tr('용도')}</div>
           <ul className="registry-uses">
-            {groupUses(entry.uses).map(g => {
-              const slots = g.uses.flatMap(u => (u.slot ? [u.slot] : []));
-              return (
-                <li key={g.label}>
-                  {g.text}
-                  <button className="registry-link" onClick={() => select(g.uses[0].node)}>
-                    {tr('보기')}
-                  </button>
-                  {!!slots.length && (
-                    <button
-                      className="registry-link dim"
-                      title={
-                        slots.length > 1
-                          ? tr('이 {length}개 항목은 클립 시각 기준으로 돌아갑니다', {length: slots.length})
-                          : tr('이 항목은 클립 시각 기준으로 돌아갑니다')
-                      }
-                      onClick={() => attempt(() => edit(w => slots.reduce((n, slot) => bindSlot(n, slot, ''), w)))}
-                    >
-                      {tr('✕ 해제')}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
+            {groupUses(entry.uses).map(g => (
+              <li key={g.label}>
+                {g.text}
+                {/* Kept from the registry card's own click, which would choose the registry again. */}
+                <button
+                  className="registry-link"
+                  onClick={e => {
+                    e.stopPropagation();
+                    show(g.uses[0].node);
+                  }}
+                >
+                  {tr('보기')}
+                </button>
+              </li>
+            ))}
             {!entry.uses.length && <li className="dim">{tr('없음')}</li>}
           </ul>
-          <select
-            className="registry-add-use"
-            aria-label={tr('용도 추가')}
-            value=""
-            onChange={e => {
-              const key = e.target.value;
-              if (key) attempt(() => edit(w => bindSlot(w, key, entry.name)));
-            }}
-          >
-            <option value="">{tr('＋ 용도 추가 — 이 이벤트를 쓸 항목 고르기…')}</option>
-            {slots
-              .filter(s => !(s.mark.basis === 'event' && eventKey(s.mark.event) === eventKey(entry.name)))
-              .map(s => (
-                <option key={s.key} value={s.key}>
-                  {s.label} {tr('(지금:')} {timingLabel(s.mark)})
-                </option>
-              ))}
-          </select>
           <div className="registry-usage">
             <div className="registry-usage-title">{tr('이 프로젝트에서 이 이벤트를 보내는 HKX')}</div>
             <ul>
@@ -512,31 +480,6 @@ export function FunctionEditor({
             onChange={e => set(key, String(e.target.checked))}
           />
           {label}
-        </label>
-      );
-    if (key === 'damage' && v.mode !== 'direct') return null;
-    if (key === 'mode')
-      return (
-        <label key={key}>
-          {label}
-          <select
-            value={v.mode === 'direct' ? 'direct' : ''}
-            onChange={e => {
-              const values = {...v};
-              if (e.target.value) values.mode = e.target.value;
-              else {
-                delete values.mode;
-                delete values.damage;
-              }
-              change({...fn, values});
-            }}
-          >
-            {arrowModes().map(([value, text]) => (
-              <option key={value} value={value}>
-                {text}
-              </option>
-            ))}
-          </select>
         </label>
       );
     // A ragdoll's direction, and its force defaulting by direction (runtime 0.12.278).
@@ -657,7 +600,13 @@ export function FunctionEditor({
         <span />
       </div>
       <div className="registry-fn-top">
-        <select aria-label={tr('기능')} value={v.op} onChange={e => change({...fn, values: {op: e.target.value}})}>
+        {/* A player-only function says so in its help (a tag looked like a setting, 10-27). */}
+        <select
+          aria-label={tr('기능')}
+          title={playerOnlyHint(v.op) || undefined}
+          value={v.op}
+          onChange={e => change({...fn, values: {op: e.target.value}})}
+        >
           {eventOps.map(op => (
             <option key={op} value={op}>
               {opInfo[op].label}
@@ -679,13 +628,6 @@ export function FunctionEditor({
         >
           {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
           {registeredOps.has(info.lasting) ? '' : tr('(등록 없음 ⚠)')}
-        </div>
-      )}
-      {info?.player && (
-        <div className="registry-note player">
-          <span className="moment-tag" title={tr('플레이어에게만 적용됩니다.')}>
-            {tr('플레이어만')}
-          </span>
         </div>
       )}
     </div>

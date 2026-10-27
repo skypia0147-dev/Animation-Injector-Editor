@@ -168,7 +168,6 @@ export function importWorkspaceXml(text: string): Workspace {
         'MoveCancel',
         'Vanilla',
         'Transition',
-        'FireArrow',
         'QTE',
         'CarryRelease',
         'EventValues',
@@ -232,31 +231,6 @@ export function importWorkspaceXml(text: string): Workspace {
     if (release) {
       if (pair) throw Error(tr('대상 놓기(CarryRelease)는 한 사람 일반 동작에만 씁니다.'));
       p.carryRelease = {at: clock(required(release, 'at'))};
-    }
-    const fire = child(n, 'FireArrow', ['at', 'onRelease', 'mode', 'damage']);
-    if (fire) {
-      if (pair) throw Error(tr('페어에는 활 발사를 사용할 수 없습니다.'));
-      const at = get(fire, 'at'),
-        mode = get(fire, 'mode') || 'drawn';
-      if (!['drawn', 'direct'].includes(mode)) throw Error(tr('FireArrow.mode: drawn 또는 direct입니다.'));
-      if (mode === 'direct') {
-        if (bool(fire, 'onRelease', false))
-          throw Error(tr('FireArrow: mode="direct"(바로 발사)는 onRelease를 쓸 수 없습니다.'));
-        const damage = get(fire, 'damage') ? Number(get(fire, 'damage')) : 100;
-        if (!(damage >= 1 && damage <= 1000)) throw Error(tr('FireArrow.damage: 1~1000%입니다.'));
-        p.fireArrow = {
-          at: at ? clock(at) : null,
-          onRelease: false,
-          mode: 'direct',
-          ...(damage !== 100 ? {damage} : {}),
-        };
-        if (!p.fireArrow.at) throw Error(tr('FireArrow: mode="direct"(바로 발사)에는 at이 필요합니다.'));
-      } else {
-        if (get(fire, 'damage')) throw Error(tr('FireArrow.damage는 mode="direct"(바로 발사)에서만 씁니다.'));
-        p.fireArrow = {at: at ? clock(at) : null, onRelease: bool(fire, 'onRelease', true)};
-        if (!p.fireArrow.at && !p.fireArrow.onRelease)
-          throw Error(tr('FireArrow: at 또는 onRelease="true"가 필요합니다.'));
-      }
     }
     const cost = child(n, 'Cost', ['at', 'stamina', 'magicka']);
     if (cost)

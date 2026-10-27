@@ -7,7 +7,7 @@ import {uid} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
 import {layoutKey} from '../graph/projection.ts';
 import {t} from '../i18n/index.ts';
-import {pairRoleLabels} from '../eventRegistry.ts';
+import {opInfo, pairRoleLabels, type EventOp} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
 import {clipEffects, ordinaryEffectOps, setClipEffects} from '../clipEffects.ts';
 export type Meta = {duration: number; tracks: number; annotations: {time: number; text: string; track: string}[]};
@@ -56,8 +56,10 @@ export const title = (kind: string) => {
     armorOff: 'armor',
   };
   const k = base[kind] ?? kind;
+  // A function without its own row name is called what the registry calls it (활 발사 had shown as fireArrow).
   return (
-    (names[k] ? t(names[k]) : k) + (kind.endsWith('Off') && kind !== 'timeOff' ? ' · ' + t('timeline.endEffect') : '')
+    (names[k] ? t(names[k]) : (opInfo[k as EventOp]?.label ?? k)) +
+    (kind.endsWith('Off') && kind !== 'timeOff' ? ' · ' + t('timeline.endEffect') : '')
   );
 };
 /** A function's target, as shown on timeline rows. */
@@ -180,9 +182,7 @@ export function patch(w: Workspace, action: string, id: string, change: {from?: 
     a = n.actions.find(a => a.uid === action);
   if (!a) return w;
   const p = a.config;
-  if (id === 'runtime:fireArrow') {
-    if (p.fireArrow && change.from?.basis === 'seconds') p.fireArrow.at = change.from;
-  } else if (id === 'runtime:carryRelease') {
+  if (id === 'runtime:carryRelease') {
     if (p.carryRelease && change.from) p.carryRelease.at = change.from;
   } else if (id === 'runtime:carryFix') {
     // Plain seconds only: the runtime reads <Fix at> as seconds from the lift clip's start.
@@ -238,8 +238,7 @@ export function remove(w: Workspace, action: string, id: string): Workspace {
   }
   const n = clone(w),
     a = n.actions.find(a => a.uid === action)!;
-  if (id === 'runtime:fireArrow') delete a.config.fireArrow;
-  else if (id === 'runtime:carryRelease') delete a.config.carryRelease;
+  if (id === 'runtime:carryRelease') delete a.config.carryRelease;
   else if (id === 'runtime:carryFix' && a.pair?.carry) a.pair.carry.fix = null;
   else if (id === 'runtime:cameraRestore') a.cameraEnabled = false;
   else if (id.startsWith('cancel:')) a.cancels = a.cancels.filter(c => c.id !== id.slice(7));
@@ -265,8 +264,6 @@ export function remove(w: Workspace, action: string, id: string): Workspace {
 // second authoring node in flatGraph's notification projection.
 export function timelineRows(w: Workspace, a: Action, step?: string): Row[] {
   const result = rows(w, a, step);
-  if (a.config.fireArrow?.at)
-    result.push({id: 'runtime:fireArrow', kind: 'fireArrow', label: tr('활 발사'), from: a.config.fireArrow.at});
   if (a.config.carryRelease)
     result.push({
       id: 'runtime:carryRelease',

@@ -11,7 +11,6 @@ import {
   registryEntries,
   eventUses,
   renameEvent,
-  bindSlot,
   eventSlots,
   removeEventRow,
   addEventRow,
@@ -80,20 +79,11 @@ test('the registry lists registrations and referenced names; rename, bind and un
       ['Start', false, 1],
     ]
   );
-  const openKey = eventUses(w).get('mco_winopen')[0].slot;
-  assert.ok(openKey);
-  // Unbinding returns the moment to its clip time; binding points it back at the event.
-  let n = bindSlot(w, openKey, '');
-  assert.equal(n.actions[0].clipWindows.A1.open.basis, 'seconds');
-  assert.equal(n.actions[0].clipWindows.A1.open.seconds, 0.45);
+  // A use is set where it is (the window's own field); the registry only lists it.
+  let n = structuredClone(w);
+  n.actions[0].clipWindows.A1.open = eventMark('Swing', 0.45);
   assert.ok(!registryEntries(n).some(e => e.name === 'MCO_WinOpen'));
-  n = bindSlot(n, openKey, 'Swing');
   assert.equal(eventUses(n).get('swing').length, 1);
-  // The clip time is kept for a switch back; the event moment waits for its event only (runtime 0.12.278).
-  assert.deepEqual(
-    (({basis, event, fallback, seconds}) => ({basis, event, fallback, seconds}))(n.actions[0].clipWindows.A1.open),
-    {basis: 'event', event: 'Swing', fallback: false, seconds: 0.45}
-  );
   assert.throws(() => removeEventRow(n, n.eventRegistry[0].id), /용도/);
   n = renameEvent(n, 'swing', 'Swing2');
   assert.equal(n.eventRegistry[0].name, 'Swing2');
@@ -164,9 +154,20 @@ test("an HKX card lists only its own action's uses of an event, by a short label
   );
 });
 
-test('the registry lists repeated uses once with a count; unbinding a group frees every slot in it', async () => {
+test("a use's 보기 goes to a card the graph draws (QTE groups, transitions, starts)", async () => {
+  const {flatGraph} = await import('../src/graph/flat.ts');
+  for (const file of ['GrappleQte.xml', 'grapple-carry-qte-cuts.xml']) {
+    const w = importWorkspaceXml(fs.readFileSync('tests/fixtures/' + file, 'utf8'));
+    const drawn = new Set(flatGraph(w).nodes.map(n => n.id));
+    const uses = [...eventUses(w).values()].flat();
+    assert.ok(uses.some(u => u.node.startsWith('qte:')) && uses.some(u => u.node.startsWith('startCard:')), file);
+    for (const u of uses) assert.ok(drawn.has(u.node), `${file}: ${u.label} → ${u.node}`);
+  }
+});
+
+test('the registry lists repeated uses once with a count', async () => {
   const {groupUses} = await import('../src/eventRegistry.ts');
-  let w = emptyWorkspace();
+  const w = emptyWorkspace();
   for (let i = 0; i < 2; i++) {
     const a = addAction(w, 'single');
     a.nodeAuthored = true;
@@ -185,9 +186,6 @@ test('the registry lists repeated uses once with a count; unbinding a group free
     twice.map(g => g.text),
     [uses[0].label + ' ×2']
   );
-  const slots = uses.flatMap(u => (u.slot ? [u.slot] : []));
-  w = slots.reduce((n, slot) => bindSlot(n, slot, ''), w);
-  assert.equal(eventUses(w).get('open'), undefined);
 });
 
 test('a registry line shortens its uses: no own name, repeats counted, a kind at several places as a count', async () => {

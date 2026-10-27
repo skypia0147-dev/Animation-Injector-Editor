@@ -177,8 +177,9 @@ export const opInfo: Record<EventOp, OpInfo> = {
       return tr('활 발사');
     },
     player: true,
-    // How the arrow leaves the bow (runtime 0.12.268): drawn (absent) or direct, and the direct shot's damage %.
-    fields: ['mode', 'damage'],
+    // The arrow leaves with no draw at its event or clip time (runtime 0.12.303, its only way): its damage % of a
+    // full draw's is its one setting, and it has no delay.
+    fields: ['damage'],
   },
   ragdoll: {
     get label() {
@@ -244,7 +245,6 @@ export const settingKeys = [
   'duration',
   'factor',
   'delay',
-  'mode',
   'damage',
   'pick',
   'hit',
@@ -307,9 +307,6 @@ export const settingLabels: Record<string, string> = {
   },
   get delay() {
     return tr('지연(초)');
-  },
-  get mode() {
-    return tr('발사 방식');
   },
   get damage() {
     return tr('피해 %');
@@ -430,11 +427,8 @@ export const strikeStagger = 0.5,
 /** A strike's settings that only an area (pick="area") has. */
 export const strikeAreaKeys = ['hit', 'radius', 'angle', 'up', 'down', 'edge'];
 const strikeNumberKeys = ['ratio', 'amount', 'radius', 'angle', 'up', 'down', 'edge'];
-/** A fireArrow's ways (runtime 0.12.268): the value written for each and what the menu says. */
-export const arrowModes = (): [string, string][] => [
-  ['', tr('당긴 만큼')],
-  ['direct', tr('바로 발사')],
-];
+/** The help of a function that only works for the player (the camera's shake, the game's time, the bow), else ''. */
+export const playerOnlyHint = (op: string) => (opInfo[op as EventOp]?.player ? tr('플레이어에게만 적용됩니다.') : '');
 /** A ragdoll's directions (runtime 0.12.278) and each one's default force, as FH_Grapple's GrapplePush had them. */
 export const ragdollDirections = ['down', 'up', 'forward', 'backward', 'left', 'right'] as const;
 export const ragdollForce: Record<string, number> = {down: 1, up: 2, forward: 5, backward: 5, left: 5, right: 5};
@@ -461,7 +455,12 @@ export const ragdollLabels: Record<string, string> = {
 const booleanKeys = new Set<string>();
 export const isBooleanSetting = (key: string) => booleanKeys.has(key);
 const commonFields = ['delay'];
-export const fieldsOf = (op: string) => [...(opInfo[op as EventOp]?.fields ?? []), ...commonFields];
+/** Functions that run the moment their event or clip time comes, with no delay (runtime 0.12.303). */
+const undelayed = new Set(['fireArrow']);
+export const fieldsOf = (op: string) => [
+  ...(opInfo[op as EventOp]?.fields ?? []),
+  ...(undelayed.has(op) ? [] : commonFields),
+];
 const numberRanges: Record<string, [number, number]> = {
   delay: [0, 60],
   stamina: [0, 100000],
@@ -557,7 +556,10 @@ export function setNodeValues(
     a = next.actions.find(x => x.uid === action);
   if (!a) return w;
   const all = {...(a.config.eventValues ?? {})};
-  if (values) all[valueKey(row, fn)] = valuePart({...values, op: fn.values.op});
+  const part = values && valuePart({...values, op: fn.values.op});
+  // A full draw's damage is the default (runtime 0.12.303); values that are all defaults are none.
+  if (part?.damage === '100') delete part.damage;
+  if (part && Object.keys(part).length > 1) all[valueKey(row, fn)] = part;
   else delete all[valueKey(row, fn)];
   if (Object.keys(all).length) a.config.eventValues = all;
   else delete a.config.eventValues;
@@ -625,10 +627,6 @@ export function valueErrors(v: Record<string, string>): string[] {
   for (const k of valueKeysAll)
     if (v[k] !== undefined && v[k] !== '' && !allowed.has(k))
       out.push(tr('{key}은(는) 이 기능의 수치가 아닙니다.', {key: settingLabels[k] ?? k}));
-  if (v.mode !== undefined && v.mode !== '' && !['drawn', 'direct'].includes(v.mode))
-    out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
-  if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
-    out.push(tr('피해 %는 바로 발사에서만 씁니다.'));
   for (const [k, [min, max]] of Object.entries(numberRanges))
     if (
       v[k] !== undefined &&
@@ -656,9 +654,8 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
   if (timed && values.target && values.target !== 'both') out.target = values.target;
   const used = new Set(fieldsOf(values.op));
   for (const k of settingKeys) if (used.has(k) && values[k] !== undefined && values[k] !== '') out[k] = values[k];
-  // Only a direct shot has a damage, and 100% is the runtime's default.
-  if (out.mode !== 'direct' || out.damage === '100') delete out.damage;
-  if (out.mode !== 'direct') delete out.mode;
+  // A shot's 100% is the runtime's default.
+  if (out.damage === '100') delete out.damage;
   // A sound plays at the spine at full volume unless told; a file replaces a registered sound (runtime 0.12.296).
   if (values.op === 'sound') {
     if (out.bone === 'spine') delete out.bone;
@@ -716,8 +713,8 @@ export function functionParts(values: Record<string, string>): string[] {
   if (values.op === 'timeOn' && values.factor) parts.push('×' + values.factor);
   if (values.op === 'shake' && (values.strength || values.duration))
     parts.push(tr('세기 {s} · {d}초', {s: values.strength || '1', d: values.duration || '0.5'}));
-  if (values.op === 'fireArrow' && values.mode === 'direct')
-    parts.push(tr('바로 발사 · 피해 {damage}%', {damage: values.damage || '100'}));
+  if (values.op === 'fireArrow' && values.damage && values.damage !== '100')
+    parts.push(tr('피해 {damage}%', {damage: values.damage}));
   if (values.op === 'ragdoll') {
     const d = values.direction || 'down';
     parts.push(ragdollLabels[d] ?? d, tr('힘 {f}', {f: values.force || String(ragdollForce[d] ?? 1)}));
@@ -776,13 +773,11 @@ export function registerIn(rows: EventRow[], name: string, values?: Record<strin
 export function functionErrors(v: Record<string, string>, timed = false): string[] {
   const out: string[] = [];
   if (!eventOps.includes(v.op as EventOp)) out.push(tr('기능을 선택하세요.'));
-  if (timed && v.op === 'fireArrow') out.push(tr('시간 기준 활 발사는 동작의 활 발사에서 지정합니다.'));
   if (v.target !== undefined && !(timed && (pairRoles as readonly string[]).includes(v.target)))
     out.push(tr('적용 값이 잘못되었습니다.'));
-  if (v.mode !== undefined && v.mode !== '' && !(v.op === 'fireArrow' && ['drawn', 'direct'].includes(v.mode)))
-    out.push(tr('발사 방식은 활 발사의 당긴 만큼 또는 바로 발사입니다.'));
-  if (v.damage !== undefined && v.damage !== '' && v.mode !== 'direct')
-    out.push(tr('피해 %는 바로 발사에서만 씁니다.'));
+  if (v.damage !== undefined && v.damage !== '' && v.op !== 'fireArrow') out.push(tr('피해 %는 활 발사에서만 씁니다.'));
+  if (v.op === 'fireArrow' && v.delay !== undefined && v.delay !== '')
+    out.push(tr('활 발사는 지연 없이 이벤트·시각에 바로 쏩니다.'));
   if (
     v.direction !== undefined &&
     !(v.op === 'ragdoll' && (ragdollDirections as readonly string[]).includes(v.direction))
@@ -971,7 +966,6 @@ export type EventSlot = {
   label: string;
   node: string;
   mark: Mark;
-  allowEnd: boolean;
   /** The action whose clip the moment belongs to, the clip when it is one clip's, and the label as that
    *  action's own card shows it (without the action's name). */
   owner?: string;
@@ -1006,7 +1000,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
       label: tr('종료 시점 · {name}', {name}),
       node: hkx,
       mark: p.exit,
-      allowEnd: true,
       local: tr('종료 시점'),
     });
     if (p.recovery.enabled)
@@ -1015,7 +1008,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('이동키 취소 · {name}', {name}),
         node: hkx,
         mark: p.recovery.at,
-        allowEnd: false,
         local: tr('이동키 취소'),
       });
     for (const s of p.steps)
@@ -1025,7 +1017,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
           label: tr('이동키 취소 · {name} · {label}', {name, label: s.label}),
           node: playNode(w, a.uid, s.id),
           mark: s.recovery.at,
-          allowEnd: false,
           step: s.id,
           local: tr('이동키 취소'),
         });
@@ -1036,7 +1027,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('감지 창 시작 · {name} {step}', {name, step}),
         node,
         mark: win.open,
-        allowEnd: false,
         step,
         local: tr('감지 창 시작'),
       });
@@ -1045,7 +1035,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('감지 창 끝 · {name} {step}', {name, step}),
         node,
         mark: win.close,
-        allowEnd: true,
         step,
         local: tr('감지 창 끝'),
       });
@@ -1056,7 +1045,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('바닐라 전환 시작 · {name}', {name}),
         node: hkx,
         mark: c.open,
-        allowEnd: false,
         local: tr('바닐라 전환 시작'),
       });
       out.push({
@@ -1064,7 +1052,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('바닐라 전환 끝 · {name}', {name}),
         node: hkx,
         mark: c.close,
-        allowEnd: true,
         local: tr('바닐라 전환 끝'),
       });
     }
@@ -1074,7 +1061,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('대상 놓기 · {name}', {name}),
         node: hkx,
         mark: p.carryRelease.at,
-        allowEnd: false,
         local: tr('대상 놓기'),
       });
     for (const slot of out.slice(first)) slot.owner = a.uid;
@@ -1083,13 +1069,12 @@ export function eventSlots(w: Workspace): EventSlot[] {
     if (l.window) {
       const from = w.actions.find(a => a.uid === l.from)?.config.name ?? l.from,
         to = w.actions.find(a => a.uid === l.to)?.config.name ?? l.to,
-        node = `link:${l.id}|${l.mode === 'event' ? 'markerReceive' : 'keyInput'}`;
+        node = 'transition:' + l.id;
       out.push({
         key: `link:${l.id}|open`,
         label: tr('연결 감지 시작 · {from}→{to}', {from, to}),
         node,
         mark: l.open,
-        allowEnd: false,
         owner: l.from,
         local: tr('연결 감지 시작 · → {to}', {to}),
       });
@@ -1098,7 +1083,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         label: tr('연결 감지 끝 · {from}→{to}', {from, to}),
         node,
         mark: l.close,
-        allowEnd: true,
         owner: l.from,
         local: tr('연결 감지 끝 · → {to}', {to}),
       });
@@ -1107,9 +1091,8 @@ export function eventSlots(w: Workspace): EventSlot[] {
     out.push({
       key: `qte:${q.id}|at`,
       label: tr('QTE 시작 · {v0}', {v0: qteName(w, q)}),
-      node: 'qte:' + q.id,
+      node: qteCard(w, q),
       mark: q.at,
-      allowEnd: false,
       owner: q.owner,
       step: q.step || undefined,
       local: qteLocal(tr('QTE 시작'), q),
@@ -1124,14 +1107,16 @@ const actionName = (w: Workspace, uid: string) => {
 const ownQteName = (q: {name: string}) => (q.name.trim().toUpperCase() === 'QTE' ? '' : q.name.trim());
 const qteName = (w: Workspace, q: {owner: string; name: string}) =>
   [actionName(w, q.owner), ownQteName(q)].filter(Boolean).join(' · ');
+// A grouped QTE is drawn as its group's first card (graph/qteGroups.ts qteVisualId).
+const qteCard = (w: Workspace, q: {id: string; group?: string}) =>
+  'qte:' + (q.group ? (w.qtes ?? []).find(x => x.group === q.group)!.id : q.id);
 const qteLocal = (kind: string, q: {name: string}) => [kind, ownQteName(q)].filter(Boolean).join(' · ');
-/** One reference to an event: `name` is its spelling there, `slot` an eventSlots key when it can fall back
- *  to a time, `owner`/`step` the action (and clip) whose playback uses it. */
+/** One reference to an event: `name` is its spelling there, `owner`/`step` the action (and clip) whose
+ *  playback uses it. */
 export type EventUse = {
   name: string;
   label: string;
   node: string;
-  slot?: string;
   owner?: string;
   step?: string;
   local?: string;
@@ -1186,7 +1171,7 @@ export function eventUses(w: Workspace): Map<string, EventUse[]> {
   };
   for (const s of eventSlots(w))
     if (s.mark.basis === 'event')
-      add(s.mark.event, {label: s.label, node: s.node, slot: s.key, owner: s.owner, step: s.step, local: s.local});
+      add(s.mark.event, {label: s.label, node: s.node, owner: s.owner, step: s.step, local: s.local});
   // A start card on an event (format 6): the event starts what it goes to.
   for (const s of w.starts)
     if (s.mode === 'event')
@@ -1213,13 +1198,13 @@ export function eventUses(w: Workspace): Map<string, EventUse[]> {
         to = w.actions.find(a => a.uid === l.to)?.config.name ?? l.to;
       add(l.event, {
         label: tr('전환 수신 · {from} → {to}', {from, to}),
-        node: `link:${l.id}|markerReceive`,
+        node: 'transition:' + l.id,
         owner: l.from,
         local: tr('전환 수신 · → {to}', {to}),
       });
     }
   for (const q of w.qtes ?? []) {
-    const owner = {node: 'qte:' + q.id, owner: q.owner, step: q.step || undefined};
+    const owner = {node: qteCard(w, q), owner: q.owner, step: q.step || undefined};
     add(q.stopEvent, {label: tr('QTE 중지 · {v0}', {v0: qteName(w, q)}), ...owner, local: qteLocal(tr('QTE 중지'), q)});
     for (const [outcome, r] of Object.entries(q.results))
       if (r.mode === 'event') {
@@ -1229,26 +1214,6 @@ export function eventUses(w: Workspace): Map<string, EventUse[]> {
   }
   return uses;
 }
-/** Points one event moment at `name`, or ('' ) back at its clip time. */
-export function bindSlot(w: Workspace, key: string, name: string): Workspace {
-  const next = clone(w),
-    slot = eventSlots(next).find(s => s.key === key);
-  if (!slot) throw Error(tr('항목을 찾지 못했습니다.'));
-  const m = slot.mark;
-  if (name) {
-    // The clip time it had is kept for a switch back (an event moment waits for its event only).
-    if (m.basis !== 'event') m.fallbackBasis = m.basis === 'end' ? 'end' : 'seconds';
-    m.fallback = false;
-    m.basis = 'event';
-    m.event = name;
-  } else {
-    m.basis = slot.allowEnd && m.fallbackBasis === 'end' ? 'end' : 'seconds';
-    m.event = '';
-    m.fallback = false;
-  }
-  return next;
-}
-
 // ── The registry node's rows ────────────────────────────────────────────────────────────────────
 /** A row of the registry node: a stored registration, or a name the project only refers to. */
 export type RegistryEntry = {name: string; row?: EventRow; uses: EventUse[]};

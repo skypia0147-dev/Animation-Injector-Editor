@@ -131,7 +131,6 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       {label: tr('바닐라 이벤트 차단 추가'), kind: 'suppress'},
       {label: tr('QTE 추가'), kind: 'qte'},
     ];
-  if (!a?.pair) options.push({label: tr('활 발사 추가'), kind: 'fireArrow'});
   // Only a carry's putdown Action takes a release moment (the runtime rejects it elsewhere).
   if (a && !a.pair && w.actions.some(x => x.pair?.carry?.putdownAction === a.uid))
     options.push({label: tr('대상 놓기 추가'), kind: 'carryRelease'});
@@ -140,7 +139,7 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
   if (a?.pair) options.push({label: tr('운반 추가'), kind: 'carry'});
   for (const kind of notifyKinds.filter(k =>
     a?.pair
-      ? k !== 'vanillaCancel'
+      ? k !== 'vanillaCancel' && k !== 'fireArrow'
       : ['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k)
   ))
     options.push({
@@ -158,7 +157,7 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       if (o.kind === 'cameraRestore') return !a?.cameraEnabled;
       if (o.kind === 'carry') return !a?.pair?.carry;
       if (o.kind === 'blend') return !(o.before ? a?.enterBlendEnabled : a?.exitBlendEnabled);
-      if (o.kind === 'suppress' || o.kind === 'fireArrow' || o.kind === 'carryRelease') return !a?.config[o.kind];
+      if (o.kind === 'suppress' || o.kind === 'carryRelease') return !a?.config[o.kind];
       if (o.kind === 'markerReceive' && !o.before) return a?.config.kind === 'single';
       return true;
     });

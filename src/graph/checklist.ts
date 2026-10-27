@@ -9,7 +9,6 @@ import {tr} from '../i18n/korean.ts';
 export const internalKinds = new Set([
   'stateCondition',
   'cameraRestore',
-  'fireArrow',
   'carryRelease',
   'carryFix',
   'suppress',
@@ -19,7 +18,6 @@ export const internalKinds = new Set([
 ]);
 export const eventItem = (n: FlatNode) =>
   n.kind === 'cameraRestore' ||
-  n.kind === 'fireArrow' ||
   n.kind === 'carryRelease' ||
   n.kind === 'carryFix' ||
   (!!n.notify && n.notify.startsWith('effect:'));

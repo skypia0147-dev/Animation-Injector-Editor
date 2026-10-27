@@ -10,7 +10,6 @@ import {
   settingDefault,
   settingLabels,
   settingRange,
-  arrowModes,
   isBooleanSetting,
   ragdollDirections,
   ragdollForce,
@@ -129,7 +128,6 @@ export function EffectDetails({
         </DetailRow>
       );
 
-    if (key === 'damage' && v.mode !== 'direct') return null;
     // A ragdoll's direction picks where the push comes from; its force defaults by direction (runtime 0.12.278).
     if (key === 'direction')
       return (
@@ -162,25 +160,6 @@ export function EffectDetails({
         />
       );
     }
-    if (key === 'mode')
-      return (
-        <Prop
-          key={key}
-          id="kind"
-          label={settingLabels.mode}
-          value={v.mode === 'direct' ? 'direct' : ''}
-          change={value => {
-            const values = {...v};
-            if (value) values.mode = value;
-            else {
-              delete values.mode;
-              delete values.damage;
-            }
-            change({...effect, values});
-          }}
-          options={arrowModes()}
-        />
-      );
     const [min, max] = settingRange(key) ?? [0, 600],
       def = Number(settingDefault[key] ?? 0);
     return (
@@ -250,15 +229,9 @@ export function EffectDetails({
           {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
         </p>
       )}
-      {info?.player && (
-        <p className="effect-note player">
-          <span className="moment-tag" title={tr('플레이어에게만 적용됩니다.')}>
-            {tr('플레이어만')}
-          </span>
-        </p>
-      )}
-      {/* 지연 is one field: a row like the others, not a folded 고급 (docs/mockup-layout-audit ⑪). */}
-      {advanced.map(field)}
+      {/* 지연 is one field: a row like the others, not a folded 고급 (docs/mockup-layout-audit ⑪). A function that
+          has none (활 발사, runtime 0.12.303) shows none. */}
+      {advanced.filter(k => fields.includes(k)).map(field)}
     </>
   );
 }

@@ -65,7 +65,6 @@ export const nodeCatalog = {
     inputs: ['pose'],
     outputs: ['pose'],
   },
-  fireArrow: {layer: 'anim', fields: ['config.fireArrow'], inputs: ['trigger'], outputs: []},
   carryRelease: {layer: 'anim', fields: ['config.carryRelease'], inputs: ['trigger'], outputs: []},
   carryFix: {layer: 'anim', fields: ['pair.carry.fix'], inputs: ['trigger'], outputs: []},
   suppress: {layer: 'anim', fields: ['config.suppress'], inputs: ['trigger'], outputs: []},

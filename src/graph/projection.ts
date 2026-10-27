@@ -1,9 +1,8 @@
-import {defaultFireArrow} from '../runtimeExtensions.ts';
 import {defaultCarry, defaultCarryFix} from '../carry.ts';
 import type {Workspace, Action} from '../workspace.ts';
 import {addAction, removeAction, defaultCamera} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
-import {clone, timingLabel, mark, fireArrowLabel} from '../model.ts';
+import {clone, timingLabel, mark} from '../model.ts';
 import type {NodeKind} from '../nodes/catalog.ts';
 import {t} from '../i18n/index.ts';
 import type {GraphRef} from './state.ts';
@@ -198,14 +197,6 @@ export function projectGraph(w: Workspace, g: GraphRef): {nodes: GraphNode[]; ed
     });
     if (clipNode) edge(clipId, 'carryFix', 'trigger');
   }
-  if (p.fireArrow) {
-    add('fireArrow', 'fireArrow', fireArrowLabel(p.fireArrow), x, 720, {inputs: ['trigger'], outputs: []});
-    const clip = nodes.find(n => n.id === 'clip_' + p.entry);
-    if (clip) {
-      if (!clip.outputs.includes('trigger')) clip.outputs.push('trigger');
-      edge(clip.id, 'fireArrow', 'trigger');
-    }
-  }
   if (p.carryRelease) {
     add('carryRelease', 'carryRelease', timingLabel(p.carryRelease.at), x, 880, {inputs: ['trigger'], outputs: []});
     const clip = nodes.find(n => n.id === 'clip_' + p.entry);
@@ -233,14 +224,6 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
   if (!a) throw Error(t('graph.selectState'));
   const p = a.config;
   if (g.kind === 'anim') {
-    if (kind === 'fireArrow') {
-      if (remove) delete p.fireArrow;
-      else {
-        if (a.pair) throw Error(tr('활 발사는 일반 동작에 연결하세요.'));
-        p.fireArrow ??= defaultFireArrow();
-      }
-      return n;
-    }
     if (kind === 'carryRelease') {
       if (remove) delete p.carryRelease;
       else {

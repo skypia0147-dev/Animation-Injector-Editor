@@ -76,7 +76,6 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
       pair = defaultPair();
       p.graph = ['RootBehaviorGraph'];
       p.rotationLocked = false;
-      delete p.fireArrow;
       delete p.carryRelease;
       p.attack = '';
       for (const key of pairTrackKeys) {

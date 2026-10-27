@@ -5,11 +5,16 @@ import type {Mark} from '../model.ts';
 import {clipEffects, setClipEffects} from '../clipEffects.ts';
 import {
   actionClip,
+  clipBlocked,
   clipToEvent,
   costToEvent,
+  eventToClip,
   fmt,
   hkxMoments,
+  moveFunction,
+  otherSenders,
   sentEvents,
+  setOffEvent,
   slotOfOp,
   slotToEvent,
   type CommandMoment,
@@ -42,9 +47,10 @@ import {
   valuePart,
   type EventOp,
   type EventRow,
+  playerOnlyHint,
 } from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
-import {openedBySwitch, switchTo} from './momentOpen.ts';
+import {openAfterSwitch, openedBySwitch, registryKey, switchTo} from './momentOpen.ts';
 
 // The HKX card's moment items edit in place (10-23, docs/mockup-inline-moments, docs/mockup-moment-timing): every
 // item starts with 시점 [클립 | 이벤트]. A clip time is the action's own; an event is the registry's (global) for a
@@ -212,8 +218,7 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
       )}
       {events.map(x => (
         <option key={eventKey(x.name)} value={eventKey(x.name)}>
-          {x.name} · {x.times.map(t => fmt(t)).join(', ')}
-          {tr('초')}
+          {x.name}
         </option>
       ))}
     </select>
@@ -449,6 +454,43 @@ function NodeValueFields({
   );
 }
 
+/** An event this HKX sends, picked in the card by its name only (10-27): the current one stays listed when the HKX is not read or no
+ *  longer sends it; `none` adds a first choice for no event. */
+function EventChoice({
+  events,
+  value,
+  label,
+  none,
+  change,
+}: {
+  events: {name: string; times: number[]}[];
+  value: string | null;
+  label: string;
+  none?: string;
+  change: (to: string | null) => void;
+}) {
+  const key = value === null ? '' : eventKey(value);
+  return (
+    <select
+      aria-label={label}
+      value={key}
+      onChange={e => {
+        if (!e.target.value) return change(null);
+        const to = events.find(x => eventKey(x.name) === e.target.value)?.name;
+        if (to) change(to);
+      }}
+    >
+      {none !== undefined && <option value="">{none}</option>}
+      {value !== null && !events.some(x => eventKey(x.name) === key) && <option value={key}>{value}</option>}
+      {events.map(x => (
+        <option key={eventKey(x.name)} value={eventKey(x.name)}>
+          {x.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /** A registered function of an event this HKX sends (docs/mockup-event-node-values): the registry decides the event
  *  and what it acts with; this node holds the numbers it runs with here. A window's on function carries its off
  *  function (docs/mockup-moment-timing). */
@@ -464,6 +506,8 @@ export function RegistryMomentRow({
   edit: Edit;
 }) {
   const [open, setOpen] = useState(() => openedBySwitch(`${action.uid}|${item.key}`));
+  const annotations = useClipAnnotations(w);
+  const events = useSentEvents(w, action);
   const rowOf = (event: string) => w.eventRegistry?.find(r => eventKey(r.name) === eventKey(event));
   const row = rowOf(item.event),
     offRow = item.off ? rowOf(item.off.event) : undefined;
@@ -473,13 +517,31 @@ export function RegistryMomentRow({
   const run = runValues(action, row, item.fn);
   // A cost or a time scale runs only with this node's numbers (runtime 0.12.281).
   const missing = needsValues(op) && !nodeValues(action, row, item.fn);
-  const times = (s: {times: number[]}) => s.times.map(t => fmt(t)).join(', ') + tr('초');
+  const slot = slotOfOp(op);
+  const off = item.off ? {event: item.off.event, fn: item.off.fn.id} : null;
+  // The registry is global: what this project's other HKX sending the event run changes with it.
+  const shared = otherSenders(w, action, item.event, annotations);
+  const blocked = clipBlocked(action, op, shared);
+  const move = (to: string | null) => {
+    if (!to) return;
+    edit(w => {
+      const moved = moveFunction(w, item.event, item.fn.id, to);
+      if (moved.fn) openAfterSwitch(`${action.uid}|${registryKey(to, moved.fn)}`);
+      return moved.w;
+    });
+  };
+  const backToClip = () =>
+    edit(w => {
+      const back = eventToClip(w, action.uid, item.event, item.fn.id, item.sent.times[0] ?? 0, off);
+      if (back.item) openAfterSwitch(`${action.uid}|${back.item}`);
+      return back.w;
+    });
   return (
     <div className={'checklist-row moment registry-moment' + (missing ? ' missing' : '')}>
       <div className="checklist-row-heading">
         {/* What on the left (the function and its numbers), when on the right (docs/mockup-design-unify A). */}
         <button aria-expanded={open} onClick={() => setOpen(!open)}>
-          <span>{name}</span>
+          <span title={playerOnlyHint(op) || undefined}>{name}</span>
           {(missing || functionParts(run).length > 0) && (
             <em className="row-par">{missing ? tr('수치를 넣으세요') : functionParts(run).join(' · ')}</em>
           )}
@@ -490,26 +552,35 @@ export function RegistryMomentRow({
       </div>
       {open && (
         <div className="checklist-fields moment-fields">
+          <WhenSwitch clip={false} disabled={{clip: blocked || undefined}} choose={clip => clip && backToClip()} />
           <div className="moment-line">
-            <span className="moment-label">{slotOfOp(op) ? tr('켜는 시점') : tr('시점')}</span>
+            <span className="moment-label">{slot ? tr('켜는 이벤트') : tr('이벤트')}</span>
             <span className="moment-inline">
-              {tr('이벤트')} <EventLink event={item.event} /> <span className="moment-unit">· {times(item.sent)}</span>
+              <EventChoice events={events} value={item.event} label={tr('이벤트')} change={move} />
+              <RegistryLink event={item.event} text={tr('등록')} />
             </span>
           </div>
-          {slotOfOp(op) && (
+          {slot && (
             <div className="moment-line">
               <span className="moment-label">{tr('끄는 시점')}</span>
               <span className="moment-inline">
-                {item.off ? (
-                  <>
-                    {tr('이벤트')} <code>{item.off.event}</code>{' '}
-                    <span className="moment-unit">· {times(item.off.sent)}</span>
-                  </>
-                ) : (
-                  tr('동작이 끝날 때')
-                )}
+                <EventChoice
+                  events={events}
+                  value={item.off ? item.off.event : null}
+                  label={tr('끄는 시점')}
+                  none={tr('동작이 끝날 때')}
+                  change={to => edit(w => setOffEvent(w, slot, off, to))}
+                />
               </span>
             </div>
+          )}
+          {shared.length > 0 && (
+            <p className="moment-note">
+              {tr('전역 기능입니다: {names}도 {event}를 보내므로 여기서 바꾸면 함께 바뀝니다.', {
+                names: shared.map(a => a.config.name).join(', '),
+                event: item.event,
+              })}
+            </p>
           )}
           <RegistryPart event={item.event} values={item.fn.values} />
           <NodeValueFields w={w} action={action} row={row} fn={item.fn} edit={edit} />
