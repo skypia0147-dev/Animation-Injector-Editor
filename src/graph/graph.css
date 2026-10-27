@@ -13,7 +13,7 @@
 .canvas-guide {
   position: absolute;
   z-index: 5;
-  top: 16px;
+  top: 58px;
   left: 50%;
   transform: translateX(-50%);
   width: min(460px, calc(100% - 32px));

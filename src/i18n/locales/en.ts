@@ -73,7 +73,6 @@ export const en: Record<string, string> = {
   'myProject.sharedSettings': 'Shared Settings',
   'myProject.rootGraph': 'Whole graph',
   // graph levels
-  'graph.stateMachine': 'Action Graph',
   'graph.transitionRule': 'Transition Rule',
   'graph.animGraph': 'Anim Graph',
   'graph.clipStateMachine': 'Clip Graph',

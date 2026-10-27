@@ -22,7 +22,9 @@ test('same action changes between ordinary and pair, retaining identity and save
   a.config.steps[0].localPath = 'C:/Mods/source.hkx';
   const original = structuredClone(a.config);
   w = switchActionKind(w, id, 'pair');
-  assert.equal(w.actions[0].config.steps[0].clip, '');
+  // The first visit to a type keeps the chosen file (2026-10-28: changing to 페어 used to empty it).
+  assert.equal(w.actions[0].config.steps[0].clip, 'Animations/Original.hkx');
+  assert.equal(w.actions[0].config.steps[0].localPath, 'C:/Mods/source.hkx');
   w.actions[0].config.steps[0].clip = 'Animations/Paired.hkx';
   w.actions[0].pair.range = 345;
   w.actions[0].config.name = '共通 이름';

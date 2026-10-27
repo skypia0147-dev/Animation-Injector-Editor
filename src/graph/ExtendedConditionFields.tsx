@@ -1,4 +1,5 @@
 import type {BranchTest} from './conditions.ts';
+import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {comparisons, definition, extensionMaximum} from './conditionExtensions.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
@@ -127,25 +128,23 @@ export function ExtendedConditionFields({
           }
           hint={d.hint}
         >
-          <input
-            type="number"
+          <NumberInput
             min="0"
             max={extensionMaximum(test)}
             step="any"
             value={test.value ?? 0}
-            onChange={e => change({value: Number(e.target.value)})}
+            change={v => change({value: v})}
           />
         </DetailRow>
       )}
       {compared && test.compare === 'range' && (
         <DetailRow label={tr('끝 값')}>
-          <input
-            type="number"
+          <NumberInput
             min={test.kind === 'gameHour' ? 0 : (test.value ?? 0)}
             max={extensionMaximum(test)}
             step="any"
             value={test.upper ?? test.value ?? 0}
-            onChange={e => change({upper: Number(e.target.value)})}
+            change={v => change({upper: v})}
           />
         </DetailRow>
       )}

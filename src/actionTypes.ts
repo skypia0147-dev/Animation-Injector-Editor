@@ -67,11 +67,9 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
     const selected = clone(old.steps.find(s => s.id === old.entry) ?? old.steps[0] ?? createProject().steps[0]);
     p.steps = [selected];
     p.entry = selected.id;
-    if (kind === 'pair' || a.pair) {
-      p.steps[0].clip = '';
-      p.steps[0].localPath = '';
-      p.steps[0].attack = '';
-    }
+    // The chosen HKX stays: a pair is usually made by picking its paired file first and then changing the type, and a
+    // file that is not a paired clip is reported by validation, not silently dropped.
+    if (kind === 'pair' || a.pair) p.steps[0].attack = '';
     if (kind === 'pair') {
       pair = defaultPair();
       p.graph = ['RootBehaviorGraph'];

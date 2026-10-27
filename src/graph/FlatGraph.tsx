@@ -121,7 +121,8 @@ function HkxSummary({node}: {node: Visual['data']}) {
     shown = used.slice(0, 6);
   return (
     <div className="hkx-summary">
-      <div className="node-field">
+      {/* A file dropped here replaces the card's HKX (WorkspaceApp onDrop). */}
+      <div className="node-field" data-file-drop>
         <span>{tr('파일')}</span>
         <span className="node-value" title={step?.clip}>
           {step?.clip ? step.clip.split(/[\\/]/).pop() : tr('(HKX 없음)')}
@@ -552,7 +553,7 @@ function Card({id, data, selected}: NodeProps<Visual>) {
           <div>
             <strong>{data.presentation.qte.typeName}</strong>
             <span>{data.presentation.qte.input}</span>
-            <span>{data.presentation.qte.start}</span>
+            <span className="qte-start">{data.presentation.qte.start}</span>
           </div>
           {data.presentation.qte.rules > 0 && (
             <em className="qte-face-tag">
@@ -647,6 +648,8 @@ const routeLit = {
   plain: '',
 } as const;
 const MIN_ZOOM = 0.08;
+/** The most room kept between a card that has grown and a card it moves down. */
+const PUSH_GAP = 24;
 const edgeTypes = {connection: ConnectionEdge};
 /** The canvas grid: 24 screen pixels at every zoom (Background scales its gap by the zoom). */
 function ScreenGrid() {
@@ -802,7 +805,7 @@ function FlatGraphPanel({
       if (!t) continue;
       const label =
         (t.kind === 'hkxPlay' && t.action && names.get(t.action)) ||
-        (t.kind === 'qte' ? 'QTE · ' + (presentations.get(t.id)?.qte?.typeName ?? t.title) : t.title);
+        (t.kind === 'qte' ? (presentations.get(t.id)?.title ?? 'QTE · ' + t.title) : t.title);
       routed.set(e.source, {...routed.get(e.source), [e.pin]: label});
       const kind: RouteKind =
         e.via || t.kind === 'eventEmit'
@@ -900,6 +903,22 @@ function FlatGraphPanel({
     setTimeout(fit, 60);
     setTimeout(fit, 420);
   };
+  // A card added from a card's menu sits beside it, which can be past the canvas's edge (10-28 rebuild: a condition
+  // card had to be found with 주변 맞춤). Off screen it is not drawn (onlyRenderVisibleElements), so its place is
+  // read from the graph, and it is brought to the middle at the same zoom.
+  const revealCard = (id: string) =>
+    setTimeout(() => {
+      const card = (getNodes() as Visual[]).find(n => n.id === id),
+        pane = region.current?.querySelector('.react-flow')?.getBoundingClientRect();
+      if (!card || !pane) return;
+      const b = box(card),
+        {x, y, zoom} = getViewport();
+      const left = b.x * zoom + x,
+        top = b.y * zoom + y;
+      const inside =
+        left >= 0 && top >= 0 && left + b.w * zoom <= pane.width && top + Math.min(b.h, 200) * zoom <= pane.height;
+      if (!inside) void setCenter(b.x + b.w / 2, b.y + Math.min(b.h / 2, 200), {zoom, duration: 200});
+    }, 60);
   const fitNeighbors = (id: string) => {
     const ids = new Set(neighbors(projection, id)),
       pane = region.current?.getBoundingClientRect();
@@ -1188,6 +1207,48 @@ function FlatGraphPanel({
     const e = selectedEdge ? projection.edges.find(x => x.id === selectedEdge) : undefined;
     return e ? {from: e.source, to: e.target} : undefined;
   }, [selectedEdge, projection]);
+  // A card drawn taller than its place (the chosen one, or one opened in the summary view) moves the cards under it
+  // in its column down while it is so (docs/mockup-design-audit ④); each keeps its spacing, and nothing is saved.
+  const pushText = useMemo(() => {
+    if (measuring) return '';
+    const growing = projection.nodes.filter(n => n.id === visibleSelected || (summaryMode && openCards.has(n.id)));
+    if (!growing.length) return '';
+    const drawn = new Map(nodes.map(n => [n.id, n])),
+      at = (n: FlatNode) => (focusAction ? (focusPositions[n.id] ?? n.position) : n.position),
+      size = (n: FlatNode) => {
+        const d = drawn.get(n.id)?.measured;
+        return {
+          w: d?.width ?? cardWidth(n),
+          h:
+            d?.height ??
+            (summaryMode && n.kind === 'hkxPlay' && !openCards.has(n.id) ? summaryHeight(n) : cardHeight(n)),
+        };
+      };
+    const grown = new Set(growing.map(n => n.id)),
+      tops = new Map<string, number>();
+    for (const g of growing) {
+      if (!drawn.get(g.id)?.measured?.height) continue;
+      const p = at(g),
+        s = size(g);
+      const column = projection.nodes
+        .filter(n => !grown.has(n.id) && at(n).y > p.y && at(n).x < p.x + s.w && at(n).x + size(n).w > p.x)
+        .sort((a, b) => at(a).y - at(b).y);
+      let floor = p.y + s.h + PUSH_GAP,
+        last: {bottom: number; moved: number} | undefined;
+      for (const n of column) {
+        const top = at(n).y,
+          h = size(n).h,
+          need = last ? last.moved + Math.min(PUSH_GAP, Math.max(0, top - last.bottom)) : floor,
+          moved = Math.max(top, need, tops.get(n.id) ?? top);
+        if (moved === top) break;
+        tops.set(n.id, moved);
+        last = {bottom: top + h, moved: moved + h};
+        floor = moved + h + PUSH_GAP;
+      }
+    }
+    return JSON.stringify([...tops].map(([id, y]) => [id, y - at(projection.nodes.find(n => n.id === id)!).y]));
+  }, [measuring, projection, visibleSelected, summaryMode, openCards, nodes, focusAction, focusPositions]);
+  const pushed = useMemo(() => new Map<string, number>(pushText ? JSON.parse(pushText) : []), [pushText]);
   const nodeInputs = useMemo(
     () => ({
       projection,
@@ -1199,8 +1260,20 @@ function FlatGraphPanel({
       summaryMode,
       openCards,
       lineEnds,
+      pushed,
     }),
-    [projection, visibleSelected, focusAction, focusPositions, visualData, picked, summaryMode, openCards, lineEnds]
+    [
+      projection,
+      visibleSelected,
+      focusAction,
+      focusPositions,
+      visualData,
+      picked,
+      summaryMode,
+      openCards,
+      lineEnds,
+      pushed,
+    ]
   );
   const [synced, setSynced] = useState<typeof nodeInputs>();
   if (synced !== nodeInputs) {
@@ -1210,7 +1283,8 @@ function FlatGraphPanel({
       const next: Visual[] = projection.nodes.map(n => {
         const prev = old.get(n.id),
           base = visualData.get(n.id)!,
-          position = focusAction ? (focusPositions[n.id] ?? n.position) : n.position,
+          laid = focusAction ? (focusPositions[n.id] ?? n.position) : n.position,
+          position = pushed.has(n.id) ? {x: laid.x, y: laid.y + pushed.get(n.id)!} : laid,
           selected = n.id === visibleSelected || picked.includes(n.id),
           className = !lineEnds
             ? undefined
@@ -1408,7 +1482,10 @@ function FlatGraphPanel({
     const sendsItself = (action: string, event: string) => {
       const a = w.actions.find(a => a.uid === action);
       return !!a?.config.steps.some(s =>
-        (annotations.get(clipKey(s.clip)) ?? []).some(n => sentEvent(n.text, !!a.pair)?.name === event)
+        (annotations.get(clipKey(s.clip)) ?? []).some(
+          // The engine's event names ignore case (BSFixedString), as the editor's other comparisons do (10-28 E-26).
+          n => sentEvent(n.text, !!a.pair)?.name.toLowerCase() === event.toLowerCase()
+        )
       );
     };
     return listenMerges(fullProjection.edges, nodes, sendsItself);
@@ -1640,6 +1717,7 @@ function FlatGraphPanel({
                   const r = executeGraphCommand(w, {type: 'addConnected', source: id, option, position});
                   edit(() => r.workspace);
                   select(r.id ?? '');
+                  if (r.id) revealCard(r.id);
                 }),
             }))
         : kinds.map(kind => ({
@@ -1721,9 +1799,8 @@ function FlatGraphPanel({
         <CardView.Provider value={cardViewValue}>
           <div className="graph-workspace">
             <div className="flat-toolbar">
-              <b>{tr('통합 그래프')}</b>
-              {/* One line (docs/mockup-layout-audit ⑤): the add button first, 주변 맞춤 as its icon, the flow and
-                  card count last, cut by what is left. */}
+              {/* Floats over the canvas's top-left corner (docs/mockup-design-audit A): the add button first, the
+                  flow and card count last. */}
               <HelpTip
                 label={tr('그래프 편집')}
                 help={tr(
@@ -1743,10 +1820,9 @@ function FlatGraphPanel({
               <button
                 disabled={!selectedNode}
                 onClick={() => fitNeighbors(visibleSelected)}
-                aria-label={tr('주변 맞춤')}
-                title={tr('주변 맞춤') + ' · ' + tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
+                title={tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
               >
-                <Icon name="fit" />
+                {tr('주변 맞춤')}
               </button>
               <button
                 disabled={!focusAction && !selectedNode?.action}

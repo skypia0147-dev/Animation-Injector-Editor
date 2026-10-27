@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react';
+import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {isRecovery, recoveryRule, setRecoveryRule} from '../clipRecovery.ts';
 import type {Workspace, Action} from '../workspace.ts';
 import {putAction} from '../workspace.ts';
@@ -164,14 +165,14 @@ export function NotifyDetails({
                   onChange={e => update({blend: e.target.checked ? 0.1 : null})}
                 />
                 {c.blend !== null && (
-                  <input
+                  <NumberInput
                     aria-label={tr('캔슬 블렌드')}
-                    type="number"
+
                     min="0"
                     max="5"
                     step="0.05"
                     value={c.blend}
-                    onChange={e => update({blend: Number(e.target.value)})}
+                    change={v => update({blend: v})}
                   />
                 )}
               </DetailRow>

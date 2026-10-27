@@ -9,6 +9,7 @@ import {ConditionFields} from './ConditionDetails.tsx';
 import {conditionNames, editExpression, patchTest} from './conditionExpression.ts';
 import {extensionSummary} from './conditionExtensions.ts';
 import {equippedTypeLabels, valuesOf} from './multiValue.ts';
+import {groupSummary, partText} from './groupSummary.ts';
 import {
   addCondition,
   addRow,
@@ -177,18 +178,34 @@ function Chips({c, ids, list}: {c: ConditionCard; ids: string[]; list: CondList}
         if (!t) return null;
         const [name, value] = conditionParts(c, id);
         const group = t.kind === 'all' || t.kind === 'any';
+        const summary = group
+          ? groupSummary(
+              (t.operands ?? []).map(m => {
+                const [name, value] = conditionParts(c, m);
+                return {name, value, not: c.tests.find(x => x.id === m)?.negate};
+              })
+            )
+          : undefined;
         return (
           <span
             key={id}
             className={'cond-chip nodrag' + (group ? ' group' : '') + (t.negate ? ' not' : '')}
             data-cond-item={id}
+            title={summary && summary.more ? summary.parts.map(partText).join(' · ') : undefined}
             onPointerDown={e => kit?.begin(e, {from: list, id, group})}
           >
             {t.negate && <b>NOT</b>}
-            {group ? (
+            {summary ? (
               <>
                 <JoinBadge kind={t.kind as 'all' | 'any'} small />
-                {(t.operands ?? []).map(m => chipText(c, m)).join(' · ')}
+                {summary.first && (
+                  <span className="cond-group-text">
+                    {summary.first.not && <b>NOT</b>}
+                    {summary.first.name}
+                    {summary.first.value && <em>{summary.first.value}</em>}
+                    {summary.more > 0 && <i>{tr('외 {n}', {n: summary.more})}</i>}
+                  </span>
+                )}
               </>
             ) : (
               <>
@@ -680,8 +697,17 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
                 </>
               ) : undefined
             )}
-          {/* True and False under the common conditions, whose results they are (a click on them is theirs). */}
-          <div className="cond-results" onClick={e => e.stopPropagation()}>
+          {/* True and False under the common conditions, whose results they are. They sit inside the box's border, so a
+              click on a line's plain part opens the common conditions too (10-28 rebuild: the middle of the box did
+              nothing); its destination, buttons and pins keep their clicks. */}
+          <div
+            className="cond-results"
+            onClick={e => {
+              e.stopPropagation();
+              if (!guardsOpen && !(e.target as HTMLElement).closest('button, .cond-to-wrap, .react-flow__handle'))
+                toggle('guards', c.guards);
+            }}
+          >
             {c.true !== undefined && (
               // True: the card's common conditions alone. A condition or row let go on it becomes the card's first
               // row, which takes True's destination; True comes back once no row is left.

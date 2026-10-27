@@ -58,8 +58,10 @@
   align-items: baseline;
   max-width: 100%;
   padding: 0 6px;
-  border: 1px solid var(--card-line);
+  border: 1px solid transparent;
   border-radius: 4px;
+  background: var(--card-chip);
+  color: var(--card-chip-t1);
   font-size: var(--fs-xs);
   line-height: 19px;
   white-space: nowrap;
@@ -68,17 +70,34 @@
 }
 .cond-chip em {
   font-style: normal;
-  color: var(--card-t2);
+  color: var(--card-chip-t2, var(--card-t2));
 }
 .cond-chip b {
   color: var(--card-not);
   font-size: 10px;
 }
+/* A group is a face like any condition; its AND/OR tag sits in the middle of the line. */
 .cond-chip.group {
-  border-style: dashed;
+  align-items: center;
+}
+/* Its first condition, then 「외 N」 (docs/mockup-group-summary). */
+.cond-group-text {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cond-group-text i {
+  font-style: normal;
+  color: var(--card-chip-t2, var(--card-t2));
+  margin-left: 2px;
 }
 .cond-chip.add {
   border-style: dashed;
+  border-color: var(--card-line);
+  background: transparent;
   color: var(--card-t3);
 }
 .cond-chip.add:hover {

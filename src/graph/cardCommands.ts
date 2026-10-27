@@ -177,8 +177,10 @@ export function addRow(w: Workspace, uid: string, index?: number) {
 }
 export function removeRow(w: Workspace, uid: string, row: string): Workspace {
   return edit(w, uid, c => {
-    c.rows = c.rows.filter(r => r.id !== row);
-    pruneTests(c);
+    // Emptied, the row goes in tidyCard, which gives the last row's destination back to True (10-28 review E-17:
+    // filtered out here first, its destination was lost and True came back going nowhere).
+    const r = c.rows.find(r => r.id === row);
+    if (r) r.guards = [];
   });
 }
 /** Move a row to `index` (its place is the order rows are tried in). */

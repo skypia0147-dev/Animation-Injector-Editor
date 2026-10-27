@@ -174,7 +174,12 @@ export function flatGraph(w: Workspace) {
     add({
       id,
       kind: 'startCard',
-      title: s.mode === 'event' ? tr('시작 · 이벤트') : tr('시작 · 키'),
+      // Named by what starts it (docs/mockup-design-audit ③); the kind until one is set.
+      title: (s.mode === 'event' ? s.event : s.key || s.control || s.gamepad)
+        ? tr('시작 · {v0}', {v0: startText(s)})
+        : s.mode === 'event'
+          ? tr('시작 · 이벤트')
+          : tr('시작 · 키'),
       summary: startText(s),
       scope: root,
       original: id,
@@ -211,7 +216,17 @@ export function flatGraph(w: Workspace) {
     add({
       id,
       kind: 'transition',
-      title: l.mode === 'event' ? tr('전환 이벤트') : tr('전환 키 입력'),
+      // Named by what moves it on, as a start card (docs/mockup-design-audit ③).
+      title:
+        l.mode === 'event'
+          ? l.event
+            ? tr('전환 · {v0}', {v0: l.event})
+            : tr('전환 이벤트')
+          : key?.control || key?.key || key?.gamepad
+            ? tr('전환 · {v0}', {
+                v0: key.control ? gameControlLabel(key.control) : key.key || tr('패드'),
+              })
+            : tr('전환 키 입력'),
       summary:
         (l.mode === 'event'
           ? l.event || tr('이벤트 미지정')

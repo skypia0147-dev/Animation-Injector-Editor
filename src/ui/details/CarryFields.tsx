@@ -169,7 +169,16 @@ export function CarryFields({
               ...(c.putdownAction && !destinations.some(x => x.uid === c.putdownAction)
                 ? [[c.putdownAction, tr('연결을 확인하세요')] as [string, string]]
                 : []),
-              ...destinations.map(x => [x.uid, x.config.name + ' · ' + x.config.actionId] as [string, string]),
+              // The Action ID only when it says something the name does not (10-28: 「GrappleCarryLower · GrappleCarryLower」).
+              ...destinations.map(
+                x =>
+                  [
+                    x.uid,
+                    x.config.name === x.config.actionId || !x.config.actionId
+                      ? x.config.name || x.config.actionId
+                      : x.config.name + ' · ' + x.config.actionId,
+                  ] as [string, string]
+              ),
             ]}
             change={choosePutdown}
           />

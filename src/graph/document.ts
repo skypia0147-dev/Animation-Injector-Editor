@@ -50,7 +50,9 @@ export function captureGraph(w: Workspace): AuthorGraph {
     const {from, to, partnerTo, input, ...value} = l;
     const id = node(`link:${l.id}`, 'link', value);
     edge(`action:${from}`, id, 'flow');
-    edge(id, `action:${to}`, 'flow');
+    // A transition with no destination yet, or one to a condition card (`card`, kept in its data), has no action
+    // to point at (10-28 review E-16: the edge went to a missing `action:` node and every edit was refused).
+    if (to) edge(id, `action:${to}`, 'flow');
     if (partnerTo) edge(id, `action:${partnerTo}`, 'partner');
     if (input) edge(id, `input:${from}:${input}`, 'input');
   }
@@ -145,13 +147,13 @@ export function lowerGraph(g: AuthorGraph): Workspace {
   }
   for (const n of g.nodes.filter(n => n.kind === 'link')) {
     const from = one(n.id, 'flow', false, true)!,
-      to = one(n.id, 'flow', true, true)!,
+      to = one(n.id, 'flow', true),
       input = one(n.id, 'input');
     if (input && ownerOf(input).id !== from.id) throw Error(n.id + tr(': 입력 소유 범위 오류'));
     w.links.push({
       ...n.data,
       from: from.data.uid,
-      to: to.data.uid,
+      to: to?.data.uid ?? '',
       partnerTo: one(n.id, 'partner')?.data.uid ?? '',
       input: input?.data.id ?? '',
     });

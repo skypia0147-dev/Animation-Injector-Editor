@@ -68,7 +68,7 @@ export function ClipBar({
         setTyping(undefined);
         if (t === undefined) return;
         const s = barSeconds(t, length);
-        commit(key, typeof t === 'number' && known && s !== undefined ? settle(Math.min(s, length!), length) : t);
+        commit(key, typeof t === 'number' && known && s !== undefined ? settle(Math.min(s, length!), length, 1000) : t);
       };
       return (
         <input

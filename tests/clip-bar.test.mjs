@@ -29,6 +29,9 @@ test('a bar time is seconds from the start or 「끝」; an older end-relative o
 test('a drag settles at 「끝」 at the clip length, else to the hundredth', () => {
   assert.deepEqual(settle(1.999, 2), atEnd);
   assert.equal(settle(1.234, 2), 1.23);
+  // A typed time keeps its thousandth (2026-10-28: 1.647 was written as 1.65).
+  assert.equal(settle(1.647, 2, 1000), 1.647);
+  assert.deepEqual(settle(1.997, 2, 1000), atEnd);
   assert.equal(settle(-1, 2), 0);
 });
 test('a drag draws to the start, the end and the annotation ticks nearby', () => {
@@ -58,6 +61,7 @@ test('the end trigger keeps 0.05 s at 「끝」 and is always counted from the e
   assert.deepEqual(exitToBar(mark(0.3, 'end')), {end: 0.3});
   assert.equal(barToExit(mark(0.05, 'end'), atEnd).seconds, 0.05);
   assert.equal(barToExit(mark(0.05, 'end'), 1.5, 2).seconds, 0.5);
+  assert.equal(barToExit(mark(0.05, 'end'), 1.647, 2.133).seconds, 0.486);
   assert.equal(barToExit(mark(0.05, 'end'), 1.99, 2).seconds, 0.05);
   assert.equal(barToExit(mark(0.05, 'end'), 1.5), undefined);
   // A key detection window's close is counted from the end in the project.

@@ -1,4 +1,5 @@
 import type {Workspace, Action} from '../../workspace.ts';
+import {NumberInput} from './NumberInput.tsx';
 import {attachInput, updateSharedInput} from '../../sharedSettings.ts';
 import {parameterFields, parameterValue, applyParameter} from '../../authoring.ts';
 import {t} from '../../i18n/index.ts';
@@ -147,22 +148,20 @@ export function ParameterDetails({
         ) : (
           <>
             <DetailRow label={t('detail.min')}>
-              <input type="number" value={p.min} onChange={e => patch({min: Number(e.target.value)})} />
+              <NumberInput value={p.min} change={v => patch({min: v})} />
             </DetailRow>
             <DetailRow label={t('detail.max')}>
-              <input type="number" value={p.max} onChange={e => patch({max: Number(e.target.value)})} />
+              <NumberInput value={p.max} change={v => patch({max: v})} />
             </DetailRow>
           </>
         )}
         {value !== undefined && (
           <DetailRow label={t('detail.value')} hint={p.help}>
-            <input
-              type={typeof value === 'number' ? 'number' : 'text'}
-              value={value}
-              min={p.min}
-              max={p.max}
-              onChange={e => set(typeof value === 'number' ? Number(e.target.value) : e.target.value)}
-            />
+            {typeof value === 'number' ? (
+              <NumberInput value={value} min={p.min} max={p.max} change={set} />
+            ) : (
+              <input type="text" value={value} onChange={e => set(e.target.value)} />
+            )}
           </DetailRow>
         )}
       </Category>

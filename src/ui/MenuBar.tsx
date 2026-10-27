@@ -15,7 +15,7 @@ export type MenuEntry =
 export type Menu = {id: string; label: string; items: MenuEntry[]};
 
 /** Unreal-style HTML menu bar: click opens, hover switches between open menus, Esc / outside click closes. */
-export function MenuBar({menus, right}: {menus: Menu[]; right?: ReactNode}) {
+export function MenuBar({menus, after, right}: {menus: Menu[]; after?: ReactNode; right?: ReactNode}) {
   const [open, setOpen] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -73,6 +73,7 @@ export function MenuBar({menus, right}: {menus: Menu[]; right?: ReactNode}) {
           )}
         </div>
       ))}
+      {after}
       <div className="menubar-right">{right}</div>
     </div>
   );

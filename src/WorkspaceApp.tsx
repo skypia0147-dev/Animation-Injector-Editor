@@ -3,7 +3,8 @@ import {localProject, shareableProject} from './localPaths.ts';
 import {executeGraphCommand} from './graph/commands.ts';
 import {facingChanges, pairSources, withFacings} from './graph/pairFacing.ts';
 import {functionSummary} from './eventRegistry.ts';
-import {freePlayPosition} from './graph/placement.ts';
+import {dropGrid, freePlayPosition} from './graph/placement.ts';
+import {SUMMARY_HEIGHT} from './graph/cardPresentation.ts';
 import {connectXmlAssets} from './importAssets.ts';
 import {draftBody, isDraftBody, readEditorBlock, savedProject, withEditorBlock} from './editorBlock.ts';
 import {captureGraph, lowerGraph, authorReducer, type AuthorGraph} from './graph/document.ts';
@@ -52,6 +53,7 @@ import {clone, editableCopy} from './model';
 import type {Issue} from './model';
 import {
   addAction,
+  duplicateAction as copyAction,
   compileWorkspace,
   emptyWorkspace,
   parseWorkspace,
@@ -142,7 +144,7 @@ function Editor() {
   });
   const resize = (key: keyof LayoutSizes, value: number) => setSizes(s => ({...s, [key]: value}));
   const [exportMode, setExportMode] = useState<'xml' | 'mod'>('xml');
-  const {fitView, screenToFlowPosition} = useReactFlow();
+  const {fitView, screenToFlowPosition, getNodes} = useReactFlow();
   // ---- document state ----
   const [started, setStarted] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState('');
@@ -466,24 +468,31 @@ function Editor() {
     return r.workspace.actions.at(-1)!;
   };
   const duplicateAction = (a: Action) => {
-    const copy = addAction(w, a.pair ? 'pair' : a.config.kind);
-    copy.nodeAuthored = a.nodeAuthored;
-    copy.config = {
-      ...clone(a.config),
-      actionId: copy.config.actionId,
-      name: a.config.name + ' ' + t('shell.copySuffix'),
-    };
-    copy.pair = clone(a.pair);
-    copy.variants = clone(a.variants);
-    if (a.view) copy.view = a.view;
-    if (a.firstPerson) copy.firstPerson = a.firstPerson;
-    copy.position = {x: a.position.x + 45, y: a.position.y + 55};
+    const copy = copyAction(w, a, a.config.name + ' ' + t('shell.copySuffix'));
     edit(w => {
       w.actions = [...w.actions, copy];
       return w;
     });
     setSelection(copy.uid);
     notify(t('shell.duplicated'), 'ok', true);
+  };
+  // Ctrl+W and Edit > Duplicate. A card on the canvas is copied as the action it shows: an HKX card's id is
+  // anim:<uid>:…, not the action's uid (10-28: duplicating a selected HKX card said 「필수 구조 카드는 제거할 수
+  // 없습니다」 and copied nothing).
+  const duplicateSelected = () => {
+    if (ui.selection.kind !== 'node') {
+      if (action) duplicateAction(action);
+      return;
+    }
+    const node = ui.selection.node;
+    const shown = w.actions.find(a => a.uid === (flatNode(w, node)?.action ?? node));
+    if (shown) return duplicateAction(shown);
+    try {
+      const next = duplicateGraphNode(w, activeGraph, node);
+      edit(() => next);
+    } catch (e) {
+      setStatus(errorText(e));
+    }
   };
   const deleteSelection = () => {
     if (ui.selection.kind === 'notify') {
@@ -941,7 +950,18 @@ function Editor() {
             const flatTarget = node ? flatNode(current.current, node) : undefined;
             const targetState = node && current.current.actions.find(a => a.uid === (flatTarget?.action ?? node));
             const onCanvas = !!el?.closest('.react-flow') && view === 'graph' && started;
-            if (targetState && good.length === 1) {
+            const targetStep = !targetState
+              ? undefined
+              : (targetState.config.steps.find(s => s.id === flatTarget?.step) ??
+                targetState.config.steps.find(s => s.id === targetState.config.entry) ??
+                targetState.config.steps[0]);
+            // On the canvas a file replaces a card's own only when it is dropped on the card's file field (or the card
+            // has none yet): landing on a card on the way is not a choice to replace its HKX (10-28 rebuild).
+            const replaces =
+              !!targetState &&
+              good.length === 1 &&
+              (activeGraph.kind !== 'root' || !targetStep?.clip || !!el?.closest('.asset-field, [data-file-drop]'));
+            if (targetState && replaces) {
               edit(w => {
                 const a = w.actions.find(a => a.uid === targetState.uid)!,
                   step =
@@ -959,20 +979,56 @@ function Editor() {
                 return placeStepFile(registerAssets(w, items), a.uid, s.id, items[0].clip, items[0].path);
               });
             } else if (onCanvas && activeGraph.kind === 'root') {
-              const pos = screenToFlowPosition({x: payload.x, y: payload.y});
+              const occupied = getNodes().map(n => ({
+                x: n.position.x,
+                y: n.position.y,
+                w: n.measured?.width ?? 380,
+                h: n.measured?.height ?? SUMMARY_HEIGHT,
+              }));
+              const cells = dropGrid(screenToFlowPosition({x: payload.x, y: payload.y}), items.length, occupied);
+              const made: string[] = [];
               edit(w => {
                 let next = registerAssets(w, items);
+                made.length = 0;
                 items.forEach((item, i) => {
-                  const r = addFlat(next, '', 'playNode', {x: pos.x + i * 40, y: pos.y + i * 60});
+                  const r = addFlat(next, '', 'playNode', cells[i]);
+                  made.push(r.id);
                   next = r.workspace;
                   const a = next.actions.at(-1)!;
                   a.config.name = baseName(item.path).replace(/\.hkx$/i, '');
-                  a.position = {x: pos.x + i * 40, y: pos.y + i * 60};
+                  a.position = cells[i];
                   next = placeStepFile(next, a.uid, a.config.steps[0].id, item.clip, item.path);
                 });
                 return next;
               });
-              notify(t('hkx.stateCreated', {name: baseName(items[0].path)}), 'ok');
+              notify(
+                targetState
+                  ? tr('{name} 카드를 새로 만들었습니다. 카드의 HKX를 바꾸려면 파일 칸 위에 놓으세요.', {
+                      name: baseName(items[0].path),
+                    })
+                  : t('hkx.stateCreated', {name: baseName(items[0].path)}),
+                'ok'
+              );
+              // The grid can reach past the canvas's edge (a row of four, or below the card it landed on): the new
+              // cards come into view, never zoomed in further than now.
+              const pane = document.querySelector('.react-flow')?.getBoundingClientRect();
+              if (pane) {
+                const a = screenToFlowPosition({x: pane.left, y: pane.top}),
+                  b = screenToFlowPosition({x: pane.right, y: pane.bottom});
+                const out = cells.some(c => c.x < a.x || c.y < a.y || c.x + 380 > b.x || c.y + SUMMARY_HEIGHT > b.y);
+                if (out)
+                  requestAnimationFrame(() =>
+                    requestAnimationFrame(
+                      () =>
+                        void fitView({
+                          nodes: made.map(id => ({id})),
+                          padding: 0.2,
+                          maxZoom: pane.width / (b.x - a.x),
+                          duration: 200,
+                        })
+                    )
+                  );
+              }
             } else {
               edit(w => registerAssets(w, items));
               notify(t('hkx.registered', {n: good.length}), 'ok');
@@ -1110,9 +1166,7 @@ function Editor() {
         redo();
       } else if (ctrl && key === 'w' && started) {
         e.preventDefault();
-        if (ui.selection.kind === 'node')
-          edit(w => duplicateGraphNode(w, activeGraph, ui.selection.kind === 'node' ? ui.selection.node : ''));
-        else if (action) duplicateAction(action);
+        duplicateSelected();
       } else if (e.key === 'F2' && started) {
         e.preventDefault();
         document.querySelector<HTMLInputElement>('.details-body .detail-row input:not([type="checkbox"])')?.focus();
@@ -1366,16 +1420,7 @@ function Editor() {
           label: t('menu.edit.duplicate'),
           shortcut: 'Ctrl+W',
           disabled: !action && ui.selection.kind !== 'node',
-          run: () => {
-            if (ui.selection.kind === 'node') {
-              try {
-                const next = duplicateGraphNode(w, activeGraph, ui.selection.node);
-                edit(() => next);
-              } catch (e) {
-                setStatus(errorText(e));
-              }
-            } else if (action) duplicateAction(action);
-          },
+          run: duplicateSelected,
         },
         {
           label: t('menu.edit.delete'),
@@ -1569,6 +1614,28 @@ function Editor() {
           </div>
           <MenuBar
             menus={menus}
+            after={
+              <div className="view-switch" role="tablist" aria-label={t('menu.view')}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === 'graph'}
+                  className={view === 'graph' ? 'on' : ''}
+                  onClick={() => setView('graph')}
+                >
+                  {t('menu.view.graph')}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === 'xml'}
+                  className={view === 'xml' ? 'on' : ''}
+                  onClick={() => setView('xml')}
+                >
+                  XML
+                </button>
+              </div>
+            }
             right={
               <>
                 <b>{w.name}</b>
@@ -1848,19 +1915,6 @@ function Editor() {
               </section>
             ) : null}
             <section className="panel graph-area" data-testid="panel-graph">
-              <div className="ptab">
-                <button
-                  type="button"
-                  className={'tab' + (view === 'graph' ? '' : ' off')}
-                  onClick={() => setView('graph')}
-                >
-                  {t('menu.view.graph')}
-                </button>
-                <button type="button" className={'tab' + (view === 'xml' ? '' : ' off')} onClick={() => setView('xml')}>
-                  XML
-                </button>
-                <span className="who">{t('graph.stateMachine')}</span>
-              </div>
               {view === 'xml' ? (
                 <div className="xml-document">
                   <pre>{xml}</pre>

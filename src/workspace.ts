@@ -1,4 +1,4 @@
-import {qteErrors, qteXml, eventQteXml} from './qte.ts';
+import {qteErrors, qteXml, eventQteXml, qteChannelClashes} from './qte.ts';
 import {isPairedRig, type PairedRig} from './pairedRigs.ts';
 import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarryRelease} from './carry.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
@@ -248,6 +248,19 @@ export function addAction(w: Workspace, kind: 'single' | 'pair' = 'single'): Act
     a.config.cost.enabled = false;
   }
   return a;
+}
+/** A copy of an action: everything it holds, under a new uid and Action ID, named `name`, beside the original (10-28
+ *  review E-18: a copy made field by field missed what came later — vanilla cancel windows, detection windows,
+ *  camera restore, blends turned off). What points at the action from outside (starts, cards, links, QTEs) stays the
+ *  original's. */
+export function duplicateAction(w: Workspace, a: Action, name: string): Action {
+  const fresh = addAction(w, a.pair ? 'pair' : 'single');
+  const copy = structuredClone(a);
+  copy.uid = fresh.uid;
+  copy.config.actionId = fresh.config.actionId;
+  copy.config.name = name;
+  copy.position = {x: a.position.x + 45, y: a.position.y + 55};
+  return copy;
 }
 export function addLink(w: Workspace, from: string, to: string): Link {
   const a = w.actions.find(a => a.uid === from),
@@ -643,6 +656,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
   for (const a of w.actions)
     for (const v of Object.values(a.config.eventValues ?? {})) for (const m of valueErrors(v)) err(a.uid, m);
   out.push(...viewIssues(w));
+  for (const i of qteChannelClashes(w)) out.push({level: 'warning', ...i});
   try {
     parseWorkspace(JSON.stringify(w));
   } catch (e) {

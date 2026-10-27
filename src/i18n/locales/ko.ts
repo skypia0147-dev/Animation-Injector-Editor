@@ -69,7 +69,6 @@ export const ko: Record<string, string> = {
   'myProject.markers': '이벤트',
   'myProject.sharedSettings': '공유 설정',
   'myProject.rootGraph': '전체 그래프',
-  'graph.stateMachine': '동작 그래프',
   'graph.transitionRule': '전환 규칙',
   'graph.animGraph': '애님 그래프',
   'graph.clipStateMachine': '클립 그래프',

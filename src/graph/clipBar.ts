@@ -21,9 +21,10 @@ export function barText(t: BarTime): string {
   if (typeof t === 'number') return fmt(t) + tr('초');
   return isEnd(t) ? tr('끝') : tr('끝') + ' − ' + fmt(t.end) + tr('초');
 }
-/** A dragged or typed time: at the clip's length it is 「끝」. */
-export function settle(t: number, length?: number): BarTime {
-  return length !== undefined && t >= length - endSlack ? atEnd : Math.round(Math.max(0, t) * 100) / 100;
+/** A dragged or typed time: at the clip's length it is 「끝」. Dragging lands on the hundredth; a typed time keeps the
+ *  thousandth it was written with (`per` = 1000). */
+export function settle(t: number, length?: number, per = 100): BarTime {
+  return length !== undefined && t >= length - endSlack ? atEnd : Math.round(Math.max(0, t) * per) / per;
 }
 /** Draws to the start, the end and the HKX's annotation times within `near` seconds; else to the hundredth. */
 export function snapTime(t: number, length: number, points: number[], near: number): number {
@@ -58,7 +59,7 @@ export function barToExit(m: Mark, t: BarTime, length?: number): Mark | undefine
   const base: Mark = {...m, basis: 'end', event: '', fallback: false, fallbackBasis: 'end'};
   if (typeof t !== 'number') return {...base, seconds: isEnd(t) ? exitSlack : Math.max(exitSlack, t.end)};
   if (length === undefined) return undefined;
-  return {...base, seconds: Math.max(exitSlack, Math.round((length - t) * 100) / 100)};
+  return {...base, seconds: Math.max(exitSlack, Math.round((length - t) * 1000) / 1000)};
 }
 /** A close that the model keeps counted from the end (an HKX's key detection window): a time from the start needs the
  *  clip's length. */
@@ -66,7 +67,7 @@ export function barToEndMark(m: Mark, t: BarTime, length?: number): Mark | undef
   const base: Mark = {...m, basis: 'end', event: '', fallback: false, fallbackBasis: 'end'};
   if (typeof t !== 'number') return {...base, seconds: isEnd(t) ? 0 : t.end};
   if (length === undefined) return undefined;
-  return {...base, seconds: Math.max(0, Math.round((length - t) * 100) / 100)};
+  return {...base, seconds: Math.max(0, Math.round((length - t) * 1000) / 1000)};
 }
 /** A clip-time function's or a point's seconds: 「끝」 is the clip's length (or stays where it was if unknown). */
 export const barToSeconds = (t: BarTime, length: number | undefined, keep: number) =>

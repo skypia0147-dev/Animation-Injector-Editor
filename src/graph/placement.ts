@@ -56,3 +56,30 @@ export function visiblePastePosition(
 // A new HKX card opens expanded (selected): find room for its whole size, not on top of another card.
 export const freePlayPosition = (convert: (p: Point) => Point): Point =>
   visiblePastePosition(convert, undefined, 0, {width: 360, height: 360});
+
+export type Box = {x: number; y: number; w: number; h: number};
+/** Where cards dropped together go (flow coordinates): a grid from `start`, `perRow` to a row, moved down as a block
+ *  until no cell touches an existing card (10-28 rebuild: a 40/60 px cascade stacked them on each other, and a
+ *  later drop landed on them). */
+export function dropGrid(
+  start: Point,
+  count: number,
+  occupied: Box[],
+  size = {w: 380, h: 224},
+  gap = 40,
+  perRow = 4
+): Point[] {
+  const cells = Array.from({length: count}, (_, i) => ({
+    x: start.x + (i % perRow) * (size.w + gap),
+    y: start.y + Math.floor(i / perRow) * (size.h + gap),
+  }));
+  const clear = (p: Point) =>
+    occupied.every(
+      b => p.x + size.w + gap <= b.x || p.x >= b.x + b.w + gap || p.y + size.h + gap <= b.y || p.y >= b.y + b.h + gap
+    );
+  for (let dy = 0; dy < 200 * (size.h + gap); dy += 24) {
+    const moved = cells.map(p => ({x: p.x, y: p.y + dy}));
+    if (moved.every(clear)) return moved;
+  }
+  return cells;
+}

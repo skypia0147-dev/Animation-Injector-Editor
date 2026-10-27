@@ -1,6 +1,6 @@
 import {defaultCarry, defaultCarryFix} from '../carry.ts';
 import type {Workspace, Action} from '../workspace.ts';
-import {addAction, removeAction, defaultCamera} from '../workspace.ts';
+import {addAction, removeAction, defaultCamera, duplicateAction} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
 import {clone, timingLabel, mark} from '../model.ts';
 import type {NodeKind} from '../nodes/catalog.ts';
@@ -327,15 +327,8 @@ export function duplicateGraphNode(w: Workspace, g: GraphRef, id: string): Works
   if (g.kind === 'root') {
     const source = w.actions.find(a => a.uid === id);
     if (!source) throw Error(t('graph.requiredNode'));
-    const a = addAction(n, source.pair ? 'pair' : source.config.kind);
-    const uid = a.uid,
-      actionId = a.config.actionId;
-    Object.assign(a, clone(source), {uid});
-    a.config = {...clone(source.config), name: source.config.name + ' ' + t('graph.copy'), actionId};
-    a.pair = clone(source.pair);
-    a.variants = clone(source.variants);
-    a.position = {x: source.position.x + 45, y: source.position.y + 55};
-    n.actions.push(a);
+    // The same copy as the project tree's Duplicate (workspace duplicateAction).
+    n.actions.push(duplicateAction(n, source, source.config.name + ' ' + t('graph.copy')));
     return n;
   }
   throw Error(t('graph.singleton'));

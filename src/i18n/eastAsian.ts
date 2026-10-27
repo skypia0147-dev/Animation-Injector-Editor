@@ -54,7 +54,6 @@ export const eastAsian: Record<string, [string, string]> = {
   'myProject.markers': ['マーカー', '标记'],
   'myProject.sharedSettings': ['共通設定', '共享设置'],
   'myProject.rootGraph': ['全体グラフ', '整体图'],
-  'graph.stateMachine': ['アクショングラフ', '动作图'],
   'graph.transitionRule': ['遷移ルール', '转换规则'],
   'graph.animGraph': ['Anim グラフ', '动画图表'],
   'graph.clipStateMachine': ['クリップグラフ', '片段图'],

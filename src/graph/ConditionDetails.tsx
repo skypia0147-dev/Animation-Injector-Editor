@@ -1,11 +1,11 @@
 import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
+import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
 import {definition, extensionDefaults, formKinds} from './conditionExtensions.ts';
 import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 import {MultiValuePicker} from './MultiValuePicker.tsx';
 import {equippedTypeLabels} from './multiValue.ts';
 import {t} from '../i18n/index.ts';
-import {useState} from 'react';
 import {patchTest} from './conditionExpression.ts';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
@@ -84,7 +84,6 @@ export function ConditionFields({
   embedded?: boolean;
   edit: (f: (w: Workspace) => Workspace) => void;
 }) {
-  const [error] = useState('');
   const card = w.cards.find(c => c.uid === owner),
     test = card?.tests.find(t => t.id === key);
   if (!card || !test) return null;
@@ -92,7 +91,6 @@ export function ConditionFields({
   return (
     <DetailPanel>
       {!embedded && <h3>{tr('조건 분기')}</h3>}
-      {error && <p role="alert">{error}</p>}
       <DetailRow label={tr('검사 항목')} hint={definition(test.kind)?.hint}>
         <ConditionKindPicker
           value={test.kind}
@@ -214,23 +212,12 @@ export function ConditionFields({
       )}
       {test.kind === 'global' && (
         <DetailRow label={tr('일치 값')} hint={tr('전역 변수의 값이 정확히 일치할 때 통과합니다.')}>
-          <input
-            type="number"
-            step="any"
-            value={test.equals ?? 1}
-            onChange={e => change({equals: Number(e.target.value)})}
-          />
+          <NumberInput step="any" value={test.equals ?? 1} change={v => change({equals: v})} />
         </DetailRow>
       )}
       {['stamina', 'magicka'].includes(test.kind) && (
         <DetailRow label={tr('최솟값')}>
-          <input
-            type="number"
-            min="0"
-            max="1000000"
-            value={test.minimum}
-            onChange={e => change({minimum: Number(e.target.value)})}
-          />
+          <NumberInput min="0" max="1000000" value={test.minimum} change={v => change({minimum: v})} />
         </DetailRow>
       )}
       {(test.kind === 'space' || test.kind === 'ground') && (
@@ -272,14 +259,13 @@ export function ConditionFields({
             label={tr('거리')}
             hint={tr('게임 거리 단위입니다. 지면 검사에서 0은 시작 위치 주변만 검사합니다.')}
           >
-            <input
-              type="number"
+            <NumberInput
               min={test.kind === 'ground' ? 0 : 1}
               max="2000"
               value={test.space?.distance ?? 200}
-              onChange={e =>
+              change={v =>
                 change({
-                  space: {direction: 'selfForward', ...test.space, distance: Number(e.target.value)},
+                  space: {direction: 'selfForward', ...test.space, distance: v},
                 })
               }
             />
@@ -295,12 +281,11 @@ export function ConditionFields({
               label={[tr('허용 위쪽 높이'), tr('허용 아래쪽 높이'), tr('최대 경사각'), tr('검사 반경')][i]}
               hint={tr('높이는 지금 발 높이 기준입니다. 거리·반경은 게임 단위, 경사는 도 단위입니다.')}
             >
-              <input
-                type="number"
+              <NumberInput
                 min={key === 'radius' ? 1 : 0}
                 max={[200, 500, 80, 100][i]}
                 value={g[key]}
-                onChange={e => change({ground: {...g, [key]: Number(e.target.value)}})}
+                change={v => change({ground: {...g, [key]: v}})}
               />
             </DetailRow>
           );

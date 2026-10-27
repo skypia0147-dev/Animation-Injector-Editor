@@ -187,12 +187,13 @@ export function groupRuleError(c: Pick<ConditionCard, 'tests' | 'guards' | 'rows
   for (const [roots, any] of lists)
     for (const id of roots) {
       const t = c.tests.find(t => t.id === id);
-      if (!t || !isGroup(t)) continue;
+      // Counted as the XML writes it (format6Xml checkXml): a turned-off condition or group is left out (10-28 E-24).
+      if (!t || !isGroup(t) || t.enabled === false) continue;
       if ((t.kind === 'any') === any)
         return tr('묶음은 감싼 쪽의 반대 연산자로만 씁니다(AND 조건 사이에는 OR 묶음, OR 행에는 AND 묶음).');
       const members = (t.operands ?? []).map(m => c.tests.find(x => x.id === m));
       if (members.some(m => !m || isGroup(m))) return tr('묶음 안에는 묶음을 넣지 않습니다(한 단계까지).');
-      if (members.length < 2) return tr('묶음에는 조건이 둘 이상 필요합니다.');
+      if (members.filter(m => m!.enabled !== false).length < 2) return tr('묶음에는 조건이 둘 이상 필요합니다.');
     }
 }
 /** The ids a list of roots holds, with their members. */
@@ -256,12 +257,18 @@ export function newStart(w: Workspace, position: Position, mode: StartCard['mode
 }
 /** A condition card's title: 「조건」 with several conditions, 「조건 (이름)」 with one (docs decision 6). */
 export function cardTitle(c: ConditionCard, name: (t: CardTest) => string): string {
+  // Named by its conditions (docs/mockup-design-audit ③): the first two different names, then 「…」.
   const roots = [...c.guards, ...c.rows.flatMap(r => r.guards)];
-  if (roots.length === 1) {
-    const t = c.tests.find(t => t.id === roots[0]);
-    if (t) return tr('조건 ({name})', {name: t.label || name(t)});
-  }
-  return tr('조건');
+  const names = [
+    ...new Set(
+      roots.flatMap(id => {
+        const t = c.tests.find(t => t.id === id);
+        return t ? [t.label || name(t)] : [];
+      })
+    ),
+  ];
+  if (!names.length) return tr('조건');
+  return tr('조건 · {name}', {name: names.slice(0, 2).join(' / ') + (names.length > 2 ? ' …' : '')});
 }
 /** A start's trigger in words. */
 export function startText(s: StartCard): string {

@@ -1282,6 +1282,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{actionId}: ペアと運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
     '{actionId}：配对与搬运（含放下）仅以第三人称（view="third"）播放。',
   ],
+  '{first}와 {second}가 같은 순간에 같은 채널 {channel}에서 시작합니다. 게임은 먼저 온 하나만 띄우고 다른 하나는 건너뜁니다. 둘 중 하나의 채널을 바꾸세요.':
+    [
+      '{first} and {second} start at the same moment on the same channel {channel}. The game shows only the first and skips the other. Move one of them to another channel.',
+      '{first} と {second} が同じ瞬間に同じチャンネル {channel} で始まります。ゲームは先に来た一つだけを表示し、もう一つは飛ばします。どちらかのチャンネルを変えてください。',
+      '{first} 和 {second} 在同一时刻于同一通道 {channel} 开始。游戏只显示先到的一个，跳过另一个。请更改其中一个的通道。',
+    ],
   '{key}은(는) 이 기능의 수치가 아닙니다.': [
     '{key} is not a value of this function.',
     '{key} はこの機能の数値ではありません。',
@@ -1313,6 +1319,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '{name} → HKX 재생 추가': ['{name} → add HKX playback', '{name} → HKX 再生を追加', '{name} → 添加 HKX 播放'],
   '{name} → 조건 카드 추가': ['{name} → add condition card', '{name} → 条件カードを追加', '{name} → 添加条件卡'],
+  '{name} 카드를 새로 만들었습니다. 카드의 HKX를 바꾸려면 파일 칸 위에 놓으세요.': [
+    "Created a new {name} card. To replace a card's HKX, drop the file on its file field.",
+    '{name} のカードを新しく作成しました。カードの HKX を置き換えるには、ファイル欄の上にドロップしてください。',
+    '已新建 {name} 卡片。要替换卡片的 HKX，请将文件拖放到其文件栏上。',
+  ],
   '{name}.{k}: 가져오기를 지원하지 않는 속성입니다.': [
     '{name}.{k}: Unsupported attribute for import.',
     '{name}.{k}: インポート非対応の属性です。',
@@ -3186,6 +3197,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   시작: ['Start', '開始', '开始'],
   '시작 HKX가 없습니다.': ['No starting HKX.', '開始 HKX がありません。', '缺少起始 HKX。'],
   '시작 · ': ['Start · ', '開始 · ', '开始 · '],
+  '시작 · {v0}': ['Start · {v0}', '開始 · {v0}', '开始 · {v0}'],
   '시작 · 역할 · 결과': ['Start · Role · Result', '開始 · 役割 · 結果', '开始 · 角色 · 结果'],
   '시작 · 이벤트': ['Start · event', '開始 · イベント', '开始 · 事件'],
   '시작 · 키': ['Start · key', '開始 · キー', '开始 · 按键'],
@@ -3489,6 +3501,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '완벽 허용 (±ms)': ['Perfect tolerance (±ms)', 'パーフェクト許容値 (±ms)', '完美容差 (±ms)'],
   '완벽 허용 폭': ['Perfect window width', 'パーフェクト許容幅', '完美容差宽度'],
+  '외 {n}': ['+{n} more', 'ほか {n}', '等 {n} 项'],
   '외부 모드 필요: {v0}': ['External mod required: {v0}', '外部 MOD が必要です: {v0}', '需要外部模组：{v0}'],
   '외침·능력': ['Shout / power', 'シャウト・パワー', '龙吼·能力'],
   왼손: ['Left hand', '左手', '左手'],
@@ -4275,6 +4288,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '전투 중': ['In combat', '戦闘中', '战斗中'],
   전투도끼: ['Battleaxe', 'バトルアックス', '战斧(双手)'],
+  '전환 · {v0}': ['Transition · {v0}', '遷移 · {v0}', '转换 · {v0}'],
   '전환 감지 구간 설정 오류': [
     'Invalid transition detection window setting',
     '遷移入力受付区間の設定エラー',
@@ -4327,8 +4341,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '제한 없음': ['No limit', '制限なし', '无限制'],
   조건: ['Condition', '条件', '条件'],
-  '조건 ({name})': ['Condition ({name})', '条件 ({name})', '条件 ({name})'],
   '조건 {n}개': ['{n} condition(s)', '条件 {n} 個', '{n} 个条件'],
+  '조건 · {name}': ['Condition · {name}', '条件 · {name}', '条件 · {name}'],
   '조건 검색': ['Search conditions', '条件を検索', '搜索条件'],
   '조건 검색 · 이름이나 분류': [
     'Search conditions · name or category',
@@ -4992,7 +5006,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '템플릿 크기 제한': ['Template size limit exceeded', 'テンプレートのサイズ制限', '模板大小超出限制'],
   토끼: ['Hare', 'ウサギ', '兔子'],
   '통과 확률 (%)': ['Pass chance (%)', '通過確率 (%)', '通过概率 (%)'],
-  '통합 그래프': ['Integrated graph', '統合グラフ', '整合图表'],
   '트랙 개수가 너무 큽니다.': ['Track count is too large.', 'トラック数が大きすぎます。', '轨道数量过大。'],
   트롤: ['Troll', 'トロール', '巨魔'],
   트리거: ['Trigger', 'トリガー', '触发'],

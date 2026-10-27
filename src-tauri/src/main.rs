@@ -66,7 +66,11 @@ fn search_roots(paths: Vec<String>) -> Result<SearchRoots, String> {
             result.rejected.push(path);
             continue;
         }
-        let canonical = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+        // One folder that cannot be resolved is rejected like the others; the rest are still added (10-28 review E-23).
+        let Ok(canonical) = fs::canonicalize(&path) else {
+            result.rejected.push(path);
+            continue;
+        };
         let text = canonical.display().to_string();
         let clean = text.strip_prefix("\\\\?\\").unwrap_or(&text).to_string();
         let local_bytes = clean.as_bytes();

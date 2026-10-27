@@ -13,6 +13,7 @@ import {readEditorBlock} from '../src/editorBlock.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {parseWorkspace, validateWorkspace, compileWorkspace} from '../src/workspace.ts';
 import {executeGraphCommand} from '../src/graph/commands.ts';
+import {captureGraph, lowerGraph} from '../src/graph/document.ts';
 import {checklistProjection} from '../src/graph/checklist.ts';
 import {contextualAdds} from '../src/graph/contextAdd.ts';
 import {
@@ -186,6 +187,25 @@ const describe = c =>
       ? 'card ' + c.name
       : JSON.stringify(c).slice(0, 160);
 
+// The same value whatever order its keys were written in (the graph rebuilds a link's fields in its own order).
+const canonical = v =>
+  JSON.stringify(v, (_, x) =>
+    x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort()) : x
+  );
+/** The check the app makes on every edit (WorkspaceApp edit: captureGraph then lowerGraph), and what undo and redo
+ *  give back: the same project. An edit the app would refuse here is one the canvas offers but cannot make (10-28
+ *  review E-16: adding a transition from a card's menu failed with "연결 ID 또는 연결 대상 오류"). */
+function graphProblem(w) {
+  let back;
+  try {
+    back = lowerGraph(captureGraph(w));
+  } catch (e) {
+    return 'the app refuses the edit: ' + e.message;
+  }
+  for (const k of ['actions', 'links'])
+    if (canonical(back[k]) !== canonical(w[k])) return `the edit history changes the project's ${k}`;
+  return '';
+}
 /** What is wrong with the project after an edit. */
 function problems(w, runtime) {
   const found = [];
@@ -196,6 +216,8 @@ function problems(w, runtime) {
   } catch (e) {
     return ['the project does not reopen: ' + e.message];
   }
+  const graph = graphProblem(w);
+  if (graph) found.push(graph);
   // Every destination, condition and owner the document names is there.
   const actions = new Set(w.actions.map(a => a.uid)),
     cards = new Set(w.cards.map(c => c.uid));
@@ -332,20 +354,24 @@ test('every menu item, cut and delete works', () => {
     for (const n of p.nodes) {
       for (const option of contextualAdds(w, n.id).filter(o => !o.disabled))
         try {
-          executeGraphCommand(w, {type: 'addConnected', source: n.id, option, position: {x: 100, y: 100}});
+          const r = executeGraphCommand(w, {type: 'addConnected', source: n.id, option, position: {x: 100, y: 100}});
+          const graph = graphProblem(r.workspace);
+          if (graph) report.push(`${where}: ${n.id} menu ${option.label}: ${graph}`);
         } catch (e) {
           report.push(`${where}: ${n.id} menu ${option.label}: ${e.message}`);
         }
       if (n.id !== 'eventRegistry')
         try {
-          executeGraphCommand(w, {type: 'delete', id: n.id});
+          const graph = graphProblem(executeGraphCommand(w, {type: 'delete', id: n.id}).workspace);
+          if (graph) report.push(`${where}: delete ${n.id}: ${graph}`);
         } catch (e) {
           report.push(`${where}: delete ${n.id}: ${e.message}`);
         }
     }
     for (const edge of p.edges)
       try {
-        executeGraphCommand(w, {type: 'disconnect', edge});
+        const graph = graphProblem(executeGraphCommand(w, {type: 'disconnect', edge}).workspace);
+        if (graph) report.push(`${where}: cut ${edge.source} -> ${edge.target}: ${graph}`);
       } catch (e) {
         // A dashed line to an event's listener is changed on its QTE result, not cut.
         if (!edge.via) report.push(`${where}: cut ${edge.source} -> ${edge.target}: ${e.message}`);

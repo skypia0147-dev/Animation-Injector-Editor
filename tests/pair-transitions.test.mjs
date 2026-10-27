@@ -95,7 +95,7 @@ test('a pair event transition starts the attacker and, on its partner pin, the v
   // The partner pin is there before it is connected, and it is labeled on the card by role.
   const node = flatGraph(w).nodes.find(n => n.id === linkNode(l));
   assert.deepEqual(node.outputs, ['trigger', 'partner']);
-  assert.equal(node.title, '전환 이벤트');
+  assert.equal(node.title, '전환 · Stage1_Attack');
   w = connectFlat(w, linkNode(l), hkx('a4'), 'partner');
   assert.equal(w.links.at(-1).partnerTo, 'a4');
   const view = checklistProjection(w, checklistModel(w));

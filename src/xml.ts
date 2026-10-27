@@ -72,7 +72,11 @@ export function parseXml(text: string): Xml {
     }
     if (text.startsWith('<?xml', i) && !roots.length && !stack.length && i === 0) {
       // The desktop backend hands over UTF-16 files already decoded (code review E-9).
-      const m = /^<\?xml\s+version=['"]1\.0['"](?:\s+encoding=['"]utf-(?:8|16)['"])?\s*\?>/i.exec(text.slice(i));
+      // `standalone` as other tools write it; the runtime (pugixml) reads past the declaration (10-28 review E-22).
+      const m =
+        /^<\?xml\s+version=['"]1\.0['"](?:\s+encoding=['"]utf-(?:8|16)['"])?(?:\s+standalone=['"](?:yes|no)['"])?\s*\?>/i.exec(
+          text.slice(i)
+        );
       if (!m) fail();
       i += m![0].length;
       continue;

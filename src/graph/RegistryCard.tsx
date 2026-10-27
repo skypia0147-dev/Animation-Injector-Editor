@@ -206,7 +206,8 @@ export function RegistryBody() {
             attempt(() => {
               const name = newEventName(w);
               edit(w => addEventRow(w, name));
-              setOpen(s => new Set(s).add(eventKey(name)));
+              // Only the new row is open: rows left open before showed several name fields at once (10-28 rebuild).
+              setOpen(new Set([eventKey(name)]));
               setFlash(eventKey(name));
             })
           }

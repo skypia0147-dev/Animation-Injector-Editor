@@ -32,6 +32,12 @@
   --card-field-line: #ffffff73;
   --card-rule: #ffffff40;
   --card-stripe: #ffffff0a;
+  /* A value or condition chip is a face with no line (docs/mockup-design-audit ②). Lines stay on boxes and on the
+     chips that lead to another card. Its face takes the card's kind (docs/mockup-chip-colors B, 10-28): the grey
+     one read as part of the body and its value text was 3.8:1. A card with no tint of its own keeps the grey. */
+  --card-chip: #ffffff2e;
+  --card-chip-t1: var(--card-t1);
+  --card-chip-t2: var(--card-t2);
   --card-hover: #ffffff12;
   /* Text: values, labels, notes. */
   --card-t1: #e6e6e6;
@@ -49,6 +55,18 @@
   --card-victim: #b8a2f2;
   --card-player: #8fb4ff;
   --card-partner: #c4c4c4;
+}
+
+/* Chips by card kind: condition 1.6:1 against the body, name 7.6:1 and value 5.4:1 on it; HKX 1.7:1, 7.8:1, 5.1:1. */
+.p3-node.card-themed.conditionCard {
+  --card-chip: #573f4b;
+  --card-chip-t1: #f4e6ed;
+  --card-chip-t2: #d9b3c6;
+}
+.p3-node.card-themed.hkxPlay {
+  --card-chip: #33524a;
+  --card-chip-t1: #e3f5ef;
+  --card-chip-t2: #a9d6c8;
 }
 
 /* The canvas under the cards (its dots: FlatGraph ScreenGrid). */
@@ -288,13 +306,13 @@
 
 /* ---------- Chips ---------- */
 .p3-node.card-themed .hkx-chip {
-  border: 1px solid var(--card-line);
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: transparent;
-  color: var(--card-t1);
+  background: var(--card-chip);
+  color: var(--card-chip-t1);
 }
 .p3-node.card-themed .hkx-chip em {
-  color: var(--card-t2);
+  color: var(--card-chip-t2);
 }
 .p3-node.card-themed .moment-tag {
   color: var(--card-t2);

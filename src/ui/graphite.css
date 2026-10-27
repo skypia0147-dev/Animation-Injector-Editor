@@ -105,6 +105,29 @@
   padding: 0;
   gap: 0;
 }
+/* Graph / XML switch right after the menus (was its own tab row above the canvas). */
+.view-switch {
+  display: inline-flex;
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: 14px;
+  border: 1px solid var(--control-line);
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+}
+.shell .view-switch button {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  color: #999;
+  font-size: var(--fs-sm);
+}
+.shell .view-switch button.on {
+  background: #3a3a3a;
+  color: #fff;
+}
 .application-header .menubar-right {
   padding-left: 16px;
   max-width: 240px;
@@ -416,28 +439,48 @@
 .graphite-dock.compact-dock .bottom-dock {
   grid-column: 1/-1;
 }
+/* The canvas tools float over the canvas's top-left corner as one line (docs/mockup-design-audit A). */
+.graph-workspace {
+  position: relative;
+}
 .flat-toolbar {
-  gap: 8px;
-  min-height: 42px;
-  padding: 8px 12px;
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
   flex-wrap: nowrap;
   white-space: nowrap;
   min-width: 0;
-  background: #212121;
-  border-bottom: 1px solid var(--ue-line);
+  background: #262626eb;
+  border: 1px solid #444;
+  border-radius: 9px;
+  box-shadow: 0 4px 14px #0006;
 }
-.flat-toolbar > b {
-  display: none;
-}
-.flat-toolbar > button {
+.shell .flat-toolbar button,
+.shell .flat-toolbar select {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  height: 28px;
+  min-height: 28px;
+  border-color: transparent;
+  border-radius: 6px;
   font-size: var(--fs-sm);
 }
-.flat-toolbar > span {
-  color: #999;
-  font-size: var(--fs-sm);
+.shell .flat-toolbar > :first-child button {
+  background: #3a3a3a;
+}
+.shell .flat-toolbar button:disabled {
+  color: #7a7a7a;
+}
+.shell .flat-toolbar button[aria-pressed='true'] {
+  background: #3a3a3a;
+  color: #fff;
 }
 .flat-toolbar > * {
   flex-shrink: 0;
@@ -447,6 +490,9 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 0 8px 0 6px;
+  color: #999;
+  font-size: var(--fs-sm);
 }
 .p3-node {
   box-sizing: border-box;
@@ -1550,6 +1596,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The start names an event, often longer than the card: it wraps instead of being cut. */
+.p3-node .qte-face span.qte-start {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .p3-node .qte-face-tag {
   position: absolute;

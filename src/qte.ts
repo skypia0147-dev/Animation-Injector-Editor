@@ -140,6 +140,36 @@ export function newQte(w: Workspace): QteNode {
 }
 /** A QTE's id in the XML: the one the author gave, else the editor's own. */
 export const qteXmlId = (q: QteNode) => q.xmlId || q.id;
+/** Two QTEs that start at the same moment of the same clip (or on the same event) on the same channel: the runtime
+ *  shows the first and skips the other ("[QTE] busy; skipped", 0.12.192 channels). 10-28: Grapple's Pounding E
+ *  (carry) QTE lost its channel 1 and never showed behind the attack QTE starting with it. */
+export function qteChannelClashes(w: Workspace): {node: string; message: string}[] {
+  const out: {node: string; message: string}[] = [],
+    seen = new Map<string, QteNode>();
+  for (const q of w.qtes ?? []) {
+    const moment =
+      q.eventStart !== undefined
+        ? 'event:' + q.eventStart.toLowerCase()
+        : q.owner
+          ? [q.owner, q.step, q.at.basis, q.at.basis === 'event' ? q.at.event.toLowerCase() : q.at.seconds].join('|')
+          : '';
+    if (!moment) continue;
+    const key = moment + '|' + (q.channel ?? 0);
+    const first = seen.get(key);
+    if (!first) {
+      seen.set(key, q);
+      continue;
+    }
+    out.push({
+      node: 'qte:' + q.id,
+      message: tr(
+        '{first}와 {second}가 같은 순간에 같은 채널 {channel}에서 시작합니다. 게임은 먼저 온 하나만 띄우고 다른 하나는 건너뜁니다. 둘 중 하나의 채널을 바꾸세요.',
+        {first: qteXmlId(first), second: qteXmlId(q), channel: String(q.channel ?? 0)}
+      ),
+    });
+  }
+  return out;
+}
 export function qteErrors(w: Workspace): string[] {
   const errors: string[] = [],
     ids = new Set<string>(),

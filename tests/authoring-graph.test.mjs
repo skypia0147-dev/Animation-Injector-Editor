@@ -96,3 +96,30 @@ test('HKX to HKX makes a key transition whose key the details set (no combo)', (
   input.key = 'G';
   assert.match(compileWorkspace(w), /<Transition to="[^"]+" key="G"/);
 });
+
+// A transition is drawn before its destination is chosen, and one can go to a condition card: neither has an action
+// to point at, and the app's edit check (captureGraph then lowerGraph) and undo must keep both (10-28 review E-16).
+test('a transition with no destination yet, or to a condition card, survives the edit check and undo', () => {
+  let w = importWorkspaceXml(CHAIN);
+  const link = w.links[0];
+  for (const [label, patch] of [
+    ['no destination', {to: '', card: undefined}],
+    ['to a card', {to: '', card: 'card1'}],
+  ]) {
+    const edited = {
+      ...w,
+      cards: [{uid: 'card1', tests: [], guards: [], rows: [], true: {action: 'a3'}, false: null}],
+      links: [{...link, ...patch}],
+    };
+    if (patch.card === undefined) delete edited.links[0].card;
+    const back = lowerGraph(captureGraph(edited));
+    assert.equal(back.links[0].to, '', label);
+    assert.equal(back.links[0].card, patch.card, label);
+    assert.equal(back.links[0].from, link.from, label);
+    // Undo gives back the graph of the edit before.
+    let h = {present: captureGraph(w), past: [], future: []};
+    h = authorReducer(h, {type: 'edit', next: edited});
+    h = authorReducer(h, {type: 'undo'});
+    assert.equal(lowerGraph(h.present).links[0].to, link.to, label);
+  }
+});

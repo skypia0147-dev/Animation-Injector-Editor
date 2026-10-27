@@ -113,8 +113,9 @@
 .shell .p3-node .cond-chip.set-chip {
   height: auto;
   min-height: 0;
-  background: transparent;
-  color: var(--card-t1);
+  border-color: transparent;
+  background: var(--card-chip);
+  color: var(--card-chip-t1);
   cursor: pointer;
 }
 .shell .p3-node .cond-chip.set-chip.on {

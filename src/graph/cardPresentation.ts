@@ -108,6 +108,10 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   const a = w.actions.find(a => a.uid === n.action),
     s = a?.config.steps.find(s => s.id === n.step);
   if (n.kind === 'eventRegistry') return {title: tr('이벤트 등록 · 전역'), icon: 'event', rows: []};
+  // A start or a transition is a key's or an event's by its mode (its title names what starts it).
+  const start = n.kind === 'startCard' ? w.starts.find(s => 'startCard:' + s.uid === n.id) : undefined,
+    link = n.kind === 'transition' ? w.links.find(l => 'transition:' + l.id === n.id) : undefined,
+    keyed = n.kind === 'keyInput' || (start ? start.mode !== 'event' : link ? link.mode !== 'event' : false);
   const icon =
     n.kind === 'hkxPlay'
       ? 'play'
@@ -117,7 +121,7 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
           ? 'entry'
           : n.kind === 'outputPose'
             ? 'output'
-            : n.kind === 'keyInput' || ((n.kind === 'startCard' || n.kind === 'transition') && /키/.test(n.title))
+            : keyed
               ? 'keyboard'
               : n.kind === 'markerReceive' ||
                   n.kind === 'eventEmit' ||
@@ -145,12 +149,21 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   }
   if (n.kind === 'qte') {
     const face = qteFace(w, n);
-    if (face) return {title: 'QTE · ' + n.title, icon, rows: [], qte: face};
+    // A QTE left with the default name is named by its shape and key (docs/mockup-design-audit ③).
+    if (face)
+      return {
+        title:
+          'QTE · ' +
+          (n.title === 'QTE' ? [face.typeName.split(' · ')[1], face.key].filter(Boolean).join(' ') : n.title),
+        icon,
+        rows: [],
+        qte: face,
+      };
   }
   const label =
     n.kind === 'blend'
       ? tr('시간 · 적용')
-      : n.kind === 'keyInput' || ((n.kind === 'startCard' || n.kind === 'transition') && /키/.test(n.title))
+      : keyed
         ? tr('입력')
         : n.kind === 'markerReceive' || n.kind === 'eventEmit' || n.kind === 'startCard' || n.kind === 'transition'
           ? tr('이벤트')
@@ -164,7 +177,6 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
                   ? tr('이벤트')
                   : tr('설정');
   // A start card reads as its trigger, then what it sets (docs/mockup-format6-editor); it is edited in Details.
-  const start = n.kind === 'startCard' ? w.starts.find(s => 'startCard:' + s.uid === n.id) : undefined;
   if (start) {
     const rows = [
       start.mode === 'event'
@@ -198,7 +210,6 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
     return {title: n.title, icon, rows};
   }
   // A transition reads the same way: its key or event, its window and blend.
-  const link = n.kind === 'transition' ? w.links.find(l => 'transition:' + l.id === n.id) : undefined;
   if (link) {
     const input = w.actions.find(a => a.uid === link.from)?.config.inputs.find(i => i.id === link.input);
     const rows = [
@@ -219,7 +230,14 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   }
   // An event's QTE card reads as a start: the event it waits for (its QTE is its route row, FlatGraph).
   if (n.id.startsWith('qte-event:'))
-    return {title: n.title, icon, rows: [{label: tr('받을 때'), value: n.summary || tr('이벤트 미지정')}]};
+    return {
+      // Named by its event (docs/mockup-design-audit ③), as a start card.
+      title: w.qtes?.find(q => 'qte-event:' + q.id === n.id)?.eventStart
+        ? tr('QTE 시작 · {v0}', {v0: n.summary})
+        : n.title,
+      icon,
+      rows: [{label: tr('받을 때'), value: n.summary || tr('이벤트 미지정')}],
+    };
   const rows = n.kind === 'entry' ? [] : [{label, value: n.summary || tr('설정할 항목을 선택하세요')}];
   return {title: n.title, icon, rows};
 }
