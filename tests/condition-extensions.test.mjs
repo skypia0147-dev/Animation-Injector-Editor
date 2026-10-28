@@ -14,6 +14,7 @@ import {
   extensionDefaults,
   extensionError,
   extensionSummary,
+  subjectlessKinds,
 } from '../src/graph/conditionExtensions.ts';
 import {readExpression, editExpression} from '../src/graph/conditionExpression.ts';
 import {multiValueField} from '../src/graph/multiValue.ts';
@@ -24,8 +25,8 @@ const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
 function sample(kind) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
-  // The movement keys are the actor's own: no partner target.
-  const subject = kind === 'movementDirection' ? 'self' : 'partner';
+  // A roll, the world, the movement keys: no partner target.
+  const subject = subjectlessKinds.includes(kind) ? 'self' : 'partner';
   const t = {id: 'Condition1', kind, subject, minimum: 0, ...extensionDefaults(kind)};
   if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
   // The last action the subject finished names one of the project's (runtime 0.12.296).
@@ -65,6 +66,28 @@ for (const kind of extensionKinds)
     writeFileSync(path, xml);
     execFileSync(checker, [path]);
   });
+test('a condition that is the same whoever is asked takes no target', needsChecker, () => {
+  const kinds = extensionKinds.filter(k => subjectlessKinds.includes(k));
+  assert.deepEqual(new Set(kinds), new Set(['chance', 'gameHour', 'weather', 'movementDirection']));
+  for (const kind of kinds) {
+    const w = sample(kind),
+      xml = compileWorkspace(w);
+    assert.ok(!xml.includes('subject='), kind);
+    // The editor and the runtime both refuse a partner target.
+    const partner = xml.replace(`kind="${kind}"`, `kind="${kind}" subject="partner"`);
+    assert.notEqual(partner, xml);
+    assert.throws(() => importWorkspaceXml(partner), kind);
+    const path = `tests/generated/condition-extensions/${kind}-partner.xml`;
+    writeFileSync(path, partner);
+    assert.throws(() => execFileSync(checker, [path], {stdio: 'pipe'}), kind);
+    // A target a project kept from the condition's previous kind is the actor itself once opened.
+    testOf(w).subject = 'partner';
+    assert.ok(cardErrors(w).length, kind);
+    const opened = parseWorkspace(JSON.stringify(captureGraph(w)));
+    assert.equal(testOf(opened).subject, 'self', kind);
+    assert.deepEqual(cardErrors(opened), [], kind);
+  }
+});
 test('resource units, comparisons and ranges reject invalid values', () => {
   const w = sample('resource'),
     t = testOf(w);

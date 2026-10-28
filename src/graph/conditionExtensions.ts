@@ -583,6 +583,17 @@ export const comparisons = (): readonly (readonly [Comparison, string])[] => [
 ];
 export const extensionKinds = Object.keys(extensionConditions) as ExtensionKind[];
 export const formKinds = ['magicEffect', 'global', ...extensionKinds.filter(k => 'form' in extensionConditions[k])];
+/** The same whoever is asked (a roll, the world's hour, weather or global, the player's movement keys, the room
+ * where the actor stands): no target field, always the actor itself; the runtime rejects a partner subject. */
+export const subjectlessKinds: readonly string[] = [
+  'chance',
+  'gameHour',
+  'weather',
+  'global',
+  'movementDirection',
+  'space',
+  'ground',
+];
 export const definition = (kind: string): Definition | undefined =>
   (extensionConditions as Record<string, Definition>)[kind];
 export function extensionDefaults(kind: string): Partial<BranchTest> {

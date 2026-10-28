@@ -1,7 +1,7 @@
 import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
-import {definition, extensionDefaults, formKinds} from './conditionExtensions.ts';
+import {definition, extensionDefaults, formKinds, subjectlessKinds} from './conditionExtensions.ts';
 import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 import {MultiValuePicker} from './MultiValuePicker.tsx';
 import {equippedTypeLabels} from './multiValue.ts';
@@ -103,12 +103,11 @@ export function ConditionFields({
                 ? {hand: test.hand ?? 'left', equipmentType: test.equipmentType ?? 'bow'}
                 : {}),
               ...(kind === 'attackState' ? {attackState: test.attackState ?? 'bowDrawn'} : {}),
-              ...(kind === 'global' ? {subject: 'self', equals: test.equals ?? 1} : {}),
-              // The player's own movement keys: always the actor itself (no target field).
-              ...(kind === 'movementDirection' ? {subject: 'self' as const} : {}),
+              ...(kind === 'global' ? {equals: test.equals ?? 1} : {}),
+              // No target field: a target left from the previous kind must not stay behind, hidden.
+              ...(subjectlessKinds.includes(kind) ? {subject: 'self' as const} : {}),
               ...(['space', 'ground'].includes(kind) && !test.space
                 ? {
-                    subject: 'self' as const,
                     space: {
                       distance: kind === 'ground' ? 0 : 200,
                       direction: 'selfForward' as const,
@@ -161,10 +160,8 @@ export function ConditionFields({
           />
         </DetailRow>
       )}
-      {/* A room check is always measured at the actor's own spot (docs/mockup-space-sentence): no target field. */}
       {test.kind === 'previousAction' && <PreviousActionFields w={w} test={test} change={change} />}
-      {/* The time of day and the weather are the world's: no target. */}
-      {!['all', 'any', 'global', 'space', 'ground', 'gameHour', 'weather', 'movementDirection'].includes(test.kind) && (
+      {!['all', 'any'].includes(test.kind) && !subjectlessKinds.includes(test.kind) && (
         <DetailRow
           label={tr('검사 대상')}
           hint={tr(

@@ -14,7 +14,7 @@ import {
   choosesOrdinary,
   playsPair,
 } from './cards.ts';
-import {extensionError, extensionKinds, formKinds} from './graph/conditionExtensions.ts';
+import {extensionError, extensionKinds, formKinds, subjectlessKinds} from './graph/conditionExtensions.ts';
 import {selfDirections} from './graph/conditions.ts';
 import {valuesError} from './graph/multiValue.ts';
 import {attackStates, equippedTypes, eventListError} from './runtimeExtensions.ts';
@@ -181,7 +181,8 @@ function testErrors(w: Workspace, t: CardTest): string[] {
     (!['left', 'right'].includes(t.hand ?? '') || valuesError(t.equipmentType, equippedTypes))
   )
     errors.push(tr('검사할 손과 장착 종류를 선택하세요.'));
-  if (t.kind === 'movementDirection' && t.subject !== 'self') errors.push(tr('이동 입력 방향은 본인만 검사합니다.'));
+  if (subjectlessKinds.includes(t.kind) && t.subject !== 'self')
+    errors.push(tr('이 조건은 검사 대상을 쓰지 않습니다.'));
   if (t.kind === 'attackState' && valuesError(t.attackState, attackStates))
     errors.push(tr('검사할 공격 상태를 선택하세요.'));
   if (formKinds.includes(t.kind)) {
@@ -192,10 +193,7 @@ function testErrors(w: Workspace, t: CardTest): string[] {
       parseInt(t.form.id, 16) === 0
     )
       errors.push(tr('플러그인 이름과 로컬 Form ID(16진수)를 확인하세요.'));
-    if (
-      t.kind === 'global' &&
-      (t.subject !== 'self' || !Number.isFinite(t.equals) || Math.abs(t.equals!) > 3.4028234663852886e38)
-    )
+    if (t.kind === 'global' && (!Number.isFinite(t.equals) || Math.abs(t.equals!) > 3.4028234663852886e38))
       errors.push(tr('전역 값의 비교 값을 확인하세요.'));
   }
   // The last action the subject finished (runtime 0.12.296): every action it names is in the project.
@@ -209,8 +207,7 @@ function testErrors(w: Workspace, t: CardTest): string[] {
       s.distance < 0 ||
       (s.distance === 0 && t.kind === 'space') ||
       s.distance > 2000 ||
-      !(selfDirections as readonly string[]).includes(s.direction) ||
-      t.subject !== 'self'
+      !(selfDirections as readonly string[]).includes(s.direction)
     )
       errors.push(tr('검사 방향과 거리(지면 0 이상, 공간 0 초과, 최대 2000)를 확인하세요.'));
     if (t.kind === 'ground' && t.ground) {

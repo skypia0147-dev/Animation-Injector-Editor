@@ -3870,12 +3870,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'この行の行き先がこのカードに戻り、循環します。',
     '该行的目标会回到此卡片,形成循环。',
   ],
-  '이동 입력 방향': ['Movement input direction', '移動入力方向', '移动输入方向'],
-  '이동 입력 방향은 본인만 검사합니다.': [
-    'Movement direction checks only the actor itself.',
-    '移動入力方向は本人だけを検査します。',
-    '移动输入方向只检查本人。',
+  '이 조건은 검사 대상을 쓰지 않습니다.': [
+    'This condition has no check target.',
+    'この条件は検査対象を使いません。',
+    '此条件不使用检查目标。',
   ],
+  '검사 대상을 쓰지 않는 조건입니다: ': [
+    'This condition has no check target: ',
+    '検査対象を使わない条件です: ',
+    '此条件不使用检查目标: ',
+  ],
+  '이동 입력 방향': ['Movement input direction', '移動入力方向', '移动输入方向'],
   '이동키 취소': ['Movement recovery', '移動による復帰', '移动恢复'],
   '이동키 취소 · {name}': ['Movement recovery · {name}', '移動による復帰 · {name}', '移动恢复 · {name}'],
   '이동키 취소 · {name} · {label}': [

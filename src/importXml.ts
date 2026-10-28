@@ -1,4 +1,4 @@
-import {extensionKinds, formKinds, readExtension} from './graph/conditionExtensions.ts';
+import {extensionKinds, formKinds, readExtension, subjectlessKinds} from './graph/conditionExtensions.ts';
 import {shareEventReceivers} from './graph/sharing.ts';
 import {eventListError, uniqueEvents, equippedTypes, attackStates} from './runtimeExtensions.ts';
 import {pairedRigs} from './pairedRigs.ts';
@@ -664,6 +664,8 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     throw Error(tr('직전 동작 설정은 직전 동작 조건에서만 사용하세요.'));
   if (kind === 'global') required(n, 'equals');
   else if (n.attrs.equals !== undefined) throw Error(tr('일치 값은 전역 값 비교에서만 사용하세요.'));
+  if (subjectlessKinds.includes(kind) && (n.attrs.subject ?? 'self') !== 'self')
+    throw Error(tr('검사 대상을 쓰지 않는 조건입니다: ') + kind);
   if (['stamina', 'magicka'].includes(kind)) required(n, 'minimum');
   else if (n.attrs.minimum !== undefined) throw Error(tr('자원 조건에만 최솟값을 지정하세요.'));
   if (kind === 'space' || kind === 'ground') {

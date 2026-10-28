@@ -4,6 +4,7 @@ import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarry
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
 import {isGameControl} from './keys.ts';
 import {sourceLinks} from './graph/playback.ts';
+import {subjectlessKinds} from './graph/conditionExtensions.ts';
 import {lowerGraph} from './graph/document.ts';
 import type {ActionKind, ActionVariant} from './actionTypes.ts';
 import {cardIssues, checkCards} from './cardChecks.ts';
@@ -625,6 +626,8 @@ function checkLink(l: any) {
 /** Phase 2. Canonical forms; checks that need them (QTE) run on the result. */
 function normalizeWorkspace(w: any, configs: Project[]): Workspace {
   w.actions.forEach((a: any, i: number) => (a.config = configs[i]));
+  // A target a project kept, hidden, from the condition's previous kind (before the field went with the kind).
+  for (const c of w.cards) for (const t of c.tests) if (subjectlessKinds.includes(t.kind)) t.subject = 'self';
   const qerrors = qteErrors(w);
   if (qerrors.length) throw Error(qerrors.join('\n'));
   return w;
