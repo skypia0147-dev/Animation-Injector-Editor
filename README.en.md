@@ -1,64 +1,58 @@
 # Animation Injector Editor · 1.0.0
 
-A Windows program for building Animation Injector (SKSE) actions, ordinary and paired, as a graph of cards, and exporting them as the XML the game reads or as a mod folder.
+A Windows program for making action mods for [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector). Place HKX files as cards and connect them to build actions (done alone or as pairs), then export the XML the game reads or a mod folder.
 
 ## Requirements
 
-- Windows 10/11 x64 with the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 0.12.296 or later** ([GitHub](https://github.com/skypia0147-dev/Animation-Injector)) and its requirements
-- Keep `AnimationInjectorXmlCheck.exe` (included) in the same folder as `AnimationInjectorEditor.exe`. Saving runs the same check as the game's runtime, so the editor never writes an XML the game would skip entirely. Without it the editor saves unchecked and warns you.
+- Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime (included in Windows 11)
+- In game: **Animation Injector 1.0.0 or later** and its requirements
+- Keep the included `AnimationInjectorXmlCheck.exe` in the same folder as `AnimationInjectorEditor.exe`. When you save, it checks that the game can read the XML. Without it the editor saves unchecked and shows a warning.
 
-No development tools (Node.js, Rust, Python) are needed.
+## Getting started
 
-## First action
-
-1. Create a **New project**, or open an XML or template (`.aitemplate`); dropping one on the window also opens it. Examples are in the `examples` folder.
-2. Add a card with **＋ Play HKX** on the toolbar and choose its HKX under **File**. The HKX must be below `meshes\actors\<character or creature folder>`, and the path below that folder may use only ASCII letters, digits and common symbols: the game cannot find files with other characters in their path.
-3. Right-click the card and choose **Add start key input** or **Add start event** to decide how the action starts.
-4. Use **+ Feature** on the card for invulnerability, stagger immunity, rotation, resource cost, camera restore and more. Features that last the whole action and ones at a given moment share one list.
-5. To continue into another HKX, right-click the card, choose **Add transition key input** or **Add transition event**, then drag the output pin to the next card or pick it from the pin row's **▾** list.
-6. Check with **F7** and save with **Ctrl+S**. Clicking an entry in the error list takes you to its card.
+1. Make a **New Project**, or open a saved XML or template (`.aitemplate`). Dropping a file on the window opens it too.
+2. Make a card with **＋ Play HKX** in the toolbar and pick its HKX under **File**. Keep HKX files under `meshes\actors\<character or creature folder>`, with only English letters, digits and common symbols in the path (the game cannot find files under non-English paths).
+3. Right-click the card and choose **Add start key input** or **Add start event** to set how the action starts.
+4. Add features such as invulnerability, stagger resistance, turning, costs and strikes with **+ Feature** on the card. Features that stay on for the whole action and ones that run at a moment share one list.
+5. To lead to the next action, right-click the card, choose **Add transition key input** or **Add transition event**, then drag its output pin to the next card or pick it from the **▾** list.
+6. Check with **F7** and save with **Ctrl+S**. Clicking an item in the error list takes you to its card.
 
 ## Working with the graph
 
-- Inputs, events, conditions, QTEs and transitions all live on one canvas. Double-click a card to see only that action's flow.
-- **Arrange ▾**: arrange everything, arrange the selected action, summary or expanded cards.
-- Drag on empty space to select cards (touching is enough). Shift adds, Ctrl toggles, Space+drag pans.
-- Selecting a card highlights its links. Uncoloured links turn light blue when they leave the card and pink when they come in; links that already have a role or result colour keep it, brighter and thicker.
-- An HKX card's settings and features are edited on the card; the Details panel on the right lists that action's problems, links and HKX file.
-- A **condition branch** routes pass and fail; a **QTE** sets continue, event or transition for each result (success, failure, perfect).
-- The **Event registry** card gathers the project's event names and what they do.
+- Inputs, events, conditions, QTEs and transitions all share one canvas. Double-click a card to show only that action's flow.
+- **Arrange ▾**: arrange all, arrange the selected actions, summary or expanded view.
+- Drag on an empty area to select several cards. Shift adds, Ctrl toggles, Space+drag pans.
+- Selecting a card highlights the lines connected to it.
+- A **condition card** picks the action to go to by the situation (weapon, movement direction, being in the air, the previous action, weather and more); a **QTE** sets the next action for each result (success, failure, perfect).
+- The **Event registry** card gathers the event names the project uses and what each event does.
+- A key input is a key and pad button set directly, or a game control (Jump, Sprint, Sneak, ...). A game control follows the player's key bindings.
 
 ## Saving and exporting
 
-- **Save (Ctrl+S)** writes the XML the game reads, with the editor's data (card layout, shared settings and so on) in a comment at its end. The game skips the comment; opening the XML again continues where you left off.
-- The editor's data holds no paths of your computer (HKX sources, search folders, preview assets). On this computer they come back when you reopen the file; on another one, HKX and sound files (`<mod folder>\sound\…`) in the XML's own mod folder are found again automatically. Opening an XML registers every sound file (.wav, .xwm) under its mod folder's `sound` folder in the Browser panel's Sound list (▶ previews a .wav), including files the XML never names, such as sounds the mod's plugin plays from an HKX SoundPlay annotation; registered sounds are copied when you export a mod folder. Remove an unused one with ✕, or add one with +. A sound function takes its source as a file, picked from the loaded sounds, or a registered sound.
-- You can save with errors. A file saved before keeps the last valid part the game reads and only the editor's data is updated. A file saved for the first time keeps only the editor's data, with the part the game reads left empty: the game skips that file until you fix the errors and save again.
-- If the file changed outside the editor (another editor window, a text editor, a sync tool), the editor asks before writing over it.
+- **Save (Ctrl+S)** writes the XML the game reads. Editing information such as card positions goes into the same file, so you can open it again and carry on.
+- Opened on another computer, it finds the HKX and sound files in the XML's mod folder again by itself.
+- You can save with errors, but the game does not read the file until you fix them and save again (for a file saved before, the game keeps its last good content).
+- If the file was changed outside the editor, it asks before overwriting.
 - **Export → XML (Ctrl+E)** saves a separate XML when there are no errors.
-- **Export → Mod folder (Ctrl+Shift+E)** writes `<mod name>\SKSE\Plugins\AnimationInjector\<mod name>\<mod name>.xml` and the HKX and sound files it uses. Choose search folders to check the assets; files another mod or the game provides are marked as external. An existing folder of the same name is never overwritten.
-- The XML saved is format 6 (`version="6"`, Animation Injector 0.12.291 or later): the canvas's start cards, condition cards and HKX cards match the file's `<Start>`, condition cards (`<Check>`, `<Row>`, `<True>`, `<False>`) and `<Action>` one to one, and a condition card more than one place goes to is written once at the root as `<Condition>`. Format 4 and 5 XML opens converted to format 6 and is saved as format 6.
-- A key input is a key and pad button set directly, or a game control (Jump, Sprint, Sneak, Activate, ...; Animation Injector 0.12.292 or later). A game control works with every keyboard, mouse and gamepad key the player has bound to it, and when its press starts an action the game's own action (the actual jump) does not happen. Starts, transitions, QTEs and the carry put-down take it.
-- An HKX card's Strike (Animation Injector 0.12.293 or later) deals the damage the engine works out for a hit with the weapon (skill, perks and the target's armor included) times a ratio, or a fixed amount, to chosen actors: the pair partner, the combat target, the crosshair target or an area (radius, angle, height from the feet, falloff), without the HitFrame cone. With a duration it hits each actor that comes in once. Ragdolled actors and actors behind a wall are not hit. A reaction (stagger or push) can follow, and as with a real hit the weapon's enchantment, poison, perk effects, hit sound and blood and a hit event come along (each can be turned off; 0.12.294 or later).
-- A condition card can check the previous action (the last of this project's actions the actor finished), falling, the ground's slope, an actor value, the game hour and the weather; an HKX card's features include playing a sound (a file under Data or a registered sound), setting a global (optionally restored when the action ends) and sending a mod event (0.12.296 or later). Choose a sound file with Browse next to its field (below a sound folder of a mod or of Data): the path is filled in and the file is copied to that path when you export a mod folder.
-- XML of older formats (version 1 to 3) and templates with combos do not open. Build them again in the editor and save.
+- **Export → Mod folder (Ctrl+Shift+E)** makes a folder you can install with a mod manager, holding the XML and the HKX and sound files it uses. Files other mods or the game provide are marked. It does not overwrite a folder of the same name.
+- **Sounds** in the browser panel gathers the sound files of the mod folder. ▶ plays them (.wav), and they are copied along when you export the mod folder.
 
 ## Viewer
 
-**Window → Viewport** plays the selected HKX. The release package includes preview skeletons and skins for humans and creatures, so supported HKX play right away. A build from source has none: choose a skeleton HKX (for example `meshes\actors\character\character assets\skeleton.hkx`) under the viewport's **Preview assets**. It is remembered on this computer, and a skeleton under the same mod's `actors` folder is found automatically. Without a GLB skin the viewer draws the bones.
+**Window → Viewport** plays the selected HKX. Preview skeletons and skins for people and creatures are included, so it plays right away. To use another skeleton, set it under the viewport's **Preview assets**.
 
-- Middle-button drag: orbit · Shift+middle-button drag: pan · Wheel: zoom · Ctrl+wheel: field of view
+- Middle-drag: orbit · Shift+middle-drag: pan · Wheel: zoom · Ctrl+wheel: field of view
 
-The viewer does not simulate the game's OAR selection, IK, collision or physics. Check the final result in game.
+The viewer does not reproduce the game's collision, physics and so on. Check the final result in game.
 
 ## Shortcuts
 
-| Keys | Action |
+| Key | Action |
 |---|---|
 | Ctrl+N / O / S | New project / Open / Save |
 | Ctrl+Shift+S | Save as |
 | Ctrl+E / Ctrl+Shift+E | Export XML / Export mod folder |
-| F7 | Compile (check) |
+| F7 | Check |
 | Ctrl+Z / Ctrl+Y | Undo / Redo |
 | Ctrl+A · Delete | Select all · Delete |
 | Home | Fit view |
@@ -66,9 +60,9 @@ The viewer does not simulate the game's OAR selection, IK, collision or physics.
 
 ## Language and autosave
 
-- The **Language** menu switches between English, 한국어, 日本語 and 中文 at once. Names you typed do not change.
-- Work in progress is kept automatically. After a crash, **Recover autosave** on the start screen brings it back.
+- Switch between English, 한국어, 日本語 and 中文 in the **Language** menu.
+- Your work is autosaved. After a crash, bring it back with **Recover autosave** on the start screen.
 
 ## License
 
-GPL-3.0 (`LICENSE`). Third-party notices are in `THIRD_PARTY.md` and `THIRD_PARTY_NOTICES.txt`. To build from source, see `BUILDING.md`.
+GPL-3.0 (`LICENSE`). Third-party notices are in `THIRD_PARTY.md` and `THIRD_PARTY_NOTICES.txt`. Source code: https://github.com/skypia0147-dev/Animation-Injector-Editor
