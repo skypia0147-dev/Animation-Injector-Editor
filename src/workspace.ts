@@ -208,6 +208,9 @@ export function migrateWorkspace(p: Project): Workspace {
     links: [],
   };
 }
+/** The AnimationSet id of a new project. The runtime names every action after the set (<id>_<action>), so two mods
+ *  left with it share it: they still load apart (<id>_2), but each mod should have its own. */
+export const DEFAULT_SET_ID = 'MyAnimationSet';
 export const emptyWorkspace = (): Workspace => ({
   schema: 9,
   starts: [],
@@ -219,11 +222,28 @@ export const emptyWorkspace = (): Workspace => ({
   sharedInputs: [],
   packaging: defaultPackaging(),
   parameters: [],
-  id: 'MyAnimationSet',
+  id: DEFAULT_SET_ID,
   name: tr('새 애니메이션 묶음'),
   actions: [],
   links: [],
 });
+/** A project name as an AnimationSet id: what the runtime accepts (an English letter first, then letters, digits and
+ *  _, at most 64), anything else as _. None when the name has no English letter (a Korean name). */
+export function setIdFromName(name: string): string | undefined {
+  const id = name
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^[^A-Za-z]+/, '')
+    .slice(0, 64)
+    .replace(/_+$/, '');
+  return id || undefined;
+}
+/** A new project name. The id follows it while it is the default or the one the old name made; an id the author
+ *  wrote stays. */
+export function renameProject(w: Workspace, name: string): void {
+  const following = w.id === DEFAULT_SET_ID || w.id === setIdFromName(w.name);
+  w.name = name;
+  if (following) w.id = setIdFromName(name) ?? DEFAULT_SET_ID;
+}
 export const uid = (prefix: string, ids: string[]) => {
   let i = 1;
   while (ids.includes(prefix + i)) i++;
@@ -652,6 +672,14 @@ export function validateWorkspace(w: Workspace): Issue[] {
   w = sourceLinks(w);
   const out: Issue[] = [],
     err = (node: string, message: string) => out.push({level: 'error', node, message});
+  if (w.id === DEFAULT_SET_ID)
+    out.push({
+      level: 'warning',
+      node: 'project',
+      message: tr(
+        '내부 ID가 기본값(MyAnimationSet)입니다. 다른 모드와 겹치지 않게 프로젝트 이름을 영문으로 정하거나 내부 ID를 바꾸세요.'
+      ),
+    });
   out.push(...cardIssues(w));
   for (const i of runtimeNameUses(w)) out.push({level: 'warning', ...i});
   out.push(...registryIssues(w));

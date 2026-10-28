@@ -2078,6 +2078,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '剩余比例是包含强化效果在内的当前资源与最大资源之比。若无法确认最大资源则无法检查。',
   ],
   내려놓기: ['Put down', '下ろす', '放下'],
+  '내부 ID가 기본값(MyAnimationSet)입니다. 다른 모드와 겹치지 않게 프로젝트 이름을 영문으로 정하거나 내부 ID를 바꾸세요.':
+    [
+      'The internal ID is the default (MyAnimationSet). So that no other mod shares it, give the project an English name or change the internal ID.',
+      '内部 ID が既定値(MyAnimationSet)です。他の MOD と重ならないよう、プロジェクト名を英語にするか内部 ID を変えてください。',
+      '内部 ID 是默认值(MyAnimationSet)。为避免与其他模组重复,请用英文命名项目或更改内部 ID。',
+    ],
   '내려놓기 동작': ['Put down action', '下ろしアクション', '放下动作'],
   '내려놓기 입력': ['Put down input', '下ろし入力', '放下输入'],
   '내려놓기 키': ['Put down key', '下ろしキー', '放下按键'],

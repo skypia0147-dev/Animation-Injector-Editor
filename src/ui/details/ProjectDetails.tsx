@@ -1,4 +1,4 @@
-import type {Workspace} from '../../workspace.ts';
+import {renameProject, type Workspace} from '../../workspace.ts';
 import {t} from '../../i18n/index.ts';
 import {DetailPanel, DetailCategory as Category} from './DetailRow.tsx';
 import {Property as Prop} from './Property.tsx';
@@ -34,7 +34,7 @@ export function ProjectDetails({w, edit}: {w: Workspace; edit: (fn: (w: Workspac
           value={w.name}
           change={name =>
             edit(w => {
-              w.name = name;
+              renameProject(w, name);
               return w;
             })
           }

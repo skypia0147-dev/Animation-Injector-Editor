@@ -92,12 +92,13 @@ test('views round-trip: the file default, overrides, and third person for pairs 
   assert.equal(run(back).status, 0);
   const compared = run('--compare', source, back);
   assert.equal(compared.status, 0, compared.stdout + compared.stderr);
+  // The runtime names each action after its set (ViewTest_<id>).
   assert.deepEqual(runtimeViews(back), {
-    Look: 'view10',
-    Roll: 'view01',
-    Wave: 'view20',
-    Lift: 'view01',
-    Lower: 'view00',
+    ViewTest_Look: 'view10',
+    ViewTest_Roll: 'view01',
+    ViewTest_Wave: 'view20',
+    ViewTest_Lift: 'view01',
+    ViewTest_Lower: 'view00',
   });
 });
 
