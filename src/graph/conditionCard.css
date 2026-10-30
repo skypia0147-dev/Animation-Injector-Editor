@@ -76,6 +76,69 @@
   color: var(--card-not);
   font-size: 10px;
 }
+/* The hand a condition looks at (docs/mockup-hand-chip B): one width for 왼손, 오른손 and 모두, so the values after
+   it start at one place; a colour per hand, dark text on it as on the AND/OR badges. The three names stand in one
+   grid cell, two of them hidden, so the chip is as wide as the language's longest (docs/mockup-chip-i18n ①). */
+.cond-hand {
+  display: inline-grid;
+  flex: none;
+  align-self: center;
+  padding: 0 5px;
+  text-align: center;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  color: var(--card-canvas);
+}
+.cond-hand > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+.cond-hand > .ghost {
+  visibility: hidden;
+}
+.cond-hand.left {
+  background: #c9b3ff;
+}
+.cond-hand.right {
+  background: #ffc58f;
+}
+.cond-hand.either {
+  background: #c4c4c4;
+}
+.cond-item-value .cond-hand {
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+/* A chip on the card that does not fit its line breaks after its name and between its values, never inside a word
+   (docs/mockup-chip-i18n ②: in English 「Equipment type」 left no room for the weapons, cut away whole). */
+.cond-face .cond-chip {
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 1px;
+  padding: 1px 6px;
+  line-height: 17px;
+  white-space: normal;
+}
+.cond-face .cond-chip > .cond-name,
+.cond-values > span {
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cond-face .cond-group-text {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+.cond-values {
+  display: inline-flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
 /* A group is a face like any condition; its AND/OR tag sits in the middle of the line. */
 .cond-chip.group {
   align-items: center;
@@ -172,7 +235,8 @@
 }
 /* Where a line goes: its destination, which opens the list of destinations. */
 .shell .p3-node .cond-to-wrap .cond-to {
-  max-width: 170px;
+  /* Narrow (docs/mockup-chip-i18n ③): the conditions get the room; the tooltip names it in full. */
+  max-width: 120px;
   min-height: 0;
   height: auto;
   padding: 1px 6px;

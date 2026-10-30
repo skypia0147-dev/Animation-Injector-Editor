@@ -1457,7 +1457,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{where}：未知手柄按钮 {text}（A B X Y LB RB LT RT LS RS Start Back Up Down Left Right 或 code:数字）',
   ],
   '{where}: 없는 HKX {id}': ['{where}: no HKX {id}', '{where}: 存在しない HKX {id}', '{where}：不存在的 HKX {id}'],
-  '{why} → 재생 안 함': ['{why} → nothing plays', '{why} → 再生なし', '{why} → 不播放'],
   '· 값': ['· Values', '· 値', '· 值'],
   '· 시점': ['· Timing', '· タイミング', '· 时机'],
   '→ 전환': ['→ Transition', '→ 遷移', '→ 过渡'],
@@ -1909,7 +1908,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   공중에서만: ['In the air only', '空中のみ', '仅空中'],
   '공통 ': ['Shared ', '共通 ', '共用 '],
   '공통 {n}': ['Common {n}', '共通 {n}', '公共 {n}'],
-  '공통 거짓 · 맞는 행 없음': ['Common false · no row holds', '共通が偽 · 一致する行なし', '公共为假 · 无匹配行'],
   '공통 설정': ['Shared settings', '共通設定', '共享设置'],
   '공통 입력': ['Shared input', '共通入力', '共用输入'],
   '공통 입력 개수 제한': ['Shared input count limit exceeded', '共通入力数制限', '共用输入数量超出限制'],
@@ -2063,6 +2061,28 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '끝난 방식': ['How it ended', '終わり方', '结束方式'],
   '끝난 방식을 선택하세요.': ['Choose how it ended.', '終わり方を選んでください。', '请选择结束方式。'],
   '끝난 지': ['Since it ended', '終了から', '结束后'],
+  '받은 공격': ['Hit taken', '受けた攻撃', '受到的攻击'],
+  파워어택: ['Power attack', '強攻撃', '重击'],
+  '방패 밀치기': ['Bash', 'シールドバッシュ', '盾击'],
+  기습: ['Sneak attack', '奇襲', '偷袭'],
+  막음: ['Blocked', 'ブロック', '格挡'],
+  '맞은 지': ['Since the hit', '被弾から', '受击后'],
+  '맞은 지 시간은 0~600초입니다.': [
+    'The time since the hit is 0 to 600 seconds.',
+    '被弾からの時間は 0〜600 秒です。',
+    '受击后的时间为 0~600 秒。',
+  ],
+  '비워 두면 시간과 상관없이 마지막으로 맞은 공격만 봅니다.': [
+    'Left empty, only the last hit counts, however long ago.',
+    '空欄なら時間に関係なく最後に受けた攻撃だけを見ます。',
+    '留空时不论多久，只看最后一次受到的攻击。',
+  ],
+  '검사 대상이 마지막으로 맞은 무기 공격의 종류입니다. 일반 공격은 파워어택도 방패 밀치기도 아닌 공격이고, 막음은 그 공격을 막았을 때입니다(막은 파워어택은 파워어택과 막음을 함께 겁니다). 마법은 세지 않습니다. 막았을 때 바꾸려면 blockHitStart 이벤트 시작에 0.5초 이내로 씁니다. 이 조건을 쓸 때만 기록합니다.':
+    [
+      'The kind of the last weapon hit the subject took. A normal attack is neither a power attack nor a bash; blocked is when that attack was blocked (a blocked power attack is both power attack and blocked). Spells do not count. To change what happens on a block, use it on a blockHitStart event start, within 0.5 seconds. Recorded only while this condition is used.',
+      '対象が最後に受けた武器攻撃の種類です。通常攻撃は強攻撃でもシールドバッシュでもない攻撃で、ブロックはその攻撃を防いだときです(防いだ強攻撃は強攻撃とブロックの両方を指定します)。魔法は数えません。ブロック時に変えるには blockHitStart のイベント開始で 0.5 秒以内にします。この条件を使うときだけ記録します。',
+      '检查对象最后一次受到的武器攻击类型。普通攻击是既非重击也非盾击的攻击，格挡是挡住了该攻击（挡住的重击要同时选重击和格挡）。法术不计。要改变格挡时的动作，请在 blockHitStart 事件开始中以 0.5 秒以内使用。只有使用此条件时才记录。',
+    ],
   '끝난 지 시간은 0~600초입니다.': [
     'The time since it ended is 0 to 600 seconds.',
     '終了からの時間は 0〜600 秒です。',
@@ -2211,6 +2231,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   독: ['Poison', '毒', '毒药'],
   동물: ['Animal', '動物', '动物'],
   동작: ['Action', 'アクション', '动作'],
+  'Action ID가 없습니다. HKX 파일을 고르면 파일 이름으로 정해집니다(파일 이름에 영문이 없으면 직접 쓰세요).': [
+    'No Action ID yet. Choosing an HKX file names it after the file (write one when the file name has no English letters).',
+    'アクション ID がありません。HKX ファイルを選ぶとファイル名から決まります(ファイル名に英字がなければ直接入力してください)。',
+    '还没有动作 ID。选择 HKX 文件后会按文件名设定(文件名没有英文字母时请直接填写)。',
+  ],
   '동작 ID가 중복되었거나 잘못되었습니다.': [
     'Action ID is duplicated or invalid.',
     'アクション ID が重複しているか、正しくありません。',
@@ -3354,7 +3379,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'どの経路から来ても適用されます。クールダウンは開始カードで決めます。武器・攻撃中・スタミナの検査は条件分岐で行います。',
     '无论从哪条路径进入都会生效。冷却时间在启动卡片中设定。武器·攻击中·耐力检查在条件分支中进行。',
   ],
-  '어느 손이든': ['Either hand', 'どちらの手でも', '任意一只手'],
   '어느 역할이든': ['Any role', 'どの役割でも', '无论何种角色'],
   '어느 쪽이든': ['Either side', 'どちらでも', '任意一方'],
   '어디서도 들어오지 않는 조건 카드입니다. XML에는 쓰지 않습니다.': [
@@ -4322,6 +4346,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '전환 키 입력': ['Transition key input', '遷移キー入力', '过渡按键输入'],
   '전환 키 입력 추가': ['Add transition key input', '遷移キー入力を追加', '添加转换按键输入'],
   '전환으로만 ({v0})': ['Only through a transition ({v0})', '遷移からのみ（{v0}）', '仅通过转换（{v0}）'],
+  '키 전환은 HKX마다 자기 키로 받습니다. 이 HKX에서 도착 카드로 바로 이으세요.': [
+    'A key transition takes the key of its own HKX. Connect this HKX straight to the destination card.',
+    'キー遷移は HKX ごとに自分のキーで受けます。この HKX から到着カードへ直接つないでください。',
+    '按键转换由每个 HKX 用自己的按键接收。请从这个 HKX 直接连到目标卡。',
+  ],
+  '이 HKX는 이미 이 전환을 씁니다.': [
+    'This HKX already uses this transition.',
+    'この HKX はすでにこの遷移を使っています。',
+    '这个 HKX 已经使用此转换。',
+  ],
+  '이 HKX에는 같은 이벤트의 전환이 이미 있습니다.': [
+    'This HKX already has a transition on the same event.',
+    'この HKX には同じイベントの遷移がすでにあります。',
+    '这个 HKX 已有同一事件的转换。',
+  ],
   '전환을 찾지 못했습니다.': ['The transition was not found.', '遷移が見つかりませんでした。', '未找到转换。'],
   '전환의 목적지(HKX 또는 조건 카드)를 고르세요.': [
     "Choose the transition's destination (an HKX or a condition card).",
@@ -5500,4 +5539,64 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '＋ 조건': ['＋ Condition', '＋ 条件', '＋ 条件'],
   '＋ 조건 추가': ['＋ Add condition', '＋ 条件を追加', '＋ 添加条件'],
   '＋ 키': ['＋ Key', '＋ キー', '＋ 按键'],
+  '지정 방식': ['Specified by', '指定方法', '指定方式'],
+  '키워드 이름': ['Keyword name', 'キーワード名', '关键字名称'],
+  '키워드 이름(Editor ID)을 입력하세요.': [
+    'Enter the keyword name (editor ID).',
+    'キーワード名(Editor ID)を入力してください。',
+    '请输入关键字名称(Editor ID)。',
+  ],
+  '키워드 이름에는 공백이나 영문·숫자·기호가 아닌 글자를 넣을 수 없습니다.': [
+    'A keyword name cannot have spaces or characters other than letters, digits and symbols.',
+    'キーワード名には空白や英数字・記号以外の文字を入れられません。',
+    '关键字名称不能包含空格或字母、数字、符号以外的字符。',
+  ],
+  '키워드 이름은 키워드 검사에서만 사용하세요.': [
+    'Use a keyword name only in a keyword check.',
+    'キーワード名はキーワード検査でのみ使用してください。',
+    '关键字名称仅用于关键字检查。',
+  ],
+  '키워드 이름과 플러그인·Form ID는 함께 쓸 수 없습니다.': [
+    'A keyword name and a plugin and Form ID cannot be used together.',
+    'キーワード名とプラグイン・Form IDは同時に使えません。',
+    '关键字名称不能与插件和 Form ID 同时使用。',
+  ],
+  '키워드는 이름(Editor ID)만으로 찾습니다. 두 플러그인이 같은 이름을 쓰면 나중에 로드된 쪽입니다. 그럴 때만 Form ID로 지정하세요.':
+    [
+      'A keyword is found by its name (editor ID) alone. When two plugins use the same name, the one loaded later is used; only then give its Form ID.',
+      'キーワードは名前(Editor ID)だけで見つけます。2つのプラグインが同じ名前を使う場合は後から読み込まれた方になります。その場合だけForm IDで指定してください。',
+      '关键字仅凭名称(Editor ID)查找。两个插件使用同一名称时取后加载的一方。仅在这种情况下用 Form ID 指定。',
+    ],
+  '키워드의 Editor ID입니다. 예: WeapTypeSword. 대소문자는 가리지 않습니다. 목록은 바닐라 키워드이고, 다른 모드의 키워드는 직접 입력하세요. 없는 이름이면 검사 불능입니다.':
+    [
+      "The keyword's editor ID, e.g. WeapTypeSword. Case does not matter. The list holds the vanilla keywords; type another mod's keyword in. An unknown name makes the check unavailable.",
+      'キーワードのEditor IDです。例: WeapTypeSword。大文字・小文字は区別しません。一覧はバニラのキーワードで、他のMODのキーワードは直接入力してください。存在しない名前の場合は検査不能です。',
+      '关键字的 Editor ID。例如：WeapTypeSword。不区分大小写。列表为原版关键字，其他模组的关键字请直接输入。名称不存在时无法检查。',
+    ],
+  '이 전환을 쓰는 HKX의 선은 HKX나 이 카드를 고르는 동안 보입니다.': [
+    'The lines of the HKX using this transition show while an HKX or this card is chosen.',
+    'この遷移を使うHKXの線は、HKXかこのカードを選んでいる間だけ表示されます。',
+    '使用此转换的 HKX 连线仅在选中 HKX 或此卡片时显示。',
+  ],
+  'HKX {n}개가 씀': ['used by {n} HKX', 'HKX {n}個が使用', '{n} 个 HKX 使用'],
+  '공유 전환 {mark}(으)로 가는 선입니다. 누르면 그 선을 고르고, Delete로 끊습니다.': [
+    'The line to shared transition {mark}. Click to choose the line; Delete cuts it.',
+    '共有遷移{mark}への線です。押すとその線を選択し、Deleteで切断します。',
+    '通往共享转换 {mark} 的连线。点击选中该连线，按 Delete 断开。',
+  ],
+  전환: ['Transition', '遷移', '转换'],
+  '공유 전환에 이었습니다. 이 전환의 선은 HKX나 전환 카드를 고르는 동안 보입니다.': [
+    'Joined the shared transition. Its lines show while an HKX or the transition card is chosen.',
+    '共有遷移につなぎました。この遷移の線はHKXか遷移カードを選んでいる間だけ表示されます。',
+    '已连接到共享转换。其连线仅在选中 HKX 或转换卡片时显示。',
+  ],
+  '오른손@손 칩': ['Right', '右手', '右手'],
+  '왼손@손 칩': ['Left', '左手', '左手'],
+  '모두@손 칩': ['Either', 'どちらか', '任一'],
+  '모두@손 선택': ['Either hand', 'どちらの手でも', '任意一只手'],
+  '공통 조건이 거짓이거나, 맞는 행이 없을 때': [
+    'When a common condition is false, or no row holds',
+    '共通条件が偽か、一致する行がないとき',
+    '公共条件为假，或无匹配行时',
+  ],
 };

@@ -1,4 +1,5 @@
 import {createContext, useContext, useState, useEffect, useRef, useMemo} from 'react';
+import {useDismiss} from '../ui/useDismiss.ts';
 import {useUpdateNodeInternals} from '@xyflow/react';
 import {createPortal} from 'react-dom';
 import type {Action, Workspace} from '../workspace.ts';
@@ -64,7 +65,8 @@ export const ChecklistContext = createContext<Context | null>(null);
 function useFold(_key: string, initial = false) {
   return useState(initial);
 }
-export function ChecklistBody({node}: {node: FlatNode}) {
+/** `fold`: the card is left in the summary view (an HKX card kept open by 「펼치기」): its open setting closes. */
+export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: boolean}) {
   const ctx = useContext(ChecklistContext)!;
   const {w, edit, status, model, library} = ctx;
   const action = w.actions.find(a => a.uid === node.action);
@@ -264,7 +266,7 @@ export function ChecklistBody({node}: {node: FlatNode}) {
       blend('exit'),
     ];
   };
-  const playSettings = useSettings(playback());
+  const playSettings = useSettings(playback(), fold);
   // One "+ 기능" (10-16, docs/mockup-feature-merge): what applies to the whole play, then what happens at a moment.
   const addMenu = () => (
     <AddItemMenu
@@ -705,9 +707,14 @@ function AddItemMenu({
   search?: boolean;
 }) {
   const [open, setOpen] = useState(false),
-    [query, setQuery] = useState('');
+    [query, setQuery] = useState(''),
+    ref = useRef<HTMLDivElement>(null);
+  useDismiss(open, ref, () => {
+    setOpen(false);
+    setQuery('');
+  });
   return (
-    <div className="checklist-add-menu">
+    <div className="checklist-add-menu" ref={ref}>
       <button aria-expanded={open} onClick={() => setOpen(!open)}>
         + {label}
       </button>

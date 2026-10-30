@@ -489,12 +489,39 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
       throw Error(tr('시작이 없는 한 사람 일반 동작(내려놓기 동작) HKX에 연결하세요.'));
     return setPutdown(w, a.uid, putdown.uid);
   }
+  // HKX onto an event transition card: that HKX takes the same transition, drawn as that one card.
+  if (s?.kind === 'hkxPlay' && s.action && to.kind === 'transition') return joinTransition(w, s.action, to.link);
   // HKX to HKX or a condition card: a transition (its key or event is chosen on its card).
   if (s?.kind === 'hkxPlay' && s.action && (d?.kind === 'hkxPlay' || to.kind === 'conditionCard')) {
     const r = targetRef(w, target);
     return addTransition(w, s.action, r, undefined, 'input').workspace;
   }
   throw Error(tr('이 핀 조합은 연결할 수 없습니다. 시작·조건·전환 카드의 핀에서 HKX나 조건 카드로 이으세요.'));
+}
+/** An HKX onto an event transition card (10-29: several block hits leaving by one blockHitStart transition): the
+ *  action gets a transition of its own with the card's settings, a member of the card's shared link rule
+ *  (graph/sharing.ts), so the canvas draws one card and an edit of it is made to every member (synchronizeRules).
+ *  A key transition is the source's own key binding: it takes no other source. */
+export function joinTransition(w: Workspace, from: string, link: string): Workspace {
+  const l = w.links.find(x => x.id === link);
+  if (!l) throw Error(tr('전환을 찾지 못했습니다.'));
+  if (l.mode !== 'event')
+    throw Error(tr('키 전환은 HKX마다 자기 키로 받습니다. 이 HKX에서 도착 카드로 바로 이으세요.'));
+  if (l.to === from) throw Error(tr('출발 동작 자신으로는 전환할 수 없습니다.'));
+  const group = w.sharedRules?.find(g => g.kind === 'link' && g.members.includes(link));
+  // A group may still name a link some edit removed: only the links there are its members.
+  const members = (group?.members ?? [link]).filter(m => w.links.some(x => x.id === m));
+  if (w.links.some(x => members.includes(x.id) && x.from === from)) throw Error(tr('이 HKX는 이미 이 전환을 씁니다.'));
+  if (w.links.some(x => x.from === from && x.mode === 'event' && x.event === l.event))
+    throw Error(tr('이 HKX에는 같은 이벤트의 전환이 이미 있습니다.'));
+  // Not an id a group still names either (10-29: a reused link1 joined its group twice and the card's alias pointed
+  // at itself).
+  const id = uid('link', [...w.links.map(x => x.id), ...(w.sharedRules ?? []).flatMap(g => g.members)]);
+  const copy: Link = {...structuredClone(l), id, from};
+  const sharedRules = group
+    ? w.sharedRules!.map(g => (g === group ? {...g, members: [...members, id]} : g))
+    : [...(w.sharedRules ?? []), {kind: 'link' as const, members: [link, id]}];
+  return {...w, links: [...w.links, copy], sharedRules};
 }
 /** A new transition from an action's HKX to a destination: by an event, or by a key of its own (a new binding of the
  *  source HKX whose key the details set). */
@@ -558,6 +585,8 @@ export function makePlaybackAction(w: Workspace, kind: 'single' | 'pair' = 'sing
   a.enterBlendEnabled = false;
   a.exitBlendEnabled = false;
   a.config.steps[0].clip = '';
+  // No file, no id yet: the file the author picks names it (workspace.ts followFiles).
+  a.config.actionId = '';
   a.config.steps[0].label = tr('새 HKX');
   a.config.inputs = [];
   return a;

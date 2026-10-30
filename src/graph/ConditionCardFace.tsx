@@ -8,7 +8,7 @@ import {NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {ConditionFields} from './ConditionDetails.tsx';
 import {conditionNames, editExpression, patchTest} from './conditionExpression.ts';
 import {extensionSummary} from './conditionExtensions.ts';
-import {equippedTypeLabels, valuesOf} from './multiValue.ts';
+import {equippedTypeLabels, handLabel, hands, valuesOf, type Hand} from './multiValue.ts';
 import {groupSummary, partText} from './groupSummary.ts';
 import {
   addCondition,
@@ -52,8 +52,9 @@ type Props = {
   menu: (pin: string, label: string, className: string) => React.ReactNode;
 };
 
-/** A condition as [name, value]: what it checks, then its value (the partner's marked). */
-export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, depth = 0): [string, string] {
+/** A condition as [name, value, hand]: what it checks, then its value (the partner's marked); a check of a hand
+ *  (장착 종류, 장비 키워드) gives the hand apart, shown as its own chip (docs/mockup-hand-chip B). */
+export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, depth = 0): [string, string, Hand?] {
   const t = c.tests.find(t => t.id === id);
   if (!t || depth > 20) return ['', ''];
   if (t.kind === 'all' || t.kind === 'any') {
@@ -67,27 +68,52 @@ export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, dept
   const ext = extensionSummary(t as never);
   if (ext) {
     const [, name = '', ...rest] = ext.split(' / ');
+    // 장비 키워드: its option is the hand, the first value part.
+    if (t.kind === 'equippedKeyword') return [who + name, rest.slice(1).join(' '), (t.option as Hand) || 'left'];
     return [who + name, rest.join(' ')];
   }
   const name = who + (t.label || conditionNames[t.kind] || t.kind);
   if (t.kind === 'equippedType')
     return [
       name,
-      (t.hand === 'right' ? tr('오른손') : tr('왼손')) +
-        ' ' +
-        valuesOf(t.equipmentType ?? 'bow')
-          .map(v => equippedTypeLabels()[v as keyof ReturnType<typeof equippedTypeLabels>] ?? v)
-          .join('·'),
+      valuesOf(t.equipmentType ?? 'bow')
+        .map(v => equippedTypeLabels()[v as keyof ReturnType<typeof equippedTypeLabels>] ?? v)
+        .join('·'),
+      t.hand === 'right' ? 'right' : 'left',
     ];
   if (t.kind === 'attackState') return [name, valuesOf(t.attackState).join('·')];
-  if (t.kind === 'stamina' || t.kind === 'magicka') return [name, String(t.minimum ?? '')];
   if ((t.kind === 'space' || t.kind === 'ground') && t.space) return [name, String(t.space.distance)];
   return [name, ''];
 }
 /** A condition in a few words, as its chip shows it. */
 export function chipText(c: Pick<ConditionCard, 'tests'>, id: string, depth = 0): string {
-  const [name, value] = conditionParts(c, id, depth);
-  return value ? `${name} ${value}` : name;
+  const [name, value, hand] = conditionParts(c, id, depth);
+  return [name, hand && handLabel(hand), value].filter(Boolean).join(' ');
+}
+/** The hand a condition looks at, one width for all three so the values after it line up: the three names in one
+ *  cell, the others hidden (docs/mockup-chip-i18n ①). */
+function HandChip({hand}: {hand?: Hand}) {
+  if (!hand) return null;
+  return (
+    <span className={'cond-hand ' + hand}>
+      {hands.map(h => (
+        <span key={h} className={h === hand ? undefined : 'ghost'} aria-hidden={h === hand ? undefined : true}>
+          {handLabel(h)}
+        </span>
+      ))}
+    </span>
+  );
+}
+/** A condition's value, its listed values each a piece the chip breaks between (docs/mockup-chip-i18n ②). */
+function Values({text}: {text: string}) {
+  const parts = text.split('·');
+  return (
+    <em className="cond-values">
+      {parts.map((p, i) => (
+        <span key={i}>{i < parts.length - 1 ? p + '·' : p}</span>
+      ))}
+    </em>
+  );
 }
 // Dragging a condition (10-26): from any list on the card (common conditions, a row's, a group's) to another list, a
 // place among its conditions, into a group, or out into a new row (the card's bottom 「＋ 조건 추가」). Pointer events,
@@ -176,13 +202,13 @@ function Chips({c, ids, list}: {c: ConditionCard; ids: string[]; list: CondList}
       {ids.map(id => {
         const t = c.tests.find(t => t.id === id);
         if (!t) return null;
-        const [name, value] = conditionParts(c, id);
+        const [name, value, hand] = conditionParts(c, id);
         const group = t.kind === 'all' || t.kind === 'any';
         const summary = group
           ? groupSummary(
               (t.operands ?? []).map(m => {
-                const [name, value] = conditionParts(c, m);
-                return {name, value, not: c.tests.find(x => x.id === m)?.negate};
+                const [name, value, hand] = conditionParts(c, m);
+                return {name, value, hand, not: c.tests.find(x => x.id === m)?.negate};
               })
             )
           : undefined;
@@ -201,16 +227,18 @@ function Chips({c, ids, list}: {c: ConditionCard; ids: string[]; list: CondList}
                 {summary.first && (
                   <span className="cond-group-text">
                     {summary.first.not && <b>NOT</b>}
-                    {summary.first.name}
-                    {summary.first.value && <em>{summary.first.value}</em>}
+                    <span className="cond-name">{summary.first.name}</span>
+                    <HandChip hand={summary.first.hand} />
+                    {summary.first.value && <Values text={summary.first.value} />}
                     {summary.more > 0 && <i>{tr('외 {n}', {n: summary.more})}</i>}
                   </span>
                 )}
               </>
             ) : (
               <>
-                {name}
-                {value && <em>{value}</em>}
+                <span className="cond-name">{name}</span>
+                <HandChip hand={hand} />
+                {value && <Values text={value} />}
               </>
             )}
           </span>
@@ -277,7 +305,7 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
       {ids.map((id, i) => {
         const t = c.tests.find(t => t.id === id);
         if (!t) return null;
-        const [name, value] = conditionParts(c, id),
+        const [name, value, hand] = conditionParts(c, id),
           group = t.kind === 'all' || t.kind === 'any',
           on = picked.includes(id);
         // Over a line: its upper half puts the condition before it, the lower half after it, a group's middle into it.
@@ -310,7 +338,14 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
                 {group ? <JoinBadge kind={t.kind as 'all' | 'any'} small /> : name}
               </span>
               <span className="cond-item-value">
-                {group ? tr('묶음 · 조건 {n}개', {n: (t.operands ?? []).length}) : value}
+                {group ? (
+                  tr('묶음 · 조건 {n}개', {n: (t.operands ?? []).length})
+                ) : (
+                  <>
+                    <HandChip hand={hand} />
+                    {value}
+                  </>
+                )}
               </span>
               <button
                 type="button"
@@ -567,7 +602,7 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
   /** One line: its badge (True/False) and when it is taken (`why`), or a row's conditions or their count while open;
    *  where it goes, its pin. */
   const line = (pin: string, kind: 'row' | 'true' | 'false', ids: string[], part: string, why = '') => {
-    const to = routeDestination(w, node, pin),
+    const to = routeDestination(w, node, pin, true),
       ref = kind === 'true' ? c.true : kind === 'false' ? c.false : c.rows.find(r => rowPin(r.id) === pin)?.to;
     const target = !to ? ' none' : refCard(ref ?? null) ? ' card' : ' hkx';
     const opened = isOpen(part),
@@ -603,8 +638,8 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
             <Chips c={c} ids={ids} list={part as CardPlace} />
           ))}
         {kind !== 'row' && (
-          <span className="cond-why" title={why}>
-            {to ? why : tr('{why} → 재생 안 함', {why})}
+          <span className="cond-why" title={kind === 'false' ? falseTip : why}>
+            {why}
           </span>
         )}
         <span className="cond-to-wrap nodrag" onClick={e => e.stopPropagation()}>
@@ -629,16 +664,10 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
     many = c.guards.length > 1;
   // When False is taken: the common conditions failing and, with rows, none of them holding; with neither True nor a
   // row it always is.
+  // Its destination box says where it goes, 「없음」 included (docs/mockup-chip-i18n ④): the line says only when.
   const falseWhy =
-    c.true !== undefined
-      ? many
-        ? tr('하나라도 거짓')
-        : tr('거짓')
-      : !hasRows
-        ? tr('항상')
-        : c.guards.length
-          ? tr('공통 거짓 · 맞는 행 없음')
-          : tr('맞는 행 없음');
+    c.true !== undefined ? (many ? tr('하나라도 거짓') : tr('거짓')) : !hasRows ? tr('항상') : tr('맞는 행 없음');
+  const falseTip = hasRows && c.guards.length ? tr('공통 조건이 거짓이거나, 맞는 행이 없을 때') : falseWhy;
   return (
     <DragContext.Provider value={kit}>
       {drag &&

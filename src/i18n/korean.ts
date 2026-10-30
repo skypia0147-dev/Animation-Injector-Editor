@@ -7,10 +7,14 @@ import {fromKorean} from './fromKorean.ts';
 
 const column = {en: 0, ja: 1, zh: 2} as const;
 
+// A key may name its use after 「@」 (10-30: the hand chip's 「모두」 is 「Either」, the join's 「All」): Korean shows the
+// text before it, the other languages that use's own row.
 export function tr(ko: string, vars?: Record<string, unknown>): string {
   const language = getLanguage();
   const row = language === 'ko' ? undefined : fromKorean[ko];
-  const text = row ? row[column[language as keyof typeof column]] || row[0] || ko : ko;
+  const at = ko.lastIndexOf('@'),
+    shown = at > 0 ? ko.slice(0, at) : ko;
+  const text = row ? row[column[language as keyof typeof column]] || row[0] || shown : shown;
   return vars ? text.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? String(vars[name]) : m)) : text;
 }
 

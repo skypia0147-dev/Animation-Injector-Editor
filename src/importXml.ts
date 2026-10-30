@@ -1,4 +1,4 @@
-import {extensionKinds, formKinds, readExtension, subjectlessKinds} from './graph/conditionExtensions.ts';
+import {extensionKinds, formKinds, keywordKinds, readExtension, subjectlessKinds} from './graph/conditionExtensions.ts';
 import {shareEventReceivers} from './graph/sharing.ts';
 import {eventListError, uniqueEvents, equippedTypes, attackStates} from './runtimeExtensions.ts';
 import {pairedRigs} from './pairedRigs.ts';
@@ -630,7 +630,6 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     'value',
     'upper',
     'subject',
-    'minimum',
     'distance',
     'direction',
     'maxRise',
@@ -639,6 +638,7 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     'radius',
     'plugin',
     'form',
+    'keyword',
     'equals',
     'actions',
     'within',
@@ -653,21 +653,27 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     throw Error(tr('손·장비 종류는 장착 종류 검사에서만 사용하세요.'));
   if (kind === 'attackState') required(n, 'state');
   else if (n.attrs.state !== undefined) throw Error(tr('공격 상태는 공격 상태 검사에서만 사용하세요.'));
-  if (formKinds.includes(kind)) {
+  // A keyword check names its keyword by editor ID or by plugin and form, one or the other.
+  const byName = keywordKinds.includes(kind) && n.attrs.keyword !== undefined;
+  if (n.attrs.keyword !== undefined && !keywordKinds.includes(kind))
+    throw Error(tr('키워드 이름은 키워드 검사에서만 사용하세요.'));
+  if (byName) {
+    if (n.attrs.plugin !== undefined || n.attrs.form !== undefined)
+      throw Error(tr('키워드 이름과 플러그인·Form ID는 함께 쓸 수 없습니다.'));
+    required(n, 'keyword');
+  } else if (formKinds.includes(kind)) {
     required(n, 'plugin');
     required(n, 'form');
   } else if (n.attrs.plugin !== undefined || n.attrs.form !== undefined)
     throw Error(tr('폼 설정은 폼 검사에서만 사용하세요.'));
   // The last action the subject finished (runtime 0.12.296): actions by XML id, within, ended.
   if (kind === 'previousAction') required(n, 'actions');
-  else if (['actions', 'within', 'ended'].some(k => n.attrs[k] !== undefined))
+  else if (['actions', 'ended'].some(k => n.attrs[k] !== undefined) || (kind !== 'hitReceived' && n.attrs.within))
     throw Error(tr('직전 동작 설정은 직전 동작 조건에서만 사용하세요.'));
   if (kind === 'global') required(n, 'equals');
   else if (n.attrs.equals !== undefined) throw Error(tr('일치 값은 전역 값 비교에서만 사용하세요.'));
   if (subjectlessKinds.includes(kind) && (n.attrs.subject ?? 'self') !== 'self')
     throw Error(tr('검사 대상을 쓰지 않는 조건입니다: ') + kind);
-  if (['stamina', 'magicka'].includes(kind)) required(n, 'minimum');
-  else if (n.attrs.minimum !== undefined) throw Error(tr('자원 조건에만 최솟값을 지정하세요.'));
   if (kind === 'space' || kind === 'ground') {
     required(n, 'distance');
     required(n, 'direction');
@@ -677,9 +683,14 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     throw Error(tr('지면 설정은 지면 조건에서만 사용하세요.'));
   return {
     kind: kind as CardTest['kind'],
-    ...(formKinds.includes(kind) ? {form: {plugin: required(n, 'plugin'), id: required(n, 'form')}} : {}),
+    ...(byName
+      ? {keyword: required(n, 'keyword')}
+      : formKinds.includes(kind)
+        ? {form: {plugin: required(n, 'plugin'), id: required(n, 'form')}}
+        : {}),
     ...(extensionKinds.includes(kind as never) ? readExtension(kind, n.attrs) : {}),
     ...(kind === 'global' ? {equals: num(n, 'equals', 1)} : {}),
+    ...(kind === 'hitReceived' && n.attrs.within !== undefined ? {within: num(n, 'within', 0)} : {}),
     ...(kind === 'previousAction'
       ? {
           actions: required(n, 'actions')
@@ -721,6 +732,6 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
         }
       : {}),
     subject: choice(n, 'subject', ['self', 'partner'], 'self'),
-    minimum: num(n, 'minimum', 0),
+    minimum: 0,
   };
 }

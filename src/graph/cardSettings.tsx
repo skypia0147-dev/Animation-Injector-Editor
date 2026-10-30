@@ -1,4 +1,5 @@
-import {useState, type ReactNode} from 'react';
+import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useDismiss} from '../ui/useDismiss.ts';
 import {DetailPanel, NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 import './cardSettings.css';
@@ -23,8 +24,9 @@ export type Setting = {
   add?: () => void;
 };
 export type Settings = ReturnType<typeof useSettings>;
-/** Which settings show, which is open, and the add menu's. */
-export function useSettings(all: Setting[]) {
+/** Which settings show, which is open, and the add menu's. `fold`: the card is left in the summary view, and its
+ *  open setting closes (as a condition card's parts fold, ConditionCardFace). */
+export function useSettings(all: Setting[], fold = false) {
   const items = all.filter(s => s.applies !== false);
   const [open, setOpen] = useState(''),
     [added, setAdded] = useState<string[]>([]);
@@ -34,6 +36,10 @@ export function useSettings(all: Setting[]) {
     setAdded(list => list.filter(id => id !== open || !!items.find(s => s.id === id)?.set));
     setOpen('');
   };
+  useEffect(() => {
+    if (fold && open) close();
+    // Only the card being left folds it, not every edit while it is.
+  }, [fold]);
   return {
     shown,
     hidden: items.filter(s => !shown.includes(s)),
@@ -114,10 +120,12 @@ export function SettingChips({settings}: {settings: Settings}) {
 }
 /** 「＋ 설정」 and its menu of the settings not shown. */
 export function AddSetting({settings, className = ''}: {settings: Settings; className?: string}) {
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState(false),
+    ref = useRef<HTMLDivElement>(null);
+  useDismiss(menu, ref, () => setMenu(false));
   if (!settings.hidden.length) return null;
   return (
-    <div className={'set-add-wrap ' + className}>
+    <div className={'set-add-wrap ' + className} ref={ref}>
       <button type="button" className="set-add nodrag" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         {tr('＋ 설정')}
       </button>

@@ -14,7 +14,13 @@ import {
   choosesOrdinary,
   playsPair,
 } from './cards.ts';
-import {extensionError, extensionKinds, formKinds, subjectlessKinds} from './graph/conditionExtensions.ts';
+import {
+  byKeywordName,
+  extensionError,
+  extensionKinds,
+  formKinds,
+  subjectlessKinds,
+} from './graph/conditionExtensions.ts';
 import {selfDirections} from './graph/conditions.ts';
 import {valuesError} from './graph/multiValue.ts';
 import {attackStates, equippedTypes, eventListError} from './runtimeExtensions.ts';
@@ -37,8 +43,6 @@ export const checkKinds = [
   'weaponDrawn',
   'combat',
   'alive',
-  'stamina',
-  'magicka',
   'space',
   'ground',
   'magicEffect',
@@ -185,7 +189,11 @@ function testErrors(w: Workspace, t: CardTest): string[] {
     errors.push(tr('이 조건은 검사 대상을 쓰지 않습니다.'));
   if (t.kind === 'attackState' && valuesError(t.attackState, attackStates))
     errors.push(tr('검사할 공격 상태를 선택하세요.'));
-  if (formKinds.includes(t.kind)) {
+  if (byKeywordName(t)) {
+    if (!t.keyword!.trim()) errors.push(tr('키워드 이름(Editor ID)을 입력하세요.'));
+    else if (t.keyword!.length > 512 || /[^\x21-\x7e]/.test(t.keyword!))
+      errors.push(tr('키워드 이름에는 공백이나 영문·숫자·기호가 아닌 글자를 넣을 수 없습니다.'));
+  } else if (formKinds.includes(t.kind)) {
     if (
       !t.form?.plugin ||
       /[\\/\r\n]/.test(t.form.plugin) ||

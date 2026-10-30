@@ -1,6 +1,7 @@
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {cardHeight, cardWidth, pinTop, summaryHeight} from './cardPresentation.ts';
+import {STUB_SOURCES} from './sharedTransitionLines.ts';
 
 /** The graph `arrange` places: projected nodes (with a measured height where the canvas drew them) and edges. */
 export type ArrangeGraph = {nodes: (FlatNode & {measured?: {height?: number}})[]; edges: GraphEdge[]};
@@ -24,6 +25,9 @@ export type Arrangement = {
 const GAP_X = 64,
   GAP_Y = 40,
   BLOCK_GAP = 160,
+  // A condition card picking this many HKX or more is a unit with them (docs/mockup-arrange-fan C); a true/false
+  // pair stays a route's row and the row below.
+  FAN = 3,
   // Between blocks packed into each other's gaps (docs/mockup-arrange-pack).
   PACK_GAP = 100,
   ORIGIN = 80,
@@ -272,8 +276,308 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
       xs.set(c, x);
       x += Math.max(...mine.filter(id => col.get(id) === c).map(id => width(byId.get(id)!))) + GAP_X;
     }
-    return mine.map(id => ({id, x: xs.get(col.get(id)!)!, y: ys.get(id)!}));
+    return (
+      branchColumns(mine, sources, ahead, kids) ??
+      fanUnits(
+        mine.map(id => ({id, x: xs.get(col.get(id)!)!, y: ys.get(id)!})),
+        played,
+        sources,
+        ahead,
+        index
+      )
+    );
   };
+  // A route that splits into branches of their own (docs/mockup-arrange-branches, 10-30, user report on Dynamic Block
+  // Hit: the five weapons' hit and stamina cards stood in two columns at the left, the units they pick in one row far
+  // below them, and lines ran from one corner to the other). The cards from the start up to the first card with
+  // several destinations (the split) are the head, left to right. Each of the split's destinations with all it
+  // reaches is a branch, laid out on its own: the cards before its units on its top line, left to right (a card's
+  // other destinations stacked under one another right of it), its units (arrange C) in a row under them, each under
+  // the card that picks it when there is room. The branches stand side by side in the split's order, wrapped into as
+  // many rows as fits the pane best. What the HKX lead on to (a shared transition back to the head) goes under the
+  // head card it returns to when its lines are not drawn (graph/sharedTransitionLines.ts), else right of everything.
+  // Only for branches that are trees, meet nowhere and hold a unit; anything else keeps the arrange above.
+  function branchColumns(
+    mine: string[],
+    sources: Map<string, string[]>,
+    ahead: (id: string) => string[],
+    kids: (id: string) => string[]
+  ): Item[] | undefined {
+    const roots = mine.filter(id => !sources.get(id)?.length);
+    if (roots.length !== 1) return;
+    const head = [roots[0]];
+    while (ahead(head.at(-1)!).length === 1 && head.length < mine.length) {
+      const next = ahead(head.at(-1)!)[0];
+      if (head.includes(next) || byId.get(next)!.kind === 'hkxPlay') return;
+      head.push(next);
+    }
+    const branches = ahead(head.at(-1)!);
+    if (branches.length < 2) return;
+    const hkx = (id: string) => byId.get(id)!.kind === 'hkxPlay';
+    // A branch's cards: what its first card reaches, not past an HKX (what the HKX lead to is `after`).
+    const tree = (id: string) => (hkx(id) ? [] : ahead(id));
+    const sets: Set<string>[] = [];
+    const taken = new Set(head);
+    for (const b of branches) {
+      const set = new Set([b]),
+        stack = [b];
+      while (stack.length)
+        for (const t of tree(stack.pop()!)) {
+          // A tree: every card one source, inside the branch.
+          if (set.has(t) || taken.has(t) || sources.get(t)!.length !== 1) return;
+          set.add(t);
+          stack.push(t);
+        }
+      for (const id of set) taken.add(id);
+      sets.push(set);
+    }
+    const after = mine.filter(id => !taken.has(id));
+    // What follows the HKX ends there, entered from HKX only.
+    if (after.some(id => ahead(id).length || sources.get(id)!.some(s => !hkx(s)))) return;
+    const isUnit = (id: string) => !hkx(id) && tree(id).length >= FAN && tree(id).every(hkx);
+    if (!sets.some(set => [...set].some(isUnit))) return;
+    const blocks = branches.map((b, i) => {
+      const local = new Map<string, {x: number; y: number}>(),
+        units: {id: string; parent: string}[] = [];
+      // The top line from (x, y); returns the bottom of what it placed.
+      const line = (id: string, x: number, y: number): number => {
+        local.set(id, {x, y});
+        let bottom = y + height(byId.get(id)!),
+          next = y;
+        for (const t of tree(id)) {
+          if (isUnit(t)) {
+            units.push({id: t, parent: id});
+            continue;
+          }
+          next = line(t, x + width(byId.get(id)!) + GAP_X, next) + GAP_Y;
+          bottom = Math.max(bottom, next - GAP_Y);
+        }
+        return bottom;
+      };
+      const top = line(b, 0, 0) + UNIT_GAP;
+      let cursor = 0;
+      for (const {id, parent} of units) {
+        const x = Math.max(local.get(parent)!.x, cursor);
+        local.set(id, {x, y: top});
+        const column = x + width(byId.get(id)!) + GAP_X;
+        let y = top;
+        for (const h of tree(id)) {
+          local.set(h, {x: column, y});
+          y += height(byId.get(h)!) + GAP_Y;
+        }
+        cursor = column + Math.max(...tree(id).map(h => width(byId.get(h)!))) + UNIT_GAP;
+      }
+      if (local.size !== sets[i].size) return undefined;
+      const ids = [...local.keys()];
+      return {
+        local,
+        w: Math.max(...ids.map(id => local.get(id)!.x + width(byId.get(id)!))),
+        h: Math.max(...ids.map(id => local.get(id)!.y + height(byId.get(id)!))),
+        // Where its units' row starts; a branch that is a unit itself stands on its row's units' row.
+        units: units.length ? top : undefined,
+        lone: isUnit(b),
+      };
+    });
+    if (blocks.some(b => !b)) return;
+    const by = new Map<string, {x: number; y: number}>();
+    let x = 0;
+    for (const id of head) {
+      by.set(id, {x, y: 0});
+      x += width(byId.get(id)!) + GAP_X;
+    }
+    const left = x,
+      headBottom = Math.max(...head.map(id => height(byId.get(id)!)));
+    // The branches in rows of `count`, side by side in the split's order.
+    const rows = (count: number) => {
+      const pos = new Map<string, {x: number; y: number}>();
+      let bx = left,
+        by0 = 0,
+        rowH = 0,
+        right = left;
+      blocks.forEach((b, i) => {
+        if (i && i % count === 0) {
+          by0 += rowH + BLOCK_GAP;
+          bx = left;
+          rowH = 0;
+        }
+        const row = blocks.slice(i - (i % count), i - (i % count) + count),
+          dy = b!.lone ? Math.max(0, ...row.map(o => o!.units ?? 0)) : 0;
+        for (const [id, p] of b!.local) pos.set(id, {x: bx + p.x, y: by0 + dy + p.y});
+        bx += b!.w + BLOCK_GAP;
+        right = Math.max(right, bx - BLOCK_GAP);
+        rowH = Math.max(rowH, dy + b!.h);
+      });
+      return {pos, w: right, h: Math.max(headBottom, by0 + rowH)};
+    };
+    const zoom = (r: {w: number; h: number}) => Math.min(view.w / r.w, view.h / r.h);
+    const best = blocks.map((_, i) => rows(i + 1)).reduce((a, b) => (zoom(b) > zoom(a) + 1e-9 ? b : a));
+    for (const [id, p] of best.pos) by.set(id, p);
+    // After the HKX: a shared transition whose lines are not drawn under the head card it returns to; else right of
+    // everything, at the top.
+    let under = headBottom + UNIT_GAP,
+      right = best.w + BLOCK_GAP;
+    for (const id of after) {
+      const back = kids(id).find(t => head.includes(t));
+      if (back && new Set(sources.get(id)).size >= STUB_SOURCES) {
+        by.set(id, {x: by.get(back)!.x, y: under});
+        under += height(byId.get(id)!) + GAP_Y;
+      } else {
+        by.set(id, {x: right, y: 0});
+        right += width(byId.get(id)!) + GAP_X;
+      }
+    }
+    return mine.map(id => ({id, ...by.get(id)!}));
+  }
+  // A condition card picking several HKX (docs/mockup-arrange-fan C, 10-29, the user's own arrange of Dynamic Block
+  // Hit: fifteen HKX in one column, 4,000 tall): the card and those HKX, a column right of it in its rows' order, are
+  // one unit. The units go in a row under the cards above them, in route order, each under the card that leads to it
+  // when there is room. A card picking one HKX keeps it right of itself, level. What the HKX lead on to moves right
+  // of them, at its first source's height. A block whose unit HKX lead to cards of their own (a transition to a
+  // further row), or to a route that goes on, keeps the arrange above: the unit would tear its rows apart.
+  function fanUnits(
+    items: Item[],
+    played: string[],
+    sources: Map<string, string[]>,
+    ahead: (id: string) => string[],
+    index: Map<string, number>
+  ): Item[] {
+    const by = new Map(items.map(i => [i.id, {...i}]));
+    const picked = new Map<string, string[]>();
+    for (const id of played) {
+      const s = sources.get(id)![0];
+      picked.set(s, [...(picked.get(s) ?? []), id]);
+    }
+    for (const [s, list] of picked) {
+      const order = ahead(s);
+      list.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    }
+    const fans = [...picked.keys()]
+      .filter(s => picked.get(s)!.length >= FAN)
+      .sort((a, b) => index.get(a)! - index.get(b)!);
+    if (!fans.length) return items;
+    const unit = new Set(fans.flatMap(s => [s, ...picked.get(s)!]));
+    const playedSet = new Set(played);
+    // What the HKX lead on to: everything reached from them but the units and the cards before them.
+    const after = new Set<string>();
+    const stack = [...played];
+    while (stack.length)
+      for (const t of ahead(stack.pop()!))
+        if (by.has(t) && !playedSet.has(t) && !after.has(t)) (after.add(t), stack.push(t));
+    for (const s of fans)
+      for (const h of picked.get(s)!) if (ahead(h).some(t => (sources.get(t)?.length ?? 0) < 2)) return items;
+    // What follows the HKX ends there (a shared transition, its line back to the start aside): a longer route after
+    // them (Grapple's QTE, its transitions and the HKX they lead to) keeps the rows it is laid out in.
+    if ([...after].some(id => ahead(id).length)) return items;
+    const box = (id: string) => {
+      const p = by.get(id)!,
+        n = byId.get(id)!;
+      return {x: p.x, y: p.y, w: width(n), h: height(n)};
+    };
+    const overlaps = (a: {x: number; y: number; w: number; h: number}, b: typeof a) =>
+      a.x < b.x + b.w + GAP_X / 2 &&
+      b.x < a.x + a.w + GAP_X / 2 &&
+      a.y < b.y + b.h + GAP_Y / 2 &&
+      b.y < a.y + a.h + GAP_Y / 2;
+    type Rect = {x: number; y: number; w: number; h: number};
+    const obstacles: Rect[] = items
+      .map(i => i.id)
+      .filter(id => !unit.has(id) && !after.has(id) && !playedSet.has(id))
+      .map(box);
+    const oldRight = Math.max(...played.map(id => box(id).x + box(id).w));
+    const moved = new Map<string, number>();
+    // A card picking one or two HKX keeps them right of itself, from its top, down past what is in the way; the cards
+    // in route order (a true branch before its false).
+    for (const s of [...picked.keys()].filter(s => !unit.has(s)).sort((a, b) => index.get(a)! - index.get(b)!)) {
+      const src = box(s);
+      let y = src.y;
+      for (const h of picked.get(s)!) {
+        const before = by.get(h)!.y;
+        let want = {x: src.x + src.w + GAP_X, y, w: box(h).w, h: box(h).h};
+        for (let guard = 0; guard < 200; guard++) {
+          const hit = obstacles.filter(o => overlaps(want, o));
+          if (!hit.length) break;
+          want = {...want, y: Math.max(...hit.map(o => o.y + o.h)) + GAP_Y};
+        }
+        by.set(h, {id: h, x: want.x, y: want.y});
+        moved.set(h, want.y - before);
+        obstacles.push(box(h));
+        y = want.y + want.h + GAP_Y;
+      }
+    }
+    // Each unit where its card stands when it fits there. Else under what is in its way, the one of two places that
+    // leaves the block fitting the pane at the larger zoom (as blocks are placed): down in its own column (sibling
+    // conditions, DynamicDodgeShot's true and false), or in a row from under the card that leads to it, right of the
+    // units before it (Dynamic Block Hit's two chance cards at different depths).
+    const span = (s: string, x: number, y: number): Rect => {
+      const list = picked.get(s)!,
+        w = width(byId.get(s)!) + GAP_X + Math.max(...list.map(h => width(byId.get(h)!))),
+        h = Math.max(
+          height(byId.get(s)!),
+          list.reduce((sum, id) => sum + height(byId.get(id)!) + GAP_Y, -GAP_Y)
+        );
+      return {x, y, w, h};
+    };
+    let cursor = 0,
+      row: number | undefined;
+    for (const s of fans) {
+      const own = by.get(s)!;
+      let at = span(s, Math.max(own.x, cursor), own.y);
+      if (own.x < cursor || obstacles.some(o => overlaps(at, o))) {
+        const parent = (sources.get(s) ?? []).find(p => by.has(p) && !unit.has(p));
+        const below = (r: Rect) => {
+          for (let guard = 0; guard < 200; guard++) {
+            const hit = obstacles.filter(o => overlaps(r, o));
+            if (!hit.length) break;
+            r = {...r, y: Math.max(...hit.map(o => o.y + o.h)) + 2 * GAP_Y};
+          }
+          return r;
+        };
+        const fit = (r: Rect) => {
+          const all = [...obstacles, r],
+            left = Math.min(...all.map(o => o.x)),
+            top = Math.min(...all.map(o => o.y));
+          return Math.min(
+            view.w / Math.max(1, Math.max(...all.map(o => o.x + o.w)) - left),
+            view.h / Math.max(1, Math.max(...all.map(o => o.y + o.h)) - top)
+          );
+        };
+        const down = below(span(s, own.x, own.y)),
+          beside = below(span(s, Math.max(parent ? by.get(parent)!.x : own.x, cursor), Math.max(own.y, row ?? 0)));
+        at = fit(down) > fit(beside) + 1e-9 ? down : beside;
+        if (at === beside) row = at.y;
+      }
+      obstacles.push(at);
+      by.set(s, {id: s, x: at.x, y: at.y});
+      const column = at.x + width(byId.get(s)!) + GAP_X;
+      let y = at.y;
+      for (const h of picked.get(s)!) {
+        moved.set(h, y - by.get(h)!.y);
+        by.set(h, {id: h, x: column, y});
+        y += height(byId.get(h)!) + GAP_Y;
+      }
+      cursor = at.x + at.w + 1.5 * GAP_X;
+    }
+    // After the HKX: right of the units, at the height of the first source they follow.
+    const shift = Math.max(...played.map(id => box(id).x + box(id).w)) - oldRight;
+    const rest = [...after].sort((a, b) => index.get(a)! - index.get(b)!);
+    for (const id of rest) {
+      const first = (sources.get(id) ?? []).find(p => moved.has(p));
+      const dy = first === undefined ? 0 : moved.get(first)!;
+      by.set(id, {id, x: by.get(id)!.x + shift, y: by.get(id)!.y + dy});
+      moved.set(id, dy);
+    }
+    for (const id of rest) {
+      const others = [...by.keys()].filter(o => o !== id);
+      let b = box(id);
+      for (let guard = 0; guard < 200 && others.some(o => overlaps(b, box(o))); guard++) {
+        by.set(id, {id, x: b.x, y: b.y + GAP_Y});
+        b = box(id);
+      }
+    }
+    const placedAt = [...by.values()];
+    const minY = Math.min(...placedAt.map(i => i.y));
+    return placedAt.map(i => ({...i, y: i.y - minY}));
+  }
   const frames: Frame[] = [];
   for (const group of groups) {
     group.sort((a, b) => reaches.get(b.id)!.size - reaches.get(a.id)!.size || compare(a, b));

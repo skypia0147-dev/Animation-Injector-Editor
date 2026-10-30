@@ -15,8 +15,6 @@ function kindList(withGroups: boolean) {
     ['alive', tr('살아 있음'), tr('상태')],
     ['attackState', t('ext.attackState'), tr('상태')],
     ['sneaking', t('ext.sneaking'), tr('상태')],
-    ['stamina', tr('스태미나'), tr('수치')],
-    ['magicka', tr('매지카'), tr('수치')],
     ['female', tr('여성'), tr('대상')],
     ['space', tr('공간 확보'), tr('공간')],
     ['ground', tr('지면 확보'), tr('공간')],

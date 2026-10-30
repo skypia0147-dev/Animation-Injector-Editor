@@ -379,7 +379,7 @@ export const extensionConditions = {
       return [
         ['left', tr('왼손')],
         ['right', tr('오른손')],
-        ['either', tr('어느 손이든')],
+        ['either', tr('모두@손 선택')],
       ] as const;
     },
     get hint() {
@@ -539,6 +539,28 @@ export const extensionConditions = {
       return tr('게임 안 시각(0~24시)입니다. 범위는 자정을 넘을 수 있습니다(20시~5시).');
     },
   },
+  hitReceived: {
+    get label() {
+      return tr('받은 공격');
+    },
+    get category() {
+      return tr('상태');
+    },
+    get choices() {
+      return [
+        ['normal', tr('일반 공격')],
+        ['power', tr('파워어택')],
+        ['bash', tr('방패 밀치기')],
+        ['sneak', tr('기습')],
+        ['blocked', tr('막음')],
+      ] as const;
+    },
+    get hint() {
+      return tr(
+        '검사 대상이 마지막으로 맞은 무기 공격의 종류입니다. 일반 공격은 파워어택도 방패 밀치기도 아닌 공격이고, 막음은 그 공격을 막았을 때입니다(막은 파워어택은 파워어택과 막음을 함께 겁니다). 마법은 세지 않습니다. 막았을 때 바꾸려면 blockHitStart 이벤트 시작에 0.5초 이내로 씁니다. 이 조건을 쓸 때만 기록합니다.'
+      );
+    },
+  },
   weather: {
     get label() {
       return tr('날씨');
@@ -583,6 +605,12 @@ export const comparisons = (): readonly (readonly [Comparison, string])[] => [
 ];
 export const extensionKinds = Object.keys(extensionConditions) as ExtensionKind[];
 export const formKinds = ['magicEffect', 'global', ...extensionKinds.filter(k => 'form' in extensionConditions[k])];
+/** Keyword checks: named by editor ID (`keyword`, the default) or by plugin and form. Keywords keep their editor
+ *  ID in game, unlike the other forms. */
+export const keywordKinds: readonly string[] = ['equippedKeyword', 'wornKeyword', 'keyword'];
+/** The check names its keyword by editor ID. */
+export const byKeywordName = (t: Pick<BranchTest, 'kind' | 'keyword'>) =>
+  keywordKinds.includes(t.kind) && t.keyword !== undefined;
 /** The same whoever is asked (a roll, the world's hour, weather or global, the player's movement keys, the room
  * where the actor stands): no target field, always the actor itself; the runtime rejects a partner subject. */
 export const subjectlessKinds: readonly string[] = [
@@ -624,7 +652,8 @@ export function extensionDefaults(kind: string): Partial<BranchTest> {
       : {}),
     ...(kind === 'gameHour' ? {compare: 'range' as const, value: 20, upper: 5} : {}),
     ...(kind === 'weather' ? {option: 'rainy'} : {}),
-    ...(d.form ? {form: {plugin: '', id: ''}} : {}),
+    ...(kind === 'hitReceived' ? {option: 'power', within: 0.5} : {}),
+    ...(d.form ? (keywordKinds.includes(kind) ? {keyword: ''} : {form: {plugin: '', id: ''}}) : {}),
   };
 }
 export function extensionMaximum(t: BranchTest) {
@@ -659,6 +688,12 @@ export function extensionError(t: BranchTest): string | undefined {
       return tr('끝난 지 시간은 0~600초입니다.');
     if (!['any', 'completed', 'cancelled'].includes(t.ended ?? 'any')) return tr('끝난 방식을 선택하세요.');
   }
+  if (
+    t.kind === 'hitReceived' &&
+    t.within !== undefined &&
+    !(Number.isFinite(t.within) && t.within >= 0 && t.within <= 600)
+  )
+    return tr('맞은 지 시간은 0~600초입니다.');
   // A fall without its distance asks only rising or falling.
   if (d.optionalNumeric && t.compare === undefined) return;
   if (d.numeric || d.optionalNumeric || t.kind === 'chance') {
@@ -742,13 +777,15 @@ export function extensionSummary(t: BranchTest): string | undefined {
     t.subject === 'partner' ? tr('상대') : tr('본인'),
     d.label,
     option,
-    d.form ? `${t.form?.plugin ?? ''} : ${t.form?.id ?? ''}` : undefined,
+    d.form ? (byKeywordName(t) ? t.keyword : `${t.form?.plugin ?? ''} : ${t.form?.id ?? ''}`) : undefined,
     d.numeric || (d.optionalNumeric && t.compare !== undefined)
       ? value
       : t.kind === 'chance'
         ? `${t.value}%`
         : undefined,
-    t.kind === 'previousAction' && t.within !== undefined ? tr('{seconds}초 안', {seconds: t.within}) : undefined,
+    (t.kind === 'previousAction' || t.kind === 'hitReceived') && t.within !== undefined
+      ? tr('{seconds}초 안', {seconds: t.within})
+      : undefined,
   ]
     .filter(Boolean)
     .join(' / ');

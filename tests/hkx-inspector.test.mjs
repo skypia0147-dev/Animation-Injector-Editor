@@ -15,7 +15,10 @@ import {
 function sample() {
   let w = emptyWorkspace();
   for (let i = 0; i < 2; i++) w = addFlat(w, '', 'playNode', {x: i * 300, y: 0}).workspace;
-  for (const a of w.actions) a.config.steps[0].clip = 'animations\\test.hkx';
+  for (const [i, a] of w.actions.entries()) {
+    a.config.steps[0].clip = 'animations\\test.hkx';
+    a.config.actionId = i ? 'test_' + (i + 1) : 'test';
+  }
   return w;
 }
 test('Inspector navigation and summaries do not alter exported settings', () => {

@@ -6,7 +6,7 @@ import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {connectFlat, setDestination} from './flat.ts';
 import {parseNodeId} from './nodeRef.ts';
-import {cardTitle, makesLoop, refAction, refCard, type Ref} from '../cards.ts';
+import {cardNames, cardTitle, makesLoop, refAction, refCard, type CardTest, type Ref} from '../cards.ts';
 import {conditionNames} from './conditionExpression.ts';
 import {qteMembers, qtePinRule} from './qteGroups.ts';
 import {tr} from '../i18n/korean.ts';
@@ -202,7 +202,8 @@ export function connectPin(w: Workspace, _view: View, id: string, pin: string, t
 }
 
 /** Where a start's, condition card's or transition's pin goes, by name ('' when nowhere). */
-export function routeDestination(w: Workspace, id: string, pin: string): string {
+/** Where a card's route goes, by name. `short`: a condition card by its conditions alone (the canvas's route chips). */
+export function routeDestination(w: Workspace, id: string, pin: string, short = false): string {
   const ref = parseNodeId(id);
   let to: Ref = null;
   if (ref.kind === 'startCard') to = w.starts.find(s => s.uid === ref.uid)?.to ?? null;
@@ -232,5 +233,7 @@ export function routeDestination(w: Workspace, id: string, pin: string): string 
   const a = w.actions.find(a => a.uid === refAction(to));
   if (a) return a.config.name || a.config.actionId;
   const c = w.cards.find(c => c.uid === refCard(to));
-  return c ? cardTitle(c, t => conditionNames[t.kind] ?? t.kind) : '';
+  if (!c) return '';
+  const name = (t: CardTest) => conditionNames[t.kind] ?? t.kind;
+  return short ? cardNames(c, name) || cardTitle(c, name) : cardTitle(c, name);
 }

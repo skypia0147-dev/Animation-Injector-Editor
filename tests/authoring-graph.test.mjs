@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {captureGraph, lowerGraph, authorReducer} from '../src/graph/document.ts';
-import {emptyWorkspace, parseWorkspace, compileWorkspace} from '../src/workspace.ts';
+import {emptyWorkspace, fileActionId, parseWorkspace, compileWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {addFlat, connectFlat, flatNode} from '../src/graph/flat.ts';
 
@@ -51,7 +51,9 @@ test('editing the source edge changes XML and history stores graphs, not runtime
 function play(w) {
   const r = addFlat(w, '', 'playNode', {x: 300, y: 200});
   const n = flatNode(r.workspace, r.id);
-  r.workspace.actions.find(a => a.uid === n.action).config.steps[0].clip = 'Animations/Test.hkx';
+  const made = r.workspace.actions.find(a => a.uid === n.action);
+  made.config.steps[0].clip = 'Animations/Test.hkx';
+  made.config.actionId = fileActionId(r.workspace.actions, made.uid, made.config.steps[0].clip);
   return r;
 }
 /** A start card with its key (the details' key field). */

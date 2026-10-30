@@ -281,7 +281,13 @@ export function validate(p: Project): Issue[] {
   } catch (e) {
     return [{level: 'error', node: 'project', message: errorText(e)}];
   }
-  if (!p.name.trim() || !idPattern.test(p.actionId)) error('project', tr('이름과 영문 동작 ID를 입력하세요.'));
+  // A card has no id until its HKX file gives one (workspace.ts followFiles).
+  if (!p.actionId)
+    error(
+      'project',
+      tr('Action ID가 없습니다. HKX 파일을 고르면 파일 이름으로 정해집니다(파일 이름에 영문이 없으면 직접 쓰세요).')
+    );
+  else if (!p.name.trim() || !idPattern.test(p.actionId)) error('project', tr('이름과 영문 동작 ID를 입력하세요.'));
   if (!p.graph.length || p.graph.some(g => !graphs.includes(g)) || new Set(p.graph).size !== p.graph.length)
     error('project', tr('지원 그래프를 하나 이상 선택하세요.'));
   if (p.attack && !eventValid(p.attack)) error('project', tr('공격 데이터 이름이 잘못되었습니다.'));

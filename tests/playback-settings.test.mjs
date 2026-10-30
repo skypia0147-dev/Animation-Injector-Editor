@@ -18,6 +18,7 @@ function fixture() {
   for (let i = 0; i < 2; i++) {
     w = addFlat(w, '', 'playNode', {x: i * 400, y: 200}).workspace;
     w.actions[i].config.steps[0].clip = `Animations/Test${i}.hkx`;
+    w.actions[i].config.actionId = `Test${i}`;
   }
   return w;
 }

@@ -56,6 +56,7 @@ import {
   duplicateAction as copyAction,
   compileWorkspace,
   emptyWorkspace,
+  followFiles,
   parseWorkspace,
   removeAction,
   validateWorkspace,
@@ -407,7 +408,8 @@ function Editor() {
         // Fields the edit never reads stay the document's (editableCopy): they are neither copied nor compared.
         // The rules run on the copy before its untouched fields become the shared originals.
         const {copy, finish} = editableCopy(current.current);
-        const next = finish(synchronizeRules(current.current, fn(copy)));
+        // A card's names follow its HKX file (followFiles) whichever control set it.
+        const next = finish(followFiles(current.current, synchronizeRules(current.current, fn(copy))));
         // The round trip proves the edit is representable; the reducer reuses the capture.
         const graph = captureGraph(next);
         lowerGraph(graph);
@@ -995,7 +997,6 @@ function Editor() {
                   made.push(r.id);
                   next = r.workspace;
                   const a = next.actions.at(-1)!;
-                  a.config.name = baseName(item.path).replace(/\.hkx$/i, '');
                   a.position = cells[i];
                   next = placeStepFile(next, a.uid, a.config.steps[0].id, item.clip, item.path);
                 });

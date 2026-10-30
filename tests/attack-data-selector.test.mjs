@@ -8,6 +8,7 @@ import {captureGraph} from '../src/graph/document.ts';
 function sample() {
   let w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
+  w.actions[0].config.actionId = 'test';
   return w;
 }
 

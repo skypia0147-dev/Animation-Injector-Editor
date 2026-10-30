@@ -37,3 +37,19 @@ test('group chip: one name for the same conditions, then the first and how many 
 
   assert.deepEqual(groupSummary([]), {first: undefined, more: 0, parts: []});
 });
+
+// The hand is its own chip (docs/mockup-hand-chip B): the same check on two hands is not merged into one value.
+test('group chip: a hand check merges only with the same hand', () => {
+  const s = groupSummary([
+    {name: '장착 종류', value: '검', hand: 'left'},
+    {name: '장착 종류', value: '대검', hand: 'left'},
+    {name: '장착 종류', value: '검', hand: 'right'},
+    {name: '장비 키워드', value: 'Skyrim.esm : 0x1E711', hand: 'either'},
+  ]);
+  assert.deepEqual(s.parts.map(partText), [
+    '장착 종류 왼손 검·대검',
+    '장착 종류 오른손 검',
+    '장비 키워드 모두 Skyrim.esm : 0x1E711',
+  ]);
+  assert.equal(s.first.hand, 'left');
+});

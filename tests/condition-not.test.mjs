@@ -14,6 +14,7 @@ import {checker, needsChecker} from './local.mjs';
 function sample(tests, guards = tests.map(t => t.id)) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 600, y: 50}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
+  w.actions[0].config.actionId = 'test';
   const card = {...newCard(w, {x: 300, y: 50}), tests, guards, true: {action: w.actions[0].uid}};
   w.cards.push(card);
   w.starts.push({...newStart(w, {x: 0, y: 50}), key: 'G', to: {card: card.uid}});

@@ -244,6 +244,63 @@ export function renameProject(w: Workspace, name: string): void {
   w.name = name;
   if (following) w.id = setIdFromName(name) ?? DEFAULT_SET_ID;
 }
+const fileName = (clip: string) => (clip.split(/[\\/]/).at(-1) || '').replace(/\.hkx$/i, '');
+/** The Action ID an HKX file gives: its name, `_2`, `_3`… when another action has it (compared as the runtime does,
+ *  ignoring case); '' when the name has no letter an id can use. */
+export function fileActionId(actions: Action[], self: string, clip: string): string {
+  const base = setIdFromName(fileName(clip));
+  if (!base) return '';
+  const taken = new Set(actions.filter(x => x.uid !== self).map(x => x.config.actionId.toLowerCase()));
+  let id = base;
+  for (let i = 2; taken.has(id.toLowerCase()); i++) id = base.slice(0, 64 - String(i).length - 1) + '_' + i;
+  return id;
+}
+/** An edit that changes an action's first HKX file: its name, Action ID and clip label follow the new file while
+ *  they still follow the old one: empty, the new-card default, or what the old file gave. What the author wrote
+ *  stays. The runtime names actions after their clips (`<set>_<id>`), so no id is made up: a card with no file yet
+ *  has none. Imports and opened projects keep theirs (they do not come through an edit). */
+export function followFiles(before: Workspace, next: Workspace): Workspace {
+  // Untouched actions are still the document's (editableCopy): nothing changed a file.
+  if (Object.getOwnPropertyDescriptor(next, 'actions')?.get) return next;
+  const old = new Map(before.actions.map(a => [a.uid, a]));
+  const names = ['', tr('새 일반 동작'), tr('새 페어')],
+    labels = ['', tr('새 HKX')];
+  let changed = false;
+  // One at a time: two cards made in one edit (several files dropped) do not take the same id.
+  const actions = [...next.actions];
+  actions.forEach((a, i) => (actions[i] = follow(a)));
+  // Set on the edit's own result (an editableCopy draft keeps its untouched fields the document's).
+  if (changed) next.actions = actions;
+  return next;
+  function follow(a: Action): Action {
+    const was = old.get(a.uid);
+    const clip = a.config.steps[0]?.clip ?? '',
+      oldClip = (was ? was.config.steps[0]?.clip : '') ?? '';
+    const steps = a.config.steps.map(s => {
+      const previous = was?.config.steps.find(x => x.id === s.id)?.clip ?? '';
+      if (s.clip === previous || !s.clip) return s;
+      const prior = fileName(previous);
+      return [...labels, prior, prior && prior + '.hkx'].includes(s.label) ? {...s, label: fileName(s.clip)} : s;
+    });
+    const prior = fileName(oldClip),
+      priorId = setIdFromName(prior);
+    const idFollows =
+      clip !== oldClip &&
+      (!a.config.actionId || (!!priorId && new RegExp('^' + priorId + '(_\\d+)?$', 'i').test(a.config.actionId)));
+    const nameFollows = clip !== oldClip && !!clip && [...names, prior].includes(a.config.name);
+    if (!idFollows && !nameFollows && steps.every((s, i) => s === a.config.steps[i])) return a;
+    changed = true;
+    return {
+      ...a,
+      config: {
+        ...a.config,
+        steps,
+        name: nameFollows ? fileName(clip) : a.config.name,
+        actionId: idFollows ? fileActionId(actions, a.uid, clip) : a.config.actionId,
+      },
+    };
+  }
+}
 export const uid = (prefix: string, ids: string[]) => {
   let i = 1;
   while (ids.includes(prefix + i)) i++;
@@ -257,10 +314,8 @@ export function addAction(w: Workspace, kind: 'single' | 'pair' = 'single'): Act
       w.actions.map(a => a.uid)
     )
   );
-  a.config.actionId = uid(
-    'CustomAction',
-    w.actions.map(a => a.config.actionId)
-  );
+  // Named after its HKX file (followFiles), never a made-up number.
+  a.config.actionId = fileActionId(w.actions, a.uid, a.config.steps[0].clip);
   a.config.name = kind === 'pair' ? tr('새 페어') : tr('새 일반 동작');
   a.position = {x: 100 + (w.actions.length % 3) * 500, y: 80 + Math.floor(w.actions.length / 3) * 220};
   if (kind === 'pair') {
@@ -278,7 +333,7 @@ export function duplicateAction(w: Workspace, a: Action, name: string): Action {
   const fresh = addAction(w, a.pair ? 'pair' : 'single');
   const copy = structuredClone(a);
   copy.uid = fresh.uid;
-  copy.config.actionId = fresh.config.actionId;
+  copy.config.actionId = fileActionId(w.actions, copy.uid, copy.config.steps[0].clip);
   copy.config.name = name;
   copy.position = {x: a.position.x + 45, y: a.position.y + 55};
   return copy;
@@ -723,7 +778,12 @@ export function validateWorkspace(w: Workspace): Issue[] {
   const ids = new Set<string>(),
     uids = new Set<string>();
   for (const a of w.actions) {
-    if (!idOk(a.uid) || a.uid.length > 48 || uids.has(a.uid) || ids.has(a.config.actionId.toLowerCase()))
+    if (
+      !idOk(a.uid) ||
+      a.uid.length > 48 ||
+      uids.has(a.uid) ||
+      (a.config.actionId && ids.has(a.config.actionId.toLowerCase()))
+    )
       err(a.uid, tr('동작 ID가 중복되었거나 잘못되었습니다.'));
     uids.add(a.uid);
     ids.add(a.config.actionId.toLowerCase());

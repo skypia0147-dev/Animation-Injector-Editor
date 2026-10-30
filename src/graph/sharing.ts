@@ -97,7 +97,8 @@ export function compactGraph(w: Workspace, graph: {nodes: FlatNode[]; edges: Gra
     for (const n of own.filter(n => n.kind === 'outputPose')) hidden.add(n.id);
   }
   for (const group of w.sharedRules ?? []) {
-    const ids = group.members.map(m => ruleNode(group.kind, m, w)).filter(id => byId.has(id));
+    // Each card once: a member named twice would alias the drawn card to itself.
+    const ids = [...new Set(group.members.map(m => ruleNode(group.kind, m, w)))].filter(id => byId.has(id));
     const first = byId.get(ids[0]);
     if (!first || ids.length < 2) continue;
     first.summary += tr(' · 공유 {length}개 동작', {length: ids.length});

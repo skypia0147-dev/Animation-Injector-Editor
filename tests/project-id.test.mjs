@@ -39,3 +39,89 @@ test('the default id is a warning, never an error', () => {
   renameProject(w, 'CleanUpOutfit');
   assert.equal(defaultWarnings(w).length, 0);
 });
+
+// An edit as the editor makes it: followFiles(before, after) runs on every edit (WorkspaceApp edit).
+const editWith = async (w, fn) => {
+  const {followFiles} = await import('../src/workspace.ts');
+  return followFiles(w, fn(structuredClone(w)));
+};
+const card = async (w, clip) => {
+  const {addFlat} = await import('../src/graph/flat.ts');
+  const {placeStepFile} = await import('../src/view.ts');
+  const made = await editWith(w, x => addFlat(x, '', 'playNode', {x: 0, y: 0}).workspace);
+  const a = made.actions.at(-1);
+  return clip === undefined ? made : editWith(made, x => placeStepFile(x, a.uid, a.config.steps[0].id, clip, ''));
+};
+const names = a => [a.config.name, a.config.steps[0].label, a.config.actionId];
+
+test('no Action ID is made up: a card has none until its HKX file names it', async () => {
+  const {addAction} = await import('../src/workspace.ts');
+  const w = emptyWorkspace();
+  // An action made in code is named after its file (the default Action.hkx); a card made in the editor has none.
+  assert.equal(addAction(w).config.actionId, 'Action');
+  const empty = (await card(w)).actions.at(-1);
+  assert.equal(empty.config.actionId, '');
+  // Picked from the card's file field (or dropped, or chosen in Details): one rule for every control.
+  const named = await card(w, 'Animations\\Mod\\CleanUpOutfit_3.hkx');
+  assert.deepEqual(names(named.actions.at(-1)), ['CleanUpOutfit_3', 'CleanUpOutfit_3', 'CleanUpOutfit_3']);
+  // No letter an id can use: the name follows the file, the id stays empty and says what to do.
+  const korean = await card(w, 'Animations\\Mod\\구르기.hkx');
+  assert.deepEqual(names(korean.actions.at(-1)), ['구르기', '구르기', '']);
+  const issues = validateWorkspace(korean).filter(
+    i => i.level === 'error' && i.message.includes('Action ID가 없습니다')
+  );
+  assert.equal(issues.length, 1);
+});
+
+test('the names follow a changed file while they followed the old one; what the author wrote stays', async () => {
+  const {placeStepFile} = await import('../src/view.ts');
+  let w = await card(emptyWorkspace(), 'Animations\\Mod\\Roll.hkx');
+  const a = w.actions.at(-1);
+  const place = (w, clip) => editWith(w, x => placeStepFile(x, a.uid, a.config.steps[0].id, clip, ''));
+  w = await place(w, 'Animations\\Mod\\Dodge.hkx');
+  assert.deepEqual(names(w.actions.at(-1)), ['Dodge', 'Dodge', 'Dodge']);
+  w = await editWith(w, x => {
+    x.actions.at(-1).config.actionId = 'MyDodge';
+    x.actions.at(-1).config.name = '회피';
+    return x;
+  });
+  w = await place(w, 'Animations\\Mod\\Slide.hkx');
+  assert.deepEqual(names(w.actions.at(-1)), ['회피', 'Slide', 'MyDodge']);
+});
+
+test('ids from files are unique the way the runtime compares them, also for cards made in one edit', async () => {
+  const {addFlat} = await import('../src/graph/flat.ts');
+  const {placeStepFile} = await import('../src/view.ts');
+  let w = await card(emptyWorkspace(), 'Animations\\Mod\\CleanUpOutfit_3.hkx');
+  w = await card(w, 'Animations\\Other\\cleanupoutfit_3.HKX');
+  assert.equal(w.actions.at(-1).config.actionId, 'cleanupoutfit_3_2');
+  // Two files dropped at once whose names give the same id.
+  w = await editWith(w, x => {
+    for (const clip of ['Animations\\Mod\\mt sprint.hkx', 'Animations\\Mod\\mt-sprint.hkx']) {
+      x = addFlat(x, '', 'playNode', {x: 0, y: 0}).workspace;
+      const a = x.actions.at(-1);
+      x = placeStepFile(x, a.uid, a.config.steps[0].id, clip, '');
+    }
+    return x;
+  });
+  assert.deepEqual(
+    w.actions.slice(-2).map(a => a.config.actionId),
+    ['mt_sprint', 'mt_sprint_2']
+  );
+});
+
+test('a duplicated card takes its file name with a number; an opened id that is not the file name stays', async () => {
+  const {duplicateAction, followFiles} = await import('../src/workspace.ts');
+  const {placeStepFile} = await import('../src/view.ts');
+  let w = await card(emptyWorkspace(), 'Animations\\Mod\\Roll.hkx');
+  w = await editWith(w, x => ({...x, actions: [...x.actions, duplicateAction(x, x.actions[0], 'Roll 2')]}));
+  assert.deepEqual(names(w.actions[1]), ['Roll 2', 'Roll', 'Roll_2']);
+  // An action opened from XML whose id was written by hand: a new file does not rename it.
+  w.actions[0].config.actionId = 'SprintStop_SheathedTorch';
+  const a = w.actions[0];
+  const next = followFiles(
+    w,
+    placeStepFile(structuredClone(w), a.uid, a.config.steps[0].id, 'Animations\\Mod\\Run.hkx', '')
+  );
+  assert.equal(next.actions[0].config.actionId, 'SprintStop_SheathedTorch');
+});

@@ -25,10 +25,13 @@ const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
 function sample(kind) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
+  w.actions[0].config.actionId = 'test';
   // A roll, the world, the movement keys: no partner target.
   const subject = subjectlessKinds.includes(kind) ? 'self' : 'partner';
   const t = {id: 'Condition1', kind, subject, minimum: 0, ...extensionDefaults(kind)};
-  if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
+  // A keyword check names its keyword by editor ID (the default, runtime keyword=); the other forms by plugin and form.
+  if (t.keyword !== undefined) t.keyword = 'TestKeyword';
+  else if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
   // The last action the subject finished names one of the project's (runtime 0.12.296).
   if (kind === 'previousAction') Object.assign(t, {actions: [w.actions[0].uid], within: 1.5, ended: 'completed'});
   const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};

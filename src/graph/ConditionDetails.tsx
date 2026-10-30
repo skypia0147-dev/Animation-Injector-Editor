@@ -1,7 +1,16 @@
 import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
-import {definition, extensionDefaults, formKinds, subjectlessKinds} from './conditionExtensions.ts';
+import {useId} from 'react';
+import {
+  byKeywordName,
+  definition,
+  extensionDefaults,
+  formKinds,
+  keywordKinds,
+  subjectlessKinds,
+} from './conditionExtensions.ts';
+import {vanillaKeywords} from '../vanillaKeywords.ts';
 import {equippedTypes, attackStates} from '../runtimeExtensions.ts';
 import {MultiValuePicker} from './MultiValuePicker.tsx';
 import {equippedTypeLabels} from './multiValue.ts';
@@ -86,6 +95,7 @@ export function ConditionFields({
 }) {
   const card = w.cards.find(c => c.uid === owner),
     test = card?.tests.find(t => t.id === key);
+  const keywordList = useId();
   if (!card || !test) return null;
   const change = (patch: Partial<BranchTest>) => edit(w => patchTest(w, owner, key, patch));
   return (
@@ -99,6 +109,8 @@ export function ConditionFields({
             change({
               kind: kind as BranchTest['kind'],
               ...extensionDefaults(kind),
+              // A keyword name left from the previous kind must not stay behind, hidden.
+              ...(keywordKinds.includes(kind) ? {} : {keyword: undefined}),
               ...(kind === 'equippedType'
                 ? {hand: test.hand ?? 'left', equipmentType: test.equipmentType ?? 'bow'}
                 : {}),
@@ -161,6 +173,23 @@ export function ConditionFields({
         </DetailRow>
       )}
       {test.kind === 'previousAction' && <PreviousActionFields w={w} test={test} change={change} />}
+      {test.kind === 'hitReceived' && (
+        <DetailRow label={tr('맞은 지')} hint={tr('비워 두면 시간과 상관없이 마지막으로 맞은 공격만 봅니다.')}>
+          <span className="strike-inline">
+            <input
+              type="number"
+              className="strike-number"
+              min="0"
+              max="600"
+              step="0.1"
+              placeholder={tr('제한 없음')}
+              value={test.within ?? ''}
+              onChange={e => change({within: e.target.value === '' ? undefined : Number(e.target.value)})}
+            />
+            {tr('초 이내')}
+          </span>
+        </DetailRow>
+      )}
       {!['all', 'any'].includes(test.kind) && !subjectlessKinds.includes(test.kind) && (
         <DetailRow
           label={tr('검사 대상')}
@@ -174,7 +203,46 @@ export function ConditionFields({
           </select>
         </DetailRow>
       )}
-      {formKinds.includes(test.kind) && (
+      {keywordKinds.includes(test.kind) && (
+        <DetailRow
+          label={tr('지정 방식')}
+          hint={tr(
+            '키워드는 이름(Editor ID)만으로 찾습니다. 두 플러그인이 같은 이름을 쓰면 나중에 로드된 쪽입니다. 그럴 때만 Form ID로 지정하세요.'
+          )}
+        >
+          <select
+            value={byKeywordName(test) ? 'name' : 'form'}
+            onChange={e =>
+              change(
+                e.target.value === 'name'
+                  ? {keyword: ''}
+                  : {keyword: undefined, form: test.form ?? {plugin: '', id: ''}}
+              )
+            }
+          >
+            <option value="name">{tr('키워드 이름')}</option>
+            <option value="form">Form ID</option>
+          </select>
+        </DetailRow>
+      )}
+      {byKeywordName(test) && (
+        <>
+          <DetailRow
+            label={tr('키워드 이름')}
+            hint={tr(
+              '키워드의 Editor ID입니다. 예: WeapTypeSword. 대소문자는 가리지 않습니다. 목록은 바닐라 키워드이고, 다른 모드의 키워드는 직접 입력하세요. 없는 이름이면 검사 불능입니다.'
+            )}
+          >
+            <input list={keywordList} value={test.keyword} onChange={e => change({keyword: e.target.value.trim()})} />
+          </DetailRow>
+          <datalist id={keywordList}>
+            {vanillaKeywords.map(name => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+        </>
+      )}
+      {formKinds.includes(test.kind) && !byKeywordName(test) && (
         <>
           <DetailRow
             label={tr('플러그인')}
@@ -210,11 +278,6 @@ export function ConditionFields({
       {test.kind === 'global' && (
         <DetailRow label={tr('일치 값')} hint={tr('전역 변수의 값이 정확히 일치할 때 통과합니다.')}>
           <NumberInput step="any" value={test.equals ?? 1} change={v => change({equals: v})} />
-        </DetailRow>
-      )}
-      {['stamina', 'magicka'].includes(test.kind) && (
-        <DetailRow label={tr('최솟값')}>
-          <NumberInput min="0" max="1000000" value={test.minimum} change={v => change({minimum: v})} />
         </DetailRow>
       )}
       {(test.kind === 'space' || test.kind === 'ground') && (

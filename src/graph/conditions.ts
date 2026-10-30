@@ -28,8 +28,6 @@ export type BranchTest = {
     | 'weaponDrawn'
     | 'combat'
     | 'alive'
-    | 'stamina'
-    | 'magicka'
     | 'space'
     | 'ground'
     | 'magicEffect'
@@ -46,6 +44,8 @@ export type BranchTest = {
   subject: 'self' | 'partner';
   minimum: number;
   form?: {plugin: string; id: string};
+  /** A keyword check named by its editor ID (runtime keyword=) instead of `form`; undefined: by plugin and form. */
+  keyword?: string;
   equals?: number;
   space?: {distance: number; direction: SpaceDirection};
   ground?: {maxRise: number; maxDrop: number; maxSlope: number; radius: number};

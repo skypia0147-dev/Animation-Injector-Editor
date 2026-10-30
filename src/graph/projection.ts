@@ -312,6 +312,7 @@ export function addGraphItem(w: Workspace, g: GraphRef, kind: NodeKind, position
   if (g.kind === 'root') {
     const a = addAction(n);
     a.config.steps[0].clip = '';
+    a.config.actionId = '';
     if (position) a.position = position;
     n.actions.push(a);
     id = a.uid;

@@ -356,3 +356,154 @@ test('small blocks fill the room beside a tall block', () => {
     'small blocks stacked beside the tall one'
   );
 });
+
+// 10-29 (docs/mockup-arrange-fan C, the user's Dynamic Block Hit): a condition card picking three or more HKX and those
+// HKX are one unit, the HKX a column right of the card in its rows' order. A unit stays on its route's row when it
+// fits there; else it goes under the cards in its way, from under the card that leads to it, beside the unit before.
+const fan = (id, rows) => ({...n(id, 'conditionCard'), outputs: [...rows.map((_, i) => `row:row${i + 1}`), 'false']});
+test('a card picking several HKX is a unit with them: the HKX a column right of it, in its rows order', () => {
+  const picks = ['h1', 'h2', 'h3', 'h4'];
+  const g = {
+    nodes: [n('key', 'keyInput'), fan('pick', picks.slice(0, 3)), ...picks.map(id => n(id, 'hkxPlay', id))],
+    edges: [e('key', 'pick'), ...picks.map((id, i) => e('pick', id, i < 3 ? `row:row${i + 1}` : 'false'))],
+  };
+  const p = regionLayout(g);
+  const pick = g.nodes.find(x => x.id === 'pick');
+  // On the route's row: nothing above is in the way.
+  assert.equal(p.pick.y, p.key.y);
+  for (const [i, id] of picks.entries()) {
+    assert.equal(p[id].x, p.pick.x + cardWidth(pick) + 64, id);
+    if (i) assert.ok(p[id].y > p[picks[i - 1]].y, id);
+  }
+  assert.equal(p.h1.y, p.pick.y);
+  noOverlap(g, p);
+});
+test('units that would sit under the row above go in a row below it, each under the card that leads to it', () => {
+  // Dynamic Block Hit's shape: a weapon card; its first row to a stamina card picking one HKX (true) or a chance card
+  // of seven (false); its second row to another chance card of seven.
+  const seven = prefix => Array.from({length: 7}, (_, i) => `${prefix}${i + 1}`);
+  const [low, high] = [seven('n'), seven('p')];
+  const g = {
+    nodes: [
+      n('start', 'markerReceive'),
+      {...n('weapon', 'conditionCard'), outputs: ['row:row1', 'row:row2']},
+      {...n('stamina', 'conditionCard'), outputs: ['true', 'false']},
+      n('groggy', 'hkxPlay', 'g'),
+      fan('normal', low.slice(0, 6)),
+      fan('power', high.slice(0, 6)),
+      ...[...low, ...high].map(id => n(id, 'hkxPlay', id)),
+    ],
+    edges: [
+      e('start', 'weapon'),
+      e('weapon', 'stamina', 'row:row1'),
+      e('weapon', 'power', 'row:row2'),
+      e('stamina', 'groggy', 'true'),
+      e('stamina', 'normal', 'false'),
+      ...low.map((id, i) => e('normal', id, i < 6 ? `row:row${i + 1}` : 'false')),
+      ...high.map((id, i) => e('power', id, i < 6 ? `row:row${i + 1}` : 'false')),
+    ],
+  };
+  const p = regionLayout(g);
+  const width = id => cardWidth(g.nodes.find(x => x.id === id));
+  // The one HKX right of its card, level; the units a row below, the first under its card, the next beside it.
+  assert.equal(p.groggy.y, p.stamina.y);
+  assert.equal(p.groggy.x, p.stamina.x + width('stamina') + 64);
+  assert.equal(p.normal.x, p.stamina.x);
+  assert.ok(p.normal.y > p.stamina.y);
+  assert.equal(p.power.y, p.normal.y);
+  assert.ok(p.power.x > p.n1.x + width('n1'));
+  for (const [card, list] of [
+    ['normal', low],
+    ['power', high],
+  ])
+    for (const [i, id] of list.entries()) {
+      assert.equal(p[id].x, p[card].x + width(card) + 64, id);
+      if (i) assert.ok(p[id].y > p[list[i - 1]].y, id);
+    }
+  // Seven tall, not fourteen: both columns start on one row.
+  assert.equal(p.n1.y, p.p1.y);
+  noOverlap(g, p);
+});
+
+// A route that splits into branches (docs/mockup-arrange-branches, 10-30: Dynamic Block Hit's five weapons): the head
+// left to right, each branch a column of its own with its cards on a top line and its units in a row under them, the
+// branches side by side in the split's order (wrapped to fit the pane), a transition every HKX shares under the split.
+function branches(count) {
+  const seven = prefix => Array.from({length: 7}, (_, i) => `${prefix}${i + 1}`);
+  const nodes = [n('start', 'startCard'), {...n('split', 'conditionCard'), outputs: []}],
+    edges = [e('start', 'split')];
+  const all = [];
+  for (let b = 0; b < count; b++) {
+    const [low, high] = [seven(`n${b}_`), seven(`p${b}_`)];
+    nodes[1].outputs.push(`row:row${b + 1}`);
+    nodes.push(
+      {...n(`hit${b}`, 'conditionCard'), outputs: ['row:row1', 'row:row2']},
+      {...n(`stamina${b}`, 'conditionCard'), outputs: ['true', 'false']},
+      n(`groggy${b}`, 'hkxPlay', `g${b}`),
+      fan(`power${b}`, high.slice(0, 6)),
+      fan(`normal${b}`, low.slice(0, 6)),
+      ...[...low, ...high].map(id => n(id, 'hkxPlay', id))
+    );
+    edges.push(
+      e('split', `hit${b}`, `row:row${b + 1}`),
+      e(`hit${b}`, `stamina${b}`, 'row:row1'),
+      e(`hit${b}`, `normal${b}`, 'row:row2'),
+      e(`stamina${b}`, `groggy${b}`, 'true'),
+      e(`stamina${b}`, `power${b}`, 'false'),
+      ...high.map((id, i) => e(`power${b}`, id, i < 6 ? `row:row${i + 1}` : 'false')),
+      ...low.map((id, i) => e(`normal${b}`, id, i < 6 ? `row:row${i + 1}` : 'false'))
+    );
+    all.push({b, low, high});
+  }
+  // Every HKX leaves by one transition, back to the split.
+  nodes.push({...n('again', 'transition'), scope: {kind: 'link'}});
+  for (const id of nodes.filter(x => x.kind === 'hkxPlay').map(x => x.id)) edges.push(e(id, 'again'));
+  edges.push(e('again', 'split'));
+  return {g: {nodes, edges}, all};
+}
+test('a route split into branches: each branch a column of its own, the branches side by side', () => {
+  const {g, all} = branches(5);
+  const p = arrangeLayout(g, {summary: true, view: {w: 1180, h: 640}}).positions;
+  const w = id => cardWidth(g.nodes.find(x => x.id === id));
+  const ids = b => [`hit${b}`, `stamina${b}`, `groggy${b}`, `power${b}`, `normal${b}`, ...all[b].low, ...all[b].high];
+  const span = b => [Math.min(...ids(b).map(id => p[id].x)), Math.max(...ids(b).map(id => p[id].x + w(id)))];
+  for (const {b} of all) {
+    // The top line: hit, stamina, groggy left to right on one row; the units under them, P under its stamina card.
+    assert.equal(p[`stamina${b}`].y, p[`hit${b}`].y);
+    assert.equal(p[`groggy${b}`].y, p[`hit${b}`].y);
+    assert.ok(p[`stamina${b}`].x > p[`hit${b}`].x && p[`groggy${b}`].x > p[`stamina${b}`].x);
+    assert.equal(p[`power${b}`].x, p[`stamina${b}`].x);
+    assert.ok(p[`power${b}`].y > p[`hit${b}`].y);
+    assert.equal(p[`normal${b}`].y, p[`power${b}`].y);
+    assert.ok(p[`normal${b}`].x > p[`p${b}_1`].x);
+    // Its cards stand in its own column: no other branch's card within its span on its rows.
+    for (const {b: o} of all)
+      if (o !== b && p[`hit${o}`].y === p[`hit${b}`].y) {
+        const [l, r] = span(b),
+          [ol, or] = span(o);
+        assert.ok(r < ol || or < l, `${b} and ${o} share columns`);
+      }
+  }
+  // Wrapped: more than one row of branches, in the split's order; the shared transition under the split.
+  const tops = [...new Set(all.map(({b}) => p[`hit${b}`].y))];
+  assert.ok(tops.length > 1);
+  for (let b = 1; b < all.length; b++)
+    assert.ok(
+      p[`hit${b}`].y > p[`hit${b - 1}`].y || p[`hit${b}`].x > p[`hit${b - 1}`].x,
+      `branch ${b} before ${b - 1}`
+    );
+  assert.equal(p.again.x, p.split.x);
+  assert.ok(p.again.y > p.split.y);
+  noOverlap(g, p);
+});
+test('branches that meet keep the arrange of one route', () => {
+  const {g} = branches(2);
+  // The second branch's hit card also leads into the first branch's stamina card: no column of its own.
+  g.edges.push(e('hit1', 'stamina0', 'row:row1'));
+  g.edges = g.edges.filter(x => x.id !== 'hit1:stamina1:row:row1');
+  g.nodes = g.nodes.filter(x => !['stamina1', 'groggy1', 'power1'].includes(x.id) && !/^p1_/.test(x.id));
+  g.edges = g.edges.filter(x => g.nodes.some(n => n.id === x.source) && g.nodes.some(n => n.id === x.target));
+  const p = arrangeLayout(g, {summary: true}).positions;
+  // One layer per depth, as before: both hit cards in one column.
+  assert.equal(p.hit0.x, p.hit1.x);
+});

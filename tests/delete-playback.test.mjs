@@ -13,6 +13,7 @@ function sample() {
     w = addFlat(w, '', 'playNode', {x: i * 400, y: 0}).workspace;
     const a = w.actions.at(-1);
     a.config.steps[0].clip = `animations\\Test${i}.hkx`;
+    a.config.actionId = `Test${i}`;
     w.starts.push({...newStart(w, {x: i * 400 - 300, y: 0}, 'event'), event: `Test${i}`, to: {action: a.uid}});
   }
   return w;
@@ -49,7 +50,7 @@ test('the start card stays, going nowhere; the other action is untouched', () =>
   );
   // A start going nowhere is not written.
   const xml = compileWorkspace(roundtrip(next));
-  assert.doesNotMatch(xml, /Test0|CustomAction1"/);
+  assert.doesNotMatch(xml, /Test0/);
   assert.ok(!flatGraph(next).nodes.some(n => n.action === a.uid));
 });
 

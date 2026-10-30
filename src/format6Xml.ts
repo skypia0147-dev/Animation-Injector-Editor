@@ -1,6 +1,6 @@
 import type {Workspace} from './workspace.ts';
 import {node, type Xml} from './xml.ts';
-import {extensionAttrs, formKinds} from './graph/conditionExtensions.ts';
+import {byKeywordName, extensionAttrs, formKinds} from './graph/conditionExtensions.ts';
 import {
   cardUses,
   isGroup,
@@ -38,11 +38,11 @@ export function checkXml(w: Workspace, c: Pick<ConditionCard, 'tests'>, id: stri
   else {
     out = node('Check', {kind: t.kind});
     if (t.subject !== 'self') out.attrs.subject = t.subject;
-    if (['stamina', 'magicka'].includes(t.kind)) out.attrs.minimum = String(t.minimum);
     Object.assign(out.attrs, extensionAttrs(t as CardTest & {pass?: undefined}));
     if (t.kind === 'equippedType') Object.assign(out.attrs, {hand: t.hand, type: t.equipmentType});
     if (t.kind === 'attackState') out.attrs.state = t.attackState!;
-    if (formKinds.includes(t.kind) && t.form) Object.assign(out.attrs, {plugin: t.form.plugin, form: t.form.id});
+    if (byKeywordName(t)) out.attrs.keyword = t.keyword!;
+    else if (formKinds.includes(t.kind) && t.form) Object.assign(out.attrs, {plugin: t.form.plugin, form: t.form.id});
     if (t.kind === 'global') out.attrs.equals = String(t.equals);
     // The last action the subject finished (runtime 0.12.296): the actions by their XML ids.
     if (t.kind === 'previousAction') {
@@ -50,6 +50,8 @@ export function checkXml(w: Workspace, c: Pick<ConditionCard, 'tests'>, id: stri
       if (t.within !== undefined) out.attrs.within = String(t.within);
       if (t.ended && t.ended !== 'any') out.attrs.ended = t.ended;
     }
+    // The last weapon hit the subject received: how long ago it may be.
+    if (t.kind === 'hitReceived' && t.within !== undefined) out.attrs.within = String(t.within);
     // Measured where the actor stands, for no particular action (runtime 0.12.299): no candidate.
     if ((t.kind === 'space' || t.kind === 'ground') && t.space)
       Object.assign(out.attrs, {distance: String(t.space.distance), direction: t.space.direction});

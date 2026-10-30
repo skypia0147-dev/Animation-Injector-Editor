@@ -36,6 +36,7 @@ test('a transition straight to an HKX holds its own blend; one through a conditi
   for (let i = 0; i < 2; i++) {
     w = addFlat(w, '', 'playNode', {x: i * 400, y: 0}).workspace;
     w.actions[i].config.steps[0].clip = `Animations/Test${i}.hkx`;
+    w.actions[i].config.actionId = `Test${i}`;
   }
   w = connectFlat(w, hkxId(w, 'a1'), hkxId(w, 'a2'));
   // Switched to an event on its card: its key binding goes.
@@ -44,7 +45,7 @@ test('a transition straight to an HKX holds its own blend; one through a conditi
   assert.deepEqual(w.actions[0].config.inputs, []);
   const l = w.links[0];
   l.blend = 0.25;
-  assert.match(compileWorkspace(roundtrip(w)), /<Transition to="CustomAction2" event="Next" blend="0.25"\/>/);
+  assert.match(compileWorkspace(roundtrip(w)), /<Transition to="Test1" event="Next" blend="0.25"\/>/);
   // Through a card: the card chooses the action, which plays with its own start blend.
   const card = {...newCard(w, {x: 0, y: 0}), true: {action: 'a2'}};
   w.cards.push(card);

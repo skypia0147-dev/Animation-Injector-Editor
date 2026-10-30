@@ -6,7 +6,6 @@ import {tr} from '../i18n/korean.ts';
 
 export type Expression = {settings: Omit<BranchTest, 'id' | 'operands' | 'pass' | 'fail'>; children: Expression[]};
 export const conditionNames: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(extensionConditions).map(([k, v]) => [k, v.label])),
   get all() {
     return tr('모두 충족 AND');
   },
@@ -57,6 +56,10 @@ export const conditionNames: Record<string, string> = {
     return tr('여성');
   },
 };
+// The extension conditions' names, read each time (10-30: copied once when the module loaded, they stayed in the
+// language of the moment, so 「받은 공격」 showed in Korean on an English canvas).
+for (const [kind, d] of Object.entries(extensionConditions))
+  Object.defineProperty(conditionNames, kind, {get: () => d.label, enumerable: true});
 type Tests = {tests: CardTest[]};
 export function readExpression(f: Tests, id: string, seen = new Set<string>()): Expression {
   if (seen.has(id)) throw Error(tr('조건 그룹이 순환합니다.'));

@@ -17,6 +17,7 @@ const sample = () => {
     w = r.workspace,
     a = w.actions[0];
   a.config.steps[0].clip = 'animations\\test.hkx';
+  a.config.actionId = 'test';
   return {w, a, id: r.id};
 };
 const itemOf = (w, id, find) => checklistModel(w).items.get(id).find(find);
@@ -74,6 +75,7 @@ test('a pair`s camera restore is an item of its card; deleting it switches it of
   let {w, id, a} = sample();
   w = switchActionKind(w, a.uid, 'pair');
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
+  w.actions[0].config.actionId = 'test';
   w.actions[0].cameraEnabled = true;
   w.actions[0].camera = {reset: 'RestoreCamera', restore: 'event', timeout: 10};
   const item = itemOf(w, id, i => i.node.kind === 'cameraRestore');

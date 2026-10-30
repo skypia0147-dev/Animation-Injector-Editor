@@ -83,8 +83,8 @@ test(
     single.config.air = 'allow';
     Object.assign(pair.pair, {range: 200, angle: 90});
     const changed = compileWorkspace(w);
-    assert.match(changed, /<Start to="CustomAction1" key="G" cooldown="0.5"\/>/);
-    assert.match(changed, /<Action id="CustomAction1" clip="[^"]+" air="both"/);
+    assert.match(changed, /<Start to="Action" key="G" cooldown="0.5"\/>/);
+    assert.match(changed, /<Action id="Action" clip="[^"]+" air="both"/);
     assert.match(changed, /<FindPartner range="200" angle="90"\/>/);
     same('changed', changed, importWorkspaceXml(changed));
   }

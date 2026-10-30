@@ -1,6 +1,6 @@
 import {qteMembers, copyQteRules, uniqueQteGroup} from './qteGroups.ts';
 import type {Workspace, Action} from '../workspace.ts';
-import {addAction, uid} from '../workspace.ts';
+import {addAction, fileActionId, uid} from '../workspace.ts';
 import type {ViewGraph} from './navigation.ts';
 import {addItem, conditionCardId, flatGraph, startCardId, transitionId} from './flat.ts';
 import {nodeSettings, applyNodeSettings} from './nodeSettings.ts';
@@ -65,7 +65,11 @@ export function pasteNodes(
       ...structuredClone(old),
       uid: fresh.uid,
       position: position(node),
-      config: {...structuredClone(old.config), actionId: fresh.config.actionId, name: old.config.name + tr(' 복사')},
+      config: {
+        ...structuredClone(old.config),
+        actionId: fileActionId(n.actions, fresh.uid, old.config.steps[0].clip),
+        name: old.config.name + tr(' 복사'),
+      },
     };
     n.actions.push(copy);
     actions.set(old.uid, copy.uid);

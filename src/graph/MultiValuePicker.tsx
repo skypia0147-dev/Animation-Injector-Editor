@@ -1,10 +1,11 @@
-import {useEffect, useRef, useState} from 'react';
+import {useRef, useState} from 'react';
 import {tr} from '../i18n/korean.ts';
+import {useDismiss} from '../ui/useDismiss.ts';
 import {joinValues, valuesOf} from './multiValue.ts';
 import './multiValue.css';
 
 /** A check's values (docs/mockup-condition-groups ③): the chosen ones as chips, × takes one away (one always stays),
- *  ＋ opens the values not chosen yet. `value` and `change` are the comma list the XML writes. */
+ *  ＋ opens the values not chosen yet, a pick adds one and closes it. `value` and `change` are the comma list the XML writes. */
 export function MultiValuePicker({
   value,
   choices,
@@ -20,14 +21,8 @@ export function MultiValuePicker({
     rest = choices.filter(([v]) => !chosen.includes(v));
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    addEventListener('pointerdown', away, true);
-    return () => removeEventListener('pointerdown', away, true);
-  }, [open]);
+  // A press anywhere else or Escape closes it (ui/useDismiss), as every menu of a card.
+  useDismiss(open, box, () => setOpen(false));
   const name = (v: string) => choices.find(([c]) => c === v)?.[1] ?? v;
   return (
     <span className="multi-values nodrag" ref={box} role="group" aria-label={label}>
@@ -63,9 +58,10 @@ export function MultiValuePicker({
               key={v}
               type="button"
               role="menuitem"
+              // One value a pick (10-29: the list stayed open after it); ＋ again for the next.
               onClick={() => {
                 change(joinValues([...chosen, v]));
-                if (rest.length === 1) setOpen(false);
+                setOpen(false);
               }}
             >
               {l}

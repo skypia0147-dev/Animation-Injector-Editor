@@ -1,5 +1,6 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
 import {StartFace, TransitionFace} from './StartCardFace.tsx';
+import {drawnLine, STUB_SOURCES, stubLines, type StubLines} from './sharedTransitionLines.ts';
 import {SlimClipBars} from './ClipBar.tsx';
 import {PinMenu} from './PinMenu.tsx';
 import {
@@ -92,6 +93,40 @@ const CardView = createContext<{
   opened: Set<string>;
   open: (id: string, open: boolean) => void;
 } | null>(null);
+/** Lines into a transition card several HKX share are not drawn (graph/sharedTransitionLines.ts): each HKX card shows
+ *  the card's number, which chooses its line; the transition card how many use it. */
+const StubContext = createContext<{stubs: StubLines; pick: (edge: string) => void} | null>(null);
+function StubMarks({id}: {id: string}) {
+  const ctx = useContext(StubContext),
+    card = ctx?.stubs.cards.get(id),
+    marks = ctx?.stubs.marks.get(id);
+  if (card)
+    return (
+      <span className="stub-count" title={tr('이 전환을 쓰는 HKX의 선은 HKX나 이 카드를 고르는 동안 보입니다.')}>
+        {card.mark} {tr('HKX {n}개가 씀', {n: card.count})}
+      </span>
+    );
+  if (!marks?.length) return null;
+  return (
+    <span className="stub-marks">
+      {marks.map(m => (
+        <button
+          type="button"
+          key={m.edge}
+          className="stub-mark nodrag"
+          title={tr('공유 전환 {mark}(으)로 가는 선입니다. 누르면 그 선을 고르고, Delete로 끊습니다.', {mark: m.mark})}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => {
+            e.stopPropagation();
+            ctx!.pick(m.edge);
+          }}
+        >
+          → {tr('전환')} {m.mark}
+        </button>
+      ))}
+    </span>
+  );
+}
 const cardViewKey = (id: string) => 'aieditor-cardview:' + id;
 function storedCardView(id: string): 'summary' | 'full' {
   try {
@@ -223,20 +258,17 @@ function ArrangeMenu({
 // are only what makes them draw again.
 const CardBody = memo(function CardBody({
   node,
+  fold,
 }: {
   node: Visual['data'];
+  fold: boolean;
   items: unknown;
   epoch: number;
   version: number;
   selection: string;
   library: unknown;
 }) {
-  // A card's clip bars are slim (the property list, mockup ⑥-A).
-  return (
-    <SlimClipBars.Provider value={true}>
-      <ChecklistBody node={node} />
-    </SlimClipBars.Provider>
-  );
+  return <ChecklistBody node={node} fold={fold} />;
 });
 /** A condition card draws with every document (a NOT, a condition's value), not only when its card data changes:
  *  the checklist context is one object for the whole canvas, so the gate is what changes. */
@@ -267,15 +299,19 @@ function GatedConditionCard({
 function GatedStartCard({node, routes}: {node: Visual['data']; routes: React.ReactNode}) {
   const gate = useContext(CardGate)!,
     ctx = useContext(ChecklistContext)!,
-    ref = parseNodeId(node.id);
-  if (ref.kind === 'startCard') return <StartFace w={gate.w} uid={ref.uid} edit={ctx.edit} routes={routes} />;
-  if (ref.kind === 'transition') return <TransitionFace w={gate.w} id={ref.link} edit={ctx.edit} routes={routes} />;
+    ref = parseNodeId(node.id),
+    fold = !!useContext(CardView)?.summary && gate.selected !== node.id;
+  if (ref.kind === 'startCard')
+    return <StartFace w={gate.w} uid={ref.uid} edit={ctx.edit} routes={routes} fold={fold} />;
+  if (ref.kind === 'transition')
+    return <TransitionFace w={gate.w} id={ref.link} edit={ctx.edit} routes={routes} fold={fold} />;
   return null;
 }
 function GatedChecklist({node}: {node: Visual['data']}) {
   const gate = useContext(CardGate)!,
     items = gate.model.items.get(node.id),
-    s = gate.selected;
+    s = gate.selected,
+    summary = !!useContext(CardView)?.summary;
   // The body follows the selection only when it is this card, one of its items or something it owns.
   const touched =
     !!s && (s === node.id || !!items?.some(i => i.node.id === s) || !!gate.model.owners.get(s)?.includes(node.id));
@@ -286,6 +322,7 @@ function GatedChecklist({node}: {node: Visual['data']}) {
       epoch={gate.epoch}
       version={node.action ? (gate.versions.get(node.action) ?? 0) : 0}
       selection={touched ? s : ''}
+      fold={summary && !touched}
       library={gate.library}
     />
   );
@@ -377,7 +414,12 @@ function Card({id, data, selected}: NodeProps<Visual>) {
     edgePins = qteEvent ? [] : routes.length ? data.outputs.filter(p => !routes.includes(p)) : data.outputs;
   // A start's, card's or transition's route names where it goes (from the document); a QTE's from its result.
   const routeText = (p: string) =>
-    data.kind !== 'qte' && context ? routeDestination(context.w, data.id, p) : data.routeTo?.[p] || '';
+    data.kind !== 'qte' && context ? routeDestination(context.w, data.id, p, true) : data.routeTo?.[p] || '';
+  // The chip's tooltip names it in full (a condition card's 「조건 · …」).
+  const routeTitle = (p: string) =>
+    (context && data.kind !== 'qte' ? routeDestination(context.w, data.id, p) + ' · ' : '') +
+    portLabel(data, p) +
+    tr(' 연결 대상 고르기');
   const routeSet = (p: string) => !!routeText(p);
   // A routing pin's destination is also chosen from a list (graph/pinTargets.ts), read when it opens.
   // The shown document's view comes from the render cache; an edit's copy is projected on its own.
@@ -405,7 +447,7 @@ function Card({id, data, selected}: NodeProps<Visual>) {
           <PinMenu
             className={'cond-to ' + kind}
             label={text}
-            title={portLabel(data, p) + tr(' 연결 대상 고르기')}
+            title={routeTitle(p)}
             load={() => pinRows(ctx.w, view(ctx.w), data.id).find(r => r.pin === p)}
             pick={target => choose(p, target)}
           />
@@ -509,6 +551,7 @@ function Card({id, data, selected}: NodeProps<Visual>) {
       <strong className="checklist-drag-handle" title={data.presentation.title}>
         <Icon name={data.presentation.icon} size={19} />
         <CardTitle title={data.presentation.title} />
+        <StubMarks id={data.id} />
       </strong>
       {data.start && <StartLine node={data} start={data.start} />}
       {data.kind === 'eventRegistry' ? (
@@ -522,7 +565,7 @@ function Card({id, data, selected}: NodeProps<Visual>) {
             <PinMenu
               className={className}
               label={label}
-              title={portLabel(data, p) + tr(' 연결 대상 고르기')}
+              title={routeTitle(p)}
               load={() => pinRows(ctx.w, view(ctx.w), data.id).find(r => r.pin === p)}
               pick={target => choose(p, target)}
             />
@@ -625,7 +668,17 @@ function Card({id, data, selected}: NodeProps<Visual>) {
     </div>
   );
 }
-const nodeTypes = {flat: memo(Card)};
+/** Inside a card every clip bar is slim (ClipBar.tsx, mockup ⑥-A): an HKX card's rows and a start or transition
+ *  card's settings alike (10-29: the transition card's 감지 구간 bar was left a few pixels between its label and
+ *  values, docs/mockup-transition-window A). */
+function SlimCard(props: NodeProps<Visual>) {
+  return (
+    <SlimClipBars.Provider value={true}>
+      <Card {...props} />
+    </SlimClipBars.Provider>
+  );
+}
+const nodeTypes = {flat: memo(SlimCard)};
 /** A route's line colour by its row's tone (ui/graphite.css --route-*), muted under the cards. */
 const routeLine = {
   pass: '#6f8f77',
@@ -1490,6 +1543,14 @@ function FlatGraphPanel({
     };
     return listenMerges(fullProjection.edges, nodes, sendsItself);
   }, [fullProjection, annotations, w.actions]);
+  const stubs = useMemo(
+    () =>
+      stubLines(
+        projection.nodes,
+        projection.edges.filter(e => !merges.hidden.has(e.id))
+      ),
+    [projection, merges]
+  );
   const edges = useMemo(() => {
     const sources = new Map(projection.nodes.map(n => [n.id, n]));
     // The chosen cards' lines by direction (10-18, docs/mockup-edge-highlight B): a plain line leaving a chosen
@@ -1498,7 +1559,7 @@ function FlatGraphPanel({
     // glows in its colour (sky blue when plain), and the rest step back the same way.
     const chosenCards = new Set(picked.length ? picked : visibleSelected ? [visibleSelected] : []);
     const fresh = projection.edges
-      .filter(e => !merges.hidden.has(e.id))
+      .filter(e => !merges.hidden.has(e.id) && drawnLine(stubs, e, chosenCards, selectedEdge))
       .map(e => {
         const out = chosenCards.has(e.source),
           hit = out || chosenCards.has(e.target),
@@ -1556,7 +1617,15 @@ function FlatGraphPanel({
     if (sameItems(previousEdgeList.current, shared)) return previousEdgeList.current as typeof shared;
     previousEdgeList.current = shared;
     return shared;
-  }, [projection, visibleSelected, picked, selectedEdge, merges, visualData]);
+  }, [projection, visibleSelected, picked, selectedEdge, merges, visualData, stubs]);
+  const pickLine = useRef((_: string) => {});
+  pickLine.current = edge => {
+    setSelectedEdge(edge);
+    setPicked([]);
+    select('');
+    region.current?.focus();
+  };
+  const stubContext = useMemo(() => ({stubs, pick: (edge: string) => pickLine.current(edge)}), [stubs]);
   const removeEdge = (id: string) =>
     attempt(() => {
       const edge = projection.edges.find(e => e.id === id);
@@ -1796,368 +1865,377 @@ function FlatGraphPanel({
   return (
     <ChecklistContext.Provider value={cardContext}>
       <CardGate.Provider value={cardGate}>
-        <CardView.Provider value={cardViewValue}>
-          <div className="graph-workspace">
-            <div className="flat-toolbar">
-              {/* Floats over the canvas's top-left corner (docs/mockup-design-audit A): the add button first, the
+        <StubContext.Provider value={stubContext}>
+          <CardView.Provider value={cardViewValue}>
+            <div className="graph-workspace">
+              <div className="flat-toolbar">
+                {/* Floats over the canvas's top-left corner (docs/mockup-design-audit A): the add button first, the
                   flow and card count last. */}
-              <HelpTip
-                label={tr('그래프 편집')}
-                help={tr(
-                  'HKX를 놓고 입력으로 연결하세요. 재생 카드끼리 연결하면 전환이 됩니다. 빈 곳을 우클릭하면 카드를 추가할 수 있습니다.'
-                )}
-              >
-                <button onClick={addPlay}>{tr('＋ HKX 재생')}</button>
-              </HelpTip>
-              {selectedEdge && (
-                <button
-                  onClick={() => removeEdge(selectedEdge)}
-                  title={tr('양쪽 카드를 유지하고 이 연결만 해제합니다.')}
+                <HelpTip
+                  label={tr('그래프 편집')}
+                  help={tr(
+                    'HKX를 놓고 입력으로 연결하세요. 재생 카드끼리 연결하면 전환이 됩니다. 빈 곳을 우클릭하면 카드를 추가할 수 있습니다.'
+                  )}
                 >
-                  {tr('연결선 삭제')}
-                </button>
-              )}
-              <button
-                disabled={!selectedNode}
-                onClick={() => fitNeighbors(visibleSelected)}
-                title={tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
-              >
-                {tr('주변 맞춤')}
-              </button>
-              <button
-                disabled={!focusAction && !selectedNode?.action}
-                aria-pressed={!!focusAction}
-                onClick={() => {
-                  if (focusAction) {
-                    setFocusAction('');
-                    setFitRequest(v => v + 1);
-                  } else focusFlow(visibleSelected);
-                }}
-                title={tr(
-                  '선택한 HKX의 진입·적용 기능·종료 경로만 자동 정렬합니다. 다른 HKX와 전체 그래프 배치는 유지됩니다.'
+                  <button onClick={addPlay}>{tr('＋ HKX 재생')}</button>
+                </HelpTip>
+                {selectedEdge && (
+                  <button
+                    onClick={() => removeEdge(selectedEdge)}
+                    title={tr('양쪽 카드를 유지하고 이 연결만 해제합니다.')}
+                  >
+                    {tr('연결선 삭제')}
+                  </button>
                 )}
-              >
-                {focusAction ? tr('전체 흐름 보기') : tr('이 동작 흐름만')}
-              </button>
-              <ArrangeMenu
-                all={() => arrange()}
-                chosen={selectedNode ? () => arrange(edit, visibleSelected) : undefined}
-                summary={summaryMode}
-                setSummary={v => setCardView(v ? 'summary' : 'full')}
-              />
-              {focusAction && (
                 <button
+                  disabled={!selectedNode}
+                  onClick={() => fitNeighbors(visibleSelected)}
+                  title={tr('선택 카드와 직접 연결된 카드들을 화면에 맞춥니다.')}
+                >
+                  {tr('주변 맞춤')}
+                </button>
+                <button
+                  disabled={!focusAction && !selectedNode?.action}
+                  aria-pressed={!!focusAction}
                   onClick={() => {
-                    setFocusSession(beginFocus(fullProjection, focusAction, focusNode, {hidden: merges.hidden}));
-                    setFocusPositions({});
-                    setFitRequest(v => v + 1);
+                    if (focusAction) {
+                      setFocusAction('');
+                      setFitRequest(v => v + 1);
+                    } else focusFlow(visibleSelected);
                   }}
-                  title={tr('연결된 카드만 다시 표시합니다. 분리된 카드는 프로젝트에 남습니다.')}
+                  title={tr(
+                    '선택한 HKX의 진입·적용 기능·종료 경로만 자동 정렬합니다. 다른 HKX와 전체 그래프 배치는 유지됩니다.'
+                  )}
                 >
-                  {tr('연결된 흐름으로 새로고침')}
+                  {focusAction ? tr('전체 흐름 보기') : tr('이 동작 흐름만')}
                 </button>
-              )}
-              {focusChoices.length > 0 && (
-                <select
-                  aria-label={tr('흐름 동작 선택')}
-                  defaultValue=""
-                  onChange={e => openFlow(e.target.value, selected)}
-                >
-                  <option value="">{tr('볼 동작 선택…')}</option>
-                  {focusChoices.map(id => (
-                    <option key={id} value={id}>
-                      {w.actions.find(a => a.uid === id)?.config.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <span className="flat-toolbar-info">
+                <ArrangeMenu
+                  all={() => arrange()}
+                  chosen={selectedNode ? () => arrange(edit, visibleSelected) : undefined}
+                  summary={summaryMode}
+                  setSummary={v => setCardView(v ? 'summary' : 'full')}
+                />
                 {focusAction && (
-                  <>
-                    {tr('흐름:')} {w.actions.find(a => a.uid === focusAction)?.config.name} ·{' '}
-                  </>
+                  <button
+                    onClick={() => {
+                      setFocusSession(beginFocus(fullProjection, focusAction, focusNode, {hidden: merges.hidden}));
+                      setFocusPositions({});
+                      setFitRequest(v => v + 1);
+                    }}
+                    title={tr('연결된 카드만 다시 표시합니다. 분리된 카드는 프로젝트에 남습니다.')}
+                  >
+                    {tr('연결된 흐름으로 새로고침')}
+                  </button>
                 )}
-                {bare ? 0 : projection.nodes.length} {tr('카드')}
-              </span>
-              <UnassignedSettings />
-            </div>
-            <div
-              ref={region}
-              tabIndex={-1}
-              className="p3-canvas"
-              data-testid="graph-surface"
-              data-graph-kind="flat"
-              onKeyDownCapture={e => {
-                if (
-                  picked.length > 1 &&
-                  ['Delete', 'Backspace'].includes(e.key) &&
-                  !(e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]')
-                ) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  removeChosen();
-                  return;
-                }
-                if (
-                  selectedEdge &&
-                  ['Delete', 'Backspace'].includes(e.key) &&
-                  !(e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]')
-                ) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  removeEdge(selectedEdge);
-                }
-              }}
-              onPointerDownCapture={e => {
-                if (e.button === 2) right.current = {x: e.clientX, y: e.clientY};
-                if (e.button !== 0 || space.current) return;
-                const target = e.target as HTMLElement;
-                if (target.classList.contains('react-flow__pane')) startBox(e);
-                // Moving a card that is not chosen moves it alone: it becomes the choice before the drag reads it.
-                const handle = target.closest('.checklist-drag-handle') && target.closest('.react-flow__node');
-                const id = handle?.getAttribute('data-id');
-                pressed.current = '';
-                if (id && !e.shiftKey && !e.ctrlKey && !e.metaKey && !chosen().includes(id)) {
-                  setPicked([]);
-                  select(id);
-                  pressed.current = id;
-                }
-              }}
-              onContextMenuCapture={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (Math.hypot(e.clientX - right.current.x, e.clientY - right.current.y) <= 5) context(e);
-              }}
-              onDragOver={e => {
-                if (e.dataTransfer.types.includes('application/aie-resource')) e.preventDefault();
-              }}
-              onDrop={e => {
-                const raw = e.dataTransfer.getData('application/aie-resource');
-                if (!raw) return;
-                e.preventDefault();
-                attempt(() => {
-                  const item = JSON.parse(raw),
-                    n = flatNode(
-                      w,
-                      (e.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id') || ''
-                    );
-                  if (!n?.action && item.kind === 'hkx') {
-                    const added = addFlat(w, '', 'playNode', screenToFlowPosition({x: e.clientX, y: e.clientY}));
-                    const node = flatNode(added.workspace, added.id)!,
-                      a = added.workspace.actions.find(a => a.uid === node.action)!;
-                    a.config.steps[0].label = item.clip.split(/[\\/]/).at(-1) || 'HKX';
-                    // A first-person file makes a first-person action (view.ts).
-                    edit(() => placeStepFile(added.workspace, a.uid, a.config.steps[0].id, item.clip, item.path || ''));
-                    select(added.id);
+                {focusChoices.length > 0 && (
+                  <select
+                    aria-label={tr('흐름 동작 선택')}
+                    defaultValue=""
+                    onChange={e => openFlow(e.target.value, selected)}
+                  >
+                    <option value="">{tr('볼 동작 선택…')}</option>
+                    {focusChoices.map(id => (
+                      <option key={id} value={id}>
+                        {w.actions.find(a => a.uid === id)?.config.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span className="flat-toolbar-info">
+                  {focusAction && (
+                    <>
+                      {tr('흐름:')} {w.actions.find(a => a.uid === focusAction)?.config.name} ·{' '}
+                    </>
+                  )}
+                  {bare ? 0 : projection.nodes.length} {tr('카드')}
+                </span>
+                <UnassignedSettings />
+              </div>
+              <div
+                ref={region}
+                tabIndex={-1}
+                className="p3-canvas"
+                data-testid="graph-surface"
+                data-graph-kind="flat"
+                onKeyDownCapture={e => {
+                  if (
+                    picked.length > 1 &&
+                    ['Delete', 'Backspace'].includes(e.key) &&
+                    !(e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]')
+                  ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeChosen();
                     return;
                   }
-                  if (!n?.action && item.kind === 'marker') {
-                    const added = addFlat(w, '', 'markerReceive', screenToFlowPosition({x: e.clientX, y: e.clientY}));
-                    const start = added.workspace.starts.find(s => 'startCard:' + s.uid === added.id);
-                    if (!start) throw Error(tr('이벤트 수신 카드를 만들지 못했습니다.'));
-                    start.event = item.name;
-                    edit(() => added.workspace);
-                    select(added.id);
-                    return;
+                  if (
+                    selectedEdge &&
+                    ['Delete', 'Backspace'].includes(e.key) &&
+                    !(e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]')
+                  ) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeEdge(selectedEdge);
                   }
-                  if (!n?.action) throw Error(tr('대상 동작 또는 HKX 카드에 놓으세요.'));
-                  const a = w.actions.find(a => a.uid === n.action)!;
-                  if (item.kind === 'hkx') {
-                    const step = a.config.steps.find(s => s.id === n.step) ?? a.config.steps[0];
-                    if (!step) throw Error(tr('HKX 재생 카드를 추가하고 연결하세요.'));
-                    edit(w => placeStepFile(w, a.uid, step.id, item.clip, item.path || ''));
-                    return;
-                  }
-                  // An input or event dropped on an HKX card: a start card in front of it.
-                  const input =
-                    item.kind === 'input'
-                      ? (w.sharedInputs.find(i => i.id === item.id) ??
-                        w.actions.find(a => a.uid === item.action)?.config.inputs.find(i => i.id === item.id))
-                      : undefined;
-                  if (item.kind === 'input' && !input) throw Error(tr('입력을 찾지 못했습니다.'));
-                  if (item.kind !== 'input' && item.kind !== 'marker') throw Error(tr('지원하지 않는 자산입니다.'));
-                  const r = addFlat(w, '', item.kind === 'input' ? 'keyInput' : 'markerReceive', {
-                    x: a.position.x - 320,
-                    y: a.position.y,
-                  });
-                  const start = r.workspace.starts.find(s => 'startCard:' + s.uid === r.id)!;
-                  if (input) {
-                    start.key = input.key;
-                    start.gamepad = input.gamepad;
-                    if (input.control) start.control = input.control;
-                  } else start.event = item.name;
-                  start.to = {action: a.uid};
-                  edit(() => r.workspace);
-                  select(r.id);
-                });
-              }}
-            >
-              <ReactFlow<Visual>
-                onlyRenderVisibleElements={!measuring}
-                nodes={bare ? NO_NODES : nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                onNodeClick={(e, n) => {
-                  setSelectedEdge('');
-                  if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                    if (!(e.target as HTMLElement).closest('input,select,textarea,button'))
-                      choose(toggled(chosen(), n.id));
-                  } else {
-                    // Newly chosen by this click (a header press chooses it already, for a drag).
-                    const fresh = visibleSelected !== n.id || pressed.current === n.id;
-                    pressed.current = '';
-                    setPicked([]);
-                    select(n.id);
-                    if (fresh) centreCard(n.id);
-                  }
-                  if (!(e.target as HTMLElement).closest('.checklist-body')) region.current?.focus();
                 }}
-                onEdgeClick={(_, e) => {
-                  setSelectedEdge(e.id);
-                  setPicked([]);
-                  select('');
-                  region.current?.focus();
-                }}
-                onNodeDoubleClick={(e, n) => {
-                  if ((e.target as HTMLElement).closest('input,select,textarea,button,.react-flow__handle')) return;
-                  select(n.id);
-                  focusFlow(n.id);
-                }}
-                onPaneClick={() => {
-                  if (boxEnded.current) return;
-                  setPicked([]);
-                  setSelectedEdge('');
-                  select('');
-                  region.current?.focus();
-                }}
-                onNodesChange={changes => {
-                  // The selection is this panel's (`picked`/`selected`): React Flow's own select changes are dropped.
-                  const kept = changes.filter(c => c.type !== 'select');
-                  if (kept.length) setNodes(ns => applyNodeChanges(kept, ns));
-                }}
-                onNodeDragStart={(_, n, all) => {
-                  dragging.current = true;
+                onPointerDownCapture={e => {
+                  if (e.button === 2) right.current = {x: e.clientX, y: e.clientY};
+                  if (e.button !== 0 || space.current) return;
+                  const target = e.target as HTMLElement;
+                  if (target.classList.contains('react-flow__pane')) startBox(e);
+                  // Moving a card that is not chosen moves it alone: it becomes the choice before the drag reads it.
+                  const handle = target.closest('.checklist-drag-handle') && target.closest('.react-flow__node');
+                  const id = handle?.getAttribute('data-id');
                   pressed.current = '';
-                  dragFrom.current = {id: n.id, ...n.position};
-                  setSelectedEdge('');
-                  cancelled.current = false;
-                  if (all.length < 2) {
+                  if (id && !e.shiftKey && !e.ctrlKey && !e.metaKey && !chosen().includes(id)) {
                     setPicked([]);
-                    select(n.id);
+                    select(id);
+                    pressed.current = id;
                   }
                 }}
-                onNodeDragStop={(_, _n, all) => {
-                  dragging.current = false;
-                  if (!cancelled.current)
-                    focusAction
-                      ? setFocusPositions(p => ({...p, ...Object.fromEntries(all.map(n => [n.id, n.position]))}))
-                      : edit(w => moveNodes(w, {kind: 'root'}, Object.fromEntries(all.map(n => [n.id, n.position]))));
+                onContextMenuCapture={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (Math.hypot(e.clientX - right.current.x, e.clientY - right.current.y) <= 5) context(e);
                 }}
-                onConnect={c =>
+                onDragOver={e => {
+                  if (e.dataTransfer.types.includes('application/aie-resource')) e.preventDefault();
+                }}
+                onDrop={e => {
+                  const raw = e.dataTransfer.getData('application/aie-resource');
+                  if (!raw) return;
+                  e.preventDefault();
                   attempt(() => {
-                    const toEvent = connectQteToEvent(w, c.source, c.sourceHandle ?? '', c.target);
-                    if (toEvent) {
-                      edit(() => toEvent);
-                      status(tr('QTE 결과가 이 이벤트를 보내고, QTE의 동작이 이 이벤트를 기다리도록 이었습니다.'));
+                    const item = JSON.parse(raw),
+                      n = flatNode(
+                        w,
+                        (e.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id') || ''
+                      );
+                    if (!n?.action && item.kind === 'hkx') {
+                      const added = addFlat(w, '', 'playNode', screenToFlowPosition({x: e.clientX, y: e.clientY}));
+                      const node = flatNode(added.workspace, added.id)!,
+                        a = added.workspace.actions.find(a => a.uid === node.action)!;
+                      // A first-person file makes a first-person action (view.ts).
+                      edit(() =>
+                        placeStepFile(added.workspace, a.uid, a.config.steps[0].id, item.clip, item.path || '')
+                      );
+                      select(added.id);
                       return;
                     }
-                    edit(
-                      w =>
-                        executeGraphCommand(w, {
-                          type: 'connect',
-                          source: c.sourceHandle?.startsWith('embedded:')
-                            ? decodeURIComponent(c.sourceHandle.split(':')[1])
-                            : c.source,
-                          target: c.target,
-                          port: c.sourceHandle?.startsWith('embedded:')
-                            ? c.sourceHandle.split(':').slice(2).join(':')
-                            : (c.sourceHandle ?? undefined),
-                        }).workspace
-                    );
-                  })
-                }
-                zoomOnDoubleClick={false}
-                panOnDrag={[1, 2]}
-                // React Flow selects nothing itself (its click selection rewrites its own copy of the nodes and the
-                // chosen marks drift from `picked`); dragging still moves every node marked selected.
-                elementsSelectable={false}
-                multiSelectionKeyCode={null}
-                selectionKeyCode={null}
-                nodeDragThreshold={5}
-                nodeClickDistance={5}
-                paneClickDistance={5}
-                deleteKeyCode={null}
-                minZoom={MIN_ZOOM}
-                maxZoom={2}
-                fitView
-                fitViewOptions={{padding: 0.15, maxZoom: 0.8}}
-                colorMode="dark"
+                    if (!n?.action && item.kind === 'marker') {
+                      const added = addFlat(w, '', 'markerReceive', screenToFlowPosition({x: e.clientX, y: e.clientY}));
+                      const start = added.workspace.starts.find(s => 'startCard:' + s.uid === added.id);
+                      if (!start) throw Error(tr('이벤트 수신 카드를 만들지 못했습니다.'));
+                      start.event = item.name;
+                      edit(() => added.workspace);
+                      select(added.id);
+                      return;
+                    }
+                    if (!n?.action) throw Error(tr('대상 동작 또는 HKX 카드에 놓으세요.'));
+                    const a = w.actions.find(a => a.uid === n.action)!;
+                    if (item.kind === 'hkx') {
+                      const step = a.config.steps.find(s => s.id === n.step) ?? a.config.steps[0];
+                      if (!step) throw Error(tr('HKX 재생 카드를 추가하고 연결하세요.'));
+                      edit(w => placeStepFile(w, a.uid, step.id, item.clip, item.path || ''));
+                      return;
+                    }
+                    // An input or event dropped on an HKX card: a start card in front of it.
+                    const input =
+                      item.kind === 'input'
+                        ? (w.sharedInputs.find(i => i.id === item.id) ??
+                          w.actions.find(a => a.uid === item.action)?.config.inputs.find(i => i.id === item.id))
+                        : undefined;
+                    if (item.kind === 'input' && !input) throw Error(tr('입력을 찾지 못했습니다.'));
+                    if (item.kind !== 'input' && item.kind !== 'marker') throw Error(tr('지원하지 않는 자산입니다.'));
+                    const r = addFlat(w, '', item.kind === 'input' ? 'keyInput' : 'markerReceive', {
+                      x: a.position.x - 320,
+                      y: a.position.y,
+                    });
+                    const start = r.workspace.starts.find(s => 'startCard:' + s.uid === r.id)!;
+                    if (input) {
+                      start.key = input.key;
+                      start.gamepad = input.gamepad;
+                      if (input.control) start.control = input.control;
+                    } else start.event = item.name;
+                    start.to = {action: a.uid};
+                    edit(() => r.workspace);
+                    select(r.id);
+                  });
+                }}
               >
-                <ScreenGrid />
-                <SelectionRing target={region} />
-                <EdgeWidth target={region} />
-                <CanvasControls />
-                {minimapOpen && (
-                  <MiniMap
-                    style={{width: 180, height: 110}}
-                    pannable
-                    zoomable
-                    nodeColor={n => (n.selected ? '#ffffff' : n.data.kind === 'hkxPlay' ? '#77aaa3' : '#9a9a9a')}
-                    nodeStrokeColor="#b8b8b8"
-                    nodeStrokeWidth={2}
-                    maskColor="rgba(0,0,0,0.25)"
-                    maskStrokeColor="#cccccc"
-                    maskStrokeWidth={1}
+                <ReactFlow<Visual>
+                  onlyRenderVisibleElements={!measuring}
+                  nodes={bare ? NO_NODES : nodes}
+                  edges={edges}
+                  nodeTypes={nodeTypes}
+                  edgeTypes={edgeTypes}
+                  onNodeClick={(e, n) => {
+                    setSelectedEdge('');
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                      if (!(e.target as HTMLElement).closest('input,select,textarea,button'))
+                        choose(toggled(chosen(), n.id));
+                    } else {
+                      // Newly chosen by this click (a header press chooses it already, for a drag).
+                      const fresh = visibleSelected !== n.id || pressed.current === n.id;
+                      pressed.current = '';
+                      setPicked([]);
+                      select(n.id);
+                      if (fresh) centreCard(n.id);
+                    }
+                    if (!(e.target as HTMLElement).closest('.checklist-body')) region.current?.focus();
+                  }}
+                  onEdgeClick={(_, e) => {
+                    setSelectedEdge(e.id);
+                    setPicked([]);
+                    select('');
+                    region.current?.focus();
+                  }}
+                  onNodeDoubleClick={(e, n) => {
+                    if ((e.target as HTMLElement).closest('input,select,textarea,button,.react-flow__handle')) return;
+                    select(n.id);
+                    focusFlow(n.id);
+                  }}
+                  onPaneClick={() => {
+                    if (boxEnded.current) return;
+                    setPicked([]);
+                    setSelectedEdge('');
+                    select('');
+                    region.current?.focus();
+                  }}
+                  onNodesChange={changes => {
+                    // The selection is this panel's (`picked`/`selected`): React Flow's own select changes are dropped.
+                    const kept = changes.filter(c => c.type !== 'select');
+                    if (kept.length) setNodes(ns => applyNodeChanges(kept, ns));
+                  }}
+                  onNodeDragStart={(_, n, all) => {
+                    dragging.current = true;
+                    pressed.current = '';
+                    dragFrom.current = {id: n.id, ...n.position};
+                    setSelectedEdge('');
+                    cancelled.current = false;
+                    if (all.length < 2) {
+                      setPicked([]);
+                      select(n.id);
+                    }
+                  }}
+                  onNodeDragStop={(_, _n, all) => {
+                    dragging.current = false;
+                    if (!cancelled.current)
+                      focusAction
+                        ? setFocusPositions(p => ({...p, ...Object.fromEntries(all.map(n => [n.id, n.position]))}))
+                        : edit(w => moveNodes(w, {kind: 'root'}, Object.fromEntries(all.map(n => [n.id, n.position]))));
+                  }}
+                  onConnect={c =>
+                    attempt(() => {
+                      const toEvent = connectQteToEvent(w, c.source, c.sourceHandle ?? '', c.target);
+                      if (toEvent) {
+                        edit(() => toEvent);
+                        status(tr('QTE 결과가 이 이벤트를 보내고, QTE의 동작이 이 이벤트를 기다리도록 이었습니다.'));
+                        return;
+                      }
+                      edit(
+                        w =>
+                          executeGraphCommand(w, {
+                            type: 'connect',
+                            source: c.sourceHandle?.startsWith('embedded:')
+                              ? decodeURIComponent(c.sourceHandle.split(':')[1])
+                              : c.source,
+                            target: c.target,
+                            port: c.sourceHandle?.startsWith('embedded:')
+                              ? c.sourceHandle.split(':').slice(2).join(':')
+                              : (c.sourceHandle ?? undefined),
+                          }).workspace
+                      );
+                      // Its line is drawn only while it or the card is chosen: say where it went.
+                      if (
+                        c.target.startsWith('transition:') &&
+                        (stubs.cards.get(c.target)?.count ?? 0) + 1 >= STUB_SOURCES
+                      )
+                        status(tr('공유 전환에 이었습니다. 이 전환의 선은 HKX나 전환 카드를 고르는 동안 보입니다.'));
+                    })
+                  }
+                  zoomOnDoubleClick={false}
+                  panOnDrag={[1, 2]}
+                  // React Flow selects nothing itself (its click selection rewrites its own copy of the nodes and the
+                  // chosen marks drift from `picked`); dragging still moves every node marked selected.
+                  elementsSelectable={false}
+                  multiSelectionKeyCode={null}
+                  selectionKeyCode={null}
+                  nodeDragThreshold={5}
+                  nodeClickDistance={5}
+                  paneClickDistance={5}
+                  deleteKeyCode={null}
+                  minZoom={MIN_ZOOM}
+                  maxZoom={2}
+                  fitView
+                  fitViewOptions={{padding: 0.15, maxZoom: 0.8}}
+                  colorMode="dark"
+                >
+                  <ScreenGrid />
+                  <SelectionRing target={region} />
+                  <EdgeWidth target={region} />
+                  <CanvasControls />
+                  {minimapOpen && (
+                    <MiniMap
+                      style={{width: 180, height: 110}}
+                      pannable
+                      zoomable
+                      nodeColor={n => (n.selected ? '#ffffff' : n.data.kind === 'hkxPlay' ? '#77aaa3' : '#9a9a9a')}
+                      nodeStrokeColor="#b8b8b8"
+                      nodeStrokeWidth={2}
+                      maskColor="rgba(0,0,0,0.25)"
+                      maskStrokeColor="#cccccc"
+                      maskStrokeWidth={1}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    className={'minimap-toggle' + (minimapOpen ? ' on' : '')}
+                    aria-pressed={minimapOpen}
+                    aria-label={minimapOpen ? tr('미니맵 닫기') : tr('미니맵 열기')}
+                    title={minimapOpen ? tr('미니맵 닫기') : tr('미니맵 열기')}
+                    onClick={toggleMinimap}
+                  >
+                    <Icon name="map" size={16} />
+                  </button>
+                </ReactFlow>
+                {bare && !focusAction && (
+                  // A project without an action: the three steps to a first one (gone once a card exists).
+                  <div className="canvas-guide" role="note">
+                    <h3>{tr('첫 동작 만들기')}</h3>
+                    <ol>
+                      <li>
+                        <button type="button" className="canvas-guide-add" onClick={addPlay}>
+                          {tr('＋ HKX 재생')}
+                        </button>
+                        <span>
+                          {tr(
+                            '카드를 만들고 카드의 파일에서 HKX를 고르세요. HKX 파일을 캔버스에 끌어다 놓아도 카드가 생깁니다.'
+                          )}
+                        </span>
+                      </li>
+                      <li>{tr('카드를 오른쪽 클릭해 시작 키 입력이나 시작 이벤트를 추가하세요.')}</li>
+                      <li>{tr('F7로 검사하고 Ctrl+S로 저장하세요. 저장한 파일이 게임이 읽는 XML입니다.')}</li>
+                    </ol>
+                    <p className="canvas-guide-more">
+                      {tr('이벤트부터 등록하려면')}{' '}
+                      <button type="button" onClick={() => setRegistryShown(w.id)}>
+                        {tr('이벤트 등록 카드 보기')}
+                      </button>
+                    </p>
+                  </div>
+                )}
+                {marquee && (
+                  <div
+                    className="p3-marquee"
+                    style={{left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h}}
                   />
                 )}
-                <button
-                  type="button"
-                  className={'minimap-toggle' + (minimapOpen ? ' on' : '')}
-                  aria-pressed={minimapOpen}
-                  aria-label={minimapOpen ? tr('미니맵 닫기') : tr('미니맵 열기')}
-                  title={minimapOpen ? tr('미니맵 닫기') : tr('미니맵 열기')}
-                  onClick={toggleMinimap}
-                >
-                  <Icon name="map" size={16} />
-                </button>
-              </ReactFlow>
-              {bare && !focusAction && (
-                // A project without an action: the three steps to a first one (gone once a card exists).
-                <div className="canvas-guide" role="note">
-                  <h3>{tr('첫 동작 만들기')}</h3>
-                  <ol>
-                    <li>
-                      <button type="button" className="canvas-guide-add" onClick={addPlay}>
-                        {tr('＋ HKX 재생')}
-                      </button>
-                      <span>
-                        {tr(
-                          '카드를 만들고 카드의 파일에서 HKX를 고르세요. HKX 파일을 캔버스에 끌어다 놓아도 카드가 생깁니다.'
-                        )}
-                      </span>
-                    </li>
-                    <li>{tr('카드를 오른쪽 클릭해 시작 키 입력이나 시작 이벤트를 추가하세요.')}</li>
-                    <li>{tr('F7로 검사하고 Ctrl+S로 저장하세요. 저장한 파일이 게임이 읽는 XML입니다.')}</li>
-                  </ol>
-                  <p className="canvas-guide-more">
-                    {tr('이벤트부터 등록하려면')}{' '}
-                    <button type="button" onClick={() => setRegistryShown(w.id)}>
-                      {tr('이벤트 등록 카드 보기')}
-                    </button>
-                  </p>
-                </div>
-              )}
-              {marquee && (
-                <div
-                  className="p3-marquee"
-                  style={{left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h}}
-                />
-              )}
-              {menu}
+                {menu}
+              </div>
             </div>
-          </div>
-        </CardView.Provider>
+          </CardView.Provider>
+        </StubContext.Provider>
       </CardGate.Provider>
     </ChecklistContext.Provider>
   );
