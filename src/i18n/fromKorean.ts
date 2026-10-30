@@ -5599,4 +5599,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '共通条件が偽か、一致する行がないとき',
     '公共条件为假，或无匹配行时',
   ],
+  '이 시각부터 플레이어가 이동 키를 누르면 동작을 끊고 걷기·달리기로 돌아갑니다. 전투 중인 NPC는 이 시각부터 AI에게 이동을 돌려주고, AI가 움직이거나 공격하려 하면 끊습니다.':
+    [
+      'From this time a movement key cancels the action back to walking or running. An NPC in combat gets movement back from this time and leaves as soon as its AI moves or attacks.',
+      'この時刻から、プレイヤーが移動キーを押すとアクションを中断して歩き・走りに戻ります。戦闘中のNPCはこの時刻からAIに移動を返し、AIが動くか攻撃しようとすると中断します。',
+      '从此时起，玩家按下移动键会中断动作并回到行走或奔跑。战斗中的 NPC 从此时起将移动交还给 AI，AI 一旦移动或攻击就中断。',
+    ],
 };
