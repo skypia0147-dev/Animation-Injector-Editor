@@ -5283,11 +5283,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '“玩家”检查是否为玩家角色（运行时 0.12.267），其余按 ActorType 关键字检查。可同时属于多个分类（玩家也属于 NPC），与动作的骨架兼容性无关。',
     ],
   '플레이어에게만 적용됩니다.': ['Applies to player only.', 'プレイヤーにのみ適用されます。', '仅对玩家生效。'],
-  '플레이어의 이동키·컨트롤러 스틱 방향을 분기 시작 시 한 번 감지합니다. 전환 대기 중에도 같은 방향을 사용합니다. NPC의 실제 이동이나 HKX 이동 방향을 검사하지 않으며 NPC를 검사하면 NOT에서도 통과하지 않습니다. 대각선은 입력이 큰 축을 사용하고 같으면 앞·뒤를 우선합니다.':
+  '플레이어의 이동키·컨트롤러 스틱 방향을 분기 시작 시 한 번 감지합니다. 전환 대기 중에도 같은 방향을 사용합니다. NPC의 실제 이동이나 HKX 이동 방향을 검사하지 않으며 NPC를 검사하면 NOT에서도 통과하지 않습니다. 대각선은 입력이 큰 축을 사용하고 같으면 앞·뒤를 우선합니다. True Directional Movement의 방향성 모드에서는 캐릭터가 입력 쪽으로 돌아 앞으로 달리므로, 이동 입력이 있으면 항상 앞으로 판정합니다(TDM이 없거나 다른 모드면 키 그대로).':
     [
-      "Detects the direction of the player's movement keys or controller stick once at branch start. The same direction is used while waiting for transition. Does not inspect NPC actual movement or HKX movement direction, and inspecting an NPC will not pass even with NOT. Diagonal input uses whichever axis is greater; if equal, forward/backward takes priority.",
-      'プレイヤーの移動キーまたはコントローラースティックの方向を分岐開始時に1回検出します。遷移待機中も同じ方向を使用します。NPC の実際の移動や HKX の移動方向は検査されず、NPC を検査した場合は NOT でも通過しません。斜め入力は入力値が大きい方の軸を使用し、同じ場合は前後を優先します。',
-      '在分支开始时检测一次玩家的移动键或手柄摇杆方向。等待过渡期间也会使用相同方向。不检测 NPC 的实际移动或 HKX 移动方向，若检测 NPC 则即使使用 NOT 也无法通过。对角线方向采用输入幅度较大的轴，若相同则优先判定前·后。',
+      "Detects the direction of the player's movement keys or controller stick once at branch start. The same direction is used while waiting for transition. Does not inspect NPC actual movement or HKX movement direction, and inspecting an NPC will not pass even with NOT. Diagonal input uses whichever axis is greater; if equal, forward/backward takes priority. In True Directional Movement's directional mode the character turns toward the input and runs forward, so any movement input reads forward (without TDM or in its other modes, the keys as pressed).",
+      'プレイヤーの移動キーまたはコントローラースティックの方向を分岐開始時に1回検出します。遷移待機中も同じ方向を使用します。NPC の実際の移動や HKX の移動方向は検査されず、NPC を検査した場合は NOT でも通過しません。斜め入力は入力値が大きい方の軸を使用し、同じ場合は前後を優先します。True Directional Movement の方向モードではキャラクターが入力方向へ向きを変えて前へ走るため、移動入力があれば常に前と判定します（TDM がない場合や他のモードではキーのまま）。',
+      '在分支开始时检测一次玩家的移动键或手柄摇杆方向。等待过渡期间也会使用相同方向。不检测 NPC 的实际移动或 HKX 移动方向，若检测 NPC 则即使使用 NOT 也无法通过。对角线方向采用输入幅度较大的轴，若相同则优先判定前·后。在 True Directional Movement 的方向模式下，角色会转向输入方向并向前奔跑，因此只要有移动输入就始终判定为前（没有 TDM 或处于其他模式时按按键判定）。',
     ],
   '플레이어인 쪽': ["The player's side", 'プレイヤー側', '玩家一方'],
   '피격 이벤트': ['Hit event', '被弾イベント', '受击事件'],
