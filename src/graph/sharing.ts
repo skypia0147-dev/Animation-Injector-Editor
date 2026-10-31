@@ -3,6 +3,7 @@ import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {parseNodeId} from './nodeRef.ts';
 import {tr} from '../i18n/korean.ts';
+import {sharable} from './flat.ts';
 /** Event transitions drawn as one receiver (XML carries no sharing: an import joins equal ones, shareEventReceivers).
  *  A member is a link id. */
 export type SharedRule = {kind: 'link'; members: string[]};
@@ -27,7 +28,7 @@ export function shareEventReceivers(w: Workspace): Workspace {
   const taken = new Set((w.sharedRules ?? []).flatMap(g => g.members)),
     groups = new Map<string, SharedRule>();
   for (const l of w.links) {
-    if (l.mode !== 'event' || taken.has(l.id)) continue;
+    if (!sharable(l) || taken.has(l.id)) continue;
     const signature = key(linkValue(w, l.id)),
       g = groups.get(signature) ?? {kind: 'link' as const, members: []};
     g.members.push(l.id);

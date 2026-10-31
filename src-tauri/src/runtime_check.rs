@@ -232,7 +232,7 @@ mod tests {
     const VALID: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <AnimationSet version="6" id="E2Check">
   <Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs>
-  <Start input="use" onKeyUp="false" to="First"/>
+  <Start input="use" press="tap" to="First"/>
   <Action id="First" clip="Animations\ComboTest\test_Attack1.hkx">
     <Transition input="next" from="0.1" until="end-0.1" buffer="true"BLEND><Row to="Second"><Check kind="blocking"/></Row></Transition>
   </Action>

@@ -89,7 +89,16 @@ const ActionRow = memo(function ActionRow({
   useLanguage();
   const match = matcher(q);
   const linkLabel = (l: Link) => {
-    const via = l.mode === 'event' ? l.event || t('row.marker') : inputLabel(a.config, l.input) || t('row.input');
+    const via =
+      l.mode === 'end'
+        ? tr('끝나면')
+        : l.mode === 'move'
+          ? tr('이동키를 누르면')
+          : l.mode === 'release'
+            ? tr('키를 떼면')
+            : l.mode === 'event'
+              ? l.event || t('row.marker')
+              : inputLabel(a.config, l.input) || t('row.input');
     return `→ ${names.get(l.to) ?? l.to} · ${via}`;
   };
   const actionMatch = match(a.config.name + ' ' + a.config.actionId);

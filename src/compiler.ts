@@ -48,6 +48,8 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
     // The workspace drops a blend that is off (the graph's own transition then applies).
     enter: a.enterBlendEnabled ? p.enterBlend : undefined,
     block: p.suppress ? uniqueEvents(p.suppress.events).join(',') : undefined,
+    loop: p.loop ? true : undefined,
+    maxHold: p.loop && p.loop.maxHold !== 3 ? p.loop.maxHold : undefined,
   });
   // An element whose every attribute is the default is left out, unless its presence is the setting.
   const add = (

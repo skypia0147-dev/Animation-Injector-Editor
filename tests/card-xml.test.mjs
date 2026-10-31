@@ -61,7 +61,7 @@ const START = '<Start id="BowDodge" ';
 const scenarios = [
   // ── 시작 카드 (⑨) ──
   ['S1 키', DDS, w => patchStart(w, 'start1', {key: 'Num7'}), [START + 'key="Num7" cooldown="0.2"'], ['key="Mouse2"']],
-  ['S2 뗄 때', DDS, w => patchStart(w, 'start1', {onKeyUp: true}), [START + 'key="Mouse2" onKeyUp="true"'], []],
+  ['S2 짧게', DDS, w => patchStart(w, 'start1', {press: 'tap'}), [START + 'key="Mouse2" press="tap"'], []],
   [
     'S3 이벤트로 · 보낸 쪽',
     DDS,

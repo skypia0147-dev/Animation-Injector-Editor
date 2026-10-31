@@ -48,12 +48,31 @@ export type StartCard = {
   /** The actor-ahead cone of such a start (game units, degrees); absent: 200, 90. */
   range?: number;
   angle?: number;
-  onKeyUp: boolean;
+  /** How the key or control is pressed (runtime PressKinds.h, XML press): the moment it goes down, a short press,
+   *  two quick presses, or held past the hold time. */
+  press: StartPress;
   cooldown: number;
   block?: {events: string[]; when: 'startable' | 'active' | 'both'};
   to: Ref;
   position: Position;
 };
+
+export const startPresses = ['down', 'tap', 'double', 'hold'] as const;
+export type StartPress = (typeof startPresses)[number];
+/** Game controls that open a menu the moment they go down: they take 'down' only (the runtime rejects the rest). */
+export const menuControl = (c: GameControl | undefined) => c === 'wait' || c === 'favorites' || c === 'tweenMenu';
+/** A press kind's chip on the card's settings. */
+export const pressName = (p: StartPress) =>
+  p === 'tap' ? tr('짧게') : p === 'double' ? tr('두 번') : p === 'hold' ? tr('길게') : tr('누를 때');
+/** A key start's trigger row: when it starts. */
+export const pressTrigger = (p: StartPress) =>
+  p === 'tap'
+    ? tr('짧게 누를 때')
+    : p === 'double'
+      ? tr('두 번 누를 때')
+      : p === 'hold'
+        ? tr('길게 누를 때')
+        : tr('누를 때');
 
 export const refAction = (r: Ref) => (r && 'action' in r ? r.action : '');
 export const refCard = (r: Ref) => (r && 'card' in r ? r.card : '');
@@ -249,7 +268,7 @@ export function newStart(w: Workspace, position: Position, mode: StartCard['mode
     event: '',
     actor: 'both',
     target: 'nearest',
-    onKeyUp: false,
+    press: 'down',
     cooldown: 0,
     to: null,
     position,

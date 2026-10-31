@@ -138,6 +138,24 @@ export function flatGraph(w: Workspace) {
       });
       wire(animId(a.uid, 'clip_' + a.config.entry), id);
     }
+    // Charge (runtime 10-30): the HKX plays over and over until its key is let go or maxHold.
+    if (a.config.loop) {
+      const start: GraphRef = {kind: 'start', action: a.uid},
+        id = flatId(start, 'loopRule');
+      add({
+        id,
+        kind: 'loopRule',
+        title: tr('반복 재생'),
+        summary: tr('최대 {v0}초', {v0: a.config.loop.maxHold}),
+        scope: start,
+        original: 'loopRule',
+        action: a.uid,
+        inputs: ['trigger'],
+        outputs: [],
+        position: {x: 0, y: 0},
+      });
+      wire(animId(a.uid, 'clip_' + a.config.entry), id);
+    }
     for (const [j, r] of rows(w, a)
       .filter(r => !r.transition)
       .entries()) {
@@ -218,21 +236,33 @@ export function flatGraph(w: Workspace) {
       kind: 'transition',
       // Named by what moves it on, as a start card (docs/mockup-design-audit ③).
       title:
-        l.mode === 'event'
-          ? l.event
-            ? tr('전환 · {v0}', {v0: l.event})
-            : tr('전환 이벤트')
-          : key?.control || key?.key || key?.gamepad
-            ? tr('전환 · {v0}', {
-                v0: key.control ? gameControlLabel(key.control) : key.key || tr('패드'),
-              })
-            : tr('전환 키 입력'),
+        l.mode === 'end'
+          ? tr('전환 · 끝나면')
+          : l.mode === 'move'
+            ? tr('전환 · 이동키를 누르면')
+            : l.mode === 'release'
+              ? tr('전환 · 키를 떼면')
+              : l.mode === 'event'
+                ? l.event
+                  ? tr('전환 · {v0}', {v0: l.event})
+                  : tr('전환 이벤트')
+                : key?.control || key?.key || key?.gamepad
+                  ? tr('전환 · {v0}', {
+                      v0: key.control ? gameControlLabel(key.control) : key.key || tr('패드'),
+                    })
+                  : tr('전환 키 입력'),
       summary:
-        (l.mode === 'event'
-          ? l.event || tr('이벤트 미지정')
-          : key?.control
-            ? gameControlLabel(key.control)
-            : key?.key || (key?.gamepad ? tr('패드') : tr('키 미지정'))) +
+        (l.mode === 'end'
+          ? tr('이 HKX가 끝날 때')
+          : l.mode === 'move'
+            ? tr('이동키 · 선입력·유지 포함')
+            : l.mode === 'release' && !l.input
+              ? tr('시작한 키')
+              : l.mode === 'event'
+                ? l.event || tr('이벤트 미지정')
+                : key?.control
+                  ? gameControlLabel(key.control)
+                  : key?.key || (key?.gamepad ? tr('패드') : tr('키 미지정'))) +
         (l.window ? ' · ' + timingLabel(l.open) + ' → ' + timingLabel(l.close) : ''),
       scope: root,
       original: id,
@@ -375,6 +405,12 @@ export function deleteFlat(w: Workspace, id: string): Workspace {
     next.actions.find(a => a.uid === n.action)!.config.air = 'deny';
     return next;
   }
+  // The loop is the action's own setting too: deleting it plays the clip once.
+  if (n.kind === 'loopRule' && n.action) {
+    const next = structuredClone(w);
+    delete next.actions.find(a => a.uid === n.action)!.config.loop;
+    return next;
+  }
   return n.notify && n.action ? remove(w, n.action, n.notify) : deleteGraphNode(w, n.scope, n.original);
 }
 
@@ -498,6 +534,10 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
   }
   throw Error(tr('이 핀 조합은 연결할 수 없습니다. 시작·조건·전환 카드의 핀에서 HKX나 조건 카드로 이으세요.'));
 }
+/** A transition several HKX may share: an event's, and (charge, 10-30) one that takes no key of its own (on end, on a
+ *  movement key, on the release of the key that started the action). */
+export const sharable = (l: Link) =>
+  l.mode === 'event' || l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !l.input);
 /** An HKX onto an event transition card (10-29: several block hits leaving by one blockHitStart transition): the
  *  action gets a transition of its own with the card's settings, a member of the card's shared link rule
  *  (graph/sharing.ts), so the canvas draws one card and an edit of it is made to every member (synchronizeRules).
@@ -505,15 +545,16 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
 export function joinTransition(w: Workspace, from: string, link: string): Workspace {
   const l = w.links.find(x => x.id === link);
   if (!l) throw Error(tr('전환을 찾지 못했습니다.'));
-  if (l.mode !== 'event')
-    throw Error(tr('키 전환은 HKX마다 자기 키로 받습니다. 이 HKX에서 도착 카드로 바로 이으세요.'));
+  if (!sharable(l)) throw Error(tr('키 전환은 HKX마다 자기 키로 받습니다. 이 HKX에서 도착 카드로 바로 이으세요.'));
   if (l.to === from) throw Error(tr('출발 동작 자신으로는 전환할 수 없습니다.'));
   const group = w.sharedRules?.find(g => g.kind === 'link' && g.members.includes(link));
   // A group may still name a link some edit removed: only the links there are its members.
   const members = (group?.members ?? [link]).filter(m => w.links.some(x => x.id === m));
   if (w.links.some(x => members.includes(x.id) && x.from === from)) throw Error(tr('이 HKX는 이미 이 전환을 씁니다.'));
-  if (w.links.some(x => x.from === from && x.mode === 'event' && x.event === l.event))
+  if (l.mode === 'event' && w.links.some(x => x.from === from && x.mode === 'event' && x.event === l.event))
     throw Error(tr('이 HKX에는 같은 이벤트의 전환이 이미 있습니다.'));
+  if (l.mode === 'end' && w.links.some(x => x.from === from && x.mode === 'end'))
+    throw Error(tr('끝나면 전환은 HKX마다 하나입니다.'));
   // Not an id a group still names either (10-29: a reused link1 joined its group twice and the card's alias pointed
   // at itself).
   const id = uid('link', [...w.links.map(x => x.id), ...(w.sharedRules ?? []).flatMap(g => g.members)]);
@@ -634,6 +675,11 @@ export function addItem(w: Workspace, action: string, kind: string, before = fal
     const next = structuredClone(w);
     next.actions.find(x => x.uid === action)!.config.air = 'allow';
     return {workspace: next, id: flatId({kind: 'start', action}, 'stateCondition')};
+  }
+  if (kind === 'loopRule') {
+    const next = structuredClone(w);
+    next.actions.find(x => x.uid === action)!.config.loop = {maxHold: 3};
+    return {workspace: next, id: flatId({kind: 'start', action}, 'loopRule')};
   }
   if (kind.startsWith('notify:')) {
     const r = add(w, action, kind.slice(7), 0);

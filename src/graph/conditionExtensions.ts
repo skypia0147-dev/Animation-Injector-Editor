@@ -527,6 +527,20 @@ export const extensionConditions = {
       return tr('기술 수치·레벨 등을 비교합니다. 현재 값은 버프·디버프를 포함하고, 기본 값은 포함하지 않습니다.');
     },
   },
+  heldTime: {
+    get label() {
+      return tr('누른 시간');
+    },
+    get category() {
+      return tr('입력');
+    },
+    numeric: true,
+    get hint() {
+      return tr(
+        '이 동작을 시작한 키를 누르고 있던 시간(초)입니다. 키를 떼면 전환이 고르는 순간이면 누른 순간부터 뗀 순간까지입니다. 플레이어에게만 적용됩니다.'
+      );
+    },
+  },
   gameHour: {
     get label() {
       return tr('게임 시각');
@@ -621,6 +635,7 @@ export const subjectlessKinds: readonly string[] = [
   'movementDirection',
   'space',
   'ground',
+  'heldTime',
 ];
 export const definition = (kind: string): Definition | undefined =>
   (extensionConditions as Record<string, Definition>)[kind];
@@ -651,6 +666,7 @@ export function extensionDefaults(kind: string): Partial<BranchTest> {
       ? {option: 'OneHanded', compare: 'ge' as const, value: 50, measure: 'current' as const}
       : {}),
     ...(kind === 'gameHour' ? {compare: 'range' as const, value: 20, upper: 5} : {}),
+    ...(kind === 'heldTime' ? {compare: 'ge' as const, value: 1.5} : {}),
     ...(kind === 'weather' ? {option: 'rainy'} : {}),
     ...(kind === 'hitReceived' ? {option: 'power', within: 0.5} : {}),
     ...(d.form ? (keywordKinds.includes(kind) ? {keyword: ''} : {form: {plugin: '', id: ''}}) : {}),
@@ -768,7 +784,9 @@ export function extensionSummary(t: BranchTest): string | undefined {
           ? '°'
           : t.kind === 'gameHour'
             ? tr('시')
-            : '';
+            : t.kind === 'heldTime'
+              ? tr('초')
+              : '';
   const value =
     t.compare === 'range'
       ? `${t.value}~${t.upper}${unit}`

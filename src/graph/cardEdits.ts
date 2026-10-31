@@ -14,7 +14,7 @@ export const patchStart = (w: Workspace, uid: string, patch: Partial<StartCard>)
 /** A start's trigger switched between a key and an event. */
 export const startMode = (s: StartCard, mode: StartCard['mode']): Partial<StartCard> =>
   mode === 'event'
-    ? {mode: 'event', key: '', gamepad: 0, onKeyUp: false}
+    ? {mode: 'event', key: '', gamepad: 0, press: 'down'}
     : {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key || 'Num0'};
 /** A start's setting back to its default (「기본값으로」): it leaves the card. */
 export const startDefaults = {
@@ -31,17 +31,31 @@ export const patchLink = (w: Workspace, id: string, patch: Partial<Link>): Works
 });
 /** A transition's blend: added at 0.3 s, back to the destination HKX's start blend when reset. */
 export const linkBlend = {add: {blend: 0.3}, reset: {blend: undefined}} satisfies Record<string, Partial<Link>>;
-/** A transition's trigger switched between a key and an event; an event drops the key's binding. */
+/** A transition's trigger switched: a key's press, an event, the HKX's end or a key let go (charge). Leaving a key
+ *  drops its binding; a release starts on the key that started the action, an end has no window. */
 export function setLinkMode(w: Workspace, id: string, mode: Link['mode']): Workspace {
   const l = w.links.find(l => l.id === id);
   if (!l) return w;
-  return mode === 'event'
-    ? dropBinding(
-        {...w, links: w.links.map(x => (x.id === id ? {...x, mode: 'event' as const, input: ''} : x))},
-        l.from,
-        l.input
-      )
-    : patchLink(w, id, {mode: 'input', event: '', window: true});
+  if (mode === 'input') return patchLink(w, id, {mode: 'input', event: '', window: true});
+  return dropBinding(
+    {
+      ...w,
+      links: w.links.map(x =>
+        x.id === id
+          ? {...x, mode, input: '', event: mode === 'event' ? x.event : '', window: mode === 'end' ? false : x.window}
+          : x
+      ),
+    },
+    l.from,
+    l.input
+  );
+}
+/** A release transition's key: the key that started the action (none of its own), or one of its own. */
+export function setReleaseKey(w: Workspace, id: string, own: boolean): Workspace {
+  const l = w.links.find(l => l.id === id);
+  if (!l) return w;
+  if (own) return setLinkKey(w, id, 'E', 0);
+  return dropBinding(patchLink(w, id, {input: ''}), l.from, l.input);
 }
 /** A transition's key: it lives in the source HKX's inputs (written in place in the XML). */
 export function setLinkKey(w: Workspace, id: string, key: string, gamepad: number, control?: GameControl): Workspace {

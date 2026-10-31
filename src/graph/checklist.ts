@@ -8,6 +8,7 @@ import {tr} from '../i18n/korean.ts';
 
 export const internalKinds = new Set([
   'stateCondition',
+  'loopRule',
   'cameraRestore',
   'carryRelease',
   'carryFix',

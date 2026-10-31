@@ -122,9 +122,11 @@ export function ExtendedConditionFields({
                   ? tr('각도 (°)')
                   : test.kind === 'gameHour'
                     ? tr('시각 (시)')
-                    : test.kind === 'falling'
-                      ? tr('거리')
-                      : tr('값')
+                    : test.kind === 'heldTime'
+                      ? tr('시간 (초)')
+                      : test.kind === 'falling'
+                        ? tr('거리')
+                        : tr('값')
           }
           hint={d.hint}
         >

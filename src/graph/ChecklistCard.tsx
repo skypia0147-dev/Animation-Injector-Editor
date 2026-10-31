@@ -8,6 +8,7 @@ import {assetLibrary} from '../assets.ts';
 import type {FlatNode} from './flat.ts';
 import {addConnected, contextualAdds} from './contextAdd.ts';
 import {deleteFlat} from './flat.ts';
+import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {GraphDetails} from './GraphDetails.tsx';
 import {BlendDetails} from './BlendDetails.tsx';
 import {StateDetails} from '../ui/details/StateDetails.tsx';
@@ -630,6 +631,8 @@ function ChecklistRow({
             <ItemTitle.Provider value={title}>
               {n.kind === 'stateCondition' && a ? (
                 <AirRule action={a} edit={edit} />
+              ) : n.kind === 'loopRule' && a ? (
+                <LoopRule action={a} edit={edit} />
               ) : item.category === 'event' || n.notify ? (
                 // Moments and timed features alike: 시점 [클립 | 이벤트] first (docs/mockup-moment-timing).
                 <MomentFields
@@ -690,6 +693,29 @@ function AirRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => W
           </button>
         ))}
       </div>
+    </DetailRow>
+  );
+}
+
+/** The 「반복 재생」 item (charge, runtime 10-30): the clip plays over and over; at maxHold seconds its key counts as
+ *  let go (an on="release" transition goes), else the HKX ends. Deleting the item plays the clip once. */
+function LoopRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => Workspace) => void}) {
+  const loop = action.config.loop;
+  if (!loop) return null;
+  return (
+    <DetailRow
+      label={tr('최대 유지(초)')}
+      hint={tr(
+        '이 시간이 지나면 키를 뗀 것으로 봅니다(키를 떼면 전환이 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.'
+      )}
+    >
+      <NumberInput
+        value={loop.maxHold}
+        min={0.1}
+        max={600}
+        step={0.5}
+        change={maxHold => edit(w => putAction(w, {...action, config: {...action.config, loop: {maxHold}}}))}
+      />
     </DetailRow>
   );
 }

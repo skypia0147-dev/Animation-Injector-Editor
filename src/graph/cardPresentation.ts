@@ -8,7 +8,7 @@ import {outcomes, qteTypes, type Outcome, type QteDesign, type QteResult, type Q
 import {qteKeyName} from '../qteFace.ts';
 import {tr} from '../i18n/korean.ts';
 import {gamepadXml, gameControlLabel} from '../keys.ts';
-import {choosesOrdinary, frontAngle, frontRange} from '../cards.ts';
+import {choosesOrdinary, frontAngle, frontRange, pressTrigger} from '../cards.ts';
 
 export const cardWidth = (n: Pick<FlatNode, 'kind'>) =>
   n.kind === 'entry'
@@ -128,7 +128,7 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
                   n.kind === 'startCard' ||
                   n.kind === 'transition'
                 ? 'event'
-                : n.kind.startsWith('condition') || n.kind === 'stateCondition'
+                : n.kind.startsWith('condition') || n.kind === 'stateCondition' || n.kind === 'loopRule'
                   ? 'branch'
                   : n.kind === 'cameraRestore'
                     ? 'camera'
@@ -169,20 +169,22 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
           ? tr('이벤트')
           : n.kind === 'stateCondition'
             ? tr('조건')
-            : n.kind === 'conditionCard'
-              ? tr('조건')
-              : n.kind === 'outputPose'
-                ? tr('종료')
-                : n.kind === 'cameraRestore'
-                  ? tr('이벤트')
-                  : tr('설정');
+            : n.kind === 'loopRule'
+              ? tr('재생')
+              : n.kind === 'conditionCard'
+                ? tr('조건')
+                : n.kind === 'outputPose'
+                  ? tr('종료')
+                  : n.kind === 'cameraRestore'
+                    ? tr('이벤트')
+                    : tr('설정');
   // A start card reads as its trigger, then what it sets (docs/mockup-format6-editor); it is edited in Details.
   if (start) {
     const rows = [
       start.mode === 'event'
         ? {label: tr('받을 때'), value: start.event || tr('이벤트 미지정')}
         : {
-            label: start.onKeyUp ? tr('뗄 때') : tr('누를 때'),
+            label: pressTrigger(start.press),
             value: start.control
               ? gameControlLabel(start.control)
               : [start.key, start.gamepad ? gamepadXml(start.gamepad) : ''].filter(Boolean).join(' · ') ||
@@ -215,13 +217,19 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
     const rows = [
       link.mode === 'event'
         ? {label: tr('받을 때'), value: link.event || tr('이벤트 미지정')}
-        : {
-            label: tr('누를 때'),
-            value: input?.control
-              ? gameControlLabel(input.control)
-              : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||
-                tr('키 미지정'),
-          },
+        : link.mode === 'end'
+          ? {label: tr('끝나면'), value: tr('이 HKX가 끝날 때')}
+          : link.mode === 'move'
+            ? {label: tr('이동키를 누르면'), value: tr('이동키 · 선입력·유지 포함')}
+            : link.mode === 'release' && !link.input
+              ? {label: tr('키를 떼면'), value: tr('시작한 키')}
+              : {
+                  label: link.mode === 'release' ? tr('키를 떼면') : tr('누를 때'),
+                  value: input?.control
+                    ? gameControlLabel(input.control)
+                    : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||
+                      tr('키 미지정'),
+                },
     ];
     if (link.window)
       rows.push({label: tr('감지 구간'), value: timingLabel(link.open) + ' → ' + timingLabel(link.close)});

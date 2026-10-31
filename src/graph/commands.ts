@@ -63,7 +63,8 @@ export function disconnectEdge(w: Workspace, e: GraphEdge): Workspace {
     owner &&
     (e.target.startsWith(`anim:${owner}:`) ||
       e.target.startsWith(`notify:${owner}|`) ||
-      e.target === `start:${owner}|stateCondition`)
+      e.target === `start:${owner}|stateCondition` ||
+      e.target === `start:${owner}|loopRule`)
   )
     return deleteFlat(w, e.target);
   throw Error(tr('이 선은 끊을 수 없습니다. 카드를 지우세요.'));

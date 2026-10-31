@@ -32,6 +32,9 @@ export type Project = {
   events: string[];
   /** Where it may play: on the ground only (deny), the ground and the air (allow, XML air="both"), the air only. */
   air: 'deny' | 'allow' | 'only';
+  /** Charge (runtime 10-30, <Action loop="true" maxHold>): the clip plays over and over; at maxHold seconds its key
+   *  counts as released. Absent = plays once. */
+  loop?: {maxHold: number};
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;

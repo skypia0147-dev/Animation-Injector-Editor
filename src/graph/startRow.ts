@@ -5,7 +5,7 @@ import type {Workspace} from '../workspace.ts';
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {gamepadXml, gameControlLabel} from '../keys.ts';
-import {refAction, refCard, type Ref} from '../cards.ts';
+import {pressName, refAction, refCard, type Ref} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
 
 export type StartRow = {tone: 'set' | 'via' | 'none'; text: string; node?: string};
@@ -25,7 +25,7 @@ export function startRow(
         ? (s.control
             ? gameControlLabel(s.control)
             : tr('키 {key}', {key: s.key || (s.gamepad ? gamepadXml(s.gamepad) : '—')})) +
-          (s.onKeyUp ? tr(' · 뗄 때') : '')
+          (s.press !== 'down' ? ' · ' + pressName(s.press) : '')
         : tr('이벤트 {v0}', {v0: s.event || tr('미지정')});
     return {
       tone: 'set',

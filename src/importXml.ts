@@ -17,7 +17,17 @@ import type {Xml} from './xml.ts';
 import {views, firstPersonStarts, actionView, fixedThird} from './view.ts';
 import {readQtes, readEventQtes} from './qte.ts';
 import {checkKinds} from './cardChecks.ts';
-import {groupRuleError, type CardRow, type CardTest, type ConditionCard, type Ref, type StartCard} from './cards.ts';
+import {
+  groupRuleError,
+  menuControl,
+  startPresses,
+  type CardRow,
+  type CardTest,
+  type ConditionCard,
+  type Ref,
+  type StartCard,
+  type StartPress,
+} from './cards.ts';
 import {tr} from './i18n/korean.ts';
 
 // Opening an XML (format 6, runtime 0.12.291): the document is the file's starts, condition cards and HKX cards, one
@@ -41,6 +51,17 @@ function choice<T extends string>(n: Xml | undefined, k: string, values: readonl
   const s = get(n, k, d);
   if (!values.includes(s as T)) throw new Error(tr('{v0}.{k}: 지원하지 않는 값 {s}', {v0: n?.name, k, s}));
   return s as T;
+}
+/** A start's press kind (runtime PressKinds.h): keys and game controls only, and a menu control only 'down'.
+ *  `control`: the start's game control; undefined for an event start. */
+function startPress(n: Xml, control: GameControl | undefined | null): StartPress {
+  const press = choice(n, 'press', startPresses, 'down');
+  if (press === 'down') return press;
+  if (control === undefined && n.attrs.event !== undefined)
+    throw new Error(tr('Start: press는 키·패드 버튼·게임 동작 시작에서만 씁니다.'));
+  if (menuControl(control ?? undefined))
+    throw new Error(tr('Start: 메뉴를 여는 게임 동작은 누르는 순간 메뉴가 열려 press="down"만 씁니다.'));
+  return press;
 }
 /** A value list (runtime 0.12.301): every value one of `choices`, none twice. */
 function values(n: Xml, k: string, choices: readonly string[]): string {
@@ -157,6 +178,8 @@ export function importWorkspaceXml(text: string): Workspace {
         'enter',
         'block',
         'safety',
+        'loop',
+        'maxHold',
         ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : []),
       ],
       [
@@ -203,6 +226,10 @@ export function importWorkspaceXml(text: string): Workspace {
     };
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
+    // Charge (runtime 10-30): a clip that plays on until its key is let go or maxHold.
+    if (bool(n, 'loop', false)) p.loop = {maxHold: num(n, 'maxHold', 3)};
+    else if (n.attrs.maxHold !== undefined)
+      throw new Error(tr('{v0}: maxHold는 loop="true"와 함께 씁니다.', {v0: p.actionId || n.attrs.id}));
     if (n.attrs.block !== undefined) p.suppress = {events: readEvents(required(n, 'block')), when: 'active'};
     p.attack = get(n, 'attack');
     a.enterBlendEnabled = n.attrs.enter !== undefined;
@@ -480,7 +507,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'target',
         'range',
         'angle',
-        'onKeyUp',
+        'press',
         'cooldown',
         'block',
         'blockWhen',
@@ -502,7 +529,7 @@ export function importWorkspaceXml(text: string): Workspace {
       target: choice(n, 'target', ['nearest', 'combatTarget'], 'nearest'),
       ...(n.attrs.range !== undefined ? {range: num(n, 'range', 200)} : {}),
       ...(n.attrs.angle !== undefined ? {angle: num(n, 'angle', 90)} : {}),
-      onKeyUp: bool(n, 'onKeyUp', false),
+      press: startPress(n, event ? undefined : (k.control ?? null)),
       cooldown: num(n, 'cooldown', 0),
       ...(n.attrs.block !== undefined
         ? {
@@ -536,6 +563,7 @@ export function importWorkspaceXml(text: string): Workspace {
           'until',
           'buffer',
           'blend',
+          'on',
           'data-input',
         ],
         CARD
@@ -551,7 +579,16 @@ export function importWorkspaceXml(text: string): Workspace {
         to: to && 'action' in to ? to.action : '',
         ...(to && 'card' in to ? {card: to.card} : {}),
         partnerTo: partner,
-        mode: n.attrs.event ? 'event' : 'input',
+        mode:
+          n.attrs.on === 'end'
+            ? 'end'
+            : n.attrs.on === 'release'
+              ? 'release'
+              : n.attrs.on === 'move'
+                ? 'move'
+                : n.attrs.event
+                  ? 'event'
+                  : 'input',
         input: n.attrs['data-input'] ?? '',
         event: get(n, 'event'),
         window: hasWindow(n),
@@ -562,8 +599,18 @@ export function importWorkspaceXml(text: string): Workspace {
       };
       if (n.attrs.blend !== undefined) l.blend = num(n, 'blend', 0);
       if (l.window) Object.assign(l, windowTimes(n));
-      if (l.event && l.input) throw new Error(tr('Transition: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
-      if (!l.event && !l.input) throw new Error(tr('Transition: 키(input 또는 key·gamepad) 또는 event가 필요합니다.'));
+      if (n.attrs.on !== undefined && !['end', 'release', 'move'].includes(n.attrs.on))
+        throw new Error(tr('Transition: on은 end, release, move 중 하나입니다.'));
+      if (l.mode === 'move' && (l.input || l.event))
+        throw new Error(tr('Transition: 이동키를 누르면(on="move") 전환에는 키·이벤트를 쓰지 않습니다.'));
+      if (l.mode === 'end' && (l.input || l.event || l.window))
+        throw new Error(tr('Transition: 끝나면(on="end") 전환에는 키·이벤트·구간을 쓰지 않습니다.'));
+      if (l.mode === 'release' && l.event) throw new Error(tr('Transition: on을 쓴 전환에는 event를 쓰지 않습니다.'));
+      if (l.mode === 'input' || l.mode === 'event') {
+        if (l.event && l.input) throw new Error(tr('Transition: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
+        if (!l.event && !l.input)
+          throw new Error(tr('Transition: 키(input 또는 key·gamepad) 또는 event가 필요합니다.'));
+      }
       w.links.push(l);
     }
   for (const a of w.actions)

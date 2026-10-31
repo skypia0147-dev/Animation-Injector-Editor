@@ -50,6 +50,14 @@ export function addConnected(w: Workspace, source: string, option: AddOption, po
     return {workspace: setDestination(made.workspace, 'startCard:' + uid, undefined, {action}), id: made.id};
   }
   // A transition after it (key or event), to choose its destination on its card; the next action: a new HKX too.
+  if (option.kind === 'transitionEnd' || option.kind === 'transitionRelease' || option.kind === 'transitionMove')
+    return addTransition(
+      w,
+      action,
+      null,
+      offset(position, 380),
+      option.kind === 'transitionEnd' ? 'end' : option.kind === 'transitionMove' ? 'move' : 'release'
+    );
   if (option.kind === 'keyInput' || option.kind === 'markerReceive' || option.kind === 'playNode') {
     let next = w,
       to: Ref = null;
@@ -123,6 +131,10 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       {label: tr('시작 이벤트 추가'), kind: 'markerReceive', before: true},
       {label: tr('전환 키 입력 추가'), kind: 'keyInput'},
       {label: tr('전환 이벤트 추가'), kind: 'markerReceive'},
+      {label: tr('끝나면 전환 추가'), kind: 'transitionEnd'},
+      {label: tr('키를 떼면 전환 추가'), kind: 'transitionRelease'},
+      {label: tr('이동키를 누르면 전환 추가'), kind: 'transitionMove'},
+      {label: tr('반복 재생 추가'), kind: 'loopRule'},
       {label: tr('공중 규칙 추가'), kind: 'stateCondition', before: true},
       {label: tr('앞에 조건 카드 추가'), kind: 'conditionCard', entry: true},
       {label: tr('앞에 블렌드 추가'), kind: 'blend', before: true},
@@ -154,6 +166,11 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
     .sort((a, b) => Number(b.kind === 'blend') - Number(a.kind === 'blend'))
     .filter(o => {
       if (o.kind === 'stateCondition') return a?.config.air === 'deny';
+      // Charge (runtime 10-30): an ordinary HKX's; an end once and not from a loop, which has none.
+      if (o.kind === 'loopRule') return !!a && !a.pair && !a.config.loop;
+      if (o.kind === 'transitionRelease' || o.kind === 'transitionMove') return !!a && !a.pair;
+      if (o.kind === 'transitionEnd')
+        return !!a && !a.pair && !a.config.loop && !w.links.some(l => l.from === a.uid && l.mode === 'end');
       if (o.kind === 'cameraRestore') return !a?.cameraEnabled;
       if (o.kind === 'carry') return !a?.pair?.carry;
       if (o.kind === 'blend') return !(o.before ? a?.enterBlendEnabled : a?.exitBlendEnabled);

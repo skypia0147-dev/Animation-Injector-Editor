@@ -92,6 +92,12 @@ export function stripExtensions(value: any): unknown {
       delete i.control;
       i.key = 'Num0';
     }
+  // Charge (runtime 10-30): an optional loop {maxHold}.
+  if (p?.loop !== undefined) {
+    const l = p.loop;
+    if (!l || typeof l !== 'object' || Object.keys(l).join() !== 'maxHold' || !Number.isFinite(l.maxHold)) fail();
+    delete p.loop;
+  }
   // Optional one-point slot {at: Mark}.
   if (p?.carryRelease !== undefined) {
     const f = p.carryRelease;

@@ -71,7 +71,7 @@ for (const kind of extensionKinds)
   });
 test('a condition that is the same whoever is asked takes no target', needsChecker, () => {
   const kinds = extensionKinds.filter(k => subjectlessKinds.includes(k));
-  assert.deepEqual(new Set(kinds), new Set(['chance', 'gameHour', 'weather', 'movementDirection']));
+  assert.deepEqual(new Set(kinds), new Set(['chance', 'gameHour', 'weather', 'movementDirection', 'heldTime']));
   for (const kind of kinds) {
     const w = sample(kind),
       xml = compileWorkspace(w);

@@ -149,7 +149,7 @@ export function startXml(x: Writer, s: StartCard): Xml {
           angle: s.angle !== undefined && s.angle !== frontAngle ? String(s.angle) : undefined,
         }
       : {}),
-    onKeyUp: s.onKeyUp ? 'true' : undefined,
+    press: s.mode === 'input' && s.press !== 'down' ? s.press : undefined,
     cooldown: s.cooldown ? s.cooldown : undefined,
     block: s.block ? uniqueEvents(s.block.events).join(',') : undefined,
     blockWhen: s.block && s.block.when !== 'startable' ? s.block.when : undefined,

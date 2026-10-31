@@ -127,7 +127,10 @@ export type Link = {
   from: string;
   to: string;
   partnerTo: string;
-  mode: 'input' | 'event';
+  /** What moves it on: a key's press, an event, this HKX's end (charge, runtime <Transition on="end">), a key let
+   *  go (on="release"; `input` empty = the key that started the action), or a movement key's press (on="move",
+   *  buffered as a key's; a movement key held as its window opens counts as buffered). */
+  mode: 'input' | 'event' | 'end' | 'release' | 'move';
   input: string;
   event: string;
   window: boolean;
@@ -790,6 +793,17 @@ export function validateWorkspace(w: Workspace): Issue[] {
     for (const e of validate(a.config))
       // Named as the user sees the action (its display name), not by its XML id.
       out.push({...e, node: a.uid, message: (a.config.name.trim() || a.config.actionId) + ': ' + e.message});
+    // Charge (runtime 10-30): a loop has no end to exit at or count back from.
+    if (a.config.loop) {
+      const c = a.config,
+        fromEnd = (m: Mark) => m.basis === 'end' && m.seconds > 0;
+      if (a.pair) err(a.uid, tr('반복 재생은 일반 HKX에서만 씁니다.'));
+      if (!number(c.loop!.maxHold, 0.1, 600)) err(a.uid, tr('최대 유지 시간은 0.1~600초입니다.'));
+      if (!(c.exit.basis === 'end' && c.exit.seconds === 0.05))
+        err(a.uid, tr('반복 재생 HKX에는 끝이 없어 종료 시각을 정할 수 없습니다.'));
+      if (Object.values(c.slots).some(s => s.enabled && fromEnd(s.until)))
+        err(a.uid, tr('반복 재생 HKX에는 끝이 없어 end-… 시각을 쓸 수 없습니다.'));
+    }
     // An ordinary action's clip-time functions (runtime 0.12.274) change the actor playing it.
     if (a.config.effects) {
       if (a.pair) err(a.uid, tr('페어의 시각 기능은 페어 연출에 둡니다.'));
@@ -922,8 +936,19 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(l.id, tr('경로별 블렌드는 단일 일반 HKX 사이에서만 지원합니다.'));
     if (b && l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
       err(l.id, tr('양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.'));
-    if (!['input', 'event'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
-    if (l.mode === 'event') {
+    if (!['input', 'event', 'end', 'release', 'move'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
+    if (l.mode === 'end' || l.mode === 'release' || l.mode === 'move') {
+      // Charge (runtime 10-30): an ordinary HKX's; an end once per HKX, none from a loop (it has no end).
+      if (a.pair) err(l.id, tr('끝나면·키를 떼면 전환은 일반 HKX에서만 씁니다.'));
+      if (l.mode === 'end') {
+        if (a.config.loop) err(l.id, tr('반복 재생 HKX에는 끝이 없어 끝나면 전환을 쓸 수 없습니다.'));
+        if (w.links.some(x => x !== l && x.from === l.from && x.mode === 'end'))
+          err(l.id, tr('끝나면 전환은 HKX마다 하나입니다.'));
+        if (a.config.exit.basis === 'event') err(l.id, tr('끝나면 전환은 시각으로 끝나는 HKX에서만 씁니다.'));
+      }
+      if (l.mode === 'release' && l.input && !a.config.inputs.some(i => i.id === l.input))
+        err(l.id, tr('키 전환은 출발 동작의 키가 필요합니다.'));
+    } else if (l.mode === 'event') {
       if (!eventOk(l.event)) err(l.id, tr('연결 이벤트 이름을 입력하세요.'));
       const s = a.uid + ':event:' + l.event;
       // Two new transitions not named yet are not the same one: each is told to take a name above.
@@ -1097,8 +1122,17 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
         x,
         node('Transition', {
           partnerTo: partner?.config.actionId,
-          ...(l.mode === 'event' ? {event: l.event} : input(l.input)),
-          ...(l.window ? windowAttrs(l.open, l.close, l.buffered) : {}),
+          ...(l.mode === 'event'
+            ? {event: l.event}
+            : l.mode === 'end'
+              ? {on: 'end'}
+              : l.mode === 'release'
+                ? {on: 'release', ...(l.input ? input(l.input) : {})}
+                : l.mode === 'move'
+                  ? {on: 'move'}
+                  : input(l.input)),
+          // An end has no window; a release reads the key's state, so no buffer.
+          ...(l.window && l.mode !== 'end' ? windowAttrs(l.open, l.close, l.buffered || l.mode === 'release') : {}),
           blend: l.blend,
         }),
         l.to,

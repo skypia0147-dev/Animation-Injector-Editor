@@ -145,7 +145,7 @@ test('an imported project draws the same cards as one made in the editor', () =>
     event: '',
     actor: 'both',
     target: 'nearest',
-    onKeyUp: false,
+    press: 'down',
     cooldown: 0,
     to: {action: 'a1'},
     position: {x: 0, y: 0},

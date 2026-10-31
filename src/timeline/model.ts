@@ -92,8 +92,18 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
     items.push({
       id: 'link:' + l.id,
       kind: 'transition',
-      label: l.mode === 'input' ? (p.inputs.find(i => i.id === l.input)?.key ?? l.input) : l.event,
-      from: l.window ? l.open : {...mark(), basis: 'event', event: l.event},
+      label:
+        l.mode === 'end'
+          ? tr('끝나면')
+          : l.mode === 'move'
+            ? tr('이동키를 누르면')
+            : l.mode === 'release'
+              ? tr('키를 떼면')
+              : l.mode === 'input'
+                ? (p.inputs.find(i => i.id === l.input)?.key ?? l.input)
+                : l.event,
+      // An end transition goes at the HKX's exit point.
+      from: l.mode === 'end' ? p.exit : l.window ? l.open : {...mark(), basis: 'event', event: l.event},
       until: l.window ? l.close : undefined,
       transition: true,
     });

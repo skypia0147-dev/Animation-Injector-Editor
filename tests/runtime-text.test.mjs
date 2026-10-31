@@ -14,7 +14,7 @@ const cases = {
   version: '<AnimationSet version="5" id="A"/>',
   attribute: '<AnimationSet version="6" id="A"><Action id="X" clip="Animations\\a.hkx" foo="1"/></AnimationSet>',
   boolean:
-    '<AnimationSet version="6" id="A"><Start key="G" onKeyUp="maybe" to="X"/><Action id="X" clip="Animations\\a.hkx"/></AnimationSet>',
+    '<AnimationSet version="6" id="A"><Start key="G" to="X"/><Action id="X" clip="Animations\\a.hkx"><Transition key="H" to="X" buffer="maybe"/></Action></AnimationSet>',
   inside:
     '<AnimationSet version="6" id="A"><Action id="X" clip="Animations\\a.hkx"><Start key="G"/></Action></AnimationSet>',
   cardBlend:

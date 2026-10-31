@@ -12,7 +12,9 @@ import {
   type ConditionCard,
   type Ref,
   choosesOrdinary,
+  menuControl,
   playsPair,
+  startPresses,
 } from './cards.ts';
 import {
   byKeywordName,
@@ -78,7 +80,8 @@ export function checkCards(w: any) {
       !['nearest', 'combatTarget'].includes(s.target) ||
       (s.range !== undefined && !number(s.range, 1, 2000)) ||
       (s.angle !== undefined && !number(s.angle, 1, 360)) ||
-      typeof s.onKeyUp !== 'boolean' ||
+      !startPresses.includes(s.press) ||
+      (s.press !== 'down' && (s.mode !== 'input' || menuControl(s.control))) ||
       !number(s.cooldown) ||
       !refOk(s.to) ||
       !position(s.position) ||
@@ -101,7 +104,7 @@ export function checkCards(w: any) {
             'target',
             'range',
             'angle',
-            'onKeyUp',
+            'press',
             'cooldown',
             'block',
             'to',

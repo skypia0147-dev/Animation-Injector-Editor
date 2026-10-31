@@ -11,7 +11,7 @@ export const nodeCatalog = {
   transition: {layer: 'state', fields: ['from', 'to'], inputs: ['trigger'], outputs: ['trigger']},
   keyInput: {
     layer: 'rule',
-    fields: ['config.start.mode', 'config.start.input', 'config.start.onKeyUp', 'input'],
+    fields: ['config.start.mode', 'config.start.input', 'config.start.press', 'input'],
     inputs: [],
     outputs: ['trigger'],
   },

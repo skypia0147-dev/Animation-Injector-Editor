@@ -1,6 +1,15 @@
 import {useState} from 'react';
 import type {Workspace, Link} from '../workspace.ts';
-import {choosesOrdinary, frontAngle, frontRange, type StartCard} from '../cards.ts';
+import {
+  choosesOrdinary,
+  frontAngle,
+  frontRange,
+  menuControl,
+  pressName,
+  pressTrigger,
+  startPresses,
+  type StartCard,
+} from '../cards.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {KeyField} from '../ui/details/KeyField.tsx';
 import {EventPicker} from '../ui/details/EventPicker.tsx';
@@ -19,6 +28,7 @@ import {
   patchStart,
   setLinkKey,
   setLinkMode,
+  setReleaseKey,
   setLinkWindowScope,
   startDefaults,
   startMode,
@@ -51,7 +61,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
   return [
     {
       id: 'trigger',
-      label: input ? (s.onKeyUp ? tr('뗄 때') : tr('누를 때')) : tr('받을 때'),
+      label: input ? pressTrigger(s.press) : tr('받을 때'),
       value: chip(input ? keyText(s.key, s.gamepad, s.control) || tr('키 미지정') : s.event || tr('이벤트 미지정')),
       set: true,
       fixed: true,
@@ -77,12 +87,36 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
                   changeGamepad={gamepad => change({gamepad})}
                   control={s.control}
                   changeControl={control =>
-                    change(control ? {control, key: '', gamepad: 0} : {control: undefined, key: 'Num0'})
+                    change(
+                      control
+                        ? {control, key: '', gamepad: 0, ...(menuControl(control) ? {press: 'down' as const} : {})}
+                        : {control: undefined, key: 'Num0'}
+                    )
                   }
                 />
               </DetailRow>
-              <DetailRow label={tr('뗄 때')} hint={tr('키를 뗄 때 시작합니다.')}>
-                <input type="checkbox" checked={s.onKeyUp} onChange={e => change({onKeyUp: e.target.checked})} />
+              <DetailRow
+                label={tr('누름')}
+                hint={tr(
+                  '누를 때: 누르는 순간. 짧게: 짧게 눌렀다 뗄 때. 두 번: 빠르게 두 번 누를 때(두 번째를 길게 눌러도 두 번). 길게: 누른 채 기준 시간을 넘길 때. 게임 동작의 누름은 어떤 시작도 가져가지 않으면 게임에 돌려줍니다(기다린 만큼 늦게).'
+                )}
+              >
+                <select
+                  aria-label={tr('누름')}
+                  value={s.press}
+                  title={
+                    menuControl(s.control)
+                      ? tr('메뉴를 여는 게임 동작은 누르는 순간 메뉴가 열려 누를 때만 씁니다.')
+                      : undefined
+                  }
+                  onChange={e => change({press: e.target.value as StartCard['press']})}
+                >
+                  {startPresses.map(p => (
+                    <option key={p} value={p} disabled={p !== 'down' && menuControl(s.control)}>
+                      {pressName(p)}
+                    </option>
+                  ))}
+                </select>
               </DetailRow>
             </>
           ) : (
@@ -269,27 +303,69 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
   const shared = sharesSourceWindow(w, l) && !l.ownWindow;
   const to = w.actions.find(a => a.uid === l.to);
   const blendable = !!to && !l.card && !from?.pair && !to.pair;
-  const input = l.mode === 'input';
+  // A key's press, or (charge) a key let go: the key of its own, or the one that started the action.
+  const keyed = l.mode === 'input' || (l.mode === 'release' && !!l.input);
+  const keyName =
+    keyText(inputBinding?.key ?? '', inputBinding?.gamepad ?? 0, inputBinding?.control) || tr('키 미지정');
   return [
     {
       id: 'trigger',
-      label: input ? tr('누를 때') : tr('받을 때'),
+      label:
+        l.mode === 'input'
+          ? tr('누를 때')
+          : l.mode === 'end'
+            ? tr('끝나면')
+            : l.mode === 'release'
+              ? tr('키를 떼면')
+              : l.mode === 'move'
+                ? tr('이동키를 누르면')
+                : tr('받을 때'),
       value: chip(
-        input
-          ? keyText(inputBinding?.key ?? '', inputBinding?.gamepad ?? 0, inputBinding?.control) || tr('키 미지정')
-          : l.event || tr('이벤트 미지정')
+        l.mode === 'end'
+          ? tr('이 HKX가 끝날 때')
+          : l.mode === 'move'
+            ? tr('이동키 · 선입력·유지 포함')
+            : l.mode === 'event'
+              ? l.event || tr('이벤트 미지정')
+              : keyed
+                ? keyName
+                : tr('시작한 키')
       ),
       set: true,
       fixed: true,
       fields: () => (
         <>
-          <DetailRow label={tr('입력')}>
+          <DetailRow
+            label={tr('입력')}
+            hint={tr(
+              '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 키를 떼면: 감지 구간 안에서 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간).'
+            )}
+          >
             <select value={l.mode} onChange={e => edit(w => setLinkMode(w, id, e.target.value as Link['mode']))}>
               <option value="input">{tr('키 입력')}</option>
               <option value="event">{tr('이벤트')}</option>
+              <option value="end" disabled={!!from?.config.loop}>
+                {tr('끝나면')}
+              </option>
+              <option value="release">{tr('키를 떼면')}</option>
+              <option value="move">{tr('이동키를 누르면')}</option>
             </select>
           </DetailRow>
-          {input ? (
+          {l.mode === 'release' && (
+            <DetailRow
+              label={tr('뗄 키')}
+              hint={tr('시작한 키: 이 동작을 시작한 키(끝나면·키를 떼면으로 이어진 동안 유지).')}
+            >
+              <select
+                value={l.input ? 'own' : 'start'}
+                onChange={e => edit(w => setReleaseKey(w, id, e.target.value === 'own'))}
+              >
+                <option value="start">{tr('시작한 키')}</option>
+                <option value="own">{tr('직접 지정')}</option>
+              </select>
+            </DetailRow>
+          )}
+          {l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !keyed) ? null : keyed ? (
             <DetailRow label={tr('키')}>
               <KeyField
                 value={inputBinding?.key ?? ''}
@@ -316,6 +392,7 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
     {
       id: 'window',
       label: tr('감지 구간'),
+      applies: l.mode !== 'end',
       value: shared
         ? tr('이 HKX 공통')
         : l.window
