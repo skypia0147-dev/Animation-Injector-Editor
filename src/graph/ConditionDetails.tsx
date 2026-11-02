@@ -1,11 +1,12 @@
 import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
+import {Unchosen} from '../ui/details/Unchosen.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
 import {useId} from 'react';
 import {
   byKeywordName,
   definition,
-  extensionDefaults,
+  kindPatch,
   formKinds,
   keywordKinds,
   subjectlessKinds,
@@ -18,7 +19,7 @@ import {t} from '../i18n/index.ts';
 import {patchTest} from './conditionExpression.ts';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
-import {selfDirections} from './conditions.ts';
+import {groundDefaults, selfDirections} from './conditions.ts';
 import {DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 /** The last action the subject finished (runtime 0.12.296): which of this project's actions, how long ago, and
@@ -105,29 +106,7 @@ export function ConditionFields({
         <ConditionKindPicker
           value={test.kind}
           withGroups={!embedded}
-          onChange={kind =>
-            change({
-              kind: kind as BranchTest['kind'],
-              ...extensionDefaults(kind),
-              // A keyword name left from the previous kind must not stay behind, hidden.
-              ...(keywordKinds.includes(kind) ? {} : {keyword: undefined}),
-              ...(kind === 'equippedType'
-                ? {hand: test.hand ?? 'left', equipmentType: test.equipmentType ?? 'bow'}
-                : {}),
-              ...(kind === 'attackState' ? {attackState: test.attackState ?? 'bowDrawn'} : {}),
-              ...(kind === 'global' ? {equals: test.equals ?? 1} : {}),
-              // No target field: a target left from the previous kind must not stay behind, hidden.
-              ...(subjectlessKinds.includes(kind) ? {subject: 'self' as const} : {}),
-              ...(['space', 'ground'].includes(kind) && !test.space
-                ? {
-                    space: {
-                      distance: kind === 'ground' ? 0 : 200,
-                      direction: 'selfForward' as const,
-                    },
-                  }
-                : {}),
-            })
-          }
+          onChange={kind => change(kindPatch(test, kind))}
         />
       </DetailRow>
       <ExtendedConditionFields test={test} change={change} />
@@ -144,7 +123,8 @@ export function ConditionFields({
       {test.kind === 'equippedType' && (
         <>
           <DetailRow label={t('ext.hand')}>
-            <select value={test.hand ?? 'left'} onChange={e => change({hand: e.target.value as 'left' | 'right'})}>
+            <select value={test.hand ?? ''} onChange={e => change({hand: e.target.value as 'left' | 'right'})}>
+              <Unchosen />
               {(['left', 'right'] as const).map(k => (
                 <option key={k} value={k}>
                   {t('ext.' + k)}
@@ -154,7 +134,7 @@ export function ConditionFields({
           </DetailRow>
           <DetailRow label={t('ext.equipmentType')}>
             <MultiValuePicker
-              value={test.equipmentType ?? 'bow'}
+              value={test.equipmentType}
               choices={equippedTypes.map(k => [k, equippedTypeLabels()[k]] as const)}
               change={equipmentType => change({equipmentType})}
               label={t('ext.equipmentType')}
@@ -165,7 +145,7 @@ export function ConditionFields({
       {test.kind === 'attackState' && (
         <DetailRow label={t('ext.state')}>
           <MultiValuePicker
-            value={test.attackState ?? 'none'}
+            value={test.attackState}
             choices={attackStates.map(k => [k, k] as const)}
             change={attackState => change({attackState})}
             label={t('ext.state')}
@@ -198,6 +178,7 @@ export function ConditionFields({
           )}
         >
           <select value={test.subject} onChange={e => change({subject: e.target.value as BranchTest['subject']})}>
+            <Unchosen />
             <option value="self">{tr('본인')}</option>
             <option value="partner">{tr('상대')}</option>
           </select>
@@ -277,7 +258,7 @@ export function ConditionFields({
       )}
       {test.kind === 'global' && (
         <DetailRow label={tr('일치 값')} hint={tr('전역 변수의 값이 정확히 일치할 때 통과합니다.')}>
-          <NumberInput step="any" value={test.equals ?? 1} change={v => change({equals: v})} />
+          <NumberInput step="any" value={test.equals} change={v => change({equals: v})} />
         </DetailRow>
       )}
       {(test.kind === 'space' || test.kind === 'ground') && (
@@ -296,18 +277,15 @@ export function ConditionFields({
             }
           >
             <select
-              value={test.space?.direction ?? 'selfForward'}
+              value={test.space?.direction ?? ''}
               onChange={e =>
                 change({
                   subject: 'self',
-                  space: {
-                    distance: 200,
-                    ...test.space,
-                    direction: e.target.value as NonNullable<BranchTest['space']>['direction'],
-                  },
+                  space: {...test.space, direction: e.target.value as NonNullable<BranchTest['space']>['direction']},
                 })
               }
             >
+              <Unchosen />
               {selfDirections.map((d, i) => (
                 <option key={d} value={d}>
                   {[tr('앞'), tr('뒤'), tr('왼쪽'), tr('오른쪽')][i]}
@@ -322,19 +300,16 @@ export function ConditionFields({
             <NumberInput
               min={test.kind === 'ground' ? 0 : 1}
               max="2000"
-              value={test.space?.distance ?? 200}
-              change={v =>
-                change({
-                  space: {direction: 'selfForward', ...test.space, distance: v},
-                })
-              }
+              value={test.space?.distance}
+              change={v => change({space: {...test.space, distance: v}})}
             />
           </DetailRow>
         </>
       )}
       {test.kind === 'ground' &&
         (['maxRise', 'maxDrop', 'maxSlope', 'radius'] as const).map((key, i) => {
-          const g = test.ground ?? {maxRise: 20, maxDrop: 40, maxSlope: 45, radius: 20};
+          // Left empty, the runtime's own limit: shown as the box's placeholder, not filled in (11-02).
+          const g = test.ground ?? {};
           return (
             <DetailRow
               key={key}
@@ -345,6 +320,7 @@ export function ConditionFields({
                 min={key === 'radius' ? 1 : 0}
                 max={[200, 500, 80, 100][i]}
                 value={g[key]}
+                placeholder={String(groundDefaults[key])}
                 change={v => change({ground: {...g, [key]: v}})}
               />
             </DetailRow>

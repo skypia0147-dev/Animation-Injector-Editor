@@ -23,7 +23,7 @@ import {
   formKinds,
   subjectlessKinds,
 } from './graph/conditionExtensions.ts';
-import {selfDirections} from './graph/conditions.ts';
+import {groundDefaults, selfDirections} from './graph/conditions.ts';
 import {valuesError} from './graph/multiValue.ts';
 import {attackStates, equippedTypes, eventListError} from './runtimeExtensions.ts';
 import {keyCode} from './model.ts';
@@ -72,12 +72,12 @@ export function checkCards(w: any) {
       !number(s.gamepad, 0, 65535) ||
       (s.control !== undefined && !isGameControl(s.control)) ||
       typeof s.event !== 'string' ||
-      !['both', 'player', 'npc'].includes(s.actor) ||
-      !['nearest', 'combatTarget'].includes(s.target) ||
+      !['both', 'player', 'npc', ''].includes(s.actor) ||
+      !['nearest', 'combatTarget', ''].includes(s.target) ||
       (s.range !== undefined && !number(s.range, 1, 2000)) ||
       (s.angle !== undefined && !number(s.angle, 1, 360)) ||
-      !startPresses.includes(s.press) ||
-      (s.press !== 'down' && (s.mode !== 'input' || menuControl(s.control))) ||
+      !(s.press === '' || startPresses.includes(s.press)) ||
+      (s.press !== 'down' && (s.mode !== 'input' || (s.press !== '' && menuControl(s.control)))) ||
       !number(s.cooldown) ||
       !refOk(s.to) ||
       !position(s.position) ||
@@ -85,7 +85,7 @@ export function checkCards(w: any) {
         (!s.block ||
           !Array.isArray(s.block.events) ||
           s.block.events.some((e: unknown) => typeof e !== 'string') ||
-          !['startable', 'active', 'both'].includes(s.block.when))) ||
+          !['startable', 'active', 'both', ''].includes(s.block.when))) ||
       Object.keys(s).some(
         k =>
           ![
@@ -168,13 +168,16 @@ export function checkCards(w: any) {
 }
 
 /** One condition's settings, as the runtime checks them (XmlV2 ReadCheck). */
-function testErrors(w: Workspace, t: CardTest): string[] {
+export function conditionErrors(w: Workspace, t: CardTest): string[] {
   const errors: string[] = [];
   if (isGroup(t)) {
     if (!(t.operands ?? []).length) errors.push(tr('빈 조건 그룹이 있습니다. 조건을 넣거나 그룹을 지우세요.'));
     return errors;
   }
-  if (!checkKinds.includes(t.kind) || !['self', 'partner'].includes(t.subject))
+  // A new condition starts with nothing chosen (11-02): asked for, not refused as unsupported.
+  if (t.kind === '') return [tr('검사 항목을 선택하세요.')];
+  if (t.subject === '') errors.push(tr('검사 대상을 선택하세요.'));
+  else if (!checkKinds.includes(t.kind) || !['self', 'partner'].includes(t.subject))
     errors.push(tr('지원하지 않는 조건입니다.'));
   const extendedError = extensionError(t as never);
   if (extendedError) errors.push(extendedError);
@@ -210,14 +213,14 @@ function testErrors(w: Workspace, t: CardTest): string[] {
     if (
       !s ||
       !Number.isFinite(s.distance) ||
-      s.distance < 0 ||
+      s.distance! < 0 ||
       (s.distance === 0 && t.kind === 'space') ||
-      s.distance > 2000 ||
-      !(selfDirections as readonly string[]).includes(s.direction)
+      s.distance! > 2000 ||
+      !(selfDirections as readonly string[]).includes(s.direction ?? '')
     )
       errors.push(tr('검사 방향과 거리(지면 0 이상, 공간 0 초과, 최대 2000)를 확인하세요.'));
     if (t.kind === 'ground' && t.ground) {
-      const g = t.ground;
+      const g = {...groundDefaults, ...t.ground};
       if (
         ![g.maxRise, g.maxDrop, g.maxSlope, g.radius].every(Number.isFinite) ||
         g.maxRise < 0 ||
@@ -280,10 +283,15 @@ export function cardIssues(w: Workspace): Issue[] {
         if (s.key || s.gamepad) err(s.uid, tr('게임 동작을 고르면 키·패드 버튼은 쓰지 않습니다.'));
       } else if ((!s.key && !s.gamepad) || (s.key && (!keyCode(s.key) || keyCode(s.key) > 265)))
         err(s.uid, tr('시작 키 또는 패드 버튼을 지정하세요.'));
+      if (s.press === '') err(s.uid, tr('누름 방식을 선택하세요.'));
     } else if (!eventOk(s.event)) err(s.uid, tr('시작 이벤트 이름을 입력하세요.'));
+    // A setting just added from 「＋ 설정」 and not chosen yet (11-02).
+    if (s.mode === 'event' && s.actor === '') err(s.uid, tr('보낸 쪽을 선택하세요.'));
+    if (s.target === '') err(s.uid, tr('대상을 선택하세요.'));
     if (s.block) {
       const e = eventListError(s.block.events);
       if (e) err(s.uid, e);
+      if (!s.block.when) err(s.uid, tr('차단 시점을 선택하세요.'));
     }
     if (!s.to) warn(s.uid, tr('이 시작은 갈 곳이 없어 XML에 쓰지 않습니다. HKX나 조건 카드로 이으세요.'));
     refError(s.uid, s.to);
@@ -317,7 +325,7 @@ export function cardIssues(w: Workspace): Issue[] {
           err(c.uid, tr('구성 조건을 찾지 못했습니다.'));
           continue;
         }
-        for (const m of testErrors(w, t)) if (!seen.has(m)) (seen.add(m), err(c.uid, m));
+        for (const m of conditionErrors(w, t)) if (!seen.has(m)) (seen.add(m), err(c.uid, m));
       }
     const rule = groupRuleError(c);
     if (rule) err(c.uid, rule);

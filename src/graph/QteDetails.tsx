@@ -220,7 +220,8 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
                 q.type = c.type;
                 if (q.type !== 'splitArc') delete q.design;
                 if (q.type === 'keySequence') delete q.control;
-                if (q.type === 'keySequence' && !q.sequence) q.sequence = defaultSequence();
+                // Its keys are the user's to pick (11-02): none chosen for them.
+                if (q.type === 'keySequence' && !q.sequence) q.sequence = [];
               })
             }
           >
@@ -391,7 +392,7 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
             disabled={(q.sequence?.length ?? 0) >= 8}
             onClick={() =>
               sequence(q => {
-                (q.sequence ??= []).push({key: 'E', gamepad: 0});
+                (q.sequence ??= []).push({key: '', gamepad: 0});
               })
             }
           >

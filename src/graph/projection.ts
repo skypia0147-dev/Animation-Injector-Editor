@@ -234,7 +234,8 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
     }
     if (kind === 'suppress') {
       if (remove) delete p.suppress;
-      else p.suppress ??= {events: [''], when: 'active'};
+      // When it blocks is the user's to choose (11-02).
+      else p.suppress ??= {events: [''], when: ''};
       return n;
     }
     if (kind === 'carry' && a.pair) {
@@ -272,7 +273,8 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
     else if (kind === 'cameraRestore') {
       a.cameraEnabled = !remove;
       if (!remove) {
-        a.camera ??= {...defaultCamera(), reset: w.globals.cameraReset ?? ''};
+        // When it restores is the user's to choose (11-02); the timeout keeps its number.
+        a.camera ??= {...defaultCamera(), restore: '', reset: w.globals.cameraReset ?? ''};
       }
     } else if (kind === 'hkxPlay') {
       for (const s of p.steps.filter(s => !g.step || s.id === g.step)) {

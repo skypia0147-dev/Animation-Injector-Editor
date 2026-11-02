@@ -745,7 +745,7 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
 }
 /** Chip text: the op and only what differs from the defaults. */
 export function functionSummary(values: Record<string, string>): string {
-  return [opInfo[values.op as EventOp]?.label ?? values.op, ...functionParts(values)].join(' · ');
+  return [opInfo[values.op as EventOp]?.label ?? (values.op || tr('기능 선택')), ...functionParts(values)].join(' · ');
 }
 /** A function's settings without its name (a card item already titled by it): the defaults left out. */
 export function functionParts(values: Record<string, string>): string[] {
@@ -831,13 +831,18 @@ export function registerIn(rows: EventRow[], name: string, values?: Record<strin
 export function functionErrors(v: Record<string, string>, timed = false): string[] {
   const out: string[] = [];
   if (!eventOps.includes(v.op as EventOp)) out.push(tr('기능을 선택하세요.'));
-  if (v.target !== undefined && !(timed && (pairRoles as readonly string[]).includes(v.target)))
+  // A choice added and not made yet (11-02, unchosen).
+  for (const k of ['pick', 'hit', 'hand', 'block', 'reaction', 'direction', 'bone', 'measure', 'target'])
+    if (v[k] === '')
+      out.push(tr('{label}: 선택하세요.', {label: k === 'target' ? tr('적용') : (settingLabels[k] ?? k)}));
+  if (v.target !== undefined && v.target !== '' && !(timed && (pairRoles as readonly string[]).includes(v.target)))
     out.push(tr('적용 값이 잘못되었습니다.'));
   if (v.damage !== undefined && v.damage !== '' && v.op !== 'fireArrow') out.push(tr('피해 %는 활 발사에서만 씁니다.'));
   if (v.op === 'fireArrow' && v.delay !== undefined && v.delay !== '')
     out.push(tr('활 발사는 지연 없이 이벤트·시각에 바로 쏩니다.'));
   if (
     v.direction !== undefined &&
+    v.direction !== '' &&
     !(v.op === 'ragdoll' && (ragdollDirections as readonly string[]).includes(v.direction))
   )
     out.push(tr('방향은 래그돌의 아래·위·앞·뒤·왼쪽·오른쪽입니다.'));
@@ -886,11 +891,11 @@ export function functionErrors(v: Record<string, string>, timed = false): string
         '소리 파일 경로는 영문·숫자·일반 기호만 씁니다. 한글 등은 게임이 파일을 찾지 못하니 파일·폴더 이름을 바꾸세요.'
       )
     );
-  if (v.bone !== undefined && !(v.op === 'sound' && soundBones().some(([b]) => b === v.bone)))
+  if (v.bone !== undefined && v.bone !== '' && !(v.op === 'sound' && soundBones().some(([b]) => b === v.bone)))
     out.push(tr('소리 위치를 선택하세요.'));
   if (v.restore !== undefined && !(v.op === 'globalSet' && v.restore === 'end'))
     out.push(tr('되돌림은 전역 값 설정에서만 씁니다.'));
-  if (v.measure !== undefined && !(v.op === 'cost' && v.measure === 'percent'))
+  if (v.measure !== undefined && v.measure !== '' && !(v.op === 'cost' && v.measure === 'percent'))
     out.push(tr('단위는 자원 소모에서만 씁니다.'));
   if (v.op === 'modEvent' && !v.name?.trim()) out.push(tr('모드 이벤트 이름을 입력하세요.'));
   if ((v.name !== undefined || v.text !== undefined) && v.op !== 'modEvent')
@@ -1344,7 +1349,8 @@ export function setFunctions(w: Workspace, name: string, functions: Effect[]): W
     row.functions = functions;
   });
 }
-export function addFunction(w: Workspace, name: string, op: EventOp = 'magicAdd'): Workspace {
+/** A function added to an event: its kind '' until the user picks one (11-02: nothing is chosen for them). */
+export function addFunction(w: Workspace, name: string, op: EventOp | '' = ''): Workspace {
   return withRows(w, rows => {
     const row = registerIn(rows, name);
     row.functions.push({
@@ -1352,7 +1358,18 @@ export function addFunction(w: Workspace, name: string, op: EventOp = 'magicAdd'
         'fn',
         row.functions.map(f => f.id)
       ),
-      values: {op},
+      values: {op, ...unchosen(op)},
     });
   });
+}
+/** What a function starts with when added or given another kind (11-02): its choices left for the user — a strike's
+ *  whom and how, a ragdoll's direction, a sound's place, a cost's unit, and in a pair the actor it applies to. Read from
+ *  a file, a choice left out is the runtime's default instead and shows as that. */
+export function unchosen(op: string, pair = false): Record<string, string> {
+  const fields = fieldsOf(op);
+  return {
+    ...(op === 'strike' ? {pick: '', hand: '', block: '', reaction: ''} : {}),
+    ...Object.fromEntries(['direction', 'bone', 'measure'].filter(k => fields.includes(k)).map(k => [k, ''])),
+    ...(pair && op && !opInfo[op as EventOp]?.player ? {target: ''} : {}),
+  };
 }

@@ -80,7 +80,7 @@ import {StartScreen} from './ui/StartScreen.tsx';
 import {Preferences} from './ui/Preferences.tsx';
 import {useFileDrop} from './ui/useFileDrop.ts';
 import type {DropPayload} from './ui/useFileDrop.ts';
-import {assignClip, registerAssets, unregisterAsset} from './assets.ts';
+import {assignClip, modXmlPath, registerAssets, unregisterAsset} from './assets.ts';
 import {actionView, placeStepFile, previewPerson, stepSource} from './view.ts';
 import type {Person} from './view.ts';
 import {useStableCallbacks} from './ui/stableCallbacks.ts';
@@ -722,7 +722,8 @@ function Editor() {
       w.sharedInputs.map(i => i.id).concat(w.actions.flatMap(a => a.config.inputs.map(i => i.id)))
     );
     edit(w => {
-      w.sharedInputs = [...w.sharedInputs, {id, label: t('row.input'), key: 'G', gamepad: 0}];
+      // Its key is the user's to pick (11-02).
+      w.sharedInputs = [...w.sharedInputs, {id, label: t('row.input'), key: '', gamepad: 0}];
       return w;
     });
     setSelectedInput('shared:' + id);
@@ -812,8 +813,11 @@ function Editor() {
         const text = withEditorBlock(body, shareableProject(project));
         const suggested =
           mode === 'xml'
-            ? xmlSavePath(w.packaging.folder, xmlExportPath)
-            : xmlExportPath || xmlSavePath(w.packaging.folder);
+            ? xmlExportPath
+              ? xmlSavePath(w.packaging.folder, xmlExportPath)
+              : (modXmlPath(w) ?? xmlSavePath(w.packaging.folder))
+            : // Saved the first time: where the game reads it in the HKX's own mod folder (11-02).
+              xmlExportPath || modXmlPath(w) || xmlSavePath(w.packaging.folder);
         let written: io.SavedDocument | null;
         try {
           written = target

@@ -9,6 +9,7 @@ import {cardIssues} from '../src/cardChecks.ts';
 import {newCard, newStart} from '../src/cards.ts';
 import {extensionDefaults, extensionSummary} from '../src/graph/conditionExtensions.ts';
 import {checker, needsChecker} from './local.mjs';
+import {sampleSettings} from './conditionSample.mjs';
 
 // The last weapon hit taken (runtime hitReceived, 10-29): a blocked hit's start picks its clip by the attack.
 function blockHit(test) {
@@ -20,6 +21,7 @@ function blockHit(test) {
     kind: 'hitReceived',
     subject: 'self',
     ...extensionDefaults('hitReceived'),
+    ...sampleSettings('hitReceived'),
     ...test,
   };
   const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};
@@ -29,21 +31,17 @@ function blockHit(test) {
 }
 const errors = w => cardIssues(w).filter(i => i.level === 'error');
 
-test(
-  'a power attack within half a second by default, written and read back as the runtime reads it',
-  needsChecker,
-  () => {
-    const w = blockHit({});
-    assert.deepEqual(errors(w), []);
-    const xml = compileWorkspace(w);
-    assert.match(xml, /<Check kind="hitReceived" option="power" within="0.5"\/>/);
-    assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
-    assert.equal(extensionSummary(w.cards[0].tests[0]), '본인 / 받은 공격 / 파워어택 / 0.5초 안');
-    mkdirSync('tests/generated/hit-received', {recursive: true});
-    writeFileSync('tests/generated/hit-received/power.xml', xml);
-    execFileSync(checker, ['tests/generated/hit-received/power.xml']);
-  }
-);
+test('a power attack within half a second, written and read back as the runtime reads it', needsChecker, () => {
+  const w = blockHit({});
+  assert.deepEqual(errors(w), []);
+  const xml = compileWorkspace(w);
+  assert.match(xml, /<Check kind="hitReceived" option="power" within="0.5"\/>/);
+  assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
+  assert.equal(extensionSummary(w.cards[0].tests[0]), '본인 / 받은 공격 / 파워어택 / 0.5초 안');
+  mkdirSync('tests/generated/hit-received', {recursive: true});
+  writeFileSync('tests/generated/hit-received/power.xml', xml);
+  execFileSync(checker, ['tests/generated/hit-received/power.xml']);
+});
 
 test('several kinds, no time limit, the partner', needsChecker, () => {
   const w = blockHit({option: 'power,bash', within: undefined, subject: 'partner'});

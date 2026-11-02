@@ -595,7 +595,7 @@ export const byKeywordName = (t: Pick<BranchTest, 'kind' | 'keyword'>) =>
   keywordKinds.includes(t.kind) && t.keyword !== undefined;
 /** The same whoever is asked (a roll, the world's hour, weather or global, the player's movement keys, the room
  * where the actor stands): no target field, always the actor itself; the runtime rejects a partner subject. */
-export const subjectlessKinds: readonly string[] = [
+export const runtimeSubjectless: readonly string[] = [
   'chance',
   'gameHour',
   'weather',
@@ -605,39 +605,61 @@ export const subjectlessKinds: readonly string[] = [
   'ground',
   'heldTime',
 ];
+/** Checked on the actor itself only, by the user's decision (11-02): the space, equipment and ability, and environment
+ *  kinds. The runtime still reads a partner subject on them; the editor neither offers nor reads one. */
+export const selfOnlyKinds: readonly string[] = [
+  'distance',
+  'relativeAngle',
+  'heightDifference',
+  'lineOfSight',
+  'slope',
+  'magicEffect',
+  'equippedType',
+  'equippedKeyword',
+  'wornKeyword',
+  'perk',
+  'spell',
+  'interior',
+  'location',
+];
+/** No target field: always the actor itself. */
+export const subjectlessKinds: readonly string[] = [...runtimeSubjectless, ...selfOnlyKinds];
 export const definition = (kind: string): Definition | undefined =>
   (extensionConditions as Record<string, Definition>)[kind];
+/** What a kind starts with when picked (11-02): nothing to choose is chosen and no number is filled in, so the user
+ *  never has to take a default back out. Only what leaves nothing out stays: no actions picked yet and 「any way」 for
+ *  the previous action, and a keyword named rather than by form. */
 export function extensionDefaults(kind: string): Partial<BranchTest> {
   const d = definition(kind);
   if (!d) return {};
   return {
-    ...(d.choices ? {option: d.choices[0][0]} : {}),
-    ...(d.numeric
-      ? {
-          compare: 'le',
-          value:
-            kind === 'resource'
-              ? 20
-              : kind === 'relativeAngle'
-                ? 45
-                : kind === 'scale' || kind === 'scaleRatio'
-                  ? 1
-                  : 150,
-          upper: kind === 'relativeAngle' ? 180 : 200,
-        }
-      : {}),
-    ...(kind === 'resource' ? {measure: 'percent'} : {}),
-    ...(kind === 'chance' ? {value: 30} : {}),
     ...(kind === 'previousAction' ? {actions: [], ended: 'any' as const} : {}),
-    ...(kind === 'slope' ? {compare: 'ge' as const, value: 25} : {}),
-    ...(kind === 'actorValue'
-      ? {option: 'OneHanded', compare: 'ge' as const, value: 50, measure: 'current' as const}
-      : {}),
-    ...(kind === 'gameHour' ? {compare: 'range' as const, value: 20, upper: 5} : {}),
-    ...(kind === 'heldTime' ? {compare: 'ge' as const, value: 1.5} : {}),
-    ...(kind === 'weather' ? {option: 'rainy'} : {}),
-    ...(kind === 'hitReceived' ? {option: 'power', within: 0.5} : {}),
     ...(d.form ? (keywordKinds.includes(kind) ? {keyword: ''} : {form: {plugin: '', id: ''}}) : {}),
+  };
+}
+/** Picking `kind` as what a condition checks: another kind's values go and nothing is chosen or filled in for the new
+ *  one (11-02). What the user chose that still means the same stays: the target, and a room or ground check's
+ *  direction and distance between those two. */
+export function kindPatch(t: BranchTest, kind: string): Partial<BranchTest> {
+  const measured = ['space', 'ground'];
+  return {
+    kind: kind as BranchTest['kind'],
+    option: undefined,
+    compare: undefined,
+    measure: undefined,
+    value: undefined,
+    upper: undefined,
+    within: undefined,
+    ...extensionDefaults(kind),
+    // A keyword name left from the previous kind must not stay behind, hidden.
+    ...(keywordKinds.includes(kind) ? {} : {keyword: undefined}),
+    ...(measured.includes(kind) && measured.includes(t.kind) ? {} : {space: undefined}),
+    // No target field: 'self' is all it can be. Leaving such a kind (or none), the target is chosen again.
+    ...(subjectlessKinds.includes(kind) || kind === 'all' || kind === 'any'
+      ? {subject: 'self' as const}
+      : t.kind === '' || subjectlessKinds.includes(t.kind)
+        ? {subject: '' as const}
+        : {}),
   };
 }
 export function extensionMaximum(t: BranchTest) {
@@ -660,10 +682,10 @@ export function extensionError(t: BranchTest): string | undefined {
       d.choices.map(([v]) => v)
     );
     if (error) return error;
-  } else if (d.choices && !d.choices.some(([v]) => v === t.option)) return tr('조건의 검사 항목을 선택하세요.');
+  } else if (d.choices && !d.choices.some(([v]) => v === t.option)) return tr('조건의 검사 값을 선택하세요.');
   if (t.kind === 'resource' && !['current', 'percent'].includes(t.measure ?? ''))
     return tr('자원 비교 기준을 선택하세요.');
-  if (t.kind === 'actorValue' && !['current', 'base'].includes(t.measure ?? 'current'))
+  if (t.kind === 'actorValue' && !['current', 'base'].includes(t.measure ?? ''))
     return tr('능력치 비교 기준을 선택하세요.');
   if (t.kind === 'previousAction') {
     // Reading the XML checks the shared settings before the actions are in (importXml.ts reads those).
@@ -681,12 +703,14 @@ export function extensionError(t: BranchTest): string | undefined {
   // A fall without its distance asks only rising or falling; in the air at all has none.
   if (t.kind === 'air' && t.option === 'any' && t.compare !== undefined)
     return tr('낙하 거리는 떨어지는 중·오르는 중에서만 비교합니다.');
-  if (d.optionalNumeric && t.compare === undefined) return;
+  if (d.optionalNumeric && t.compare === undefined && t.value === undefined) return;
   if (d.numeric || d.optionalNumeric || t.kind === 'chance') {
-    if (!Number.isFinite(t.value) || t.value! < 0 || t.value! > extensionMaximum(t))
-      return tr('비교 값의 범위를 확인하세요.');
+    // The way to compare first: a new check has neither, and that is the one to pick first.
     if ((d.numeric || d.optionalNumeric) && !comparisons().some(([v]) => v === t.compare))
       return tr('비교 방식을 선택하세요.');
+    if (t.value === undefined) return tr('비교 값을 입력하세요.');
+    if (!Number.isFinite(t.value) || t.value! < 0 || t.value! > extensionMaximum(t))
+      return tr('비교 값의 범위를 확인하세요.');
     // A game hour's range may wrap past midnight (20 to 5).
     if (
       t.compare === 'range' &&
@@ -766,11 +790,13 @@ export function extensionSummary(t: BranchTest): string | undefined {
     d.label,
     option,
     d.form ? (byKeywordName(t) ? t.keyword : `${t.form?.plugin ?? ''} : ${t.form?.id ?? ''}`) : undefined,
-    d.numeric || (d.optionalNumeric && t.compare !== undefined)
-      ? value
-      : t.kind === 'chance'
-        ? `${t.value}%`
-        : undefined,
+    !Number.isFinite(t.value)
+      ? undefined
+      : d.numeric || (d.optionalNumeric && t.compare !== undefined)
+        ? value
+        : t.kind === 'chance'
+          ? `${t.value}%`
+          : undefined,
     (t.kind === 'previousAction' || t.kind === 'hitReceived') && t.within !== undefined
       ? tr('{seconds}초 안', {seconds: t.within})
       : undefined,

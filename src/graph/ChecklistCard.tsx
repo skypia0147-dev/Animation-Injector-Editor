@@ -44,6 +44,7 @@ import {exitSummary} from '../ui/details/inspectorModel.ts';
 import {sourceWindow} from './clipWindows.ts';
 import {t} from '../i18n/index.ts';
 import {AddSetting, SettingChips, useSettings, type Setting} from './cardSettings.tsx';
+import {useDragToCard} from './dragToCard.tsx';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
@@ -61,6 +62,27 @@ type Context = {
   globalSettings: () => void;
 };
 export const ChecklistContext = createContext<Context | null>(null);
+/** A feature row or a setting chip dropped on another HKX card (`card`, its node id): moved there, or copied. */
+function transferTo(ctx: Context, item: string, card: string, copy: boolean, what: 'feature' | 'setting') {
+  const to = ctx.model.raw.nodes.find(x => x.id === card)?.action;
+  if (!to) return;
+  try {
+    // Made first: edit reports a refusal itself and goes on, and the message here would cover it.
+    const next = transferItem(ctx.w, item, to, copy);
+    ctx.edit(() => next);
+    ctx.status(
+      what === 'setting'
+        ? copy
+          ? tr('설정을 그 HKX 카드에 복사했습니다.')
+          : tr('설정을 그 HKX 카드로 옮겼습니다.')
+        : copy
+          ? tr('기능을 그 HKX 카드에 복사했습니다.')
+          : tr('기능을 그 HKX 카드로 옮겼습니다.')
+    );
+  } catch (e) {
+    ctx.status(errorText(e));
+  }
+}
 // A card's folds start as they are each time it opens (10-23): a section or item left open is not remembered.
 // The key names the fold for readers; nothing is stored under it.
 function useFold(_key: string, initial = false) {
@@ -197,6 +219,8 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         add: () => option && attempt(() => edit(w => addConnected(w, settingsTarget, option, node.position).workspace)),
         reset: () => item && attempt(() => edit(w => deleteFlat(detachInspectorNode(w, item.node.id), item.node.id))),
         fields: () => item && <BlendDetails w={w} id={item.node.id} edit={edit} status={status} />,
+        // Dragged onto another HKX card, the blend moves there (copied with Ctrl), as a feature row does.
+        drag: item && ((card, copy) => transferTo(ctx, item.node.id, card, copy, 'setting')),
       };
     };
     return [
@@ -336,7 +360,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
             )}
           </div>
           {/* What of the playback differs from its default, as chips (unify ⑩, docs/mockup-playback-settings before). */}
-          <SettingChips settings={playSettings} />
+          <SettingChips settings={playSettings} owner={node.id} />
           {/* The features and the HKX's events fold each on their own (one "기능 · 이벤트" fold above them was the
                 same fold twice, 10-20). */}
           {
@@ -480,60 +504,8 @@ function ChecklistRow({
     }
   }, [ctx.selected]);
   const {title, summary} = n;
-  // Dragged by its name onto another HKX card (unify ⑪, as a condition between condition cards): it moves there, or
-  // is copied with Ctrl held. Pointer events (graph/ConditionCardFace.tsx says why); 5 px before it is a drag.
-  const [ghost, setGhost] = useState<{x: number; y: number; copy: boolean} | null>(null);
-  const begin = (e: React.PointerEvent) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('.checklist-row-icons')) return;
-    const x0 = e.clientX,
-      y0 = e.clientY;
-    let moving = false,
-      target: HTMLElement | null = null;
-    const mark = (card: HTMLElement | null) => {
-      if (card === target) return;
-      target?.classList.remove('item-drop');
-      target = card;
-      target?.classList.add('item-drop');
-    };
-    const move = (ev: PointerEvent) => {
-      if (!moving && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
-      moving = true;
-      const card = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>(
-        '.p3-node.hkxPlay[data-card]'
-      );
-      mark(card && card.dataset.card !== owner ? card : null);
-      setGhost({x: ev.clientX, y: ev.clientY, copy: ev.ctrlKey});
-    };
-    const up = (ev: PointerEvent) => {
-      removeEventListener('pointermove', move);
-      removeEventListener('pointerup', up);
-      removeEventListener('pointercancel', up);
-      if (!moving) return;
-      const card = target?.dataset.card;
-      mark(null);
-      setGhost(null);
-      // The click after the release would open the row.
-      const swallow = (ev: MouseEvent) => {
-        ev.stopPropagation();
-        ev.preventDefault();
-      };
-      addEventListener('click', swallow, {capture: true, once: true});
-      setTimeout(() => removeEventListener('click', swallow, {capture: true}), 0);
-      const to = card && ctx.model.raw.nodes.find(x => x.id === card)?.action;
-      if (!to || ev.type !== 'pointerup') return;
-      try {
-        // Made first: edit reports a refusal itself and goes on, and the message here would cover it.
-        const next = transferItem(w, n.id, to, ev.ctrlKey);
-        edit(() => next);
-        status(ev.ctrlKey ? tr('기능을 그 HKX 카드에 복사했습니다.') : tr('기능을 그 HKX 카드로 옮겼습니다.'));
-      } catch (e) {
-        status(errorText(e));
-      }
-    };
-    addEventListener('pointermove', move);
-    addEventListener('pointerup', up);
-    addEventListener('pointercancel', up);
-  };
+  // Dragged by its name onto another HKX card: it moves there, or is copied with Ctrl held (dragToCard).
+  const drag = useDragToCard(owner, (card, copy) => transferTo(ctx, n.id, card, copy, 'feature'));
   const attempt = (fn: () => void) => {
     try {
       fn();
@@ -548,19 +520,12 @@ function ChecklistRow({
       className={'checklist-row' + (moment ? ' moment' : '') + (ctx.selected === n.id ? ' active-item' : '')}
       data-item={n.id}
     >
-      {ghost &&
-        createPortal(
-          <div
-            className={'cond-drag-ghost' + (ghost.copy ? ' copy' : '')}
-            style={{left: ghost.x + 12, top: ghost.y + 10}}
-          >
-            {ghost.copy && <b>{tr('복사')}</b>}
-            {title}
-          </div>,
-          document.body
-        )}
+      {drag.ghostView(title)}
       {/* No checkbox (10-23, docs/mockup-no-checkbox): an item is used while it is there and deleted to stop. */}
-      <div className="checklist-row-heading" onPointerDown={begin}>
+      <div
+        className="checklist-row-heading"
+        onPointerDown={e => !(e.target as HTMLElement).closest('.checklist-row-icons') && drag.begin(e)}
+      >
         <button
           className="checklist-row-toggle"
           title={[item.scope, playerOnlyHint(rows(w, a).find(r => r.id === n.notify)?.kind ?? '')]

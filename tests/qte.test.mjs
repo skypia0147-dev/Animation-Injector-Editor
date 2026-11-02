@@ -31,7 +31,7 @@ function fixture(pair = false) {
 }
 function wired(pair = false) {
   let w = fixture(pair);
-  const added = addFlat(w, 'a1', 'qte', {x: 420, y: 160});
+  const added = addChosenQte(w, 'a1', {x: 420, y: 160});
   w = added.workspace;
   const play = flatGraph(w).nodes.find(n => n.kind === 'hkxPlay' && n.action === 'a1');
   w = connectFlat(w, play.id, added.id, 'trigger');
@@ -40,7 +40,7 @@ function wired(pair = false) {
 test('QTE detached creation, HKX wiring, multiple nodes and XML/project round trip', () => {
   let {w, id} = wired();
   assert.equal(w.qtes[0].owner, 'a1');
-  const added = addFlat(w, 'a1', 'qte', {x: 420, y: 340});
+  const added = addChosenQte(w, 'a1', {x: 420, y: 340});
   w = added.workspace;
   assert.equal(w.qtes[1].owner, '');
   w.qtes[0].at = {basis: 'event', event: 'QTE_Start', seconds: 0, fallback: false, fallbackBasis: 'seconds'};
@@ -335,6 +335,7 @@ test('shared QTE connects a new HKX and copies independently without duplicate p
   assert.deepEqual(qteErrors(connected), []);
 });
 import {removeQteRule} from '../src/graph/qteGroups.ts';
+import {addChosenQte} from './chosen.mjs';
 test('deleting first grouped QTE rule preserves node and other disabled result', () => {
   let {w, id} = wired();
   w.qtes[0].group = 'Stages';

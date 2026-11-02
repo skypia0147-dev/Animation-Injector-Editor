@@ -22,12 +22,14 @@ import {
   isMagic,
   magicActions,
   magicOps,
+  unchosen,
   type EventOp,
 } from '../../eventRegistry.ts';
 import type {LabelId} from '../../labels.ts';
 import {t} from '../../i18n/index.ts';
 import {Property as Prop} from './Property.tsx';
 import {DetailRow} from './DetailRow.tsx';
+import {Unchosen} from './Unchosen.tsx';
 import {tr} from '../../i18n/korean.ts';
 import {StrikeFields} from './StrikeFields.tsx';
 import {SoundSourceFields} from './SoundFile.tsx';
@@ -128,9 +130,10 @@ export function EffectDetails({
       return (
         <DetailRow key={key} label={settingLabels.measure}>
           <select
-            value={v.measure === 'percent' ? 'percent' : 'value'}
+            value={v.measure === '' ? '' : v.measure === 'percent' ? 'percent' : 'value'}
             onChange={e => set('measure', e.target.value === 'percent' ? 'percent' : undefined)}
           >
+            {v.measure === '' && <Unchosen />}
             <option value="value">{tr('수치')}</option>
             <option value="percent">{tr('최대치의 %')}</option>
           </select>
@@ -157,6 +160,7 @@ export function EffectDetails({
             value={v.direction ?? 'down'}
             onChange={e => set('direction', e.target.value === 'down' ? undefined : e.target.value)}
           >
+            {v.direction === '' && <Unchosen />}
             {ragdollDirections.map(d => (
               <option key={d} value={d}>
                 {ragdollLabels[d]}
@@ -220,7 +224,7 @@ export function EffectDetails({
             id="kind"
             label={tr('기능')}
             value={v.op}
-            change={op => set('op', op)}
+            change={op => (v.op ? set('op', op) : setMany({op, ...unchosen(op, pair && !registry)}))}
             options={(registry ? eventOps : operations)
               // The magic function is one choice; its action is below (11-01).
               .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))

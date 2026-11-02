@@ -76,7 +76,10 @@ test('a transition card and a vanilla transition switch into each other, keeping
   w = linkToCancel(w, l.id);
   assert.equal(w.links.length, 0);
   const c = w.actions[0].cancels[0];
-  assert.ok(c.to === 'vanilla:Attack' && !c.buffered && c.open.seconds === 0.35 && c.close.basis === 'end');
+  // Which vanilla actions take over is chosen by the user (11-02), the window kept.
+  assert.ok(c.to === '' && !c.buffered && c.open.seconds === 0.35 && c.close.basis === 'end');
+  assert.ok(validateWorkspace(w).some(i => i.message === '전환할 바닐라 동작을 고르세요.'));
+  c.to = 'vanilla:Attack';
   assert.match(compileWorkspace(w), /<Vanilla [^>]*to="Attack"/);
   // An end transition has no window: the vanilla one it becomes is open for the whole clip.
   w = cancelToLink(w, action, c.id, 'end');

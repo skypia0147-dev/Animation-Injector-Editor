@@ -52,7 +52,7 @@ export const qteKeyName = (key: string) => {
 // A mouse button is named like any key (LMB, RMB, MMB) since runtime 0.12.258; it was drawn as a mouse before.
 export type QteFaceMode = 'hint' | 'circle' | 'single' | 'converge';
 export const qteFaceMode = (q: Pick<QteNode, 'type' | 'pressCount' | 'design'>): QteFaceMode =>
-  (q.type ?? 'splitArc') === 'splitArc'
+  (q.type || 'splitArc') === 'splitArc'
     ? q.design === 'converge'
       ? 'converge'
       : 'circle'

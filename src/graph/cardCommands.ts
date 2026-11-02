@@ -11,7 +11,6 @@ import {
   type Ref,
 } from '../cards.ts';
 import {readExpression, insertExpression} from './conditionExpression.ts';
-import {extensionDefaults} from './conditionExtensions.ts';
 import {tr} from '../i18n/korean.ts';
 
 // A condition card's own edits (docs/설계-형식6-에디터.md 3): its rows, True, False and the conditions on each.
@@ -155,13 +154,8 @@ const rootsOf = (c: ConditionCard, place: CardPlace) => {
   if (!r) throw Error(tr('행을 찾지 못했습니다.'));
   return r.guards;
 };
-// A new condition starts as 「공중 · 아무거나」 (11-01: the air check takes an option).
-const newTest = (c: ConditionCard, kind: CardTest['kind'] = 'air'): CardTest => ({
-  id: testId(c),
-  kind,
-  subject: 'self',
-  ...extensionDefaults(kind),
-});
+// A new condition starts with nothing chosen (11-02): no kind, no target, its values asked for once a kind is picked.
+const newTest = (c: ConditionCard): CardTest => ({id: testId(c), kind: '', subject: ''});
 /** A new row (with one condition to set: a row needs one), at the end or at `index`. On a True card it takes True's
  *  place and destination. */
 export function addRow(w: Workspace, uid: string, index?: number) {

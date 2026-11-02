@@ -7,6 +7,7 @@ import {flatGraph, addFlat, connectFlat} from '../src/graph/flat.ts';
 import {pairEventSenders} from '../src/graph/qteGraph.ts';
 import {presentCard} from '../src/graph/cardPresentation.ts';
 import {qteErrors} from '../src/qte.ts';
+import {addChosenQte} from './chosen.mjs';
 
 // a1 is a pair (GrapplePounding-like), a2/a3 ordinary results; QTE1 an event's QTE like Grapple's QTE4
 // (docs/mockup-qte-redesign/event-qte-pair-aware, runtime 0.12.264).
@@ -27,7 +28,7 @@ function grapple() {
     }
     w.actions.push(a);
   }
-  const qte = addFlat(w, '', 'qte', {x: 420, y: 160});
+  const qte = addChosenQte(w, '', {x: 420, y: 160});
   w = qte.workspace;
   const draft = addFlat(w, '', 'markerReceive', {x: 40, y: 40});
   w = draft.workspace;
@@ -93,7 +94,7 @@ test('drawing an event card to a QTE keeps its partner result', () => {
     p.steps[0].clip = 'Animations\\' + id + '.hkx';
     w.actions.push(wrap(p, 'b' + i));
   }
-  const added = addFlat(w, '', 'qte', {x: 420, y: 160});
+  const added = addChosenQte(w, '', {x: 420, y: 160});
   let n = added.workspace;
   n.qtes[0].results.success = {mode: 'transition', event: '', recipient: 'self', to: 'b0', partnerTo: 'b1'};
   const draft = addFlat(n, '', 'markerReceive', {x: 40, y: 40});

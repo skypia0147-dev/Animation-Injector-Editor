@@ -140,7 +140,9 @@ export function ConditionKindPicker({
           }
         }}
       >
-        <span>{kinds.find(k => k.kind === value)?.label ?? value}</span>
+        <span className={value ? undefined : 'unchosen'}>
+          {value ? (kinds.find(k => k.kind === value)?.label ?? value) : tr('선택…')}
+        </span>
         <i aria-hidden="true">▾</i>
       </button>
       {open &&

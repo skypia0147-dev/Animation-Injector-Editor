@@ -8,6 +8,7 @@ import {compileWorkspace, emptyWorkspace, wrap} from '../src/workspace.ts';
 import {createProject} from '../src/model.ts';
 import {flatGraph, addFlat, connectFlat} from '../src/graph/flat.ts';
 import {playbackLink} from '../src/graph/playback.ts';
+import {addChosenQte} from './chosen.mjs';
 
 const grapple = () =>
   importWorkspaceXml(readFileSync(new URL('./fixtures/grapple-carry-qte-cuts.xml', import.meta.url), 'utf8'));
@@ -60,7 +61,7 @@ test('drawing a QTE result onto an event transition sends that event and makes t
   }
   // Action2 waits for Hit and goes to Action3.
   w = playbackLink(w, 'a2', 'a3', {event: 'Hit'}).workspace;
-  const added = addFlat(w, 'a1', 'qte', {x: 420, y: 160});
+  const added = addChosenQte(w, 'a1', {x: 420, y: 160});
   w = added.workspace;
   const play = flatGraph(w).nodes.find(n => n.kind === 'hkxPlay' && n.action === 'a1');
   w = connectFlat(w, play.id, added.id, 'trigger');

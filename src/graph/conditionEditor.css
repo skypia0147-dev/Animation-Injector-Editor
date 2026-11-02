@@ -108,3 +108,8 @@
   margin: 8px;
   color: #a6a6a6;
 }
+/* The kind not chosen yet (11-02). */
+.condition-kind-trigger > span.unchosen {
+  font-style: italic;
+  color: var(--card-warn, #f0b04a);
+}

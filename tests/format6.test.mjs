@@ -79,7 +79,7 @@ test(
     const r = runtime('defaults', xml);
     assert.ok(r.ok, r.text);
     // Changed values are written, and read back: the cooldown on the start, the air rule on the action.
-    w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', cooldown: 0.5, to: {action: single.uid}});
+    w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', press: 'down', cooldown: 0.5, to: {action: single.uid}});
     single.config.air = 'allow';
     Object.assign(pair.pair, {range: 200, angle: 90});
     const changed = compileWorkspace(w);

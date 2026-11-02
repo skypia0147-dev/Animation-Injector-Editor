@@ -1,7 +1,7 @@
 // HKX asset library: what the HKX browser shows and how drag & drop registers files.
 import {clone} from './model.ts';
 import type {PreviewAssets, Workspace} from './workspace.ts';
-import {assetKey} from './package.ts';
+import {assetKey, folderValid} from './package.ts';
 import {stepFiles} from './view.ts';
 import {tr} from './i18n/korean.ts';
 
@@ -16,6 +16,23 @@ export type LibraryEntry = {
   registered: boolean;
 };
 
+/** Where the game reads this project's XML in the mod folder its HKX came from (11-02): the files picked or dropped
+ *  all under one `<mod>/meshes/actors/…`, it is `<mod>/SKSE/Plugins/AnimationInjector/<id>/<id>.xml` (the internal ID, as
+ *  installed mods name it), the first save's suggestion. None when they come from several places. */
+export function modXmlPath(w: Workspace): string | undefined {
+  const folder = w.id;
+  if (!folderValid(folder)) return;
+  let root: string | undefined;
+  for (const a of assetLibrary(w)) {
+    if (!a.localPath) continue;
+    const m = /^([a-z]:[\\/].*?)[\\/]meshes[\\/]actors[\\/]/i.exec(a.localPath);
+    if (!m) return;
+    const here = m[1].replaceAll('/', '\\');
+    if (root !== undefined && root.toLowerCase() !== here.toLowerCase()) return;
+    root = here;
+  }
+  return root && `${root}\\SKSE\\Plugins\\AnimationInjector\\${folder}\\${folder}.xml`;
+}
 /** Registered assets ∪ files the states need (a first-person action's _1stPerson copy, view.ts), one
  *  entry per relative path (case-insensitive). */
 export function assetLibrary(w: Workspace): LibraryEntry[] {

@@ -8,7 +8,7 @@ import {uid} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
 import {layoutKey} from '../graph/projection.ts';
 import {t} from '../i18n/index.ts';
-import {opInfo, pairRoleLabels, type EventOp} from '../eventRegistry.ts';
+import {opInfo, pairRoleLabels, unchosen, type EventOp} from '../eventRegistry.ts';
 import {tr} from '../i18n/korean.ts';
 import {clipEffects, ordinaryEffectOps, setClipEffects} from '../clipEffects.ts';
 export type Meta = {duration: number; tracks: number; annotations: {time: number; text: string; track: string}[]};
@@ -328,7 +328,8 @@ export function add(
       'cancel',
       a.cancels.map(c => c.id)
     );
-    a.cancels.push({id, to: 'vanilla:Attack', open: mark(time), close: mark(0, 'end'), buffered: true, blend: null});
+    // Which vanilla actions take over is the user's to choose (11-02).
+    a.cancels.push({id, to: '', open: mark(time), close: mark(0, 'end'), buffered: true, blend: null});
     return {workspace: n, id: 'cancel:' + id};
   }
   if (existing && [...slots, 'cost', 'recovery'].includes(kind)) {
@@ -349,15 +350,8 @@ export function add(
         'effect',
         a.pair.effects.map(e => e.id)
       ),
-      // Both actors unless the item names one (runtime 0.12.275). A strike starts as the initiator hitting its
-      // partner: both actors striking each other is never the first thing meant.
-      values:
-        kind === 'strike'
-          ? {op: kind, at: String(time), target: 'initiator', pick: 'partner'}
-          : // A sound, a global and a mod event once, not once per actor (runtime 0.12.296).
-            ['sound', 'globalSet', 'modEvent'].includes(kind)
-            ? {op: kind, at: String(time), target: 'initiator'}
-            : ({op: kind, at: String(time)} as Record<string, string>),
+      // Its choices, the actor it applies to among them, are the user's to make (11-02, unchosen).
+      values: {op: kind, at: String(time), ...unchosen(kind, true)} as Record<string, string>,
     };
     a.pair.effects.push(e);
     id = 'effect:' + e.id;
@@ -369,7 +363,7 @@ export function add(
         'effect',
         list.map(e => e.id)
       ),
-      values: {op: kind, at: String(time)},
+      values: {op: kind, at: String(time), ...unchosen(kind)},
     };
     setClipEffects(a, [...list, e]);
     id = 'effect:' + e.id;

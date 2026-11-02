@@ -5,6 +5,7 @@ import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 import {multiValueField} from './multiValue.ts';
 import {MultiValuePicker} from './MultiValuePicker.tsx';
+import {Unchosen} from '../ui/details/Unchosen.tsx';
 export function ExtendedConditionFields({
   test,
   change,
@@ -15,7 +16,9 @@ export function ExtendedConditionFields({
   const d = definition(test.kind);
   if (!d) return null;
   // A fall's distance is asked only when switched on (runtime 0.12.296).
-  const compared = d.numeric || (d.optionalNumeric && test.compare !== undefined);
+  // On while it holds a comparison or a distance (11-02: switched on, the way to compare is still to choose).
+  const fall = test.compare !== undefined || test.value !== undefined;
+  const compared = d.numeric || (d.optionalNumeric && fall);
   return (
     <>
       {d.choices && (
@@ -44,6 +47,7 @@ export function ExtendedConditionFields({
                 )
               }
             >
+              <Unchosen />
               {d.choices.map(([v, label]) => (
                 <option key={v} value={v}>
                   {label}
@@ -56,16 +60,21 @@ export function ExtendedConditionFields({
       {test.kind === 'resource' && (
         <DetailRow label={tr('비교 기준')} hint={d.hint}>
           <select
-            value={test.measure ?? 'percent'}
+            value={test.measure ?? ''}
             onChange={e =>
               change({
                 measure: e.target.value as 'current' | 'percent',
+                // A percentage stops at 100: what is entered already is brought within it, nothing is filled in.
                 ...(e.target.value === 'percent'
-                  ? {value: Math.min(100, test.value ?? 20), upper: Math.min(100, test.upper ?? 100)}
+                  ? {
+                      value: test.value === undefined ? undefined : Math.min(100, test.value),
+                      upper: test.upper === undefined ? undefined : Math.min(100, test.upper),
+                    }
                   : {}),
               })
             }
           >
+            <Unchosen />
             <option value="current">{tr('현재 수치')}</option>
             <option value="percent">{tr('남은 비율 (%)')}</option>
           </select>
@@ -76,11 +85,11 @@ export function ExtendedConditionFields({
           <label>
             <input
               type="checkbox"
-              checked={test.compare !== undefined}
+              checked={fall}
               onChange={e =>
                 change(
                   e.target.checked
-                    ? {compare: 'ge', value: test.value ?? 200}
+                    ? {value: test.value ?? 200}
                     : {compare: undefined, value: undefined, upper: undefined}
                 )
               }
@@ -91,10 +100,8 @@ export function ExtendedConditionFields({
       )}
       {test.kind === 'actorValue' && (
         <DetailRow label={tr('비교 기준')} hint={d.hint}>
-          <select
-            value={test.measure ?? 'current'}
-            onChange={e => change({measure: e.target.value as 'current' | 'base'})}
-          >
+          <select value={test.measure ?? ''} onChange={e => change({measure: e.target.value as 'current' | 'base'})}>
+            <Unchosen />
             <option value="current">{tr('현재 값')}</option>
             <option value="base">{tr('기본 값')}</option>
           </select>
@@ -103,16 +110,18 @@ export function ExtendedConditionFields({
       {compared && (
         <DetailRow label={tr('비교')} hint={d.hint}>
           <select
-            value={test.compare ?? 'le'}
+            value={test.compare ?? ''}
             onChange={e =>
               change({
                 compare: e.target.value as BranchTest['compare'],
-                ...(e.target.value === 'range'
-                  ? {upper: Math.max(test.value ?? 0, Math.min(extensionMaximum(test), test.upper ?? 100))}
+                // A range's end is entered by the user; one already there is kept within the range.
+                ...(e.target.value === 'range' && test.upper !== undefined
+                  ? {upper: Math.max(test.value ?? 0, Math.min(extensionMaximum(test), test.upper))}
                   : {}),
               })
             }
           >
+            <Unchosen />
             {comparisons().map(([v, label]) => (
               <option key={v} value={v}>
                 {label}
@@ -144,7 +153,7 @@ export function ExtendedConditionFields({
             min="0"
             max={extensionMaximum(test)}
             step="any"
-            value={test.value ?? 0}
+            value={test.value}
             change={v => change({value: v})}
           />
         </DetailRow>
@@ -155,7 +164,7 @@ export function ExtendedConditionFields({
             min={test.kind === 'gameHour' ? 0 : (test.value ?? 0)}
             max={extensionMaximum(test)}
             step="any"
-            value={test.upper ?? test.value ?? 0}
+            value={test.upper}
             change={v => change({upper: v})}
           />
         </DetailRow>

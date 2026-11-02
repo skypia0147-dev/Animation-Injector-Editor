@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState, type ReactNode} from 'react';
+import {useDragToCard} from './dragToCard.tsx';
 import {useDismiss} from '../ui/useDismiss.ts';
 import {DetailPanel, NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
@@ -22,6 +23,8 @@ export type Setting = {
   reset?: () => void;
   /** Picked from 「＋ 설정」: what it starts as (nothing: its fields open on the default). */
   add?: () => void;
+  /** Its chip dragged onto another HKX card (that card's node id): moved there, or copied with Ctrl. */
+  drag?: (card: string, copy: boolean) => void;
 };
 export type Settings = ReturnType<typeof useSettings>;
 /** Which settings show, which is open, and the add menu's. `fold`: the card is left in the summary view, and its
@@ -94,8 +97,9 @@ export function SettingRows({settings, after}: {settings: Settings; after?: Reac
     </div>
   );
 }
-/** The shown settings as chips (an HKX card's playback): one opens its fields under the chips. */
-export function SettingChips({settings}: {settings: Settings}) {
+/** The shown settings as chips (an HKX card's playback, `owner` its node id): one opens its fields under the chips;
+ *  one that can be, dragged onto another HKX card, moves there or is copied with Ctrl (graph/dragToCard). */
+export function SettingChips({settings, owner}: {settings: Settings; owner: string}) {
   const chips = settings.shown.filter(s => !s.fixed);
   const open = chips.find(s => s.id === settings.open);
   if (!chips.length) return null;
@@ -103,19 +107,28 @@ export function SettingChips({settings}: {settings: Settings}) {
     <div className="set-chips-box">
       <span className="cond-chips">
         {chips.map(s => (
-          <button
-            key={s.id}
-            type="button"
-            className={'cond-chip set-chip' + (s.id === settings.open ? ' on' : '')}
-            onClick={() => settings.toggle(s.id)}
-          >
-            {s.label}
-            {s.value !== '' && <em>{s.value}</em>}
-          </button>
+          <SettingChip key={s.id} s={s} settings={settings} owner={owner} />
         ))}
       </span>
       {open && <Fields s={open} settings={settings} />}
     </div>
+  );
+}
+function SettingChip({s, settings, owner}: {s: Setting; settings: Settings; owner: string}) {
+  const drag = useDragToCard(owner, (card, copy) => s.drag?.(card, copy));
+  return (
+    <>
+      {drag.ghostView(s.label)}
+      <button
+        type="button"
+        className={'cond-chip set-chip nodrag' + (s.id === settings.open ? ' on' : '')}
+        onClick={() => settings.toggle(s.id)}
+        onPointerDown={s.drag ? drag.begin : undefined}
+      >
+        {s.label}
+        {s.value !== '' && <em>{s.value}</em>}
+      </button>
+    </>
   );
 }
 /** 「＋ 설정」 and its menu of the settings not shown. */

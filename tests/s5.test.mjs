@@ -25,7 +25,7 @@ function starter(kind) {
   const w = emptyWorkspace(),
     a = addAction(w, kind);
   w.actions.push(a);
-  w.starts.push({...newStart(w, {x: -320, y: 0}), key: 'NumEnter', to: {action: a.uid}});
+  w.starts.push({...newStart(w, {x: -320, y: 0}), key: 'NumEnter', press: 'down', to: {action: a.uid}});
   if (kind === 'pair') a.config.steps[0].clip = 'Animations\\MyMod\\Paired.hkx';
   const field = (id, f, input, min, max) => ({id, label: id, help: '', action: a.uid, field: f, input, min, max});
   w.parameters = [field('useKey', 'inputKey', w.starts[0].uid, 0, 0), field('cooldown', 'cooldown', '', 0, 10)];

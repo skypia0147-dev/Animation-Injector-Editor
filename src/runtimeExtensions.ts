@@ -2,7 +2,8 @@ import type {Project, Step} from './model.ts';
 import {tr} from './i18n/korean.ts';
 import {isGameControl} from './keys.ts';
 /** A new action shot: on the attack button's release, no clip time (an event shot is a registry function). */
-export type Suppression = {events: string[]; when: 'startable' | 'active' | 'both'};
+/** when '' until chosen (11-02: added, it chooses nothing for the user). */
+export type Suppression = {events: string[]; when: 'startable' | 'active' | 'both' | ''};
 export const equippedTypes = [
   'bow',
   'crossbow',
@@ -153,7 +154,7 @@ export function stripExtensions(value: any): unknown {
     if (
       !p.suppress ||
       Object.keys(p.suppress).sort().join() !== 'events,when' ||
-      !['startable', 'active', 'both'].includes(p.suppress.when)
+      !['startable', 'active', 'both', ''].includes(p.suppress.when)
     )
       fail();
     events(p.suppress.events);

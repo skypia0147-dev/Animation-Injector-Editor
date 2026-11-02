@@ -10,13 +10,14 @@ import {newCard, newStart} from '../src/cards.ts';
 import {extensionDefaults, extensionSummary} from '../src/graph/conditionExtensions.ts';
 import {vanillaKeywords} from '../src/vanillaKeywords.ts';
 import {checker, needsChecker} from './local.mjs';
+import {sampleSettings} from './conditionSample.mjs';
 
 // Keyword checks named by editor ID (runtime keyword=, 10-30), as OAR names them: the default for a new check.
 function keywordCheck(kind, test) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
   w.actions[0].config.actionId = 'ClawAttack';
-  const t = {id: 'Condition1', kind, subject: 'self', ...extensionDefaults(kind), ...test};
+  const t = {id: 'Condition1', kind, subject: 'self', ...extensionDefaults(kind), ...sampleSettings(kind), ...test};
   const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};
   w.cards.push(card);
   w.starts.push({...newStart(w, {x: 0, y: 0}, 'event'), event: 'attackStart', to: {card: card.uid}});
@@ -28,7 +29,8 @@ test(
   'a new keyword check asks for a name; the name is written and read back as the runtime reads it',
   needsChecker,
   () => {
-    assert.deepEqual(extensionDefaults('equippedKeyword'), {option: 'left', keyword: ''});
+    // The hand is the user's to choose (11-02); the keyword is asked for by name.
+    assert.deepEqual(extensionDefaults('equippedKeyword'), {keyword: ''});
     assert.notDeepEqual(errors(keywordCheck('equippedKeyword', {})), []);
     const w = keywordCheck('equippedKeyword', {option: 'right', keyword: 'WeapTypeClaw'});
     assert.deepEqual(errors(w), []);

@@ -27,6 +27,7 @@ export function s4sample(): Workspace {
       w.starts.push({
         ...newStart(w, {x: -320, y: w.starts.length * 200}),
         key,
+        press: 'down',
         cooldown: 0.3,
         to: {action: a.uid},
       });

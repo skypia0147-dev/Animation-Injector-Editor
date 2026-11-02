@@ -86,10 +86,10 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
         ? tr('{size}개 동작 · {length}개 규칙 · {v2} · {speed}×', {
             size: new Set(members.filter(m => m.owner).map(m => m.owner)).size,
             length: members.length,
-            v2: qteTypes[q.type ?? 'splitArc'],
+            v2: q.type === '' ? tr('유형 선택') : qteTypes[q.type ?? 'splitArc'],
             speed: q.speed,
           })
-        : `${qteTypes[q.type ?? 'splitArc']} · ${q.control ? tr('일반 공격') : q.key} · ${q.at.basis === 'event' ? q.at.event : q.at.seconds + tr('초')} · ${q.speed}×`,
+        : `${q.type === '' ? tr('유형 선택') : qteTypes[q.type ?? 'splitArc']} · ${q.control ? tr('일반 공격') : q.key} · ${q.at.basis === 'event' ? q.at.event : q.at.seconds + tr('초')} · ${q.speed}×`,
       scope: {kind: 'root'},
       action: q.owner || undefined,
       ...(q.eventStart !== undefined ? {eventQte: true} : {}),
@@ -205,7 +205,9 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
     }
 }
 export function addQte(w: Workspace, position: {x: number; y: number}) {
-  const q = newQte(w),
+  // Added, it chooses nothing for the user (11-02): its kind, key and anchor are picked. A file's QTE reads newQte's
+  // defaults for what it leaves out instead.
+  const q: ReturnType<typeof newQte> = {...newQte(w), type: '', key: '', anchor: '', sequence: []},
     id = qteId(q.id);
   return {workspace: moveNodes({...w, qtes: [...(w.qtes ?? []), q]}, {kind: 'root'}, {[id]: position}), id};
 }

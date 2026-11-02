@@ -21,7 +21,8 @@ export const patchStart = (w: Workspace, uid: string, patch: Partial<StartCard>)
 export const startMode = (s: StartCard, mode: StartCard['mode']): Partial<StartCard> =>
   mode === 'event'
     ? {mode: 'event', key: '', gamepad: 0, press: 'down'}
-    : {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key || 'Num0'};
+    : // The key and its press are the user's to pick (11-02).
+      {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key, press: ''};
 /** A start's setting back to its default (「기본값으로」): it leaves the card. */
 export const startDefaults = {
   actor: {actor: 'both'},
@@ -60,7 +61,8 @@ export function setLinkMode(w: Workspace, id: string, mode: Link['mode']): Works
 export function setReleaseKey(w: Workspace, id: string, own: boolean): Workspace {
   const l = w.links.find(l => l.id === id);
   if (!l) return w;
-  if (own) return setLinkKey(w, id, 'E', 0);
+  // Its own key: picked by the user (11-02), none chosen for them.
+  if (own) return setLinkKey(w, id, '', 0);
   return dropBinding(patchLink(w, id, {input: ''}), l.from, l.input);
 }
 /** A transition's key: it lives in the source HKX's inputs (written in place in the XML). */
@@ -146,7 +148,7 @@ export function linkToCancel(w: Workspace, link: string): Workspace {
   );
   const c: Cancel = {
     id,
-    to: 'vanilla:Attack',
+    to: '',
     open: l.window ? l.open : mark(0),
     close: l.window ? l.close : mark(0, 'end'),
     buffered: l.buffered,

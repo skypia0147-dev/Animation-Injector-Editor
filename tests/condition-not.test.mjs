@@ -17,7 +17,7 @@ function sample(tests, guards = tests.map(t => t.id)) {
   w.actions[0].config.actionId = 'test';
   const card = {...newCard(w, {x: 300, y: 50}), tests, guards, true: {action: w.actions[0].uid}};
   w.cards.push(card);
-  w.starts.push({...newStart(w, {x: 0, y: 50}), key: 'G', to: {card: card.uid}});
+  w.starts.push({...newStart(w, {x: 0, y: 50}), key: 'G', press: 'down', to: {card: card.uid}});
   return w;
 }
 test('Female NOT checkbox survives project and runtime XML without a separate editor node', needsChecker, () => {

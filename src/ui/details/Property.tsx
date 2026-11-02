@@ -17,6 +17,7 @@ const defaultText = (initial: unknown, options?: [string, string][]) => {
   return shown === '' ? '' : tr('기본값: {v}', {v: shown});
 };
 import {NumberField} from './NumberField.tsx';
+import {Unchosen} from './Unchosen.tsx';
 export function Property({
   id,
   label,
@@ -49,7 +50,12 @@ export function Property({
     <DetailRow id={id} label={label} hint={help || undefined}>
       {children ??
         (options ? (
-          <select aria-label={label ?? labelText(id)} value={String(value)} onChange={e => change(e.target.value)}>
+          <select
+            aria-label={label ?? labelText(id)}
+            value={String(value ?? '')}
+            onChange={e => change(e.target.value)}
+          >
+            {String(value ?? '') === '' && <Unchosen />}
             {options.map(([v, l]) => (
               <option key={v} value={v}>
                 {l}

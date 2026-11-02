@@ -15,10 +15,13 @@ import {
   extensionError,
   extensionSummary,
   subjectlessKinds,
+  runtimeSubjectless,
+  selfOnlyKinds,
 } from '../src/graph/conditionExtensions.ts';
 import {readExpression, editExpression} from '../src/graph/conditionExpression.ts';
 import {multiValueField} from '../src/graph/multiValue.ts';
 import {checker, needsChecker} from './local.mjs';
+import {sampleSettings} from './conditionSample.mjs';
 // Errors of the project's condition cards (cardChecks.ts).
 const cardErrors = w => cardIssues(w).filter(i => i.level === 'error');
 /** An HKX whose start goes through a card with one condition of `kind` (the partner's), True to the HKX. */
@@ -28,7 +31,7 @@ function sample(kind) {
   w.actions[0].config.actionId = 'test';
   // A roll, the world, the movement keys: no partner target.
   const subject = subjectlessKinds.includes(kind) ? 'self' : 'partner';
-  const t = {id: 'Condition1', kind, subject, ...extensionDefaults(kind)};
+  const t = {id: 'Condition1', kind, subject, ...extensionDefaults(kind), ...sampleSettings(kind)};
   // A keyword check names its keyword by editor ID (the default, runtime keyword=); the other forms by plugin and form.
   if (t.keyword !== undefined) t.keyword = 'TestKeyword';
   else if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};
@@ -36,7 +39,7 @@ function sample(kind) {
   if (kind === 'previousAction') Object.assign(t, {actions: [w.actions[0].uid], within: 1.5, ended: 'completed'});
   const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};
   w.cards.push(card);
-  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', to: {card: card.uid}});
+  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', press: 'down', to: {card: card.uid}});
   return w;
 }
 const testOf = w => w.cards[0].tests[0];
@@ -70,7 +73,7 @@ for (const kind of extensionKinds)
     execFileSync(checker, [path]);
   });
 test('a condition that is the same whoever is asked takes no target', needsChecker, () => {
-  const kinds = extensionKinds.filter(k => subjectlessKinds.includes(k));
+  const kinds = extensionKinds.filter(k => runtimeSubjectless.includes(k));
   assert.deepEqual(new Set(kinds), new Set(['chance', 'gameHour', 'weather', 'movementDirection', 'heldTime']));
   for (const kind of kinds) {
     const w = sample(kind),
@@ -89,6 +92,20 @@ test('a condition that is the same whoever is asked takes no target', needsCheck
     const opened = parseWorkspace(JSON.stringify(captureGraph(w)));
     assert.equal(testOf(opened).subject, 'self', kind);
     assert.deepEqual(cardErrors(opened), [], kind);
+  }
+});
+test('space, equipment and ability, and environment kinds check the actor itself only (11-02)', () => {
+  assert.deepEqual(
+    new Set([...extensionKinds.filter(k => selfOnlyKinds.includes(k)), 'magicEffect', 'equippedType']),
+    new Set(selfOnlyKinds)
+  );
+  for (const kind of selfOnlyKinds.filter(k => extensionKinds.includes(k))) {
+    const w = sample(kind),
+      xml = compileWorkspace(w);
+    assert.equal(testOf(w).subject, 'self', kind);
+    assert.ok(!xml.includes('subject='), kind);
+    // A partner subject is not read (the runtime would still take it).
+    assert.throws(() => importWorkspaceXml(xml.replace(`kind="${kind}"`, `kind="${kind}" subject="partner"`)), kind);
   }
 });
 test('resource units, comparisons and ranges reject invalid values', () => {

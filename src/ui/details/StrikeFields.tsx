@@ -10,6 +10,7 @@ import {
   settingRange,
 } from '../../eventRegistry.ts';
 import {DetailRow} from './DetailRow.tsx';
+import {Unchosen} from './Unchosen.tsx';
 import {NumberInput} from './NumberInput.tsx';
 import {tr} from '../../i18n/korean.ts';
 
@@ -80,6 +81,7 @@ export function StrikeFields({
     if (choices.length > 2)
       return (
         <select aria-label={settingLabels[key]} value={current} onChange={e => pick(e.target.value)}>
+          {current === '' && <Unchosen />}
           {choices.map(([value, text]) => (
             <option key={value} value={value}>
               {text}
@@ -178,7 +180,16 @@ export function StrikeFields({
                 <button
                   type="button"
                   aria-pressed={fixed}
-                  onClick={() => !fixed && setMany({amount: settingDefault.amount, ratio: undefined})}
+                  // A fixed amount hides the hand and block: one not chosen yet goes with them (11-02).
+                  onClick={() =>
+                    !fixed &&
+                    setMany({
+                      amount: settingDefault.amount,
+                      ratio: undefined,
+                      ...(v.hand === '' ? {hand: undefined} : {}),
+                      ...(v.block === '' ? {block: undefined} : {}),
+                    })
+                  }
                 >
                   {tr('고정값')}
                 </button>

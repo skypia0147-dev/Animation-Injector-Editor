@@ -55,7 +55,8 @@ export type QteResult = {
   soundForm?: string;
 };
 export type QteNode = {
-  anchor?: QteAnchor;
+  /** '' when just added and not chosen yet (11-02); absent: placed on the screen (x, y). */
+  anchor?: QteAnchor | '';
   /** A game control (rightAttack, or any of keys.ts gameControls since runtime 0.12.292): the keys bound to it. */
   control?: GameControl;
   stopEvent?: string;
@@ -64,7 +65,8 @@ export type QteNode = {
   group?: string;
   /** QTEs on different channels (0..3) run together, each taking only its own key. undefined = 0. */
   channel?: number;
-  type?: QteType;
+  /** '' when just added and not chosen yet (11-02). */
+  type?: QteType | '';
   /** splitArc only; undefined = circle. */
   design?: QteDesign;
   /** Started by this event, with no HKX (runtime 0.12.248: <EventRegistry><Event name=…><QTE>): the player's, asked
@@ -170,6 +172,15 @@ export function qteChannelClashes(w: Workspace): {node: string; message: string}
   }
   return out;
 }
+/** What a QTE still has to be given (11-02: a new one chooses nothing for the user): a work in progress opens with
+ *  them, only compiling refuses them. */
+export const qteToChoose = () => [
+  tr('QTE 유형을 선택하세요.'),
+  tr('QTE 기준점을 선택하세요.'),
+  tr('입력 키를 지정하세요.'),
+  tr('순서 입력은 2~8개를 지정하세요.'),
+  tr('모든 순서에 키보드·마우스 또는 게임패드 키를 지정하세요.'),
+];
 export function qteErrors(w: Workspace): string[] {
   const errors: string[] = [],
     ids = new Set<string>(),
@@ -216,7 +227,8 @@ export function qteErrors(w: Workspace): string[] {
       if (w.qtes.filter(x => x.eventStart?.toLowerCase() === q.eventStart?.toLowerCase()).length > 4)
         bad(tr('이벤트 하나에 QTE는 4개까지입니다.'));
     }
-    if (!Object.hasOwn(qteTypes, q.type ?? 'splitArc')) bad(tr('QTE 유형 오류'));
+    if (q.type === '') bad(tr('QTE 유형을 선택하세요.'));
+    else if (!Object.hasOwn(qteTypes, q.type ?? 'splitArc')) bad(tr('QTE 유형 오류'));
     if (q.design !== undefined && !Object.hasOwn(qteDesigns, q.design)) bad(tr('QTE 디자인 오류'));
     if (!Number.isInteger(q.pressCount ?? 10) || (q.pressCount ?? 10) < 1 || (q.pressCount ?? 10) > 100)
       bad(tr('연타 목표는 1~100회입니다.'));
@@ -248,7 +260,8 @@ export function qteErrors(w: Workspace): string[] {
       bad(tr('카드 형식 오류'));
     if (q.owner && !a) bad(tr('시작 HKX가 없습니다.'));
     if (a && q.step && !a.config.steps.some(s => s.id === q.step)) bad(tr('시작 클립이 없습니다.'));
-    if (q.anchor !== undefined && q.anchor !== 'screen' && !Object.hasOwn(qteAnchors, q.anchor))
+    if (q.anchor === '') bad(tr('QTE 기준점을 선택하세요.'));
+    else if (q.anchor !== undefined && q.anchor !== 'screen' && !Object.hasOwn(qteAnchors, q.anchor))
       bad(tr('QTE 기준점 오류'));
     const minPosition = !q.anchor || q.anchor === 'screen' ? 0 : -1;
     for (const [key, min, max] of [

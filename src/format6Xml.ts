@@ -1,5 +1,6 @@
 import type {Workspace} from './workspace.ts';
 import {node, type Xml} from './xml.ts';
+import {groundDefaults} from './graph/conditions.ts';
 import {byKeywordName, extensionAttrs, formKinds} from './graph/conditionExtensions.ts';
 import {
   cardUses,
@@ -54,10 +55,9 @@ export function checkXml(w: Workspace, c: Pick<ConditionCard, 'tests'>, id: stri
     if (t.kind === 'hitReceived' && t.within !== undefined) out.attrs.within = String(t.within);
     // Measured where the actor stands, for no particular action (runtime 0.12.299): no candidate.
     if ((t.kind === 'space' || t.kind === 'ground') && t.space)
-      Object.assign(out.attrs, {distance: String(t.space.distance), direction: t.space.direction});
+      Object.assign(out.attrs, {distance: String(t.space.distance), direction: t.space.direction!});
     if (t.kind === 'ground')
-      for (const [k, v] of Object.entries(t.ground ?? {maxRise: 20, maxDrop: 40, maxSlope: 45, radius: 20}))
-        out.attrs[k] = String(v);
+      for (const [k, v] of Object.entries({...groundDefaults, ...t.ground})) out.attrs[k] = String(v);
   }
   if (t.negate) out.attrs.not = 'true';
   return out;

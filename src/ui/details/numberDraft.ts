@@ -8,10 +8,10 @@ export function parseNumberDraft(text: string): number | undefined {
 }
 
 // What the box shows: a drag preview first, then the text being typed, then the stored value.
-export function shownNumber(value: number, draft: string | null, preview: number | null = null): string {
+export function shownNumber(value: number | undefined, draft: string | null, preview: number | null = null): string {
   if (preview !== null && Number.isFinite(preview)) return String(preview);
   if (draft !== null) return draft;
-  return Number.isFinite(value) ? String(value) : '';
+  return value !== undefined && Number.isFinite(value) ? String(value) : '';
 }
 
 // One wheel notch on a focused number box: its step (×10 with Shift) up or down, rounded off the float noise and

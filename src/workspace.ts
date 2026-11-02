@@ -1,4 +1,4 @@
-import {qteErrors, qteXml, eventQteXml, qteChannelClashes} from './qte.ts';
+import {qteErrors, qteToChoose, qteXml, eventQteXml, qteChannelClashes} from './qte.ts';
 import {isPairedRig, type PairedRig} from './pairedRigs.ts';
 import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarryRelease} from './carry.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
@@ -83,7 +83,8 @@ export type Pair = {
 };
 /** The player's camera given back after an action (runtime <Effects><Camera>): at its end or on an event after it.
  *  own: this action restores on its own event (reset) instead of the project's (globals.cameraReset). */
-export type CameraRestore = {reset: string; restore: 'end' | 'event'; timeout: number; own?: true};
+/** restore '' until chosen (11-02). */
+export type CameraRestore = {reset: string; restore: 'end' | 'event' | ''; timeout: number; own?: true};
 export const defaultCamera = (): CameraRestore => ({reset: '', restore: 'end', timeout: 10});
 export type Action = {
   /** Camera restore, any action (10-16: ordinary actions too, runtime 0.12.260; it was a pair's before). The
@@ -706,7 +707,9 @@ function normalizeWorkspace(w: any, configs: Project[]): Workspace {
   w.actions.forEach((a: any, i: number) => (a.config = configs[i]));
   // A target a project kept, hidden, from the condition's previous kind (before the field went with the kind).
   for (const c of w.cards) for (const t of c.tests) if (subjectlessKinds.includes(t.kind)) t.subject = 'self';
-  const qerrors = qteErrors(w);
+  // A QTE still to choose its kind, anchor or keys opens as the work in progress it is (compiling refuses it).
+  const choose = qteToChoose();
+  const qerrors = qteErrors(w).filter(e => !choose.some(m => e.endsWith(': ' + m)));
   if (qerrors.length) throw Error(qerrors.join('\n'));
   return w;
 }
@@ -751,6 +754,9 @@ export function validateWorkspace(w: Workspace): Issue[] {
   } catch (e) {
     return [{level: 'error', node: 'project', message: errorText(e)}];
   }
+  // What a QTE still has to be given: it opens as a work in progress (normalizeWorkspace), but does not compile.
+  const choose = qteToChoose();
+  for (const m of qteErrors(w)) if (choose.some(c => m.endsWith(': ' + c))) err('project', m);
   if (w.globals.cameraReset && !eventOk(w.globals.cameraReset))
     err('globals', tr('카메라 복구 이벤트 이름을 확인하세요.'));
   const sharedIds = new Set<string>();
@@ -836,16 +842,19 @@ export function validateWorkspace(w: Workspace): Issue[] {
         a.pair ||
         !idOk(xmlId) ||
         cancelIds.has(xmlId.toLowerCase()) ||
-        !c.to
-          .split(',')
-          .every(
-            s =>
-              /^vanilla:(Attack|PowerAttack|Block|Bash|Sprint|Jump|Sneak)$/.test(s.trim()) ||
-              (s.trim().startsWith('event:') && eventOk(s.trim().slice(6)))
-          ) ||
+        (!!c.to &&
+          !c.to
+            .split(',')
+            .every(
+              s =>
+                /^vanilla:(Attack|PowerAttack|Block|Bash|Sprint|Jump|Sneak)$/.test(s.trim()) ||
+                (s.trim().startsWith('event:') && eventOk(s.trim().slice(6)))
+            )) ||
         (c.blend !== null && !number(c.blend, 0, 5))
       )
         err(a.uid, tr('캔슬 창의 대상·ID·블렌드를 확인하세요.'));
+      // Added, it names no vanilla action yet (11-02).
+      if (!c.to) err(a.uid, tr('전환할 바닐라 동작을 고르세요.'));
       cancelIds.add(xmlId.toLowerCase());
       if (c.always) continue;
       for (const m of [c.open, c.close])
@@ -867,7 +876,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
         !number(a.camera.timeout, 0.1, 60) ||
         (a.camera.reset && !eventOk(a.camera.reset)))
     )
-      err(a.uid, tr('카메라 복구 설정을 확인하세요.'));
+      err(a.uid, a.camera.restore === '' ? tr('카메라 복구 시점을 선택하세요.') : tr('카메라 복구 설정을 확인하세요.'));
     const p = a.pair;
     if (!p) continue;
     if (

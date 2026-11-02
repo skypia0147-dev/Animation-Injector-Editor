@@ -18,6 +18,8 @@ const CHAIN = `<AnimationSet version="6" id="Chain">
 test('graph source roundtrips all workspace fields and generates the same XML', () => {
   let w = importWorkspaceXml(CHAIN);
   w = addFlat(w, 'a1', 'keyInput', {x: 20, y: 30}).workspace;
+  // A new key start chooses nothing (11-02): its key and press are picked.
+  Object.assign(w.starts.at(-1), {key: 'G', press: 'down'});
   const g = captureGraph(w);
   assert.equal(g.schema, 9);
   assert.equal(g.actions, undefined);
@@ -59,7 +61,10 @@ function play(w) {
 /** A start card with its key (the details' key field). */
 function key(w, k) {
   const r = addFlat(w, '', 'keyInput', {x: 100, y: 100});
-  r.workspace.starts.find(s => 'startCard:' + s.uid === r.id).key = k;
+  Object.assign(
+    r.workspace.starts.find(s => 'startCard:' + s.uid === r.id),
+    {key: k, press: 'down'}
+  );
   return r;
 }
 

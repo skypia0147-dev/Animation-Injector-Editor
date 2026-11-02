@@ -69,6 +69,12 @@ const RIGHTFUL = [
   /HKX 경로를 입력/,
   /Action ID가 없습니다/,
   /소리 파일 또는 등록 사운드/,
+  // A new condition chooses nothing for the user (11-02).
+  /검사 항목을 선택/,
+  /검사 대상을 선택/,
+  // What the user adds chooses nothing for them (11-02): a key start's press, a vanilla transition's actions, …
+  /선택하세요/,
+  /고르세요/,
 ];
 
 function random(seed) {

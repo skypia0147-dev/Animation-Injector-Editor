@@ -3,6 +3,7 @@ import type {Effect, Workspace} from '../workspace.ts';
 import {
   addEventRow,
   addFunction,
+  unchosen,
   ragdollDirections,
   ragdollForce,
   ragdollLabels,
@@ -43,6 +44,7 @@ import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {SoundSourceFields} from '../ui/details/SoundFile.tsx';
 import {errorText} from '../errorText.ts';
+import {Unchosen} from '../ui/details/Unchosen.tsx';
 
 // The graph renders only on-screen nodes: a registry node brought into view mounts after the request
 // (and may mount twice while the view moves), so a request stays for two seconds.
@@ -342,9 +344,7 @@ function RegistryRow({
             </div>
           )}
           <div className="registry-add">
-            <button onClick={() => attempt(() => edit(w => addFunction(w, entry.name, 'hide')))}>
-              {tr('＋ 기능 추가')}
-            </button>
+            <button onClick={() => attempt(() => edit(w => addFunction(w, entry.name)))}>{tr('＋ 기능 추가')}</button>
           </div>
           {/* Uses are set where they are (QTE, Start, HKX and link cards); here they are only listed. */}
           <div className="registry-sub-title">{tr('용도')}</div>
@@ -452,6 +452,7 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
               change({...fn, values});
             }}
           >
+            {v[key] === '' && <Unchosen />}
             {choices.map(([value, text]) => (
               <option key={value} value={value}>
                 {text}
@@ -481,6 +482,7 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             value={v.direction ?? 'down'}
             onChange={e => set(key, e.target.value === 'down' ? undefined : e.target.value)}
           >
+            {v.direction === '' && <Unchosen />}
             {ragdollDirections.map(d => (
               <option key={d} value={d}>
                 {ragdollLabels[d]}
@@ -548,6 +550,7 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             value={v.bone ?? 'spine'}
             onChange={e => set(key, e.target.value === 'spine' ? undefined : e.target.value)}
           >
+            {v.bone === '' && <Unchosen />}
             {soundBones().map(([value, text]) => (
               <option key={value} value={value}>
                 {text}
@@ -562,9 +565,10 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
         <label key={key}>
           {label}
           <select
-            value={v.measure === 'percent' ? 'percent' : 'value'}
+            value={v.measure === '' ? '' : v.measure === 'percent' ? 'percent' : 'value'}
             onChange={e => set(key, e.target.value === 'percent' ? 'percent' : undefined)}
           >
+            {v.measure === '' && <Unchosen />}
             <option value="value">{tr('수치')}</option>
             <option value="percent">{tr('최대치의 %')}</option>
           </select>
@@ -624,8 +628,9 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
           aria-label={tr('기능')}
           title={playerOnlyHint(v.op) || undefined}
           value={v.op}
-          onChange={e => change({...fn, values: {op: e.target.value}})}
+          onChange={e => change({...fn, values: {op: e.target.value, ...unchosen(e.target.value)}})}
         >
+          <Unchosen />
           {eventOps
             // The magic function is one choice; its action is below (11-01).
             .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))

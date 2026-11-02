@@ -108,8 +108,10 @@ test('a block item adds, edits, cuts and deletes on its HKX card without affecti
   const added = addConnected(w, hkx, {kind: 'suppress', label: 'suppress'}, {x: 200, y: 200});
   w = added.workspace;
   // An HKX blocks while it plays (format 6 <Action block>); a block while it can start is its start card's.
-  assert.deepEqual(w.actions[1].config.suppress, {events: [''], when: 'active'});
+  // When it blocks is the user's to choose (11-02).
+  assert.deepEqual(w.actions[1].config.suppress, {events: [''], when: ''});
   w.actions[1].config.suppress.events = ['blockStart'];
+  w.actions[1].config.suppress.when = 'active';
   const node = flatGraph(w).nodes.find(n => n.action === 'a2' && n.kind === 'suppress');
   assert.ok(node);
   w = parseWorkspace(JSON.stringify(captureGraph(w)));

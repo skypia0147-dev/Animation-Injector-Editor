@@ -314,6 +314,18 @@
   font-size: var(--fs-xs);
   margin-right: 4px;
 }
+/* Nothing chosen yet, or something still to enter (11-02). */
+.cond-item-name.unset,
+.cond-item.picked > .cond-item-line .cond-item-name.unset {
+  color: var(--card-warn, #f0b04a);
+  font-style: italic;
+}
+.cond-unset {
+  margin-left: 6px;
+  font-style: italic;
+  font-size: var(--fs-xs);
+  color: var(--card-warn, #f0b04a);
+}
 .cond-item.picked > .cond-item-line .cond-item-name {
   color: var(--card-t1);
   font-weight: 700;

@@ -156,9 +156,10 @@ test(
       if (field === 'flow') {
         const card = {...newCard(w, {x: 0, y: 0}), true: {action: w.actions[1].uid}};
         w.cards.push(card);
-        w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', to: {card: card.uid}});
+        w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', press: 'down', to: {card: card.uid}});
       }
-      if (field === 'start') w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', to: {action: w.actions[1].uid}});
+      if (field === 'start')
+        w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'J', press: 'down', to: {action: w.actions[1].uid}});
       if (field === 'release') delete w.actions[1].config.carryRelease;
       assert.throws(() => compileWorkspace(w), /내려놓기/);
     }

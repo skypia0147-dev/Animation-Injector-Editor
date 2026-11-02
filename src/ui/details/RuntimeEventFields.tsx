@@ -1,5 +1,6 @@
 import {eventListError, type Suppression} from '../../runtimeExtensions.ts';
 import {DetailRow} from './DetailRow.tsx';
+import {Unchosen} from './Unchosen.tsx';
 import {t} from '../../i18n/index.ts';
 export function RuntimeEventFields({
   events,
@@ -24,9 +25,10 @@ export function RuntimeEventFields({
           onChange={e => change(e.target.value.split(/\r?\n|,/))}
         />
       </DetailRow>
-      {suppression && (
+      {suppression !== undefined && (
         <DetailRow label={t('ext.suppressWhen')} hint={t('ext.suppressWhenHint')}>
           <select value={suppression} onChange={e => changeWhen?.(e.target.value as Suppression['when'])}>
+            <Unchosen />
             {(['startable', 'active', 'both'] as const).map(v => (
               <option key={v} value={v}>
                 {t('ext.' + v)}

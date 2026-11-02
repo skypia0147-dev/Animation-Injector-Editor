@@ -385,6 +385,52 @@ fn dialog_hint(default_path: Option<&str>, extension: &str) -> (Option<PathBuf>,
     (directory, path.file_name().map(|n| n.to_string_lossy().into_owned()))
 }
 
+/// The folders of `<mod>\SKSE\Plugins\AnimationInjector\<name>\<name>.xml` that do not exist yet, made: only for a
+/// mod folder that holds `meshes` (the editor suggests this path when the HKX came from it). Returns what it made,
+/// outermost first.
+fn mod_xml_folders(default_path: Option<&str>) -> Vec<PathBuf> {
+    let Some(path) = default_path.map(Path::new).filter(|p| p.is_absolute()) else {
+        return Vec::new();
+    };
+    let parts: Vec<_> = path.components().collect();
+    let n = parts.len();
+    let name = |c: &std::path::Component| c.as_os_str().to_string_lossy().to_lowercase();
+    if n < 6
+        || name(&parts[n - 5]) != "skse"
+        || name(&parts[n - 4]) != "plugins"
+        || name(&parts[n - 3]) != "animationinjector"
+        || format!("{}.xml", name(&parts[n - 2])) != name(&parts[n - 1])
+    {
+        return Vec::new();
+    }
+    let root: PathBuf = parts[..n - 5].iter().collect();
+    if !root.join("meshes").is_dir() {
+        return Vec::new();
+    }
+    let mut made = Vec::new();
+    let mut dir = root;
+    for part in &parts[n - 5..n - 1] {
+        dir.push(part);
+        if dir.is_dir() {
+            continue;
+        }
+        if fs::create_dir(&dir).is_err() {
+            break;
+        }
+        made.push(dir.clone());
+    }
+    made
+}
+
+/// The folders `mod_xml_folders` made, innermost first, while they are empty.
+fn remove_empty(made: &[PathBuf]) {
+    for dir in made.iter().rev() {
+        if fs::remove_dir(dir).is_err() {
+            break;
+        }
+    }
+}
+
 #[tauri::command]
 async fn save_document(
     app: tauri::AppHandle,
@@ -412,6 +458,8 @@ async fn save_document(
             .file()
             .set_file_name(name)
             .add_filter("Animation Injector", &[extension]);
+        // A first save into the HKX's own mod folder: its SKSE folders are made so the dialog opens there.
+        let made = mod_xml_folders(default_path.as_deref());
         let (directory, file_name) = dialog_hint(default_path.as_deref(), extension);
         if let Some(directory) = directory {
             dialog = dialog.set_directory(directory);
@@ -420,10 +468,14 @@ async fn save_document(
             dialog = dialog.set_file_name(file_name);
         }
         let Some(file) = dialog.blocking_save_file() else {
+            remove_empty(&made);
             return Ok(None);
         };
         let path = file.into_path().map_err(|e| e.to_string())?;
-        write_document(&path, &contents)?;
+        let written = write_document(&path, &contents);
+        // Saved elsewhere (or not at all): the folders made for it go again while they are empty.
+        remove_empty(&made);
+        written?;
         Ok(Some(Saved {
             path: path.display().to_string(),
             stamp: digest::sha256(contents.as_bytes()),
@@ -498,6 +550,31 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_first_save_in_a_mod_folder_makes_its_skse_folders_and_takes_back_the_empty_ones() {
+        let root = isolated_dir();
+        let xml = root.join("SKSE/Plugins/AnimationInjector/Test/Test.xml");
+        let path = xml.display().to_string();
+        // Not a mod folder (no meshes): nothing is made.
+        assert!(mod_xml_folders(Some(&path)).is_empty());
+        fs::create_dir(root.join("meshes")).unwrap();
+        // Another shape of path: nothing either.
+        let other = root.join("SKSE/Plugins/Other/Test.xml").display().to_string();
+        assert!(mod_xml_folders(Some(&other)).is_empty());
+        let made = mod_xml_folders(Some(&path));
+        assert_eq!(made.len(), 4);
+        assert!(xml.parent().unwrap().is_dir());
+        // Saved there: the folders stay.
+        fs::write(&xml, b"<AnimationSet/>").unwrap();
+        remove_empty(&made);
+        assert!(xml.is_file());
+        // Cancelled (nothing written): they go.
+        fs::remove_file(&xml).unwrap();
+        remove_empty(&made);
+        assert!(!root.join("SKSE").exists());
+        fs::remove_dir(root.join("meshes")).unwrap();
+        fs::remove_dir(root).unwrap();
+    }
     #[test]
     fn dropped_search_roots_are_directories_and_deduplicated() {
         let dir = isolated_dir();

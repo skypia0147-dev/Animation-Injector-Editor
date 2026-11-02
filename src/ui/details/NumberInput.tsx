@@ -3,7 +3,8 @@ import type {InputHTMLAttributes} from 'react';
 import {parseNumberDraft, shownNumber} from './numberDraft.ts';
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> & {
-  value: number;
+  /** undefined: nothing entered yet, the box shows empty (11-02). */
+  value: number | undefined;
   change: (value: number) => void;
   preview?: number | null;
 };

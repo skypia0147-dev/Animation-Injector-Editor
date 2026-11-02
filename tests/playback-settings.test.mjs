@@ -25,7 +25,7 @@ function fixture() {
 test('distinct cooldown and per-HKX feature attachment survive graph save and native XML parsing', needsChecker, () => {
   let w = fixture();
   // A cooldown is its start card's: the second HKX has a start of its own besides the transition into it.
-  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', cooldown: 1.23, to: {action: 'a2'}});
+  w.starts.push({...newStart(w, {x: 0, y: 0}), key: 'G', press: 'down', cooldown: 1.23, to: {action: 'a2'}});
   // An item is added on its own HKX card.
   w = addFlat(w, 'a2', 'notify:iframe', {x: 40, y: 80}).workspace;
   assert.equal(w.actions[0].config.slots.iframe.enabled, false);

@@ -170,7 +170,8 @@ test('a start added to a new HKX is a start card going to it; the action keeps n
   const byKey = addConnected(w, id, {label: '시작 키 입력 추가', kind: 'keyInput', before: true}, {x: 0, y: 0});
   assert.deepEqual(
     byKey.workspace.starts.map(s => [s.mode, s.key, s.to]),
-    [['input', 'Num0', {action: 'a1'}]]
+    // No key or press chosen for the user (11-02).
+    [['input', '', {action: 'a1'}]]
   );
   assert.deepEqual(byKey.workspace.actions[0].config.inputs, []);
 });
@@ -183,6 +184,9 @@ test('an ordinary action takes a camera restore (runtime 0.12.260): add, XML, re
   );
   w = addConnected(w, id, {kind: 'cameraRestore', label: '카메라 복구 추가'}, {x: 0, y: 0}).workspace;
   const a = w.actions[0];
+  // When it restores is the user's to choose (11-02).
+  assert.equal(a.camera.restore, '');
+  a.camera.restore = 'end';
   assert.equal(a.pair, null);
   assert.equal(a.cameraEnabled, true);
   assert.equal(a.camera.reset, 'CameraBack');

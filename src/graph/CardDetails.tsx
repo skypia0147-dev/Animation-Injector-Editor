@@ -11,6 +11,7 @@ import {
   type StartCard,
 } from '../cards.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
+import {Unchosen} from '../ui/details/Unchosen.tsx';
 import {KeyField} from '../ui/details/KeyField.tsx';
 import {EventPicker} from '../ui/details/EventPicker.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
@@ -91,7 +92,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
                     change(
                       control
                         ? {control, key: '', gamepad: 0, ...(menuControl(control) ? {press: 'down' as const} : {})}
-                        : {control: undefined, key: 'Num0'}
+                        : {control: undefined, key: ''}
                     )
                   }
                 />
@@ -112,6 +113,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
                   }
                   onChange={e => change({press: e.target.value as StartCard['press']})}
                 >
+                  <Unchosen />
                   {startPresses.map(p => (
                     <option key={p} value={p} disabled={p !== 'down' && menuControl(s.control)}>
                       {pressName(p)}
@@ -136,13 +138,23 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
     {
       id: 'actor',
       label: tr('보낸 쪽'),
-      value: s.actor === 'player' ? tr('플레이어') : s.actor === 'npc' ? 'NPC' : tr('둘 다'),
+      value:
+        s.actor === 'player'
+          ? tr('플레이어')
+          : s.actor === 'npc'
+            ? 'NPC'
+            : s.actor === 'both'
+              ? tr('둘 다')
+              : tr('선택…'),
       set: s.actor !== 'both',
       applies: !input,
+      // Added, it chooses nothing (11-02): the user picks who sends it.
+      add: () => change({actor: ''}),
       reset: () => change(startDefaults.actor),
       fields: () => (
         <DetailRow label={tr('보낸 쪽')} hint={tr('이 이벤트를 보낸 액터가 플레이어일 때, NPC일 때, 둘 다.')}>
           <select value={s.actor} onChange={e => change({actor: e.target.value as StartCard['actor']})}>
+            <Unchosen />
             <option value="both">{tr('둘 다')}</option>
             <option value="player">{tr('플레이어')}</option>
             <option value="npc">NPC</option>
@@ -153,9 +165,10 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
     {
       id: 'partner',
       label: tr('페어 상대'),
-      value: s.target === 'combatTarget' ? tr('전투 대상') : tr('가장 가까운 액터'),
-      set: s.target === 'combatTarget',
+      value: s.target === 'combatTarget' ? tr('전투 대상') : s.target === '' ? tr('선택…') : tr('가장 가까운 액터'),
+      set: s.target !== 'nearest',
       applies: !input && !!pairTarget,
+      add: () => change({target: ''}),
       reset: () => change(startDefaults.partner),
       fields: () => (
         <DetailRow
@@ -163,6 +176,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
           hint={tr('페어를 시작할 때 상대: 가장 가까운 액터 또는 보낸 쪽의 전투 대상.')}
         >
           <select value={s.target} onChange={e => change({target: e.target.value as StartCard['target']})}>
+            <Unchosen />
             <option value="nearest">{tr('가장 가까운 액터')}</option>
             <option value="combatTarget">{tr('전투 대상')}</option>
           </select>
@@ -175,9 +189,12 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
       value:
         s.target === 'combatTarget'
           ? tr('전투 대상')
-          : tr('전방 대상 · {range} · {angle}°', {range: s.range ?? frontRange, angle: s.angle ?? frontAngle}),
-      set: s.target === 'combatTarget' || s.range !== undefined || s.angle !== undefined,
+          : s.target === ''
+            ? tr('선택…')
+            : tr('전방 대상 · {range} · {angle}°', {range: s.range ?? frontRange, angle: s.angle ?? frontAngle}),
+      set: s.target !== 'nearest' || s.range !== undefined || s.angle !== undefined,
       applies: ordinary,
+      add: () => change({target: ''}),
       reset: () => change(startDefaults.target),
       fields: () => (
         <>
@@ -192,6 +209,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
               value={s.target}
               onChange={e => change({target: e.target.value as StartCard['target']})}
             >
+              <Unchosen />
               <option value="nearest">{tr('전방 대상')}</option>
               <option value="combatTarget">{tr('전투 대상')}</option>
             </select>
@@ -267,7 +285,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
                 const list = text.split(',').map(x => x.trim());
                 if (!text.trim()) change({block: undefined});
                 else if (!eventListError(list))
-                  change({block: {events: uniqueEvents(list), when: s.block?.when ?? 'startable'}});
+                  change({block: {events: uniqueEvents(list), when: s.block?.when ?? ''}});
               }}
               onBlur={() => setBlockText(null)}
             />
@@ -278,6 +296,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
                 value={s.block.when}
                 onChange={e => change({block: {...s.block!, when: e.target.value as 'startable' | 'active' | 'both'}})}
               >
+                <Unchosen />
                 <option value="startable">{tr('시작할 수 있을 때')}</option>
                 <option value="active">{tr('시작시킨 동작이 재생 중일 때')}</option>
                 <option value="both">{tr('둘 다')}</option>

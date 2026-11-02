@@ -6,7 +6,8 @@ import type {ConditionCard} from '../cards.ts';
 import {refCard} from '../cards.ts';
 import {NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {ConditionFields} from './ConditionDetails.tsx';
-import {conditionNames, editExpression, patchTest} from './conditionExpression.ts';
+import {conditionName, conditionNames, editExpression, patchTest} from './conditionExpression.ts';
+import {conditionErrors} from '../cardChecks.ts';
 import {extensionSummary} from './conditionExtensions.ts';
 import {equippedTypeLabels, handLabel, hands, valuesOf, type Hand} from './multiValue.ts';
 import {groupSummary, partText} from './groupSummary.ts';
@@ -64,6 +65,7 @@ export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, dept
       members.join(t.kind === 'all' ? ' · ' : ' / ') || tr('빈 그룹'),
     ];
   }
+  if (!t.kind) return [conditionName(t), ''];
   const who = t.subject === 'partner' ? tr('상대') + ' ' : '';
   const ext = extensionSummary(t as never);
   if (ext) {
@@ -76,13 +78,14 @@ export function conditionParts(c: Pick<ConditionCard, 'tests'>, id: string, dept
   if (t.kind === 'equippedType')
     return [
       name,
-      valuesOf(t.equipmentType ?? 'bow')
+      valuesOf(t.equipmentType)
         .map(v => equippedTypeLabels()[v as keyof ReturnType<typeof equippedTypeLabels>] ?? v)
         .join('·'),
-      t.hand === 'right' ? 'right' : 'left',
+      t.hand,
     ];
   if (t.kind === 'attackState') return [name, valuesOf(t.attackState).join('·')];
-  if ((t.kind === 'space' || t.kind === 'ground') && t.space) return [name, String(t.space.distance)];
+  if ((t.kind === 'space' || t.kind === 'ground') && t.space?.distance !== undefined)
+    return [name, String(t.space.distance)];
   return [name, ''];
 }
 /** A condition in a few words, as its chip shows it. */
@@ -307,7 +310,9 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
         if (!t) return null;
         const [name, value, hand] = conditionParts(c, id),
           group = t.kind === 'all' || t.kind === 'any',
-          on = picked.includes(id);
+          on = picked.includes(id),
+          // Something still to choose or enter (11-02: a new condition starts with nothing chosen).
+          unset = !group && conditionErrors(w, t).length > 0;
         // Over a line: its upper half puts the condition before it, the lower half after it, a group's middle into it.
         const mark =
           kit?.over === `${list}|${i}`
@@ -334,7 +339,7 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
                 if (!(e.target as HTMLElement).closest('button')) kit?.begin(e, {from: list, id, group});
               }}
             >
-              <span className="cond-item-name">
+              <span className={'cond-item-name' + (t.kind ? '' : ' unset')}>
                 {group ? <JoinBadge kind={t.kind as 'all' | 'any'} small /> : name}
               </span>
               <span className="cond-item-value">
@@ -344,6 +349,7 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
                   <>
                     <HandChip hand={hand} />
                     {value}
+                    {unset && t.kind && <em className="cond-unset">{tr('미설정')}</em>}
                   </>
                 )}
               </span>

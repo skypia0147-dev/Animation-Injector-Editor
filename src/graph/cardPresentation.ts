@@ -75,14 +75,17 @@ function qteFace(w: Workspace, n: FlatNode): QteFace | undefined {
             : tr('{length}개 시점', {length: members.length});
   const key = q.type === 'keySequence' ? '' : q.control ? 'LMB' : qteKeyName(q.key) || '—';
   return {
-    type: q.type ?? 'splitArc',
+    // Not chosen yet (11-02): drawn as the first kind, named as still to choose.
+    type: q.type || 'splitArc',
     design: q.design,
     pressCount: q.pressCount ?? 10,
     key,
     typeName:
-      ((q.type ?? 'splitArc') === 'rapidPress' && (q.pressCount ?? 10) === 1
-        ? tr('E · 한 번 입력')
-        : qteTypes[q.type ?? 'splitArc'] + (q.design === 'converge' ? tr(' · 수렴선') : '')) +
+      (q.type === ''
+        ? tr('유형 선택')
+        : (q.type ?? 'splitArc') === 'rapidPress' && (q.pressCount ?? 10) === 1
+          ? tr('E · 한 번 입력')
+          : qteTypes[q.type ?? 'splitArc'] + (q.design === 'converge' ? tr(' · 수렴선') : '')) +
       (q.hidden ? tr(' · 화면 표시 없음') : ''),
     input:
       q.type === 'keySequence'

@@ -165,7 +165,7 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
   }, [play, q]);
   const p = clamp(previewProgress(state, q)),
     g = clamp(previewGauge(state, q)),
-    type = q.type ?? 'splitArc',
+    type = q.type || 'splitArc',
     t = qteTarget;
   const green = '#A1C8AD',
     gold = '#F2D795',
@@ -232,7 +232,7 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
     q.scale,
     dragged?.x ?? q.x,
     dragged?.y ?? q.y,
-    q.anchor ?? 'screen',
+    q.anchor === '' ? 'center' : (q.anchor ?? 'screen'),
     qteBoundsOf(face, type, q.sequence?.length ?? 0, qteKeyWidth(keyFace))
   );
   const content = (
@@ -261,7 +261,7 @@ export function QtePreview({q, move}: {q: QteNode; move?: (x: number, y: number)
           const svg = e.currentTarget,
             rect = svg.getBoundingClientRect(),
             perPixel = width / rect.width,
-            anchor = q.anchor ?? 'screen',
+            anchor = q.anchor === '' ? 'center' : (q.anchor ?? 'screen'),
             start = {x: e.clientX, y: e.clientY, qx: q.x, qy: q.y};
           // A corner holds its near edge: moving toward the screen's inside is positive (qteLayout).
           const signX = anchor === 'topRight' || anchor === 'bottomRight' ? -1 : 1,

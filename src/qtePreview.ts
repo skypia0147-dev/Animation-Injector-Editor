@@ -26,7 +26,7 @@ export function previewAdvance(s: QtePreviewState, delta: number, q: QteNode): Q
   const n = {...s, elapsed: s.elapsed + delta, heldElapsed: s.heldElapsed + (s.holding ? delta : 0)};
   const p = previewProgress(n, q);
   // Converging lines have crossed once the success window is over (runtime QteClock::Advance).
-  if (p >= 1 || ((q.type ?? 'splitArc') === 'splitArc' && q.design === 'converge' && p > qteTarget + q.successWindow))
+  if (p >= 1 || ((q.type || 'splitArc') === 'splitArc' && q.design === 'converge' && p > qteTarget + q.successWindow))
     n.outcome = 'failure';
   return n;
 }

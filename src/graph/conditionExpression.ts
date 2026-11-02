@@ -47,6 +47,7 @@ export const conditionNames: Record<string, string> = {
 /** A condition's name as a route chip or a card title names it: a state by the states it picks (11-01: the boolean
  *  kinds became actorStatus options), protection by which, the air by falling or rising. */
 export function conditionName(t: {kind: string; option?: string}): string {
+  if (!t.kind) return tr('조건 선택');
   if (t.kind === 'actorStatus' || t.kind === 'protection' || (t.kind === 'air' && t.option && t.option !== 'any')) {
     const choices = (extensionConditions[t.kind] as {choices?: readonly (readonly [string, string])[]}).choices ?? [];
     const names = (t.option ?? '')
@@ -206,7 +207,8 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
     const id = insertExpression(
       f,
       command.expression ?? {
-        settings: {kind: command.group ? 'all' : 'alive', subject: 'self'},
+        // A new member chooses nothing (11-02): its kind and target are picked by the user.
+        settings: command.group ? {kind: 'all', subject: 'self'} : {kind: '', subject: ''},
         children: [],
       }
     );

@@ -6,6 +6,7 @@ import {importWorkspaceXml} from '../src/importXml.ts';
 import {flatGraph, addFlat, connectFlat} from '../src/graph/flat.ts';
 import {presentCard} from '../src/graph/cardPresentation.ts';
 import {qteErrors} from '../src/qte.ts';
+import {addChosenQte} from './chosen.mjs';
 
 // A hidden QTE (runtime 0.12.266): nothing on screen, the input and its results only.
 test('a hidden QTE is written, read back and named on its card', () => {
@@ -15,7 +16,7 @@ test('a hidden QTE is written, read back and named on its card', () => {
   p.name = 'Mash';
   p.steps[0].clip = 'Animations\Mash.hkx';
   w.actions.push(wrap(p, 'a1'));
-  const added = addFlat(w, 'a1', 'qte', {x: 420, y: 160});
+  const added = addChosenQte(w, 'a1', {x: 420, y: 160});
   w = added.workspace;
   const play = flatGraph(w).nodes.find(n => n.kind === 'hkxPlay');
   w = connectFlat(w, play.id, added.id, 'trigger');
