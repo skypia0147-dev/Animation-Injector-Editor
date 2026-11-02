@@ -19,7 +19,6 @@ function blockHit(test) {
     id: 'Condition1',
     kind: 'hitReceived',
     subject: 'self',
-    minimum: 0,
     ...extensionDefaults('hitReceived'),
     ...test,
   };

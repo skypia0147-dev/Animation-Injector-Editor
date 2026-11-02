@@ -71,7 +71,13 @@ test('E-22: an XML declaration with standalone opens, as the runtime reads it', 
 });
 
 test('E-24: the group rule counts conditions as the XML writes them (turned-off ones left out)', () => {
-  const check = (id, extra = {}) => ({id, kind: 'sneaking', subject: 'self', minimum: 0, ...extra});
+  const check = (id, extra = {}) => ({
+    id,
+    kind: 'actorStatus',
+    option: 'sneaking',
+    subject: 'self',
+    ...extra,
+  });
   const card = off => ({
     tests: [check('t1'), check('t2', off ? {enabled: false} : {}), {id: 'g', kind: 'any', operands: ['t1', 't2']}],
     guards: ['g'],

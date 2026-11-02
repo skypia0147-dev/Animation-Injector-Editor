@@ -63,7 +63,6 @@ export function disconnectEdge(w: Workspace, e: GraphEdge): Workspace {
     owner &&
     (e.target.startsWith(`anim:${owner}:`) ||
       e.target.startsWith(`notify:${owner}|`) ||
-      e.target === `start:${owner}|stateCondition` ||
       e.target === `start:${owner}|loopRule`)
   )
     return deleteFlat(w, e.target);

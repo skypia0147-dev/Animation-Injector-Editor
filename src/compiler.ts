@@ -69,13 +69,27 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
     if (s.enabled && !(name === 'rotate' && p.rotationLocked))
       add(names[name], {...clock2('from', s.from), ...clock2('until', s.until)}, {from: '0', until: 'end'}, true);
   }
+  const time = p.slots.time;
+  if (time.enabled)
+    add(
+      'TimeScale',
+      {...clock2('from', time.from), ...clock2('until', time.until), factor: time.factor, ease: time.ease},
+      {from: '0', until: 'end', ease: 0},
+      true
+    );
   const recovery = p.steps[0]?.recovery ?? p.recovery;
   if (recovery.enabled) add('MoveCancel', {...clock2('at', recovery.at), blend: recovery.blend});
   if (p.cost.enabled)
     add(
       'Cost',
-      {...clock2('at', p.cost.at), stamina: p.cost.stamina, magicka: p.cost.magicka},
-      {at: '0', stamina: 0, magicka: 0},
+      {
+        ...clock2('at', p.cost.at),
+        stamina: p.cost.stamina,
+        magicka: p.cost.magicka,
+        health: p.cost.health,
+        measure: p.cost.percent ? 'percent' : 'value',
+      },
+      {at: '0', stamina: 0, magicka: 0, health: 0, measure: 'value'},
       true
     );
   if (p.carryRelease) add('CarryRelease', clock2('at', p.carryRelease.at));

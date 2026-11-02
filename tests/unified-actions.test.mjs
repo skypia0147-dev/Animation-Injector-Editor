@@ -63,7 +63,8 @@ test('paired feature ranges emit supported role operations and match the actual 
   const eventTrack = structuredClone(w);
   eventTrack.actions[0].pair.timeline.armor.from = {...p.timeline.armor.from, basis: 'event', event: 'GuardOn'};
   assert.ok(validateWorkspace(eventTrack).some(x => x.level === 'error' && x.message.includes('armor')));
-  assert.equal(pairTimelineEffects(p).length, 7);
+  // rotate, iframe, armor and time on and off, and the cost.
+  assert.equal(pairTimelineEffects(p).length, 9);
   assert.ok(Object.values(a.config.slots).every(s => !s.enabled));
   assert.equal(a.config.cost.enabled, false);
   const dir = resolve('tests/generated/unified');
@@ -78,6 +79,8 @@ test('paired feature ranges emit supported role operations and match the actual 
   // A role and no sender filter (runtime 0.12.275); both is the default and left out.
   assert.match(xml, /<Do at="[^"]*" op="cost" target="receiver" stamina="17"/);
   assert.match(xml, /<Do at="0.3" op="hide"\/>/);
+  // The time track is the player's (11-01): its multiplier on the on function.
+  assert.match(xml, /<Do at="0" op="timeOn" target="player" factor="0.5"\/>/);
   assert.doesNotMatch(xml, / from="/);
   p.timeline.iframe.enabled = false;
   const off = compileWorkspace(w);

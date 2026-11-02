@@ -2,7 +2,7 @@ import {mark} from './model.ts';
 import type {Mark} from './model.ts';
 import type {Effect, Pair} from './workspace.ts';
 
-export const pairTrackKeys = ['rotate', 'iframe', 'armor', 'cost'] as const;
+export const pairTrackKeys = ['rotate', 'iframe', 'armor', 'time', 'cost'] as const;
 export type PairTrackKey = (typeof pairTrackKeys)[number];
 export type PairTrack = {
   enabled: boolean;
@@ -11,6 +11,10 @@ export type PairTrack = {
   role: string;
   stamina: number;
   magicka: number;
+  health: number;
+  /** The time track's multiplier and its real seconds to reach it and back (11-01); the others leave them. */
+  factor: number;
+  ease: number;
 };
 export type PairTimeline = Record<PairTrackKey, PairTrack>;
 export const defaultPairTimeline = (): PairTimeline =>
@@ -21,9 +25,13 @@ export const defaultPairTimeline = (): PairTimeline =>
         enabled: false,
         from: mark(key === 'cost' ? 0.05 : 0),
         until: mark(0.8),
-        role: 'initiator',
+        // The time scale is the player's: whichever role the player plays (11-01).
+        role: key === 'time' ? 'player' : 'initiator',
         stamina: 0,
         magicka: 0,
+        health: 0,
+        factor: 0.5,
+        ease: 0,
       },
     ])
   ) as PairTimeline;
@@ -31,6 +39,7 @@ const ops = {
   rotate: ['rotateOn', 'rotateOff'],
   iframe: ['iframeOn', 'iframeOff'],
   armor: ['armorOn', 'armorOff'],
+  time: ['timeOn', 'timeOff'],
   cost: ['cost'],
 } as const;
 
@@ -52,7 +61,10 @@ export function pairTimelineEffects(pair: Pair): Effect[] {
           op,
           ...(t.role && t.role !== 'both' ? {target: t.role} : {}),
           at: String(m.seconds),
-          ...(key === 'cost' ? {stamina: String(t.stamina), magicka: String(t.magicka)} : {}),
+          ...(key === 'cost'
+            ? {stamina: String(t.stamina), magicka: String(t.magicka), health: String(t.health ?? 0)}
+            : {}),
+          ...(key === 'time' && !index ? {factor: String(t.factor), ...(t.ease ? {ease: String(t.ease)} : {})} : {}),
         },
       });
     });

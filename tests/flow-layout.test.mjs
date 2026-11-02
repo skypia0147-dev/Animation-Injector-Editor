@@ -9,7 +9,7 @@ const n = (id, kind, action = 'a') => ({
   action,
   position: {x: 0, y: 0},
   inputs: ['trigger'],
-  outputs: kind === 'conditionBranch' ? ['pass', 'fail'] : ['trigger'],
+  outputs: kind === 'conditionCard' ? ['pass', 'fail'] : ['trigger'],
 });
 const e = (source, target, pin = 'trigger') => ({id: `${source}:${target}:${pin}`, source, target, pin});
 function fixture() {
@@ -17,12 +17,12 @@ function fixture() {
     n('entry', 'entry', ''),
     n('event', 'markerReceive'),
     n('startBlend', 'blend'),
-    n('ready', 'conditionBranch'),
-    n('main', 'conditionBranch'),
-    n('female', 'conditionBranch'),
-    n('weapon', 'conditionBranch'),
-    n('alternative', 'conditionBranch'),
-    n('femaleAgain', 'conditionBranch'),
+    n('ready', 'conditionCard'),
+    n('main', 'conditionCard'),
+    n('female', 'conditionCard'),
+    n('weapon', 'conditionCard'),
+    n('alternative', 'conditionCard'),
+    n('femaleAgain', 'conditionCard'),
     n('femalePlay', 'hkxPlay', 'f'),
     n('normalPlay', 'hkxPlay', 'n'),
     n('weaponPlay', 'hkxPlay', 'w'),
@@ -123,13 +123,13 @@ test('combo transitions sit between successive playbacks and cyclic returns term
 test('large condition tables and disconnected drafts remain visible and non-overlapping', () => {
   const g = fixture();
   g.nodes.push(
-    {...n('table', 'conditionTable'), outputs: Array.from({length: 30}, (_, i) => `choice:${i}:pass`)},
+    {...n('table', 'conditionCard'), outputs: Array.from({length: 30}, (_, i) => `choice:${i}:pass`)},
     n('draft', 'blend', '')
   );
   g.edges.push(e('event', 'table'), e('table', 'weaponPlay', 'choice:0:pass'));
   noOverlap(g, regionLayout(g));
   const partial = {
-    nodes: [n('input', 'keyInput'), n('blend', 'blend'), n('draft', 'conditionBranch')],
+    nodes: [n('input', 'keyInput'), n('blend', 'blend'), n('draft', 'conditionCard')],
     edges: [e('input', 'blend')],
   };
   noOverlap(partial, regionLayout(partial));
@@ -234,7 +234,7 @@ function stage({merged = true} = {}) {
     nodes.push(n('start' + a, 'markerReceive', a), n('play' + a, 'hkxPlay', a));
     edges.push(e('entry', 'start' + a), e('start' + a, 'play' + a));
   }
-  nodes.splice(3, 0, n('cond', 'conditionBranch', 'a'), n('rear', 'hkxPlay', 'a'));
+  nodes.splice(3, 0, n('cond', 'conditionCard', 'a'), n('rear', 'hkxPlay', 'a'));
   edges.splice(
     edges.findIndex(x => x.source === 'starta'),
     1,
@@ -293,12 +293,12 @@ test("a card two actions' flows lead to sits right of both", () => {
   const g = {
     nodes: [
       n('sprint', 'markerReceive', 'pound'),
-      n('poundRoom', 'conditionBranch', 'pound'),
+      n('poundRoom', 'conditionCard', 'pound'),
       n('pound', 'hkxPlay', 'pound'),
       n('contact', 'markerReceive', 'front'),
-      n('mode', 'conditionBranch', 'front'),
+      n('mode', 'conditionCard', 'front'),
       n('resist', 'hkxPlay', 'resist'),
-      n('swingRoom', 'conditionBranch', 'front'),
+      n('swingRoom', 'conditionCard', 'front'),
       n('swing', 'hkxPlay', 'swing'),
       n('rko', 'hkxPlay', 'rko'),
       // Pounding goes on further (its QTE stages), so its flow is laid first.

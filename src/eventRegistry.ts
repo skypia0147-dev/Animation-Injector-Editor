@@ -18,9 +18,9 @@ export type EventRow = {id: string; name: string; functions: Effect[]};
 export const eventOps = [
   'hide',
   'show',
-  'spell',
-  'stateOn',
-  'stateOff',
+  'magicAdd',
+  'magicRemove',
+  'magicCast',
   'cost',
   'shake',
   'stopVelocity',
@@ -74,22 +74,24 @@ export const opInfo: Record<EventOp, OpInfo> = {
     },
     fields: [],
   },
-  spell: {
+  // One magic function in XML, <Do op="magic" action> (runtime 11-01): held here as one op per action, so values,
+  // pairs and lasting work by op as for the others (toXmlOp / fromXmlOp).
+  magicAdd: {
     get label() {
-      return tr('주문 적용');
+      return tr('마법 효과 · 추가');
+    },
+    lasting: 'magicRemove',
+    fields: ['plugin', 'form'],
+  },
+  magicRemove: {
+    get label() {
+      return tr('마법 효과 · 제거');
     },
     fields: ['plugin', 'form'],
   },
-  stateOn: {
+  magicCast: {
     get label() {
-      return tr('상태 켜기');
-    },
-    lasting: 'stateOff',
-    fields: ['plugin', 'form'],
-  },
-  stateOff: {
-    get label() {
-      return tr('상태 끄기');
+      return tr('마법 효과 · 시전');
     },
     fields: ['plugin', 'form'],
   },
@@ -97,7 +99,7 @@ export const opInfo: Record<EventOp, OpInfo> = {
     get label() {
       return tr('자원 소모');
     },
-    fields: ['stamina', 'magicka'],
+    fields: ['measure', 'stamina', 'magicka', 'health'],
   },
   shake: {
     get label() {
@@ -118,7 +120,7 @@ export const opInfo: Record<EventOp, OpInfo> = {
     },
     lasting: 'timeOff',
     player: true,
-    fields: ['factor'],
+    fields: ['factor', 'ease'],
   },
   timeOff: {
     get label() {
@@ -229,7 +231,7 @@ export const opInfo: Record<EventOp, OpInfo> = {
   },
   modEvent: {
     get label() {
-      return tr('모드 이벤트 보내기');
+      return tr('이벤트 보내기');
     },
     fields: ['name', 'text', 'number'],
   },
@@ -241,9 +243,12 @@ export const settingKeys = [
   'force',
   'stamina',
   'magicka',
+  'health',
+  'measure',
   'strength',
   'duration',
   'factor',
+  'ease',
   'delay',
   'damage',
   'pick',
@@ -296,6 +301,12 @@ export const settingLabels: Record<string, string> = {
   get magicka() {
     return tr('매지카');
   },
+  get health() {
+    return tr('체력');
+  },
+  get measure() {
+    return tr('단위');
+  },
   get strength() {
     return tr('세기');
   },
@@ -304,6 +315,9 @@ export const settingLabels: Record<string, string> = {
   },
   get factor() {
     return tr('배율');
+  },
+  get ease() {
+    return tr('전환 시간(초)');
   },
   get delay() {
     return tr('지연(초)');
@@ -465,9 +479,11 @@ const numberRanges: Record<string, [number, number]> = {
   delay: [0, 60],
   stamina: [0, 100000],
   magicka: [0, 100000],
+  health: [0, 100000],
   strength: [0, 10],
   duration: [0, 30],
   factor: [0.05, 5],
+  ease: [0, 2],
   damage: [1, 1000],
   force: [0, 20],
   ratio: [0, 100],
@@ -482,10 +498,15 @@ const numberRanges: Record<string, [number, number]> = {
   edge: [0, 1],
 };
 export const settingRange = (key: string) => numberRanges[key];
+/** A window's on: its span, the registry's `duration` (runtime 11-02): 0~60 seconds it stays on, none by default. */
+export const windowOns = ['iframeOn', 'armorOn', 'rotateOn', 'timeOn'];
+export const isSpan = (op: string, key: string) => key === 'duration' && windowOns.includes(op);
+export const spanRange: [number, number] = [0, 60];
 export const settingDefault: Record<string, string> = {
   strength: '1',
   duration: '0.5',
   factor: '1',
+  ease: '0',
   direction: 'down',
   delay: '0',
   damage: '100',
@@ -504,11 +525,31 @@ export const settingDefault: Record<string, string> = {
 // ── The numbers on the HKX nodes (runtime 0.12.281, docs/mockup-event-node-values) ────────────────
 // The registry says which functions an event runs and what they act with; each HKX node that sends the event
 // holds the numbers they run with there. An event from an animation without a node runs with the defaults.
-const spellOps = ['spell', 'stateOn', 'stateOff'];
-/** What a registered function acts with, set in the registry: a spell's plugin and form, a ragdoll's direction, a
+export const magicOps = ['magicAdd', 'magicRemove', 'magicCast'];
+export const isMagic = (op: string | undefined) => magicOps.includes(op ?? '');
+/** The magic function's actions as a card or the registry chooses them: add, remove, cast. */
+export const magicActions = (): [string, string][] => [
+  ['magicAdd', tr('추가')],
+  ['magicRemove', tr('제거')],
+  ['magicCast', tr('시전')],
+];
+const magicAction: Record<string, string> = {magicAdd: 'add', magicRemove: 'remove', magicCast: 'cast'};
+/** A <Do>'s attributes as the editor holds them: op="magic" action="add" is the op magicAdd. */
+function fromXmlOp(attrs: Record<string, string>): Record<string, string> {
+  const values = {...attrs};
+  if (values.op === 'magic') {
+    const op = Object.keys(magicAction).find(k => magicAction[k] === values.action);
+    if (!op) throw Error(tr('Do(magic): action은 add·remove·cast 중 하나입니다.'));
+    values.op = op;
+    delete values.action;
+  } else if (values.action !== undefined)
+    throw Error(tr('Do({op}): action은 마법 효과에서만 씁니다.', {op: values.op}));
+  return values;
+}
+/** What a registered function acts with, set in the registry: a magic effect's plugin and form, a ragdoll's direction, a
  *  strike's whom and how, a sound's file or form and bone, a global and its restore, a mod event's name and text. */
 export const registryFields = (op: string): string[] =>
-  spellOps.includes(op)
+  isMagic(op)
     ? ['plugin', 'form']
     : op === 'ragdoll'
       ? ['direction']
@@ -518,9 +559,13 @@ export const registryFields = (op: string): string[] =>
           ? ['file', 'plugin', 'form', 'bone']
           : op === 'globalSet'
             ? ['plugin', 'form', 'restore']
-            : op === 'modEvent'
-              ? ['name', 'text']
-              : [];
+            : op === 'cost'
+              ? ['measure']
+              : op === 'modEvent'
+                ? ['name', 'text']
+                : windowOns.includes(op)
+                  ? ['duration']
+                  : [];
 /** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
 export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
 /** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
@@ -603,8 +648,8 @@ export function readEventValues(n: Xml, rows: EventRow[], a: Valued) {
     const row = rows.find(r => eventKey(r.name) === eventKey(e.attrs.name ?? ''));
     const seen = new Map<string, number>();
     for (const d of e.children) {
-      shapeXml(d, ['op', ...valueKeysAll]);
-      const values = {...d.attrs};
+      shapeXml(d, ['op', 'action', ...valueKeysAll]);
+      const values = fromXmlOp(d.attrs);
       if (!values.op) throw Error(tr('EventValues Do.op: 필수 값'));
       const errors = valueErrors(values);
       if (errors.length) throw Error(`EventValues Do(${values.op}): ${errors[0]}`);
@@ -634,7 +679,8 @@ export function valueErrors(v: Record<string, string>): string[] {
       !(Number.isFinite(Number(v[k])) && Number(v[k]) >= min && Number(v[k]) <= max)
     )
       out.push(`${settingLabels[k]}: ${min}~${max}`);
-  if (v.op === 'cost' && !Number(v.stamina) && !Number(v.magicka)) out.push(tr('스태미나나 매지카를 넣으세요.'));
+  if (v.op === 'cost' && !Number(v.stamina) && !Number(v.magicka) && !Number(v.health))
+    out.push(tr('스태미나, 매지카, 체력 중 하나를 넣으세요.'));
   if (v.op === 'timeOn' && !(v.factor ?? '').trim()) out.push(tr('배율을 넣으세요.'));
   return out;
 }
@@ -651,8 +697,12 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
   const out: Record<string, string> = {};
   if (timed) out.at = values.at ?? '0';
   out.op = values.op;
+  if (isMagic(values.op)) {
+    out.op = 'magic';
+    out.action = magicAction[values.op];
+  }
   if (timed && values.target && values.target !== 'both') out.target = values.target;
-  const used = new Set(fieldsOf(values.op));
+  const used = new Set([...fieldsOf(values.op), ...(timed ? [] : registryFields(values.op))]);
   for (const k of settingKeys) if (used.has(k) && values[k] !== undefined && values[k] !== '') out[k] = values[k];
   // A shot's 100% is the runtime's default.
   if (out.damage === '100') delete out.damage;
@@ -666,6 +716,8 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
     }
   }
   if (values.op === 'modEvent' && out.number !== undefined && Number(out.number) === 0) delete out.number;
+  // A window without a span (runtime 11-02).
+  if (windowOns.includes(values.op) && !Number(out.duration)) delete out.duration;
   if (values.op === 'strike') {
     // The choices' defaults are the runtime's; a fixed amount replaces the weapon's ratio; only an area has its
     // own settings (a registry's number-free part says nothing about the pick).
@@ -706,11 +758,17 @@ export function functionParts(values: Record<string, string>): string[] {
   if (values.op === 'modEvent' && values.name) parts.push(values.name);
   if (values.op === 'cost')
     parts.push(
-      [values.stamina && tr('스태미나 ') + values.stamina, values.magicka && tr('매지카 ') + values.magicka]
+      [
+        values.stamina && tr('스태미나 ') + values.stamina,
+        values.magicka && tr('매지카 ') + values.magicka,
+        values.health && tr('체력 ') + values.health,
+      ]
         .filter(Boolean)
-        .join(' ') || '0'
+        .join(' ') + (values.measure === 'percent' ? '%' : '') || '0'
     );
   if (values.op === 'timeOn' && values.factor) parts.push('×' + values.factor);
+  if (windowOns.includes(values.op) && Number(values.duration))
+    parts.push(tr('{seconds}초 동안', {seconds: values.duration}));
   if (values.op === 'shake' && (values.strength || values.duration))
     parts.push(tr('세기 {s} · {d}초', {s: values.strength || '1', d: values.duration || '0.5'}));
   if (values.op === 'fireArrow' && values.damage && values.damage !== '100')
@@ -810,10 +868,10 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     for (const k of (v.without ?? '').split(',').filter(Boolean))
       if (!known.has(k)) out.push(tr('따라오는 것에 없는 항목입니다: {name}', {name: k}));
   } else if (v.without !== undefined && v.without !== '') out.push(tr('따라오는 것은 타격에서만 씁니다.'));
-  // A sound plays a file or a registered sound; a global and the spells name a form (runtime 0.12.296). A node's
+  // A sound plays a file or a registered sound; a global and the magic effect name a form (runtime 0.12.296). A node's
   // numbers carry none of them.
   const registered = v.plugin !== undefined || v.form !== undefined;
-  if (['spell', 'stateOn', 'stateOff', 'globalSet'].includes(v.op) || (v.op === 'sound' && registered)) {
+  if (isMagic(v.op) || v.op === 'globalSet' || (v.op === 'sound' && registered)) {
     if (!v.plugin || /[\\/:]/.test(v.plugin)) out.push(tr('플러그인 파일 이름을 입력하세요.'));
     if (!/^(?:0x)?[\da-f]{1,8}$/i.test(v.form ?? '')) out.push(tr('16진수 폼 ID를 입력하세요.'));
   }
@@ -832,16 +890,22 @@ export function functionErrors(v: Record<string, string>, timed = false): string
     out.push(tr('소리 위치를 선택하세요.'));
   if (v.restore !== undefined && !(v.op === 'globalSet' && v.restore === 'end'))
     out.push(tr('되돌림은 전역 값 설정에서만 씁니다.'));
+  if (v.measure !== undefined && !(v.op === 'cost' && v.measure === 'percent'))
+    out.push(tr('단위는 자원 소모에서만 씁니다.'));
   if (v.op === 'modEvent' && !v.name?.trim()) out.push(tr('모드 이벤트 이름을 입력하세요.'));
   if ((v.name !== undefined || v.text !== undefined) && v.op !== 'modEvent')
     out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다.'));
-  for (const [k, [min, max]] of Object.entries(numberRanges))
+  for (const [k, range] of Object.entries(numberRanges)) {
+    const [min, max] = isSpan(v.op, k) ? spanRange : range;
     if (
       v[k] !== undefined &&
       v[k] !== '' &&
       !(Number.isFinite(Number(v[k])) && Number(v[k]) >= min && Number(v[k]) <= max)
     )
-      out.push(`${settingLabels[k]}: ${min}~${max}`);
+      out.push(`${isSpan(v.op, k) ? tr('지속 시간(초)') : settingLabels[k]}: ${min}~${max}`);
+  }
+  if (timed && isSpan(v.op, 'duration') && v.duration !== undefined && v.duration !== '')
+    out.push(tr('지속 시간은 이벤트 등록에서만 씁니다.'));
   for (const k of booleanKeys)
     if (v[k] !== undefined && !['true', 'false'].includes(v[k]))
       out.push(tr('{v0}: 켬/끔 값 오류', {v0: settingLabels[k]}));
@@ -930,8 +994,8 @@ export function registryXml(w: Workspace): Xml | undefined {
 const eventDoAttrs = functionKeys;
 /** One <Do> of a registered event, or (`timed`) of a pair's <Effects>. */
 export function readDo(n: Xml, timed: boolean): Record<string, string> {
-  shapeXml(n, timed ? timedKeys : eventDoAttrs);
-  const values = {...n.attrs};
+  shapeXml(n, [...(timed ? timedKeys : eventDoAttrs), 'action']);
+  const values = fromXmlOp(n.attrs);
   if (!values.op) throw Error(tr('Do.op: 필수 값'));
   // A registered function's numbers are the nodes' (<EventValues>, runtime 0.12.281).
   if (!timed && valueFields(values.op).some(k => values[k] !== undefined))
@@ -962,7 +1026,6 @@ export function readRegistry(r: Xml, rows: EventRow[]) {
 // ── Uses: where this project refers to an event by name ─────────────────────────────────────────
 /** An event moment of the project that may name an event (or fall back to a clip time). */
 export type EventSlot = {
-  key: string;
   label: string;
   node: string;
   mark: Mark;
@@ -996,7 +1059,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
       hkx = playNode(w, a.uid),
       first = out.length;
     out.push({
-      key: `${a.uid}|exit`,
       label: tr('종료 시점 · {name}', {name}),
       node: hkx,
       mark: p.exit,
@@ -1004,7 +1066,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
     });
     if (p.recovery.enabled)
       out.push({
-        key: `${a.uid}|recovery`,
         label: tr('이동키 취소 · {name}', {name}),
         node: hkx,
         mark: p.recovery.at,
@@ -1013,7 +1074,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
     for (const s of p.steps)
       if (s.recovery)
         out.push({
-          key: `${a.uid}|recovery:${s.id}`,
           label: tr('이동키 취소 · {name} · {label}', {name, label: s.label}),
           node: playNode(w, a.uid, s.id),
           mark: s.recovery.at,
@@ -1023,7 +1083,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
     for (const [step, win] of Object.entries(a.clipWindows ?? {})) {
       const node = playNode(w, a.uid, step);
       out.push({
-        key: `${a.uid}|clipWindow:${step}:open`,
         label: tr('감지 창 시작 · {name} {step}', {name, step}),
         node,
         mark: win.open,
@@ -1031,7 +1090,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         local: tr('감지 창 시작'),
       });
       out.push({
-        key: `${a.uid}|clipWindow:${step}:close`,
         label: tr('감지 창 끝 · {name} {step}', {name, step}),
         node,
         mark: win.close,
@@ -1041,14 +1099,12 @@ export function eventSlots(w: Workspace): EventSlot[] {
     }
     for (const c of a.cancels) {
       out.push({
-        key: `${a.uid}|cancel:${c.id}:open`,
         label: tr('바닐라 전환 시작 · {name}', {name}),
         node: hkx,
         mark: c.open,
         local: tr('바닐라 전환 시작'),
       });
       out.push({
-        key: `${a.uid}|cancel:${c.id}:close`,
         label: tr('바닐라 전환 끝 · {name}', {name}),
         node: hkx,
         mark: c.close,
@@ -1057,7 +1113,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
     }
     if (p.carryRelease)
       out.push({
-        key: `${a.uid}|carryRelease`,
         label: tr('대상 놓기 · {name}', {name}),
         node: hkx,
         mark: p.carryRelease.at,
@@ -1071,7 +1126,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         to = w.actions.find(a => a.uid === l.to)?.config.name ?? l.to,
         node = 'transition:' + l.id;
       out.push({
-        key: `link:${l.id}|open`,
         label: tr('연결 감지 시작 · {from}→{to}', {from, to}),
         node,
         mark: l.open,
@@ -1079,7 +1133,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         local: tr('연결 감지 시작 · → {to}', {to}),
       });
       out.push({
-        key: `link:${l.id}|close`,
         label: tr('연결 감지 끝 · {from}→{to}', {from, to}),
         node,
         mark: l.close,
@@ -1089,7 +1142,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
     }
   for (const q of w.qtes ?? [])
     out.push({
-      key: `qte:${q.id}|at`,
       label: tr('QTE 시작 · {v0}', {v0: qteName(w, q)}),
       node: qteCard(w, q),
       mark: q.at,
@@ -1292,7 +1344,7 @@ export function setFunctions(w: Workspace, name: string, functions: Effect[]): W
     row.functions = functions;
   });
 }
-export function addFunction(w: Workspace, name: string, op: EventOp = 'spell'): Workspace {
+export function addFunction(w: Workspace, name: string, op: EventOp = 'magicAdd'): Workspace {
   return withRows(w, rows => {
     const row = registerIn(rows, name);
     row.functions.push({

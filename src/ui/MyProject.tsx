@@ -93,9 +93,9 @@ const ActionRow = memo(function ActionRow({
       l.mode === 'end'
         ? tr('끝나면')
         : l.mode === 'move'
-          ? tr('이동키를 누르면')
+          ? tr('이동 전환')
           : l.mode === 'release'
-            ? tr('키를 떼면')
+            ? tr('차지 종료')
             : l.mode === 'event'
               ? l.event || t('row.marker')
               : inputLabel(a.config, l.input) || t('row.input');

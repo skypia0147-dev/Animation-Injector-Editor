@@ -1,22 +1,9 @@
-import type {Workspace, Action, CameraRestore} from './workspace.ts';
+import type {Workspace, CameraRestore} from './workspace.ts';
 import type {Input} from './model.ts';
 import {clone} from './model.ts';
 import {tr} from './i18n/korean.ts';
 
 export type SharedSettings = {cameraReset: string | null};
-export function inferredCamera(actions: Action[]): string | null {
-  // Before 10-16 the setting sat on the pair (an old file during its migration).
-  const of = (a: any) => ((a.cameraEnabled ?? a.pair?.cameraEnabled) ? (a.camera ?? a.pair?.camera) : undefined);
-  const names = [
-    ...new Set(
-      actions
-        .map(of)
-        .filter(Boolean)
-        .map((c: CameraRestore) => c.reset)
-    ),
-  ];
-  return names.length > 1 ? null : (names[0] ?? '');
-}
 /** The event an action's camera restores on: its own when set so (or when the project has none in common), else
  *  the project's. */
 export const cameraReset = (w: Workspace, camera: CameraRestore) =>

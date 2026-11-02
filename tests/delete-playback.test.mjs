@@ -59,7 +59,7 @@ test('a condition card keeps its other destinations', () => {
     [a, b] = w.actions;
   const card = {
     ...newCard(w, {x: 0, y: 0}),
-    tests: [{id: 'Condition1', kind: 'female', subject: 'self', minimum: 0}],
+    tests: [{id: 'Condition1', kind: 'female', subject: 'self'}],
     rows: [{id: 'row1', guards: ['Condition1'], to: {action: b.uid}}],
     false: {action: a.uid},
   };

@@ -1,6 +1,7 @@
 import type {Workspace} from '../workspace.ts';
 import {addFlat, addItem, addTransition, flatGraph, flatNode, notifyKinds, rowPin, setDestination} from './flat.ts';
 import {rows, slots, title} from '../timeline/model.ts';
+import {chargeActions} from './charge.ts';
 import {parseNodeId} from './nodeRef.ts';
 import {addRow} from './cardCommands.ts';
 import type {Ref} from '../cards.ts';
@@ -69,7 +70,7 @@ export function addConnected(w: Workspace, source: string, option: AddOption, po
     return addTransition(next, action, to, offset(position, 380), option.kind === 'keyInput' ? 'input' : 'event');
   }
   // A condition card in front of it: the starts that went to it go through the card, whose True plays it.
-  if (option.kind === 'conditionBranch' || option.kind === 'conditionCard') {
+  if (option.kind === 'conditionCard') {
     const made = addFlat(w, '', 'conditionCard', offset(position, -380));
     const uid = (parseNodeId(made.id) as {uid: string}).uid;
     const next = structuredClone(made.workspace);
@@ -132,15 +133,14 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       {label: tr('전환 키 입력 추가'), kind: 'keyInput'},
       {label: tr('전환 이벤트 추가'), kind: 'markerReceive'},
       {label: tr('끝나면 전환 추가'), kind: 'transitionEnd'},
-      {label: tr('키를 떼면 전환 추가'), kind: 'transitionRelease'},
-      {label: tr('이동키를 누르면 전환 추가'), kind: 'transitionMove'},
+      {label: tr('차지 종료 추가'), kind: 'transitionRelease'},
+      {label: tr('이동 전환 추가'), kind: 'transitionMove'},
       {label: tr('반복 재생 추가'), kind: 'loopRule'},
-      {label: tr('공중 규칙 추가'), kind: 'stateCondition', before: true},
       {label: tr('앞에 조건 카드 추가'), kind: 'conditionCard', entry: true},
       {label: tr('앞에 블렌드 추가'), kind: 'blend', before: true},
       {label: tr('뒤에 블렌드 추가'), kind: 'blend'},
       {label: tr('다음 동작 추가'), kind: 'playNode'},
-      {label: tr('바닐라 이벤트 차단 추가'), kind: 'suppress'},
+      {label: tr('이벤트 차단 추가'), kind: 'suppress'},
       {label: tr('QTE 추가'), kind: 'qte'},
     ];
   // Only a carry's putdown Action takes a release moment (the runtime rejects it elsewhere).
@@ -149,13 +149,17 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
   // Camera restore: any action (10-16, runtime 0.12.260); a carry is a pair's.
   options.push({label: tr('카메라 복구 추가'), kind: 'cameraRestore'});
   if (a?.pair) options.push({label: tr('운반 추가'), kind: 'carry'});
-  for (const kind of notifyKinds.filter(k =>
-    a?.pair
-      ? k !== 'vanillaCancel' && k !== 'fireArrow'
-      : ['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k)
+  // The magic function is one item; its card chooses add, remove or cast (11-01).
+  for (const kind of notifyKinds.filter(
+    k =>
+      k !== 'magicRemove' &&
+      k !== 'magicCast' &&
+      (a?.pair
+        ? k !== 'vanillaCancel' && k !== 'fireArrow'
+        : ['rotate', 'iframe', 'armor', 'time', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k))
   ))
     options.push({
-      label: title(kind) + tr(' 추가'),
+      label: (kind === 'magicAdd' ? tr('마법 효과') : title(kind)) + tr(' 추가'),
       kind: 'notify:' + kind,
       // A slot, the cost and the recovery are an action's once.
       ...(a && [...slots, 'cost', 'recovery'].includes(kind) && rows(w, a).some(r => r.kind === kind)
@@ -165,10 +169,11 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
   return options
     .sort((a, b) => Number(b.kind === 'blend') - Number(a.kind === 'blend'))
     .filter(o => {
-      if (o.kind === 'stateCondition') return a?.config.air === 'deny';
       // Charge (runtime 10-30): an ordinary HKX's; an end once and not from a loop, which has none.
       if (o.kind === 'loopRule') return !!a && !a.pair && !a.config.loop;
-      if (o.kind === 'transitionRelease' || o.kind === 'transitionMove') return !!a && !a.pair;
+      // A charge end and a move transition read the charge's held key (runtime 10-31): an HKX in a charge only.
+      if (o.kind === 'transitionRelease' || o.kind === 'transitionMove')
+        return !!a && !a.pair && chargeActions(w).has(a.uid);
       if (o.kind === 'transitionEnd')
         return !!a && !a.pair && !a.config.loop && !w.links.some(l => l.from === a.uid && l.mode === 'end');
       if (o.kind === 'cameraRestore') return !a?.cameraEnabled;

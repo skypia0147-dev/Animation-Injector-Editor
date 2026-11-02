@@ -10,14 +10,16 @@ import {
   costToEvent,
   eventToClip,
   hkxMoments,
+  momentChips,
   moveFunction,
+  offChoices,
   otherSenders,
   setOffEvent,
   slotToEvent,
 } from '../src/graph/hkxMoments.ts';
 import {actionClip} from '../src/graph/hkxMoments.ts';
 import {clipKey} from '../src/graph/annotations.ts';
-import {nodeValues, setNodeValues} from '../src/eventRegistry.ts';
+import {nodeValues, setFunctions, setNodeValues} from '../src/eventRegistry.ts';
 import {checker, needsChecker} from './local.mjs';
 
 // A function moved from the clip to an event is edited in the HKX card (10-27, user request): which event, the
@@ -108,6 +110,73 @@ test("a window's on and off events are chosen in the card, and it comes back to 
   assert.deepEqual(own(w, a).config.slots.iframe, window);
   assert.deepEqual(row(w, 'DodgeStart').functions, []);
   assert.deepEqual(row(w, 'DodgeLate').functions, []);
+});
+
+test("a window's off event is chosen from this HKX's events, then the other HKX's and the registered ones", () => {
+  let w = importWorkspaceXml(raw);
+  const [b, l] = [w.actions[0], w.actions[1]];
+  w = slotToEvent(w, b.uid, 'iframe', 'DodgeStart');
+  // The choices: this HKX's events, then the other HKX's (with the action) and the registered off events.
+  w = setOffEvent(w, 'iframe', null, 'GhostOff');
+  const annotations = new Map([
+    [clipKey(actionClip(w, b)), [annotation('DodgeStart', 0.1), annotation('DodgeEnd', 0.4)]],
+    [clipKey(actionClip(w, l)), [annotation('DodgeEnd', 0.3), annotation('CounterOff', 0.5)]],
+  ]);
+  const choices = offChoices(w, own(w, b.uid), annotations, 'iframeOff');
+  assert.deepEqual(
+    choices.here.map(x => x.name),
+    ['DodgeStart', 'DodgeEnd']
+  );
+  assert.deepEqual(choices.others, [
+    {name: 'CounterOff', from: l.config.name},
+    {name: 'GhostOff', from: undefined},
+  ]);
+});
+
+test("a window's span comes back to the clip as the range from the event's time (runtime 11-02)", () => {
+  let w = importWorkspaceXml(raw);
+  const a = w.actions[0].uid;
+  w = slotToEvent(w, a, 'iframe', 'DodgeStart');
+  const on = row(w, 'DodgeStart').functions[0];
+  w = setFunctions(w, 'DodgeStart', [{...on, values: {...on.values, duration: '0.3'}}]);
+  w = eventToClip(w, a, 'DodgeStart', on.id, 0.1, null).w;
+  const slot = own(w, a).config.slots.iframe;
+  assert.equal(slot.enabled, true);
+  assert.deepEqual(
+    [slot.from.basis, slot.from.seconds, slot.until.basis, slot.until.seconds],
+    ['seconds', 0.1, 'seconds', 0.4]
+  );
+});
+
+test('a collapsed card lists what the HKX annotations add: registered functions and AI. commands', () => {
+  let w = importWorkspaceXml(raw);
+  const a = w.actions[0].uid;
+  w = slotToEvent(w, a, 'iframe', 'DodgeStart');
+  w = setOffEvent(w, 'iframe', null, 'DodgeEnd');
+  const moments = hkxMoments(w, own(w, a), [
+    annotation('DodgeStart', 0.1),
+    annotation('DodgeEnd', 0.4),
+    annotation('AI.ArmorOn|0.6', 0.2),
+  ]);
+  assert.deepEqual(
+    momentChips(moments).map(c => [c.kind, c.title, c.summary, c.tip]),
+    [
+      ['event', '피해 면역', 'DodgeStart', '피해 면역 · DodgeStart → DodgeEnd'],
+      ['event', '활 발사', 'DodgeShotFire', '활 발사 · DodgeShotFire'], // the fixture's shot, valued on this action
+      ['command', '스태거 면역', '0.6초 동안', '스태거 면역 · AI.ArmorOn|0.6'],
+    ]
+  );
+  const twice = hkxMoments(w, own(w, a), [
+    annotation('AI.IFrameOn', 0),
+    annotation('AI.IFrameOff', 0.167),
+    annotation('AI.IFrameOn|0.3', 0.333),
+  ]);
+  assert.deepEqual(
+    momentChips(twice)
+      .filter(c => c.kind === 'command')
+      .map(c => [c.summary, c.tip]),
+    [['2곳', '피해 면역 · AI.IFrameOn, AI.IFrameOff, AI.IFrameOn|0.3']]
+  );
 });
 
 test('the card names the other HKX sending the event, and when the clip is not offered', () => {

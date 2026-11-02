@@ -128,7 +128,7 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
                   n.kind === 'startCard' ||
                   n.kind === 'transition'
                 ? 'event'
-                : n.kind.startsWith('condition') || n.kind === 'stateCondition' || n.kind === 'loopRule'
+                : n.kind.startsWith('condition') || n.kind === 'loopRule'
                   ? 'branch'
                   : n.kind === 'cameraRestore'
                     ? 'camera'
@@ -167,17 +167,15 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
         ? tr('입력')
         : n.kind === 'markerReceive' || n.kind === 'eventEmit' || n.kind === 'startCard' || n.kind === 'transition'
           ? tr('이벤트')
-          : n.kind === 'stateCondition'
-            ? tr('조건')
-            : n.kind === 'loopRule'
-              ? tr('재생')
-              : n.kind === 'conditionCard'
-                ? tr('조건')
-                : n.kind === 'outputPose'
-                  ? tr('종료')
-                  : n.kind === 'cameraRestore'
-                    ? tr('이벤트')
-                    : tr('설정');
+          : n.kind === 'loopRule'
+            ? tr('재생')
+            : n.kind === 'conditionCard'
+              ? tr('조건')
+              : n.kind === 'outputPose'
+                ? tr('종료')
+                : n.kind === 'cameraRestore'
+                  ? tr('이벤트')
+                  : tr('설정');
   // A start card reads as its trigger, then what it sets (docs/mockup-format6-editor); it is edited in Details.
   if (start) {
     const rows = [
@@ -220,11 +218,11 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
         : link.mode === 'end'
           ? {label: tr('끝나면'), value: tr('이 HKX가 끝날 때')}
           : link.mode === 'move'
-            ? {label: tr('이동키를 누르면'), value: tr('이동키 · 선입력·유지 포함')}
+            ? {label: tr('이동 전환'), value: tr('차지 중 이동키')}
             : link.mode === 'release' && !link.input
-              ? {label: tr('키를 떼면'), value: tr('시작한 키')}
+              ? {label: tr('차지 종료'), value: tr('시작한 키')}
               : {
-                  label: link.mode === 'release' ? tr('키를 떼면') : tr('누를 때'),
+                  label: link.mode === 'release' ? tr('차지 종료') : tr('누를 때'),
                   value: input?.control
                     ? gameControlLabel(input.control)
                     : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||

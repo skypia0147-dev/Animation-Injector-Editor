@@ -2,7 +2,7 @@
 <!-- The former Combo fixture as format 4 writes it: an Action per HKX, joined by key transitions (Connect). -->
 <AnimationSet version="6" id="ImportedSet">
   <Start id="Attack1_Start" to="Attack1" key="Num6" cooldown="0.3">
-    <Check kind="weaponDrawn"/>
+    <Check kind="actorStatus" option="weaponDrawn"/>
   </Start>
   <Action id="Attack1" clip="Animations\ComboTest\test_Attack1.hkx" attack="attackStart" enter="0.1">
     <Exit blend="0.2"/>

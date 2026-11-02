@@ -44,6 +44,7 @@ export const labels = {
   gamepad: ['row.gamepadButton', 'tip.input'],
   stamina: ['detail.stamina', 'tip.cost'],
   magicka: ['detail.magicka', 'tip.cost'],
+  health: ['detail.health', 'tip.cost'],
   receiver: ['role.receiver', 'tip.role'],
   delay: ['detail.delay', 'tip.delay'],
   plugin: ['detail.plugin', 'tip.spell'],

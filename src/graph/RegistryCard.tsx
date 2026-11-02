@@ -25,7 +25,12 @@ import {
   settingDefault,
   settingLabels,
   settingRange,
+  isSpan,
+  spanRange,
   vanillaName,
+  isMagic,
+  magicActions,
+  magicOps,
   type EventOp,
   type RegistryEntry,
   playerOnlyHint,
@@ -282,10 +287,6 @@ function RegistryRow({
     });
   }, [flash]);
   const fns = entry.row?.functions ?? [];
-  const registeredOps = useMemo(
-    () => new Set((w.eventRegistry ?? []).flatMap(r => r.functions.map(f => f.values.op))),
-    [w.eventRegistry]
-  );
   const change = (next: Effect[]) => attempt(() => edit(w => setFunctions(w, entry.name, next)));
   const rename = () => {
     if (name !== entry.name) attempt(() => edit(w => renameEvent(w, entry.name, name.trim())));
@@ -324,7 +325,6 @@ function RegistryRow({
             <FunctionEditor
               key={f.id}
               fn={f}
-              registeredOps={registeredOps}
               change={next => change(fns.map((x, j) => (j === i ? next : x)))}
               remove={() => change(fns.filter((_, j) => j !== i))}
             />
@@ -337,7 +337,7 @@ function RegistryRow({
           {!!fns.length && vanillaName(entry.name) && (
             <div className="registry-warn">
               {tr(
-                '⚠ 바닐라·흔한 이벤트 이름입니다. 기능을 붙이면 게임 전체 애니메이션에서 실행됩니다. 모드 고유 접두어(예: Grapple_)를 권장합니다.'
+                '⚠ 바닐라·흔한 이벤트 이름입니다. 기능을 붙이면 게임 전체 애니메이션에서 실행됩니다. 모드 고유 접두어를 권장합니다.'
               )}
             </div>
           )}
@@ -348,7 +348,7 @@ function RegistryRow({
           </div>
           {/* Uses are set where they are (QTE, Start, HKX and link cards); here they are only listed. */}
           <div className="registry-sub-title">{tr('용도')}</div>
-          <ul className="registry-uses">
+          <ul className="registry-uses copyable nodrag nopan">
             {groupUses(entry.uses).map(g => (
               <li key={g.label}>
                 {g.text}
@@ -366,7 +366,7 @@ function RegistryRow({
             ))}
             {!entry.uses.length && <li className="dim">{tr('없음')}</li>}
           </ul>
-          <div className="registry-usage">
+          <div className="registry-usage copyable nodrag nopan">
             <div className="registry-usage-title">{tr('이 프로젝트에서 이 이벤트를 보내는 HKX')}</div>
             <ul>
               {senders.map((s, i) => (
@@ -399,19 +399,8 @@ function RegistryRow({
 }
 
 /** One registered function: op, target and trigger on one line, the op's settings below. */
-export function FunctionEditor({
-  fn,
-  change,
-  remove,
-  registeredOps,
-}: {
-  fn: Effect;
-  change: (fn: Effect) => void;
-  remove: () => void;
-  registeredOps: Set<string>;
-}) {
-  const v = fn.values,
-    info = opInfo[v.op as EventOp];
+export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: Effect) => void; remove: () => void}) {
+  const v = fn.values;
   const set = (key: string, value: string | undefined) => {
     const values = {...v};
     if (value === undefined || value === '') delete values[key];
@@ -567,6 +556,20 @@ export function FunctionEditor({
           </select>
         </label>
       );
+    // A cost's unit (runtime 10-31): the values as written, or percent of each maximum.
+    if (key === 'measure')
+      return (
+        <label key={key}>
+          {label}
+          <select
+            value={v.measure === 'percent' ? 'percent' : 'value'}
+            onChange={e => set(key, e.target.value === 'percent' ? 'percent' : undefined)}
+          >
+            <option value="value">{tr('수치')}</option>
+            <option value="percent">{tr('최대치의 %')}</option>
+          </select>
+        </label>
+      );
     if (key === 'restore')
       return (
         <label key={key}>
@@ -576,6 +579,21 @@ export function FunctionEditor({
             onChange={e => set(key, e.target.checked ? 'end' : undefined)}
           />
           {label}
+        </label>
+      );
+    // A window's span (runtime 11-02): 0 is none.
+    if (isSpan(v.op, key))
+      return (
+        <label key={key}>
+          {tr('지속 시간(초)')}
+          <NumberInput
+            aria-label={tr('지속 시간(초)')}
+            min={spanRange[0]}
+            max={spanRange[1]}
+            step={0.05}
+            value={Number(v[key] ?? 0)}
+            change={value => set(key, value ? String(value) : undefined)}
+          />
         </label>
       );
     const [min, max] = settingRange(key) ?? [0, 600];
@@ -608,29 +626,40 @@ export function FunctionEditor({
           value={v.op}
           onChange={e => change({...fn, values: {op: e.target.value}})}
         >
-          {eventOps.map(op => (
-            <option key={op} value={op}>
-              {opInfo[op].label}
-            </option>
-          ))}
+          {eventOps
+            // The magic function is one choice; its action is below (11-01).
+            .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))
+            .map(op => (
+              <option key={op} value={op}>
+                {isMagic(op) ? tr('마법 효과') : opInfo[op].label}
+              </option>
+            ))}
         </select>
         <button className="registry-del" title={tr('기능 삭제')} aria-label={tr('기능 삭제')} onClick={remove}>
           ✕
         </button>
       </div>
-      {/* What it acts with only: the numbers are each HKX node's (runtime 0.12.281, docs/mockup-event-node-values). */}
-      {!!registryFields(v.op).length && <div className="registry-fn-fields">{registryFields(v.op).map(setting)}</div>}
-      {info?.lasting && (
-        <div
-          className="registry-note"
-          title={tr('짝 기능 "{pair}", 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.', {
-            pair: opInfo[info.lasting].label,
-          })}
-        >
-          {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
-          {registeredOps.has(info.lasting) ? '' : tr('(등록 없음 ⚠)')}
+      {isMagic(v.op) && (
+        <div className="registry-fn-fields">
+          <label>
+            {tr('동작')}
+            <span className="moment-seg" role="group" aria-label={tr('동작')}>
+              {magicActions().map(([op, label]) => (
+                <button
+                  key={op}
+                  type="button"
+                  aria-pressed={v.op === op}
+                  onClick={() => v.op !== op && change({...fn, values: {...v, op}})}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+          </label>
         </div>
       )}
+      {/* What it acts with only: the numbers are each HKX node's (runtime 0.12.281, docs/mockup-event-node-values). */}
+      {!!registryFields(v.op).length && <div className="registry-fn-fields">{registryFields(v.op).map(setting)}</div>}
     </div>
   );
 }

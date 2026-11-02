@@ -196,7 +196,7 @@ test('all role operations and supported parameters preserve parser semantics', n
     Object.assign(invalid.actions[0].pair.effects[2].values, patch);
     assert.throws(() => compileWorkspace(invalid));
   }
-  for (const patch of [{op: 'fireArrow', target: 'partner'}, {op: 'stateOn', plugin: ''}, {delay: '61'}]) {
+  for (const patch of [{op: 'fireArrow', target: 'partner'}, {op: 'magicAdd', plugin: ''}, {delay: '61'}]) {
     const invalid = clone(w);
     Object.assign(invalid.eventRegistry[2].functions[0].values, patch);
     assert.throws(() => compileWorkspace(invalid));

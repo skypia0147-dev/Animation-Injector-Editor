@@ -562,6 +562,13 @@
   color: #8fc6f0;
   border: 1px solid #335a6b;
 }
+/* Text people copy (annotation and event names, times): selectable in a card, which the graph otherwise keeps for
+   dragging; the element also carries nodrag and nopan. */
+.react-flow__node .copyable,
+.react-flow__node .copyable * {
+  user-select: text;
+  cursor: text;
+}
 .moment-table {
   border-collapse: collapse;
   width: 100%;

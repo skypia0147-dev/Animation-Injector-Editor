@@ -1,4 +1,4 @@
-import {extensionConditions, extensionSummary} from './conditionExtensions.ts';
+import {extensionConditions} from './conditionExtensions.ts';
 import type {Workspace} from '../workspace.ts';
 import type {BranchTest} from './conditions.ts';
 import type {CardTest, ConditionCard} from '../cards.ts';
@@ -13,15 +13,6 @@ export const conditionNames: Record<string, string> = {
     return tr('하나 이상 충족 OR');
   },
   not: 'NOT',
-  get air() {
-    return tr('공중');
-  },
-  get weaponDrawn() {
-    return tr('무기 뽑음');
-  },
-  get combat() {
-    return tr('전투 중');
-  },
   get alive() {
     return tr('살아 있음');
   },
@@ -49,13 +40,23 @@ export const conditionNames: Record<string, string> = {
   get attackState() {
     return tr('공격 상태');
   },
-  get sneaking() {
-    return tr('은신 중');
-  },
   get female() {
     return tr('여성');
   },
 };
+/** A condition's name as a route chip or a card title names it: a state by the states it picks (11-01: the boolean
+ *  kinds became actorStatus options), protection by which, the air by falling or rising. */
+export function conditionName(t: {kind: string; option?: string}): string {
+  if (t.kind === 'actorStatus' || t.kind === 'protection' || (t.kind === 'air' && t.option && t.option !== 'any')) {
+    const choices = (extensionConditions[t.kind] as {choices?: readonly (readonly [string, string])[]}).choices ?? [];
+    const names = (t.option ?? '')
+      .split(',')
+      .map(o => choices.find(([v]) => v === o)?.[1])
+      .filter(Boolean);
+    if (names.length) return names.join('·');
+  }
+  return conditionNames[t.kind] ?? t.kind;
+}
 // The extension conditions' names, read each time (10-30: copied once when the module loaded, they stayed in the
 // language of the moment, so 「받은 공격」 showed in Korean on an English canvas).
 for (const [kind, d] of Object.entries(extensionConditions))
@@ -156,7 +157,7 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
   // joined by OR; groups side by side get one more.
   if (command.type === 'group') {
     const t = find(command.id);
-    const empty = () => insertExpression(f, {settings: {kind: 'all', subject: 'self', minimum: 0}, children: []});
+    const empty = () => insertExpression(f, {settings: {kind: 'all', subject: 'self'}, children: []});
     if (!['all', 'any'].includes(t.kind)) return editExpression(w, owner, {type: 'wrap', id: command.id, mode: 'all'});
     if (sideBySide(f, t.id)) {
       t.operands = [...t.operands!, empty()];
@@ -175,7 +176,6 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
       ...(enabled !== undefined ? {enabled} : {}),
       kind: 'any',
       subject: 'self',
-      minimum: 0,
       operands: [first, empty()],
     });
     prune(f, inner);
@@ -196,7 +196,6 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
       ...(enabled !== undefined ? {enabled} : {}),
       kind: command.mode,
       subject: 'self',
-      minimum: 0,
       operands: [child],
     });
     return n;
@@ -207,7 +206,7 @@ export function editExpression(w: Workspace, owner: string, command: ExpressionC
     const id = insertExpression(
       f,
       command.expression ?? {
-        settings: {kind: command.group ? 'all' : 'alive', subject: 'self', minimum: 0},
+        settings: {kind: command.group ? 'all' : 'alive', subject: 'self'},
         children: [],
       }
     );
@@ -238,20 +237,4 @@ export function patchTest(w: Workspace, owner: string, id: string, patch: Partia
   if (!t) throw Error(tr('조건을 찾지 못했습니다.'));
   Object.assign(t, patch);
   return n;
-}
-export function expressionSummary(f: Tests, id: string): string {
-  const t = f.tests.find(t => t.id === id);
-  if (!t) return '';
-  const detail = extensionSummary(t as never);
-  if (detail) return (t.negate ? 'NOT · ' : '') + detail;
-  if (!['all', 'any'].includes(t.kind)) return (t.negate ? 'NOT · ' : '') + (conditionNames[t.kind] ?? t.kind);
-  const e = readExpression(f, id);
-  let count = 0;
-  const visit = (e: Expression) => {
-    if (e.settings.enabled === false) return;
-    if (e.children.length) e.children.forEach(visit);
-    else if (!['all', 'any'].includes(e.settings.kind)) count++;
-  };
-  visit(e);
-  return tr('{v0}{v1} · 조건 {count}개', {v0: t.negate ? 'NOT · ' : '', v1: conditionNames[t.kind] ?? t.kind, count});
 }

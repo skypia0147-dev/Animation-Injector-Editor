@@ -23,7 +23,7 @@ function sample(tests, guards = tests.map(t => t.id)) {
 test('Female NOT checkbox survives project and runtime XML without a separate editor node', needsChecker, () => {
   for (const subject of ['self', 'partner'])
     for (const negate of [true, false]) {
-      const w = sample([{id: 'Condition1', kind: 'female', subject, minimum: 0, ...(negate ? {negate: true} : {})}]);
+      const w = sample([{id: 'Condition1', kind: 'female', subject, ...(negate ? {negate: true} : {})}]);
       assert.deepEqual(
         validateWorkspace(w).filter(i => i.level === 'error'),
         []
@@ -48,17 +48,19 @@ test('NOT on a group keeps its operands and their own NOTs', () => {
         kind: 'any',
         negate: true,
         subject: 'self',
-        minimum: 0,
         operands: ['Condition2', 'Condition3'],
       },
-      {id: 'Condition2', kind: 'female', subject: 'partner', minimum: 0},
-      {id: 'Condition3', kind: 'air', negate: true, subject: 'self', minimum: 0},
+      {id: 'Condition2', kind: 'female', subject: 'partner'},
+      {id: 'Condition3', kind: 'air', option: 'any', negate: true, subject: 'self'},
     ],
     ['Condition1']
   );
   const xml = compileWorkspace(w);
   // Among AND conditions a group is an OR (runtime 0.12.301).
-  assert.match(xml, /<Or not="true">\s*<Check kind="female" subject="partner"\/>\s*<Check kind="air" not="true"\/>/);
+  assert.match(
+    xml,
+    /<Or not="true">\s*<Check kind="female" subject="partner"\/>\s*<Check kind="air" option="any" not="true"\/>/
+  );
   const again = importWorkspaceXml(xml);
   assert.deepEqual(again.cards[0].tests, w.cards[0].tests);
   assert.deepEqual(again.cards[0].guards, ['Condition1']);

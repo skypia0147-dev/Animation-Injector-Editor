@@ -36,9 +36,8 @@ export function actionFlow(g: ViewGraph, action: string, selected?: string, opti
   const byId = new Map(g.nodes.map(n => [n.id, n]));
   // A selecting action has no HKX card (graph/sharing.ts): its flow starts at its decision card.
   const decision = (n: ViewGraph['nodes'][number]) =>
-    n.id === `conditionTable:${action}` ||
-    (n.id.startsWith(`flow:${action}:`) &&
-      !g.edges.some(e => e.target === n.id && e.source.startsWith(`flow:${action}:`)));
+    n.id.startsWith(`flow:${action}:`) &&
+    !g.edges.some(e => e.target === n.id && e.source.startsWith(`flow:${action}:`));
   const seed =
     g.nodes.find(n => n.id === selected && n.kind === 'hkxPlay') ??
     g.nodes.find(n => n.action === action && n.kind === 'hkxPlay') ??
@@ -92,19 +91,6 @@ export function actionFlow(g: ViewGraph, action: string, selected?: string, opti
           queue.push(next);
         }
       }
-    }
-  }
-  // The other HKX this action's own conditions pick: neighbors too. A decision another action owns (a
-  // dispatch table) keeps its other candidates out.
-  for (const id of upstream) {
-    const node = byId.get(id)!;
-    if (!['conditionBranch', 'conditionTable'].includes(node.kind) || node.action !== action) continue;
-    for (const e of outgoing.get(id) ?? []) {
-      const n = byId.get(e.target);
-      if (n?.kind !== 'hkxPlay' || n.id === seed.id || (keep.has(n.id) && !neighbors.has(n.id))) continue;
-      keptEdges.add(e);
-      keep.add(n.id);
-      neighbors.add(n.id);
     }
   }
   // Remove transition inputs that lead nowhere shown (a blend of another action).

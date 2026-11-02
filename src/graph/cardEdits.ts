@@ -1,7 +1,13 @@
-import type {Workspace, Link} from '../workspace.ts';
+import type {Action, Workspace, Link} from '../workspace.ts';
+import {uid} from '../workspace.ts';
+import {mark} from '../model.ts';
+import {tr} from '../i18n/korean.ts';
+import {graphPosition} from './projection.ts';
+import {rootGraph} from './state.ts';
+import {vanillaCardId} from './vanilla.ts';
 import type {StartCard} from '../cards.ts';
 import type {GameControl} from '../keys.ts';
-import {dropBinding} from './flat.ts';
+import {addTransition, deleteFlat, dropBinding, readsKey} from './flat.ts';
 import {sourceWindow} from './clipWindows.ts';
 
 // What the start and transition cards' settings change (unify ⑨, CardDetails.tsx), as plain edits of the document:
@@ -68,7 +74,7 @@ export function setLinkKey(w: Workspace, id: string, key: string, gamepad: numbe
   // transition gets its own instead of changing theirs.
   const others = i
     ? n.sharedInputs.some(s => s.id === i!.id) ||
-      n.links.some(x => x !== link && x.from === a.uid && x.mode === 'input' && x.input === i!.id) ||
+      n.links.some(x => x !== link && x.from === a.uid && readsKey(x) && x.input === i!.id) ||
       a.pair?.carry?.input === i.id
     : false;
   if (!i || others) {
@@ -99,4 +105,53 @@ export function setLinkWindowScope(w: Workspace, id: string, own: boolean): Work
         : rest;
     }),
   };
+}
+
+// A vanilla transition and a transition card switched into each other (11-01, A7).
+type Cancel = Action['cancels'][number];
+/** A vanilla transition switched to another input: the same window on a transition card of that mode. */
+export function cancelToLink(w: Workspace, action: string, id: string, mode: Link['mode']): Workspace {
+  const a = w.actions.find(a => a.uid === action),
+    c = a?.cancels.find(c => c.id === id);
+  if (!a || !c) return w;
+  const at = graphPosition(w, rootGraph, vanillaCardId(action, id), {x: a.position.x + 420, y: a.position.y + 90});
+  const made = addTransition(
+    deleteFlat(w, vanillaCardId(action, id)),
+    action,
+    null,
+    at,
+    mode === 'input' ? 'input' : 'event'
+  );
+  const linkId = made.id.slice('transition:'.length);
+  let next = mode === 'input' || mode === 'event' ? made.workspace : setLinkMode(made.workspace, linkId, mode);
+  if (mode !== 'end')
+    next = {
+      ...next,
+      links: next.links.map(l =>
+        l.id === linkId ? {...l, window: !c.always, open: c.open, close: c.close, buffered: c.buffered} : l
+      ),
+    };
+  return next;
+}
+/** A transition card switched to 「바닐라 동작」: its window becomes the vanilla transition's (an ordinary action's). */
+export function linkToCancel(w: Workspace, link: string): Workspace {
+  const l = w.links.find(l => l.id === link),
+    a = l && w.actions.find(a => a.uid === l.from);
+  if (!l || !a) return w;
+  if (a.pair) throw Error(tr('페어의 종료/전환 기능을 사용하세요.'));
+  const next = deleteFlat(w, 'transition:' + link);
+  const id = uid(
+    'cancel',
+    a.cancels.map(c => c.id)
+  );
+  const c: Cancel = {
+    id,
+    to: 'vanilla:Attack',
+    open: l.window ? l.open : mark(0),
+    close: l.window ? l.close : mark(0, 'end'),
+    buffered: l.buffered,
+    blend: null,
+    ...(l.window ? {} : {always: true as const}),
+  };
+  return {...next, actions: next.actions.map(x => (x.uid === a.uid ? {...x, cancels: [...x.cancels, c]} : x))};
 }

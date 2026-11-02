@@ -203,7 +203,7 @@ export function plugins(w: Workspace): string[] {
   return [
     ...new Set(
       functions
-        .filter(e => ['spell', 'stateOn', 'stateOff', 'sound', 'globalSet'].includes(e.values.op))
+        .filter(e => ['magicAdd', 'magicRemove', 'magicCast', 'sound', 'globalSet'].includes(e.values.op))
         .map(e => e.values.plugin)
         .filter(Boolean)
     ),

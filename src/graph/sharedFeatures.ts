@@ -31,7 +31,7 @@ export function featureValue(w: Workspace, member: string): FeatureValue | undef
     return;
   }
   if (id === 'rotate' && a.config.rotationLocked) return {type: 'locked', key: 'rotate'};
-  if (['rotate', 'iframe', 'armor'].includes(id)) {
+  if (['rotate', 'iframe', 'armor', 'time'].includes(id)) {
     const key = id as SlotKey;
     return {type: 'slot', key, value: a.config.slots[key]};
   }
@@ -44,7 +44,7 @@ export function applyFeature(w: Workspace, member: string, v: FeatureValue) {
   if (v.type === 'locked') {
     if (!a.pair) a.config.rotationLocked = true;
   } else if (v.type === 'slot' && !a.pair) {
-    a.config.slots[v.key] = structuredClone(v.value);
+    Object.assign(a.config.slots, {[v.key]: structuredClone(v.value)});
     if (v.key === 'rotate') a.config.rotationLocked = false;
   } else if (v.type === 'cost' && !a.pair) a.config.cost = structuredClone(v.value);
   else if (v.type === 'recovery') setRecoveryRule(a.config, id, v.value);

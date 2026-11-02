@@ -103,7 +103,7 @@ test('actual C++ parser reads single, attack, events and slots outputs', needsCh
     s.until = mark(0.05, 'end');
   }
   events.recovery = {enabled: true, at: {...mark(0.8, 'event'), event: 'Recover', fallback: true}, blend: 0.2};
-  events.cost = {enabled: true, at: mark(0.1), stamina: 12, magicka: 3};
+  events.cost = {enabled: true, at: mark(0.1), stamina: 12, magicka: 3, health: 0, percent: false};
   cases.push(['all-slots', events]);
   for (const [name, p] of cases) {
     assert.equal(validate(p).filter(i => i.level === 'error').length, 0, name);

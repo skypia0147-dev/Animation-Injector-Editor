@@ -1,4 +1,5 @@
 import {recoveryRule, recoveryStep, isRecovery} from '../clipRecovery.ts';
+import {vanillaNames} from '../graph/vanilla.ts';
 import {sourceWindow, setSourceWindow} from '../graph/clipWindows.ts';
 import {clone, mark} from '../model.ts';
 import type {Mark} from '../model.ts';
@@ -22,17 +23,17 @@ export type Row = {
   effect?: Effect;
   group?: {on: Effect; off: Effect};
 };
-export const slots = ['rotate', 'iframe', 'armor'] as const;
+export const slots = ['rotate', 'iframe', 'armor', 'time'] as const;
 export const names: Record<string, string> = {
   rotate: 'notify.rotate',
   iframe: 'notify.iframe',
   armor: 'notify.hyperArmor',
-  cost: 'notify.staminaCost',
+  time: 'notify.timeScale',
+  cost: 'notify.resourceCost',
   recovery: 'notify.recovery',
   vanillaCancel: 'notify.vanillaCancel',
   hide: 'notify.weaponHide',
   show: 'notify.weaponShow',
-  spell: 'notify.spell',
   ragdoll: 'notify.ragdoll',
   strike: 'notify.strike',
   sound: 'notify.sound',
@@ -43,8 +44,6 @@ export const names: Record<string, string> = {
   timeOn: 'notify.timeScale',
   timeOff: 'timeline.restoreTime',
   stopVelocity: 'timeline.stopVelocity',
-  stateOn: 'notify.stateOn',
-  stateOff: 'notify.stateOff',
 };
 export const title = (kind: string) => {
   const base: Record<string, string> = {
@@ -62,6 +61,8 @@ export const title = (kind: string) => {
     (kind.endsWith('Off') && kind !== 'timeOff' ? ' · ' + t('timeline.endEffect') : '')
   );
 };
+/** A time scale window's row says its multiplier (docs/mockup-time-scale-range). */
+const timeLabel = (factor: number) => title('time') + ' ×' + Math.round(factor * 1000) / 1000;
 /** A function's target, as shown on timeline rows. */
 export const roleTitle = (role: string) => pairRoleLabels[role] ?? role;
 export function rows(w: Workspace, a: Action, step?: string): Row[] {
@@ -71,7 +72,7 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
     items.push({
       id: 'cancel:' + c.id,
       kind: 'vanillaCancel',
-      label: tr('바닐라 전환 · ') + c.to,
+      label: tr('바닐라 전환 · ') + (vanillaNames(c.to).join(', ') || tr('대상 없음')),
       from: c.open,
       until: c.close,
     });
@@ -96,9 +97,9 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
         l.mode === 'end'
           ? tr('끝나면')
           : l.mode === 'move'
-            ? tr('이동키를 누르면')
+            ? tr('이동 전환')
             : l.mode === 'release'
-              ? tr('키를 떼면')
+              ? tr('차지 종료')
               : l.mode === 'input'
                 ? (p.inputs.find(i => i.id === l.input)?.key ?? l.input)
                 : l.event,
@@ -114,7 +115,7 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
         items.push({
           id: 'pair:' + key,
           kind: key,
-          label: title(key),
+          label: key === 'time' ? timeLabel(s.factor) : title(key),
           from: s.from,
           until: key === 'cost' ? undefined : s.until,
           role: s.role,
@@ -158,7 +159,14 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
       const s = p.slots[key];
       if (key === 'rotate' && p.rotationLocked)
         items.push({id: key, kind: key, label: tr('회전 · 전 구간 금지'), from: mark(), until: mark(0, 'end')});
-      else if (s.enabled) items.push({id: key, kind: key, label: title(key), from: s.from, until: s.until});
+      else if (s.enabled)
+        items.push({
+          id: key,
+          kind: key,
+          label: key === 'time' ? timeLabel(p.slots.time.factor) : title(key),
+          from: s.from,
+          until: s.until,
+        });
     }
     if (p.cost.enabled) items.push({id: 'cost', kind: 'cost', label: title('cost'), from: p.cost.at});
     // Clip-time functions on the actor playing it (runtime 0.12.274).
@@ -382,6 +390,7 @@ export function duplicate(w: Workspace, action: string, id: string, time: number
       rotate: ['rotateOn', 'rotateOff'],
       iframe: ['iframeOn', 'iframeOff'],
       armor: ['armorOn', 'armorOff'],
+      time: ['timeOn', 'timeOff'],
       cost: ['cost'],
     };
     const length =
@@ -397,7 +406,17 @@ export function duplicate(w: Workspace, action: string, id: string, time: number
               values: {
                 op,
                 ...(s.role !== 'both' ? {target: s.role} : {}),
-                ...(r.kind === 'cost' ? {stamina: String(s.stamina), magicka: String(s.magicka)} : {}),
+                ...(r.kind === 'cost'
+                  ? {
+                      stamina: String(s.stamina),
+                      magicka: String(s.magicka),
+                      health: String(s.health),
+                      ...('percent' in s && s.percent ? {measure: 'percent'} : {}),
+                    }
+                  : {}),
+                ...(r.kind === 'time' && op === 'timeOn'
+                  ? {factor: String(s.factor), ...(s.ease ? {ease: String(s.ease)} : {})}
+                  : {}),
               },
             }) as Effect
         );

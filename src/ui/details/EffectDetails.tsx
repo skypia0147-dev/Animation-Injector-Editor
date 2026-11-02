@@ -10,12 +10,18 @@ import {
   settingDefault,
   settingLabels,
   settingRange,
+  isSpan,
+  windowOns,
+  spanRange,
   isBooleanSetting,
   ragdollDirections,
   ragdollForce,
   ragdollLabels,
   soundBones,
   textSettings,
+  isMagic,
+  magicActions,
+  magicOps,
   type EventOp,
 } from '../../eventRegistry.ts';
 import type {LabelId} from '../../labels.ts';
@@ -117,6 +123,19 @@ export function EffectDetails({
           options={soundBones()}
         />
       );
+    // A cost's unit (runtime 10-31): the values as written, or percent of each maximum.
+    if (key === 'measure')
+      return (
+        <DetailRow key={key} label={settingLabels.measure}>
+          <select
+            value={v.measure === 'percent' ? 'percent' : 'value'}
+            onChange={e => set('measure', e.target.value === 'percent' ? 'percent' : undefined)}
+          >
+            <option value="value">{tr('수치')}</option>
+            <option value="percent">{tr('최대치의 %')}</option>
+          </select>
+        </DetailRow>
+      );
     if (key === 'restore')
       return (
         <DetailRow key={key} label={settingLabels.restore}>
@@ -160,6 +179,20 @@ export function EffectDetails({
         />
       );
     }
+    // A window's span is a registered function's (runtime 11-02): 0 is none.
+    if (isSpan(v.op, key))
+      return registry ? (
+        <Prop
+          key={key}
+          id={id}
+          label={tr('지속 시간(초)')}
+          value={Number(v[key] ?? 0)}
+          initial={0}
+          min={spanRange[0]}
+          max={spanRange[1]}
+          change={value => set(key, value ? String(value) : undefined)}
+        />
+      ) : null;
     const [min, max] = settingRange(key) ?? [0, 600],
       def = Number(settingDefault[key] ?? 0);
     return (
@@ -175,7 +208,10 @@ export function EffectDetails({
       />
     );
   };
-  const fields = valuesOnly ? valueFields(v.op) : fieldsOf(v.op);
+  // A window's span is a registered function's own (runtime 11-02).
+  const fields = valuesOnly
+    ? valueFields(v.op)
+    : [...fieldsOf(v.op), ...(registry && windowOns.includes(v.op) ? ['duration'] : [])];
   return (
     <>
       {!timeline && (
@@ -185,7 +221,10 @@ export function EffectDetails({
             label={tr('기능')}
             value={v.op}
             change={op => set('op', op)}
-            options={(registry ? eventOps : operations).map(op => [op, opInfo[op].label])}
+            options={(registry ? eventOps : operations)
+              // The magic function is one choice; its action is below (11-01).
+              .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))
+              .map(op => [op, isMagic(op) ? tr('마법 효과') : opInfo[op].label])}
           />
           {!registry && (
             <DetailRow label={t('time.afterStart')} hint={t('detail.effectTimeHint')}>
@@ -213,21 +252,22 @@ export function EffectDetails({
           options={pairRoles.map(x => [x, pairRoleLabels[x]])}
         />
       )}
+      {isMagic(v.op) && !valuesOnly && (
+        <DetailRow label={tr('동작')}>
+          <span className="moment-seg" role="group" aria-label={tr('동작')}>
+            {magicActions().map(([op, label]) => (
+              <button key={op} type="button" aria-pressed={v.op === op} onClick={() => v.op !== op && set('op', op)}>
+                {label}
+              </button>
+            ))}
+          </span>
+        </DetailRow>
+      )}
       {v.op === 'strike' ? (
         // Whom and how are the registry's, the numbers a node's (runtime 0.12.281); a clip-time strike holds both.
         <StrikeFields values={v} set={set} setMany={setMany} kinds={!valuesOnly} numbers={!registry} />
       ) : (
         fields.filter(k => !advanced.includes(k)).map(field)
-      )}
-      {info?.lasting && (
-        <p
-          className="effect-note"
-          title={tr('짝 기능 "{pair}", 이 동작의 종료, 사망·래그돌·불러오기 때 해제됩니다.', {
-            pair: opInfo[info.lasting].label,
-          })}
-        >
-          {tr('해제: {pair} · 동작 끝', {pair: opInfo[info.lasting].label})}
-        </p>
       )}
       {/* 지연 is one field: a row like the others, not a folded 고급 (docs/mockup-layout-audit ⑪). A function that
           has none (활 발사, runtime 0.12.303) shows none. */}

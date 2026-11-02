@@ -30,9 +30,13 @@ test('every offered node action creates a connected node without mutating the so
 test("both playbacks offer clip-time functions; pair-only ones stay a pair's (runtime 0.12.274)", () => {
   const w = s4sample(),
     get = a => flatGraph(w).nodes.find(n => n.action === a.uid && n.kind === 'hkxPlay').id;
-  assert.ok(contextualAdds(w, get(w.actions[0])).some(o => o.kind === 'notify:spell'));
+  assert.ok(contextualAdds(w, get(w.actions[0])).some(o => o.kind === 'notify:magicAdd'));
   const ordinary = contextualAdds(w, get(w.actions[2])).map(o => o.kind);
-  for (const op of ['spell', 'shake', 'hide', 'timeOn']) assert.ok(ordinary.includes('notify:' + op), op);
+  for (const op of ['magicAdd', 'shake', 'hide', 'time']) assert.ok(ordinary.includes('notify:' + op), op);
+  // The time scale is a window (11-01), not a pair of clip-time functions.
+  for (const op of ['timeOn', 'timeOff']) assert.ok(!ordinary.includes('notify:' + op), op);
+  // The magic function is one item (11-01).
+  for (const op of ['magicCast', 'magicRemove']) assert.ok(!ordinary.includes('notify:' + op), op);
   for (const op of ['cancel']) assert.ok(!ordinary.includes('notify:' + op), op);
   assert.deepEqual(contextualAdds(w, 'missing'), []);
 });

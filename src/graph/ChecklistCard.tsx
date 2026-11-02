@@ -29,7 +29,7 @@ import './checklist.css';
 import './registry.css';
 import {useClipAnnotations, clipKey, sentEvent, roleLabel} from './annotations.ts';
 import {functionSummary, eventKey, addEventRow, ownUseLabels, vanillaName, playerOnlyHint} from '../eventRegistry.ts';
-import {commandSummary} from '../annotationCommands.ts';
+import {commandSummary, commandUsage} from '../annotationCommands.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
 import {MomentFields, useHkxMoments, RegistryMomentRow, CommandMomentRow, useClipLength} from './MomentFields.tsx';
 import {byPlace, itemPlace, type Place} from './momentOrder.ts';
@@ -39,7 +39,7 @@ import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
 import {stepSource, actionView, projectView, setActionView, firstPersonStart, setFirstPersonStart} from '../view.ts';
 import {timingLabel} from '../model.ts';
-import {playbackState, resetAttack, resetDetection, resetExit} from './playbackSettings.ts';
+import {playbackState, resetAir, resetAttack, resetDetection, resetExit} from './playbackSettings.ts';
 import {exitSummary} from '../ui/details/inspectorModel.ts';
 import {sourceWindow} from './clipWindows.ts';
 import {t} from '../i18n/index.ts';
@@ -137,7 +137,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       : (model.raw.nodes.find(n => n.action === node.action && n.kind === 'hkxPlay')?.id ?? node.id);
   const options = action ? contextualAdds(w, settingsTarget, model.raw) : [];
   const internal = options.filter(o => {
-    if (['keyInput', 'markerReceive', 'playNode', 'conditionBranch', 'qte'].includes(o.kind)) return false;
+    if (['keyInput', 'markerReceive', 'playNode', 'qte'].includes(o.kind)) return false;
     if (!action?.pair && o.kind.startsWith('notify:')) {
       const kind = o.kind.slice(7);
       // A clip-time function may come several times (0.12.274); a slot is the action's once.
@@ -147,8 +147,9 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       )
         return false;
     }
-    // The blends are playback settings (「＋ 설정」, unify ⑩), not features.
-    if (o.kind === 'blend') return false;
+    // The blends are playback settings (「＋ 설정」, unify ⑩), not features; a condition card in front changes the graph,
+    // not this HKX (the card's right-click menu has it).
+    if (o.kind === 'blend' || (o.kind === 'conditionCard' && o.entry)) return false;
     return true;
   });
   // 「모두 펼치기 · 모두 접기」 from the card's right-click menu (FlatGraph): every list and item of this card.
@@ -167,8 +168,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
     kind === 'cameraRestore' ||
     kind === 'carryRelease' ||
     kind === 'carryFix' ||
-    (kind.startsWith('notify:') &&
-      !['rotate', 'iframe', 'armor', 'cost', 'recovery', 'vanillaCancel'].includes(kind.slice(7)));
+    (kind.startsWith('notify:') && !['rotate', 'iframe', 'armor', 'time', 'vanillaCancel'].includes(kind.slice(7)));
   // The playback settings (docs/mockup unify ⑩, 10-27): a chip for each that differs from its default, opening in
   // place to its fields; the rest from 「＋ 설정」. A category of the Details (StateDetails) opens alone (OnlySection).
   const only =
@@ -240,6 +240,14 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         fields: () => <ViewFields w={w} action={a} edit={edit} row={only('firstPerson')} />,
       },
       {
+        id: 'air',
+        label: tr('공중'),
+        value: airChoices().find(([v]) => v === p.air)?.[1] ?? '',
+        ...state.air,
+        reset: () => edit(w => resetAir(w, a.uid)),
+        fields: () => <AirRule action={a} edit={edit} />,
+      },
+      {
         id: 'detection',
         label: tr('입력 감지'),
         value: timingLabel(window.open) + ' → ' + timingLabel(window.close),
@@ -272,8 +280,8 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
   const addMenu = () => (
     <AddItemMenu
       groups={[
-        {title: tr('재생 전체'), options: internal.filter(o => !eventOption(o.kind))},
-        {title: tr('특정 순간 ⏱'), options: internal.filter(o => eventOption(o.kind))},
+        {title: tr('특정 구간'), options: internal.filter(o => !eventOption(o.kind))},
+        {title: tr('특정 순간'), options: internal.filter(o => eventOption(o.kind))},
       ]}
       label={tr('기능')}
       add={option => attempt(() => edit(w => addConnected(w, settingsTarget, option, node.position).workspace))}
@@ -629,9 +637,7 @@ function ChecklistRow({
         <div className="checklist-fields">
           <NestedDetailPanel.Provider value={true}>
             <ItemTitle.Provider value={title}>
-              {n.kind === 'stateCondition' && a ? (
-                <AirRule action={a} edit={edit} />
-              ) : n.kind === 'loopRule' && a ? (
+              {n.kind === 'loopRule' && a ? (
                 <LoopRule action={a} edit={edit} />
               ) : item.category === 'event' || n.notify ? (
                 // Moments and timed features alike: 시점 [클립 | 이벤트] first (docs/mockup-moment-timing).
@@ -670,19 +676,19 @@ function ChecklistRow({
   );
 }
 
-/** The 「공중」 item: where the HKX may start. It is an item only while the air is allowed (graph/flat.ts); deleting it
- *  makes the HKX ground only. Its start graph has no nodes for GraphDetails to show, so it edits here. */
+const airChoices = () =>
+  [
+    ['deny', tr('지상만')],
+    ['allow', tr('공중도')],
+    ['only', tr('공중만')],
+  ] as const;
+/** The 「공중」 playback setting (11-01, from 「+ 설정」): where the HKX may start; the ground only is the default. */
 function AirRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => Workspace) => void}) {
   const air = action.config.air;
   return (
     <DetailRow label={tr('시작 위치')}>
       <div className="qte-seg" role="group" aria-label={tr('시작 위치')}>
-        {(
-          [
-            ['allow', tr('땅·공중')],
-            ['only', tr('공중에서만')],
-          ] as const
-        ).map(([value, name]) => (
+        {airChoices().map(([value, name]) => (
           <button
             key={value}
             type="button"
@@ -706,7 +712,7 @@ function LoopRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => 
     <DetailRow
       label={tr('최대 유지(초)')}
       hint={tr(
-        '이 시간이 지나면 키를 뗀 것으로 봅니다(키를 떼면 전환이 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.'
+        '이 시간이 지나면 키를 뗀 것으로 봅니다(차지 종료가 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.'
       )}
     >
       <NumberInput
@@ -834,7 +840,7 @@ function HkxEvents({
           <HelpTip
             label={tr('이벤트 · HKX 주석')}
             help={tr(
-              '이 HKX가 보내는 이벤트를 HKX 주석에서 읽어 보여 줍니다(읽기 전용). 데스크톱 앱에서 HKX 원본 파일을 연결하면 보입니다. 이벤트 기능은 이벤트 등록에서 편집합니다. 주석 AI.CamShake|세기|시간은 등록 없이 그 시점에 카메라를 흔듭니다.'
+              '이 HKX가 보내는 이벤트를 HKX 주석에서 읽어 보여 줍니다(읽기 전용). 데스크톱 앱에서 HKX 원본 파일을 연결하면 보입니다. 이벤트 기능은 이벤트 등록에서 편집합니다. 주석 AI.명령|값은 등록 없이 그 시점에 실행됩니다.'
             )}
           >
             <span className="help-tip-label">{tr('이벤트')}</span>
@@ -866,7 +872,7 @@ function HkxEvents({
             if (e.command) {
               const summary = commandSummary(e.values);
               return (
-                <div key={i} className="hkx-event">
+                <div key={i} className="hkx-event copyable nodrag nopan">
                   <span className="hkx-event-time">{e.time.toFixed(2)}</span>
                   <div className="hkx-event-body">
                     {title}
@@ -876,7 +882,11 @@ function HkxEvents({
                       </div>
                     ) : (
                       <div className="hkx-event-state warn">
-                        {tr('알 수 없는 주석 명령 · AI.CamShake|세기|시간 형식만 실행됩니다')}
+                        {commandUsage(e.values)
+                          ? tr('알 수 없는 주석 명령 · {usage} 형식으로 값을 모두 적어야 합니다', {
+                              usage: commandUsage(e.values)!,
+                            })
+                          : tr('알 수 없는 주석 명령')}
                       </div>
                     )}
                   </div>
@@ -886,7 +896,7 @@ function HkxEvents({
             // "name|value" makes the whole text the event name, which no registry may hold: never sent.
             if (e.values)
               return (
-                <div key={i} className="hkx-event unregistered">
+                <div key={i} className="hkx-event unregistered copyable nodrag nopan">
                   <span className="hkx-event-time">{e.time.toFixed(2)}</span>
                   <div className="hkx-event-body">
                     {title}
@@ -899,7 +909,7 @@ function HkxEvents({
             // The game itself handles vanilla behavior and SoundPlay events: nothing to register here.
             if (!entry && vanillaName(e.name))
               return (
-                <div key={i} className="hkx-event unregistered">
+                <div key={i} className="hkx-event unregistered copyable nodrag nopan">
                   <span className="hkx-event-time">{e.time.toFixed(2)}</span>
                   <div className="hkx-event-body">
                     {title}
@@ -909,7 +919,7 @@ function HkxEvents({
               );
             if (!entry)
               return (
-                <div key={i} className="hkx-event unregistered">
+                <div key={i} className="hkx-event unregistered copyable nodrag nopan">
                   <span className="hkx-event-time">{e.time.toFixed(2)}</span>
                   <div className="hkx-event-body">
                     {title}
@@ -932,7 +942,7 @@ function HkxEvents({
             return (
               <div
                 key={i}
-                className="hkx-event"
+                className="hkx-event copyable nodrag nopan"
                 title={tr('이벤트 등록 카드에서 이 이벤트 보기')}
                 onClick={ev => {
                   ev.stopPropagation();

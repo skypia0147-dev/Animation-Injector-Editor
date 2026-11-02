@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react';
+import {VanillaTargets} from '../graph/vanillaTransition.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {isRecovery, recoveryRule, setRecoveryRule} from '../clipRecovery.ts';
 import type {Workspace, Action} from '../workspace.ts';
@@ -15,6 +16,47 @@ import {TimeField} from '../ui/details/TimeField.tsx';
 import {EffectDetails} from '../ui/details/EffectDetails.tsx';
 import {t} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
+/** A time scale window's multiplier and its ease (11-01): the card's item and the pair's track alike. */
+function TimeScaleFields({
+  value,
+  change,
+}: {
+  value: {factor: number; ease: number};
+  change: (v: {factor?: number; ease?: number}) => void;
+}) {
+  return (
+    <>
+      <DetailRow
+        label={tr('배율')}
+        hint={tr('0.05~5. 1이 평소 속도, 0.5면 절반 속도입니다. 플레이어가 재생할 때만 바뀝니다.')}
+      >
+        <NumberInput
+          aria-label={tr('시간 배율')}
+          min="0.05"
+          max="5"
+          step="0.05"
+          value={value.factor}
+          change={factor => change({factor: Math.min(5, Math.max(0.05, factor))})}
+        />
+      </DetailRow>
+      <DetailRow
+        label={tr('전환 시간(초)')}
+        hint={tr(
+          '구간 시작에서 배율까지, 구간 끝에서 평소 속도까지 바뀌는 데 걸리는 실제 초입니다. 0이면 한 번에 바뀝니다.'
+        )}
+      >
+        <NumberInput
+          aria-label={tr('전환 시간')}
+          min="0"
+          max="2"
+          step="0.05"
+          value={value.ease}
+          change={ease => change({ease: Math.min(2, Math.max(0, ease))})}
+        />
+      </DetailRow>
+    </>
+  );
+}
 export function NotifyDetails({
   w,
   action,
@@ -102,9 +144,7 @@ export function NotifyDetails({
             change({...action, cancels: action.cancels.map(x => (x.id === c.id ? {...x, ...values} : x))});
           return (
             <>
-              <DetailRow label={tr('전환 대상')}>
-                <input aria-label={tr('전환 대상')} value={c.to} onChange={e => update({to: e.target.value})} />
-              </DetailRow>
+              <VanillaTargets to={c.to} change={to => update({to})} />
               <DetailRow
                 label="ID"
                 hint={tr(
@@ -258,15 +298,36 @@ export function NotifyDetails({
           />
         </>
       )}
+      {row.kind === 'time' && !row.effect && !row.group && (
+        <TimeScaleFields
+          value={pt ?? p.slots.time}
+          change={v =>
+            pt ? pp(v) : change({...action, config: {...p, slots: {...p.slots, time: {...p.slots.time, ...v}}}})
+          }
+        />
+      )}
+      {row.kind === 'cost' && !row.effect && !pt && (
+        <DetailRow label={tr('단위')} hint={tr('수치: 적은 값 그대로. 최대치의 %: 각 자원 최대치의 퍼센트(0~100).')}>
+          <select
+            value={p.cost.percent ? 'percent' : 'value'}
+            onChange={e =>
+              change({...action, config: {...p, cost: {...p.cost, percent: e.target.value === 'percent'}}})
+            }
+          >
+            <option value="value">{tr('수치')}</option>
+            <option value="percent">{tr('최대치의 %')}</option>
+          </select>
+        </DetailRow>
+      )}
       {row.kind === 'cost' &&
         !row.effect &&
-        (['stamina', 'magicka'] as const).map(k => (
+        (['stamina', 'magicka', 'health'] as const).map(k => (
           <Prop
             key={k}
             id={k}
-            value={pt?.[k] ?? p.cost[k]}
+            value={pt?.[k] ?? p.cost[k] ?? 0}
             min={0}
-            max={100000}
+            max={!pt && p.cost.percent ? 100 : 100000}
             change={v => (pt ? pp({[k]: v}) : change({...action, config: {...p, cost: {...p.cost, [k]: v}}}))}
           />
         ))}

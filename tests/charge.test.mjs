@@ -8,6 +8,7 @@ import {cardIssues} from '../src/cardChecks.ts';
 import {setLinkMode, setReleaseKey} from '../src/graph/cardEdits.ts';
 import {addConnected, contextualAdds} from '../src/graph/contextAdd.ts';
 import {flatGraph} from '../src/graph/flat.ts';
+import {costToEvent} from '../src/graph/hkxMoments.ts';
 import {checker, needsChecker} from './local.mjs';
 
 // Charge (runtime 10-30): a held start, a clip that ends into a loop, the key's release choosing by held time.
@@ -87,8 +88,13 @@ test('the editor keeps a charge within what the runtime takes', () => {
   const kinds = id => contextualAdds(w, card(id), graph).map(o => o.kind);
   assert.ok(!kinds(loop.uid).includes('transitionEnd') && !kinds(loop.uid).includes('loopRule'));
   assert.ok(!kinds(start.uid).includes('transitionEnd') && kinds(start.uid).includes('loopRule'));
+  // A charge end and a move transition only in a charge (runtime 10-31): the held start's HKX and its loop, not the
+  // attack after the charge ended.
+  for (const a of [start, loop])
+    assert.ok(kinds(a.uid).includes('transitionRelease') && kinds(a.uid).includes('transitionMove'));
   const strong = w.actions.find(a => a.config.actionId === 'Strong');
-  assert.ok(kinds(strong.uid).includes('transitionEnd') && kinds(strong.uid).includes('transitionRelease'));
+  assert.ok(kinds(strong.uid).includes('transitionEnd'));
+  assert.ok(!kinds(strong.uid).includes('transitionRelease') && !kinds(strong.uid).includes('transitionMove'));
   const added = addConnected(w, card(strong.uid), {label: '', kind: 'transitionEnd'}, {x: 0, y: 0});
   assert.equal(added.workspace.links.at(-1).mode, 'end');
 });
@@ -140,7 +146,7 @@ test('a moving charge reads in, writes back, and its loops share one move and on
     ['release', 3],
   ]);
   const g = flatGraph(w);
-  assert.ok(g.nodes.some(n => n.kind === 'transition' && n.title === '전환 · 이동키를 누르면'));
+  assert.ok(g.nodes.some(n => n.kind === 'transition' && n.title === '전환 · 이동 전환'));
   mkdirSync('tests/generated/charge', {recursive: true});
   writeFileSync('tests/generated/charge/Moving.xml', xml);
   execFileSync(checker, ['tests/generated/charge/Moving.xml']);
@@ -167,6 +173,11 @@ const DASH = `<?xml version="1.0" encoding="utf-8"?>
 test('on="move" keeps its buffer setting through the editor', needsChecker, () => {
   const w = importWorkspaceXml(DASH);
   assert.deepEqual(errors(w), []);
+  // A pressed start is no charge: its HKX offers no move transition or charge end.
+  const graph = flatGraph(w);
+  const dash = w.actions.find(a => a.config.actionId === 'DashF');
+  const offered = contextualAdds(w, graph.nodes.find(n => n.kind === 'hkxPlay' && n.action === dash.uid).id, graph);
+  assert.ok(!offered.some(o => o.kind === 'transitionMove' || o.kind === 'transitionRelease'));
   const xml = compileWorkspace(w);
   assert.match(xml, /<Transition condition="DashDir" on="move" from="0\.5" buffer="false"\/>/);
   assert.equal((xml.match(/on="move"/g) ?? []).length, 2);
@@ -174,4 +185,58 @@ test('on="move" keeps its buffer setting through the editor', needsChecker, () =
   mkdirSync('tests/generated/charge', {recursive: true});
   writeFileSync('tests/generated/charge/Dash.xml', xml);
   execFileSync(checker, ['tests/generated/charge/Dash.xml']);
+});
+
+// A resource cost (10-31): health beside stamina and magicka, through the editor and the runtime checker.
+test('a cost of stamina, magicka and health reads in and writes back', needsChecker, () => {
+  const xml = `<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="6" id="Cost">
+  <Start key="G" to="Pay"/>
+  <Action id="Pay" clip="Animations/Cost/Pay.hkx">
+    <Cost stamina="10" magicka="5" health="15"/>
+  </Action>
+</AnimationSet>
+`;
+  const w = importWorkspaceXml(xml);
+  assert.deepEqual(errors(w), []);
+  assert.equal(w.actions[0].config.cost.health, 15);
+  const out = compileWorkspace(w);
+  assert.match(out, /<Cost stamina="10" magicka="5" health="15"\/>/);
+  mkdirSync('tests/generated/charge', {recursive: true});
+  writeFileSync('tests/generated/charge/Cost.xml', out);
+  execFileSync(checker, ['tests/generated/charge/Cost.xml']);
+});
+
+// A cost in percent of each maximum (10-31): the action's Cost and a registered cost, through the runtime checker.
+test('a percent cost reads in and writes back, on the clip and in the registry', needsChecker, () => {
+  const xml = `<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="6" id="Percent">
+  <Start key="G" to="Pay"/>
+  <Action id="Pay" clip="Animations/Cost/Pay.hkx">
+    <Cost stamina="25" health="10" measure="percent"/>
+  </Action>
+</AnimationSet>
+`;
+  const w = importWorkspaceXml(xml);
+  assert.deepEqual(errors(w), []);
+  assert.equal(w.actions[0].config.cost.percent, true);
+  const out = compileWorkspace(w);
+  assert.match(out, /<Cost stamina="25" health="10" measure="percent"\/>/);
+  assert.equal(compileWorkspace(importWorkspaceXml(out)), out);
+  writeFileSync('tests/generated/charge/Percent.xml', out);
+  execFileSync(checker, ['tests/generated/charge/Percent.xml']);
+  // Moved to an event, the unit goes to the registry and the amounts stay this action's numbers.
+  const moved = costToEvent(w, w.actions[0].uid, 'PayNow');
+  const fn = moved.eventRegistry.find(r => r.name === 'PayNow').functions[0];
+  assert.deepEqual(fn.values, {op: 'cost', measure: 'percent'});
+  const movedXml = compileWorkspace(moved);
+  assert.match(movedXml, /<Do op="cost" measure="percent"\/>/);
+  writeFileSync('tests/generated/charge/PercentEvent.xml', movedXml);
+  execFileSync(checker, ['tests/generated/charge/PercentEvent.xml']);
+  // Above 100 percent is refused; the same amount as a value is not.
+  const over = structuredClone(w);
+  over.actions[0].config.cost.stamina = 150;
+  assert.ok(errors(over).length > 0);
+  over.actions[0].config.cost.percent = false;
+  assert.deepEqual(errors(over), []);
 });

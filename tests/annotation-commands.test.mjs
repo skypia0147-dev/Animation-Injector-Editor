@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
-import {parseCommand, commandSummary} from '../src/annotationCommands.ts';
+import {parseCommand, commandSummary, commandUsage} from '../src/annotationCommands.ts';
 import {sentEvent} from '../src/graph/annotations.ts';
 import {emptyWorkspace, addAction, parseWorkspace, compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
@@ -16,8 +16,8 @@ const folder = 'tests/generated/annotation-commands';
 fs.mkdirSync(folder, {recursive: true});
 
 test('AI.CamShake parses like the runtime: every number written (0.12.275)', () => {
-  assert.deepEqual(parseCommand('CamShake|1.5|0.5'), {command: 'CamShake', strength: 1.5, duration: 0.5});
-  assert.deepEqual(parseCommand('camshake|2|1'), {command: 'CamShake', strength: 2, duration: 1});
+  assert.deepEqual(parseCommand('CamShake|1.5|0.5'), {op: 'shake', strength: '1.5', duration: '0.5'});
+  assert.deepEqual(parseCommand('camshake|2|1'), {op: 'shake', strength: '2', duration: '1'});
   assert.ok(parseCommand('CamShake|0|0') && parseCommand('CamShake|10|30'));
   for (const bad of [
     '',
@@ -41,6 +41,50 @@ test('AI.CamShake parses like the runtime: every number written (0.12.275)', () 
   assert.match(commandSummary('CamShake|1.5|0.5'), /1\.5/);
 });
 
+test('every event function but a strike is an AI. command, a window with an optional span (runtime 11-02)', () => {
+  assert.deepEqual(parseCommand('IFrameOn'), {op: 'iframeOn'});
+  assert.deepEqual(parseCommand('iframeon|0.3'), {op: 'iframeOn', duration: '0.3'}, 'a span is the duration');
+  assert.deepEqual(parseCommand('ArmorOn|0'), {op: 'armorOn'}, 'a zero span is none');
+  assert.deepEqual(parseCommand('TimeOn|0.3|0.15|1.5'), {op: 'timeOn', factor: '0.3', ease: '0.15', duration: '1.5'});
+  assert.deepEqual(parseCommand('MagicAdd|Skyrim.esm|0x12FCD'), {op: 'magicAdd', plugin: 'Skyrim.esm', form: '12FCD'});
+  assert.deepEqual(parseCommand('CostPercent|10|0|0'), {
+    op: 'cost',
+    measure: 'percent',
+    stamina: '10',
+    magicka: '0',
+    health: '0',
+  });
+  assert.deepEqual(parseCommand('Ragdoll|backward|8'), {op: 'ragdoll', direction: 'backward', force: '8'});
+  assert.deepEqual(parseCommand('SoundForm|a.esp|3C|root|1'), {
+    op: 'sound',
+    plugin: 'a.esp',
+    form: '3C',
+    bone: 'root',
+    volume: '1',
+  });
+  assert.deepEqual(parseCommand('ModEvent|MyDodge||1'), {op: 'modEvent', name: 'MyDodge', text: '', number: '1'});
+  assert.deepEqual(parseCommand('CancelPair'), {op: 'cancel'});
+  for (const bad of [
+    'IFrameOn|61',
+    'IFrameOn|1|1',
+    'IFrameOff|1',
+    'TimeOn|0.3',
+    'TimeOn|1|0|61',
+    'MagicAdd|a/b.esp|800',
+    'CostPercent|101|0|0',
+    'Ragdoll|sideways|1',
+    'FireArrow|0',
+    'Sound|C:\\a.wav|head|1',
+    'Sound|a.wav|Head|1',
+    'ModEvent||t|1',
+    'Strike',
+  ])
+    assert.equal(parseCommand(bad), undefined, bad);
+  assert.equal(commandUsage('TimeOn|0.3'), 'AI.TimeOn|배율|전환 시간(초)[|지속 시간(초)]');
+  assert.equal(commandUsage('Strike'), undefined, 'no command: no usage');
+  assert.match(commandSummary('IFrameOn|0.6'), /0\.6초 동안/);
+});
+
 test('an "AI." annotation is a command, in a pair clip too; "name|value" is not a registered name', () => {
   assert.deepEqual(sentEvent('AI.CamShake|1.5|0.5', false), {
     name: 'AI',
@@ -53,6 +97,28 @@ test('an "AI." annotation is a command, in a pair clip too; "name|value" is not 
   assert.equal(sentEvent('Grapple_CamShake|1.5|0.5', false).command, undefined);
 });
 
+test("a registered window's span is the registry's duration, 0~60 seconds (runtime 11-02)", needsChecker, () => {
+  let w = emptyWorkspace();
+  w.actions.push(addAction(w, 'single'));
+  w.actions[0].config.steps[0].clip = 'Animations\\Mod\\Dodge.hkx';
+  w = setFunctions(w, 'Ghost', [{id: 'fn1', values: {op: 'iframeOn', duration: '0.3'}}]);
+  w = setFunctions(w, 'Slow', [{id: 'fn1', values: {op: 'timeOn', duration: '0'}}]);
+  assert.equal(validateWorkspace(w).filter(i => i.level === 'error').length, 0);
+  const xml = compileWorkspace(w);
+  assert.match(xml, /<Do op="iframeOn" duration="0\.3"\/>/);
+  assert.match(xml, /<Do op="timeOn"\/>/, 'no span: no duration');
+  fs.writeFileSync(`${folder}/span.xml`, xml);
+  const r = spawnSync(checker, [`${folder}/span.xml`], {encoding: 'utf8'});
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const back = importWorkspaceXml(xml);
+  assert.equal(back.eventRegistry.find(e => e.name === 'Ghost').functions[0].values.duration, '0.3');
+  w = setFunctions(w, 'Ghost', [{id: 'fn1', values: {op: 'iframeOn', duration: '61'}}]);
+  assert.ok(
+    validateWorkspace(w).some(i => i.level === 'error'),
+    'at most 60 seconds'
+  );
+});
+
 test('an ordinary action keeps clip-time functions on its own actor (runtime 0.12.274)', needsChecker, () => {
   let w = emptyWorkspace();
   w.actions.push(addAction(w, 'single'));
@@ -61,13 +127,13 @@ test('an ordinary action keeps clip-time functions on its own actor (runtime 0.1
   let r = add(w, a.uid, 'shake', 0.4);
   w = r.workspace;
   const shake = r.id;
-  w = add(w, a.uid, 'spell', 0.4).workspace;
+  w = add(w, a.uid, 'magicCast', 0.4).workspace;
   const effects = w.actions[0].config.effects;
   assert.deepEqual(
     effects.map(e => e.values),
     [
       {op: 'shake', at: '0.4'},
-      {op: 'spell', at: '0.4'},
+      {op: 'magicCast', at: '0.4'},
     ]
   );
   effects[1].values.plugin = 'My.esp';
@@ -79,7 +145,7 @@ test('an ordinary action keeps clip-time functions on its own actor (runtime 0.1
   const xml = compileWorkspace(w);
   assert.match(
     xml,
-    /<Do at="0.4" op="shake" strength="1.5"\/>\s*<Do at="0.4" op="spell" plugin="My.esp" form="801"\/>/
+    /<Do at="0.4" op="shake" strength="1.5"\/>\s*<Do at="0.4" op="magic" action="cast" plugin="My.esp" form="801"\/>/
   );
   fs.writeFileSync(folder + '/ordinary.xml', xml);
   const check = spawnSync(checker, [folder + '/ordinary.xml'], {encoding: 'utf8'});
@@ -103,7 +169,7 @@ const pairWorkspace = () => {
   let w = emptyWorkspace();
   w.actions.push(addAction(w, 'pair'));
   w.actions[0].config.steps[0].clip = 'Animations\\Mod\\Slam.hkx';
-  w = setFunctions(w, 'Grapple_Stom', [{id: 'fn1', values: {op: 'spell', plugin: 'FH_Grapple.esp', form: '808'}}]);
+  w = setFunctions(w, 'Grapple_Stom', [{id: 'fn1', values: {op: 'magicCast', plugin: 'FH_Grapple.esp', form: '808'}}]);
   return w;
 };
 test('an HKX card lists the registered functions its clip sends and its AI. commands (10-23)', () => {
@@ -118,18 +184,37 @@ test('an HKX card lists the registered functions its clip sends and its AI. comm
   ]);
   assert.deepEqual(
     moments.registry.map(r => [r.event, r.fn.values.op, r.sent.times]),
-    [['Grapple_Stom', 'spell', [0.87]]]
+    [['Grapple_Stom', 'magicCast', [0.87]]]
   );
-  const [shake] = moments.commands;
+  const [shake, bad] = moments.commands;
   assert.deepEqual(
-    shake.rows.map(r => [r.time, [...r.roles].sort(), r.strength, r.duration]),
+    shake.rows.map(r => [r.time, [...r.roles].sort(), r.values.strength, r.values.duration]),
     [
-      [4, ['initiator', 'receiver'], 1.5, 0.5],
-      [7, [], 1, 0.5],
+      [4, ['initiator', 'receiver'], '1.5', '0.5'],
+      [7, [], '1', '0.5'],
     ],
     'the two roles of one moment are one row'
   );
-  assert.deepEqual(shake.bad, [{time: 9, text: 'AI.CamShake|2'}], 'a missing number is shown as not run');
+  assert.deepEqual(
+    bad.bad,
+    [{time: 9, text: 'AI.CamShake|2', usage: 'AI.CamShake|세기|시간(초)'}],
+    'a missing number is shown as not run, with how it is written'
+  );
+  // A window's off commands are in its on item (docs/mockup-ai-commands).
+  const windows = hkxMoments(w, w.actions[0], [
+    {time: 0.1, text: 'AI.IFrameOn'},
+    {time: 0.4, text: 'AI.IFrameOff'},
+    {time: 0.2, text: 'AI.ArmorOn|0.6'},
+    {time: 0.5, text: 'AI.TimeOff'},
+  ]).commands;
+  assert.deepEqual(
+    windows.map(c => [c.key, c.rows.map(r => r.time), c.off.map(r => r.time)]),
+    [
+      ['cmd:iframeOn', [0.1], [0.4]],
+      ['cmd:armorOn', [0.2], []],
+      ['cmd:timeOff', [0.5], []],
+    ]
+  );
   assert.deepEqual(hkxMoments(w, w.actions[0], undefined), {registry: [], commands: [], read: false});
 });
 test('a clip-time moment becomes an event: the registry gets what it acts with, this node its numbers (0.12.281)', () => {
@@ -142,7 +227,7 @@ test('a clip-time moment becomes an event: the registry gets what it acts with, 
   const row = () => w.eventRegistry.find(r => r.name === 'Grapple_Stom');
   assert.deepEqual(
     row().functions.map(f => f.values),
-    [{op: 'spell', plugin: 'FH_Grapple.esp', form: '808'}, {op: 'hide'}],
+    [{op: 'magicCast', plugin: 'FH_Grapple.esp', form: '808'}, {op: 'hide'}],
     'an event function changes its sender: no time, no role'
   );
   w = add(w, w.actions[0].uid, 'shake', 0.6).workspace;
@@ -184,12 +269,16 @@ test('a window and a cost move between the clip and the registry; on and off are
   assert.equal(moments.length, 1, 'the off function shows inside its on one');
   item = moments[0];
   assert.deepEqual([item.off.event, item.off.fn.values.op], ['DodgeOff', 'iframeOff']);
+  // An off function another HKX sends still turns it off (the runtime waits for it through the animation's end,
+  // 11-01): the card names that event.
+  const elsewhere = hkxMoments(w, w.actions[0], [{time: 0.2, text: 'DodgeOn'}]).registry;
+  assert.deepEqual([elsewhere.length, elsewhere[0].off.event, elsewhere[0].off.sent.times], [1, 'DodgeOff', []]);
   // The cost's amounts stay this node's numbers (runtime 0.12.281).
   w = costToEvent(w, a.uid, 'DodgeOn');
   const cost = hkxMoments(w, w.actions[0], sent).registry.find(r => r.fn.values.op === 'cost');
   assert.deepEqual(cost.fn.values, {op: 'cost'});
   const row = w.eventRegistry.find(r => r.name === 'DodgeOn');
-  assert.deepEqual(nodeValues(w.actions[0], row, cost.fn), {op: 'cost', stamina: '20', magicka: '0'});
+  assert.deepEqual(nodeValues(w.actions[0], row, cost.fn), {op: 'cost', stamina: '20', magicka: '0', health: '0'});
   assert.equal(w.actions[0].config.cost.enabled, false);
   assert.equal(validateWorkspace(w).filter(i => i.level === 'error').length, 0);
 });

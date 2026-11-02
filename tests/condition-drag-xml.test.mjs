@@ -24,18 +24,21 @@ const source = readFileSync(new URL('./fixtures/DynamicDodgeShot.xml', import.me
 const base = () => importWorkspaceXml(source);
 const start = xml => xml.slice(xml.indexOf('<Start'), xml.indexOf('</Start>') + 8).replace(/\s*\n\s*/g, '');
 const c = (w, uid) => w.cards.find(x => x.uid === uid);
+// A state (an actorStatus option since 11-01) is found by its name too.
 const idOf = (w, uid, kind, value) =>
   c(w, uid).tests.find(
-    t => t.kind === kind && (value === undefined || [t.option, t.attackState, t.type].includes(value))
+    t =>
+      (t.kind === kind || (t.kind === 'actorStatus' && t.option === kind)) &&
+      (value === undefined || [t.option, t.attackState, t.type].includes(value))
   ).id;
 
 // Shorthands for what the XML should hold.
 const mv = o => `<Check kind="movementDirection" option="${o}"/>`;
-const WD = '<Check kind="weaponDrawn"/>',
+const WD = '<Check kind="actorStatus" option="weaponDrawn"/>',
   EQ = '<Check kind="equippedType" hand="left" type="bow"/>',
   ATT = '<Check kind="attackState" state="bowAttached"/>',
   DRAWN = '<Check kind="attackState" state="bowDrawn"/>',
-  SNEAK = '<Check kind="sneaking"/>',
+  SNEAK = '<Check kind="actorStatus" option="sneaking"/>',
   BOW_OR = `<Or>${ATT}${DRAWN}</Or>`;
 
 const scenarios = [
@@ -53,7 +56,7 @@ const scenarios = [
       `${EQ}${BOW_OR}<Row>${WD}<Condition>${SNEAK}<True><Row to="SneakBowDodge_B1">`,
       '</False></Condition></Row></Start>',
     ],
-    ['<True><Check kind="sneaking"/><True>'],
+    ['<True><Check kind="actorStatus" option="sneaking"/><True>'],
   ],
   [
     'A3 a condition into another row',

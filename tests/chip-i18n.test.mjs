@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {setLanguage, getLanguage} from '../src/i18n/index.ts';
 import {tr} from '../src/i18n/korean.ts';
 import {handLabel} from '../src/graph/multiValue.ts';
-import {conditionNames} from '../src/graph/conditionExpression.ts';
+import {conditionName, conditionNames} from '../src/graph/conditionExpression.ts';
 import {definition} from '../src/graph/conditionExtensions.ts';
 import {cardNames, cardTitle} from '../src/cards.ts';
 
@@ -64,13 +64,14 @@ test("an extension condition's name follows the language (⑤: it stayed Korean)
 test('a route chip names a condition card by its conditions; the title keeps 「조건 ·」 (③)', () => {
   const c = {
     tests: [
-      {id: 'a', kind: 'weaponDrawn'},
+      {id: 'a', kind: 'actorStatus', option: 'weaponDrawn'},
       {id: 'b', kind: 'hitReceived'},
     ],
     guards: ['a'],
     rows: [{id: 'r', guards: ['b']}],
   };
-  const name = t => conditionNames[t.kind];
+  // A state is named by the state it picks (11-01: weaponDrawn became an actorStatus option).
+  const name = t => conditionName(t);
   assert.equal(
     inLanguage('en', () => cardNames(c, name)),
     'Weapon drawn / Hit taken'

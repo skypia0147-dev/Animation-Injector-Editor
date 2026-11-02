@@ -14,7 +14,7 @@ export const extensionsEn = {
   'carryFix.liftEnd': 'Lift end',
   'carryFix.time': 'Set time',
   'node.extraEvents': 'Register HKX events',
-  'node.suppress': 'Suppress native events',
+  'node.suppress': 'Suppress events',
   'ext.eventNames': 'Event names',
   'ext.extraEventsHint':
     'Register names used by HKX annotations. One name per line or comma. This does not emit events. Case-insensitive duplicates are registered once. Maximum 64 UTF-8 bytes per name.',
@@ -51,7 +51,7 @@ export const extensionsKo = {
   'carryFix.liftEnd': '들기 끝',
   'carryFix.time': '시점 지정',
   'node.extraEvents': 'HKX 이벤트 등록',
-  'node.suppress': '바닐라 이벤트 차단',
+  'node.suppress': '이벤트 차단',
   'ext.eventNames': '이벤트 이름',
   'ext.extraEventsHint':
     'HKX 주석에 사용한 이름을 등록합니다. 이벤트를 발생시키는 기능은 아닙니다. 한 줄에 하나 또는 쉼표로 구분하세요. 대소문자만 다른 중복은 한 번 등록하며 이름당 UTF-8 64바이트까지 허용합니다.',

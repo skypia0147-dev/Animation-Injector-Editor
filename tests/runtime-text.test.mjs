@@ -18,7 +18,7 @@ const cases = {
   inside:
     '<AnimationSet version="6" id="A"><Action id="X" clip="Animations\\a.hkx"><Start key="G"/></Action></AnimationSet>',
   cardBlend:
-    '<AnimationSet version="6" id="A"><Start key="G" to="F"/><Action id="F" clip="Animations\\a.hkx"><Transition key="H" blend="0.3"><Row to="S"><Check kind="blocking"/></Row></Transition></Action>' +
+    '<AnimationSet version="6" id="A"><Start key="G" to="F"/><Action id="F" clip="Animations\\a.hkx"><Transition key="H" blend="0.3"><Row to="S"><Check kind="actorStatus" option="blocking"/></Row></Transition></Action>' +
     '<Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',
   playsNothing:
     '<AnimationSet version="6" id="A"><Start key="G"><True/></Start><Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',

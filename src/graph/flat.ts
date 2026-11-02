@@ -10,6 +10,7 @@ import type {Workspace} from '../workspace.ts';
 import type {GraphRef} from './state.ts';
 import {graphId} from './state.ts';
 import {projectGraph, graphPosition, deleteGraphNode, mutateGraph, moveNodes} from './projection.ts';
+import {vanillaNames} from './vanilla.ts';
 import type {GraphNode, GraphEdge} from './projection.ts';
 import {rows, remove, add} from '../timeline/model.ts';
 import {timingLabel, mark} from '../model.ts';
@@ -28,7 +29,7 @@ import {
   type ConditionCard,
   type Ref,
 } from '../cards.ts';
-import {conditionNames} from './conditionExpression.ts';
+import {conditionName} from './conditionExpression.ts';
 import {cardSummary} from './cardCommands.ts';
 
 // The canvas of an XML format 6 document (docs/설계-형식6-에디터.md 3): start cards, condition cards, HKX cards (each
@@ -120,24 +121,6 @@ export function flatGraph(w: Workspace) {
       if (!d.inputs.includes(pin)) d.inputs = [...d.inputs, pin];
       edges.push({...e, id: flatId(scope, e.id), source: s.id, target: d.id});
     }
-    // The HKX's air rule (both or only): an item of its card.
-    if (a.config.air !== 'deny') {
-      const start: GraphRef = {kind: 'start', action: a.uid},
-        id = flatId(start, 'stateCondition');
-      add({
-        id,
-        kind: 'stateCondition',
-        title: tr('공중'),
-        summary: a.config.air === 'only' ? tr('공중에서만') : tr('땅·공중'),
-        scope: start,
-        original: 'stateCondition',
-        action: a.uid,
-        inputs: ['trigger'],
-        outputs: [],
-        position: {x: 0, y: 0},
-      });
-      wire(animId(a.uid, 'clip_' + a.config.entry), id);
-    }
     // Charge (runtime 10-30): the HKX plays over and over until its key is let go or maxHold.
     if (a.config.loop) {
       const start: GraphRef = {kind: 'start', action: a.uid},
@@ -160,6 +143,27 @@ export function flatGraph(w: Workspace) {
       .filter(r => !r.transition)
       .entries()) {
       const id = `notify:${a.uid}|${r.id}`;
+      // A vanilla transition is a transition card (11-01, A7): it goes to the game's own action, so no line leaves it.
+      const cancel = r.id.startsWith('cancel:') ? a.cancels.find(c => 'cancel:' + c.id === r.id) : undefined;
+      if (cancel) {
+        const names = vanillaNames(cancel.to);
+        add({
+          id,
+          scope: root,
+          original: id,
+          action: a.uid,
+          // Deleting it removes the action's vanilla transition (remove below).
+          notify: r.id,
+          kind: 'transition',
+          title: tr('전환 · 바닐라 {v0}', {v0: names.join(', ') || tr('대상 없음')}),
+          summary: cancel.always ? tr('클립 전체') : timingLabel(cancel.open) + ' → ' + timingLabel(cancel.close),
+          position: graphPosition(w, root, id, {x: a.position.x + 420, y: a.position.y + 90 + j * 40}),
+          inputs: ['trigger'],
+          outputs: [],
+        });
+        wire(animId(a.uid, 'clip_' + a.config.entry), id);
+        continue;
+      }
       add({
         id,
         scope: root,
@@ -207,7 +211,7 @@ export function flatGraph(w: Workspace) {
     });
   }
   // Condition cards: a route pin per row, True and False.
-  const name = (t: Parameters<typeof cardTitle>[0]['tests'][number]) => conditionNames[t.kind] ?? t.kind;
+  const name = (t: Parameters<typeof cardTitle>[0]['tests'][number]) => conditionName(t);
   for (const c of w.cards) {
     const id = conditionCardId(c.uid);
     add({
@@ -239,9 +243,9 @@ export function flatGraph(w: Workspace) {
         l.mode === 'end'
           ? tr('전환 · 끝나면')
           : l.mode === 'move'
-            ? tr('전환 · 이동키를 누르면')
+            ? tr('전환 · 이동 전환')
             : l.mode === 'release'
-              ? tr('전환 · 키를 떼면')
+              ? tr('전환 · 차지 종료')
               : l.mode === 'event'
                 ? l.event
                   ? tr('전환 · {v0}', {v0: l.event})
@@ -255,7 +259,7 @@ export function flatGraph(w: Workspace) {
         (l.mode === 'end'
           ? tr('이 HKX가 끝날 때')
           : l.mode === 'move'
-            ? tr('이동키 · 선입력·유지 포함')
+            ? tr('차지 중 이동키')
             : l.mode === 'release' && !l.input
               ? tr('시작한 키')
               : l.mode === 'event'
@@ -398,13 +402,6 @@ export function deleteFlat(w: Workspace, id: string): Workspace {
     else a.exitBlendEnabled = false;
     return next;
   }
-  // The air rule is the action's own setting since format 6 (the start graph holds no node for it): deleting it
-  // means ground only, the default (user report 10-26: 「공중」 could not be deleted).
-  if (n.kind === 'stateCondition' && n.action) {
-    const next = structuredClone(w);
-    next.actions.find(a => a.uid === n.action)!.config.air = 'deny';
-    return next;
-  }
   // The loop is the action's own setting too: deleting it plays the clip once.
   if (n.kind === 'loopRule' && n.action) {
     const next = structuredClone(w);
@@ -482,7 +479,7 @@ export function dropBinding(w: Workspace, action: string, input: string): Worksp
   const a = w.actions.find(a => a.uid === action);
   if (!input || !a?.config.inputs.some(i => i.id === input)) return w;
   const used =
-    w.links.some(l => l.from === action && l.mode === 'input' && l.input === input) ||
+    w.links.some(l => l.from === action && readsKey(l) && l.input === input) ||
     a.pair?.carry?.input === input ||
     w.parameters.some(p => p.action === action && p.field === 'inputKey' && p.input === input) ||
     w.sharedInputs.some(i => i.id === input);
@@ -538,6 +535,9 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
  *  movement key, on the release of the key that started the action). */
 export const sharable = (l: Link) =>
   l.mode === 'event' || l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !l.input);
+/** A transition that reads its `input` binding of the source's inputs: a key's press, or a key of its own let go
+ *  (charge). An import gives one key one binding, so the two may share it. */
+export const readsKey = (l: Link) => l.mode === 'input' || l.mode === 'release';
 /** An HKX onto an event transition card (10-29: several block hits leaving by one blockHitStart transition): the
  *  action gets a transition of its own with the card's settings, a member of the card's shared link rule
  *  (graph/sharing.ts), so the canvas draws one card and an edit of it is made to every member (synchronizeRules).
@@ -641,7 +641,7 @@ export function addFlat(w: Workspace, action: string, kind: string, position: {x
     const id = startCardId(s.uid);
     return {workspace: moveNodes({...w, starts: [...w.starts, s]}, root, {[id]: position}), id};
   }
-  if (kind === 'conditionBranch' || kind === 'conditionCard') {
+  if (kind === 'conditionCard') {
     const c: ConditionCard = newCard(w, position);
     const id = conditionCardId(c.uid);
     return {workspace: moveNodes({...w, cards: [...w.cards, c]}, root, {[id]: position}), id};
@@ -671,11 +671,6 @@ export function addItem(w: Workspace, action: string, kind: string, before = fal
     }
     return {workspace: next, id: animId(action, before ? 'blendIn' : 'blendOut')};
   }
-  if (kind === 'stateCondition') {
-    const next = structuredClone(w);
-    next.actions.find(x => x.uid === action)!.config.air = 'allow';
-    return {workspace: next, id: flatId({kind: 'start', action}, 'stateCondition')};
-  }
   if (kind === 'loopRule') {
     const next = structuredClone(w);
     next.actions.find(x => x.uid === action)!.config.loop = {maxHold: 3};
@@ -692,18 +687,17 @@ export const notifyKinds = [
   'rotate',
   'iframe',
   'armor',
+  'time',
   'cost',
   'recovery',
   'hide',
   'show',
-  'spell',
+  'magicAdd',
+  'magicRemove',
+  'magicCast',
   'shake',
   'cancel',
-  'timeOn',
-  'timeOff',
   'stopVelocity',
-  'stateOn',
-  'stateOff',
   'ragdoll',
   'strike',
   'sound',

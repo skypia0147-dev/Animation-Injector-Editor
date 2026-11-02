@@ -12,8 +12,8 @@ import {flatGraph} from '../src/graph/flat.ts';
 const SOURCE = `<AnimationSet version="6" id="Pins">
   <Start to="Grab" key="E"/>
   <Start event="Go">
-    <Row to="Attacker"><Check kind="air"/></Row>
-    <Row to="Victim"><Check kind="combat"/></Row>
+    <Row to="Attacker"><Check kind="air" option="any"/></Row>
+    <Row to="Victim"><Check kind="actorStatus" option="combat"/></Row>
   </Start>
   <Pair id="Grab" clip="Animations\\Test\\Grab.hkx"/>
   <Pair id="Carry" clip="Animations\\Test\\Carry.hkx"/>

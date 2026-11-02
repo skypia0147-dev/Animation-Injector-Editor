@@ -33,7 +33,17 @@ export function ExtendedConditionFields({
               label={tr('검사 값')}
             />
           ) : (
-            <select value={test.option ?? ''} onChange={e => change({option: e.target.value})}>
+            <select
+              value={test.option ?? ''}
+              onChange={e =>
+                // In the air at all has no fall distance.
+                change(
+                  test.kind === 'air' && e.target.value === 'any'
+                    ? {option: e.target.value, compare: undefined, value: undefined, upper: undefined}
+                    : {option: e.target.value}
+                )
+              }
+            >
               {d.choices.map(([v, label]) => (
                 <option key={v} value={v}>
                   {label}
@@ -61,7 +71,7 @@ export function ExtendedConditionFields({
           </select>
         </DetailRow>
       )}
-      {d.optionalNumeric && (
+      {d.optionalNumeric && !(test.kind === 'air' && test.option === 'any') && (
         <DetailRow label={tr('낙하 거리')} hint={d.hint}>
           <label>
             <input
@@ -124,7 +134,7 @@ export function ExtendedConditionFields({
                     ? tr('시각 (시)')
                     : test.kind === 'heldTime'
                       ? tr('시간 (초)')
-                      : test.kind === 'falling'
+                      : test.kind === 'air'
                         ? tr('거리')
                         : tr('값')
           }

@@ -1,5 +1,6 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
 import {StartFace, TransitionFace} from './StartCardFace.tsx';
+import {VanillaFace} from './vanillaTransition.tsx';
 import {drawnLine, STUB_SOURCES, stubLines, type StubLines} from './sharedTransitionLines.ts';
 import {SlimClipBars} from './ClipBar.tsx';
 import {PinMenu} from './PinMenu.tsx';
@@ -35,6 +36,9 @@ import {shareUnchanged} from './historySharing.ts';
 import {QteGlyph} from './QteGlyph.tsx';
 import {listenMerges, cutQteListen, connectQteToEvent} from './qteListen.ts';
 import {useClipAnnotations, clipKey, sentEvent} from './annotations.ts';
+import {useHkxMoments} from './MomentFields.tsx';
+import {momentChips, type Chip} from './hkxMoments.ts';
+import {timelineRows} from '../timeline/model.ts';
 import {boxMode, boxSelection, spanned, toggled, touches, SELECTION_COMMAND, type Rect} from './marquee.ts';
 import {createContext, memo, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -128,6 +132,13 @@ function StubMarks({id}: {id: string}) {
   );
 }
 const cardViewKey = (id: string) => 'aieditor-cardview:' + id;
+/** Whether text is selected in a card's copyable text (checklist.css .copyable). */
+function selectedCardText(): boolean {
+  const s = window.getSelection();
+  const at = s?.anchorNode;
+  const el = at instanceof Element ? at : at?.parentElement;
+  return !!s && !s.isCollapsed && !!s.toString() && !!el?.closest('.copyable');
+}
 function storedCardView(id: string): 'summary' | 'full' {
   try {
     return localStorage.getItem(cardViewKey(id)) === 'full' ? 'full' : 'summary';
@@ -152,7 +163,25 @@ function HkxSummary({node}: {node: Visual['data']}) {
     view = useContext(CardView)!;
   const a = gate.w.actions.find(a => a.uid === node.action),
     step = a?.config.steps.find(s => s.id === node.step);
-  const used = gate.model.items.get(node.id) ?? [],
+  // What the HKX's annotations add counts too (registered functions, AI. commands), as in the open card.
+  const moments = useHkxMoments(gate.w, a);
+  // A window on the clip says 「구간」, its times on hover (docs/mockup-chip-colors).
+  const ranges = new Set(
+    a
+      ? timelineRows(gate.w, a)
+          .filter(r => r.until)
+          .map(r => r.id)
+      : []
+  );
+  const used: Chip[] = [
+      ...(gate.model.items.get(node.id) ?? []).map(i => ({
+        key: i.node.id,
+        title: i.node.title,
+        summary: i.node.notify && ranges.has(i.node.notify) ? tr('구간') : i.node.summary,
+        tip: i.node.title + (i.node.summary ? ' · ' + i.node.summary : ''),
+      })),
+      ...momentChips(moments),
+    ],
     shown = used.slice(0, 6);
   return (
     <div className="hkx-summary">
@@ -171,15 +200,10 @@ function HkxSummary({node}: {node: Visual['data']}) {
       </div>
       <div className="hkx-chips">
         {shown.map(i => (
-          <span
-            key={i.node.id}
-            className="hkx-chip"
-            title={i.node.title + (i.node.summary ? ' · ' + i.node.summary : '')}
-          >
-            {i.node.title}
-            {i.node.summary && i.node.summary !== i.node.title && i.node.summary.length <= 14 && (
-              <em>{i.node.summary}</em>
-            )}
+          <span key={i.key} className={'hkx-chip' + (i.kind ? ' ' + i.kind : '')} title={i.tip}>
+            {i.title}
+            {/* An event or a command's note is cut short with 「…」; another long note is left out. */}
+            {i.summary && i.summary !== i.title && (i.kind || i.summary.length <= 14) && <em>{i.summary}</em>}
           </span>
         ))}
         {used.length > shown.length && <span className="hkx-chip more">+{used.length - shown.length}</span>}
@@ -305,6 +329,9 @@ function GatedStartCard({node, routes}: {node: Visual['data']; routes: React.Rea
     return <StartFace w={gate.w} uid={ref.uid} edit={ctx.edit} routes={routes} fold={fold} />;
   if (ref.kind === 'transition')
     return <TransitionFace w={gate.w} id={ref.link} edit={ctx.edit} routes={routes} fold={fold} />;
+  // A vanilla transition's card (11-01): its own settings and the game's action as where it goes.
+  if (ref.kind === 'notify' && ref.local.startsWith('cancel:'))
+    return <VanillaFace w={gate.w} action={ref.owner} id={ref.local.slice(7)} edit={ctx.edit} fold={fold} />;
   return null;
 }
 function GatedChecklist({node}: {node: Visual['data']}) {
@@ -1703,6 +1730,8 @@ function FlatGraphPanel({
         return;
       if (!region.current?.contains(e.target as globalThis.Node)) return;
       if (e.key.toLowerCase() === 'c') {
+        // Text selected on a card (an annotation, an event name: .copyable) is the browser's to copy.
+        if (selectedCardText()) return;
         e.preventDefault();
         copySelection();
       }
@@ -1715,8 +1744,18 @@ function FlatGraphPanel({
         choose(projection.nodes.map(n => n.id).filter(id => id !== 'entry'));
       }
     };
+    // A press outside card text drops a text selection, so an old one never takes Ctrl+C from the cards (the canvas
+    // keeps the mouse's default, which would leave it).
+    const press = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.('.copyable') && selectedCardText())
+        window.getSelection()?.removeAllRanges();
+    };
     window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
+    window.addEventListener('mousedown', press, true);
+    return () => {
+      window.removeEventListener('keydown', key);
+      window.removeEventListener('mousedown', press, true);
+    };
   });
   const {context, menu} = useEditorMenu((target, x, y) => {
     const edgeId = target.closest('.react-flow__edge')?.getAttribute('data-id');

@@ -16,7 +16,7 @@ function keywordCheck(kind, test) {
   const w = addFlat(emptyWorkspace(), '', 'playNode', {x: 0, y: 0}).workspace;
   w.actions[0].config.steps[0].clip = 'animations\\test.hkx';
   w.actions[0].config.actionId = 'ClawAttack';
-  const t = {id: 'Condition1', kind, subject: 'self', minimum: 0, ...extensionDefaults(kind), ...test};
+  const t = {id: 'Condition1', kind, subject: 'self', ...extensionDefaults(kind), ...test};
   const card = {...newCard(w, {x: 0, y: 0}), tests: [t], guards: [t.id], true: {action: w.actions[0].uid}};
   w.cards.push(card);
   w.starts.push({...newStart(w, {x: 0, y: 0}, 'event'), event: 'attackStart', to: {card: card.uid}});

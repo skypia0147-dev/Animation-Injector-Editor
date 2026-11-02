@@ -88,7 +88,7 @@ test('dependencies include the spells a pair casts and unsafe output names are r
   const w = s4sample(),
     p = w.actions[0].pair;
   assert.deepEqual(plugins(w), []);
-  p.effects = [{id: 'spell', values: {op: 'spell', name: 'Cast', plugin: 'Required.esp', form: '806'}}];
+  p.effects = [{id: 'spell', values: {op: 'magicCast', name: 'Cast', plugin: 'Required.esp', form: '806'}}];
   assert.deepEqual(plugins(w), ['Required.esp']);
   for (const n of ['../Mods', 'C:/Mods', 'CON', 'LPT1.txt', 'Bad.', 'Bad ', 'stream:name', '.aieditor-evil'])
     assert.equal(folderValid(n), false, n);

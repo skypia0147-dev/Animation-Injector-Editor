@@ -50,6 +50,13 @@ export function synchronizeRules(before: Workspace, next: Workspace): Workspace 
       group.members = group.members.filter(m => linkValue(next, m) !== undefined);
       continue;
     }
+    // A member given a key of its own (a key transition, a release on its own key) leaves the group: each HKX takes
+    // a key by a binding of its own inputs, which the others do not have.
+    const edited = next.links.find(l => l.id === changed);
+    if (edited && !sharable(edited)) {
+      group.members = group.members.filter(m => m !== changed);
+      continue;
+    }
     for (const member of group.members) {
       const l = next.links.find(l => l.id === member);
       if (l) Object.assign(l, structuredClone(value));

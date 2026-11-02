@@ -21,12 +21,6 @@ export const nodeCatalog = {
     inputs: [],
     outputs: ['trigger'],
   },
-  stateCondition: {
-    layer: 'rule',
-    fields: ['config.air'],
-    inputs: [],
-    outputs: ['condition'],
-  },
   detectionWindow: {
     layer: 'rule',
     fields: ['open', 'close', 'buffered', 'window'],

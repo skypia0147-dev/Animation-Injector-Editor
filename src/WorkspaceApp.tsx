@@ -52,7 +52,6 @@ import {getCurrentWindow} from '@tauri-apps/api/window';
 import {clone, editableCopy} from './model';
 import type {Issue} from './model';
 import {
-  addAction,
   duplicateAction as copyAction,
   compileWorkspace,
   emptyWorkspace,

@@ -4,7 +4,7 @@
     <Input id="a1_i1" key="Num0"/>
   </Inputs>
   <Start id="EditorSingle_Start" to="EditorSingle" input="a1_i1" cooldown="0.3">
-    <Check kind="weaponDrawn"/>
+    <Check kind="actorStatus" option="weaponDrawn"/>
   </Start>
   <Action id="EditorSingle" clip="Animations\ComboTest\test_Attack1.hkx" attack="attackStart" enter="0.1">
     <Exit blend="0.2"/>

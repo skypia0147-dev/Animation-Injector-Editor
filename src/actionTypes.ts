@@ -87,6 +87,8 @@ export function switchActionKind(w: Workspace, id: string, kind: ActionKind): Wo
             until: clone(until),
             stamina: old.cost.stamina,
             magicka: old.cost.magicka,
+            health: old.cost.health,
+            ...(key === 'time' ? {factor: old.slots.time.factor, ease: old.slots.time.ease} : {}),
           });
         }
       }

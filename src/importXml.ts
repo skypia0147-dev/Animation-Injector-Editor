@@ -187,6 +187,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'Rotate',
         'IFrame',
         'HyperArmor',
+        'TimeScale',
         'Cost',
         'MoveCancel',
         'Vanilla',
@@ -254,18 +255,31 @@ export function importWorkspaceXml(text: string): Workspace {
       }
       p.slots[k] = {enabled: true, from: clock(get(s, 'from', '0')), until: clock(get(s, 'until', 'end'))};
     }
+    const time = child(n, 'TimeScale', ['from', 'until', 'factor', 'ease']);
+    if (time) {
+      if (pair) throw new Error(tr('페어의 시간 배율은 페어 타임라인의 트랙으로 씁니다.'));
+      p.slots.time = {
+        enabled: true,
+        from: clock(get(time, 'from', '0')),
+        until: clock(get(time, 'until', 'end')),
+        factor: num(time, 'factor', 0.5),
+        ease: num(time, 'ease', 0),
+      };
+    }
     const release = child(n, 'CarryRelease', ['at']);
     if (release) {
       if (pair) throw Error(tr('대상 놓기(CarryRelease)는 한 사람 일반 동작에만 씁니다.'));
       p.carryRelease = {at: clock(required(release, 'at'))};
     }
-    const cost = child(n, 'Cost', ['at', 'stamina', 'magicka']);
+    const cost = child(n, 'Cost', ['at', 'stamina', 'magicka', 'health', 'measure']);
     if (cost)
       p.cost = {
         enabled: true,
         at: clock(get(cost, 'at', '0')),
         stamina: num(cost, 'stamina', 0),
         magicka: num(cost, 'magicka', 0),
+        health: num(cost, 'health', 0),
+        percent: get(cost, 'measure', 'value') === 'percent',
       };
     const recovery = child(n, 'MoveCancel', ['at', 'blend']);
     if (recovery)
@@ -404,7 +418,6 @@ export function importWorkspaceXml(text: string): Workspace {
         id,
         kind: n.name === 'And' ? 'all' : 'any',
         subject: 'self',
-        minimum: 0,
         operands: [],
         ...(negate ? {negate} : {}),
       };
@@ -602,7 +615,7 @@ export function importWorkspaceXml(text: string): Workspace {
       if (n.attrs.on !== undefined && !['end', 'release', 'move'].includes(n.attrs.on))
         throw new Error(tr('Transition: on은 end, release, move 중 하나입니다.'));
       if (l.mode === 'move' && (l.input || l.event))
-        throw new Error(tr('Transition: 이동키를 누르면(on="move") 전환에는 키·이벤트를 쓰지 않습니다.'));
+        throw new Error(tr('Transition: 이동 전환(on="move")에는 키·이벤트를 쓰지 않습니다.'));
       if (l.mode === 'end' && (l.input || l.event || l.window))
         throw new Error(tr('Transition: 끝나면(on="end") 전환에는 키·이벤트·구간을 쓰지 않습니다.'));
       if (l.mode === 'release' && l.event) throw new Error(tr('Transition: on을 쓴 전환에는 event를 쓰지 않습니다.'));
@@ -779,6 +792,5 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
         }
       : {}),
     subject: choice(n, 'subject', ['self', 'partner'], 'self'),
-    minimum: 0,
   };
 }

@@ -272,9 +272,7 @@ export function Timeline({
       ...[
         'cost',
         'recovery',
-        ...(!action.pair
-          ? []
-          : ['hide', 'show', 'spell', 'shake', 'cancel', 'timeOn', 'timeOff', 'stopVelocity', 'stateOn', 'stateOff']),
+        ...(!action.pair ? [] : ['hide', 'show', 'magicAdd', 'shake', 'cancel', 'stopVelocity']),
       ].map(k => ({
         label: t('timeline.addNotify') + ' · ' + title(k),
         disabled: (k === 'recovery' || (!action.pair && k === 'cost')) && items.some(r => r.kind === k),

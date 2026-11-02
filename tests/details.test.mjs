@@ -22,7 +22,9 @@ test('physical keys cover IME-independent letters, numpad, modifiers and punctua
   assert.equal(capturedKey('Unidentified'), undefined);
 });
 test('catalog contains existing graph nodes and the carry operation', () => {
-  assert.equal(Object.keys(nodeCatalog).length, 20);
+  // 19 since the air rule became a playback setting (11-01: no stateCondition node).
+  assert.equal(Object.keys(nodeCatalog).length, 19);
+  assert.equal(nodeCatalog.stateCondition, undefined);
   assert.deepEqual(nodeCatalog.carryRelease.fields, ['config.carryRelease']);
   assert.deepEqual(nodeCatalog.carryFix.fields, ['pair.carry.fix']);
   assert.deepEqual(nodeCatalog.qte.outputs, ['pass', 'fail', 'perfect']);

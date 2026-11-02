@@ -314,6 +314,33 @@
 .p3-node.card-themed .hkx-chip em {
   color: var(--card-chip-t2);
 }
+/* What the HKX's annotations add (docs/mockup-chip-colors B): a registered event's function in the event colour,
+   an AI. command in the annotation item's; their note is cut short with 「…」. */
+.p3-node.card-themed .hkx-chip.event {
+  background: #6a4426;
+  color: #ffe2c6;
+}
+.p3-node.card-themed .hkx-chip.event em {
+  color: #f0c49c;
+}
+.p3-node.card-themed .hkx-chip.command {
+  background: #4a3f6e;
+  color: #ece6ff;
+}
+.p3-node.card-themed .hkx-chip.command em {
+  color: #c9bcf2;
+}
+.p3-node.card-themed .hkx-chip.event,
+.p3-node.card-themed .hkx-chip.command {
+  max-width: 100%;
+  min-width: 0;
+}
+.p3-node.card-themed .hkx-chip.event em,
+.p3-node.card-themed .hkx-chip.command em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .p3-node.card-themed .moment-tag {
   color: var(--card-t2);
   border-color: var(--card-line);
@@ -738,24 +765,6 @@
   border-color: var(--card-line);
   border-radius: 4px;
   background: transparent;
-}
-/* An event's name opens its registry row (MomentFields EventLink): drawn as an event chip. */
-.shell .p3-node.card-themed button.event-link {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  min-height: 0;
-  padding: 0 6px;
-  border: 1px solid var(--card-event);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--card-event);
-  font-size: var(--fs-xs);
-  cursor: pointer;
-}
-.shell .p3-node.card-themed button.event-link:hover {
-  background: var(--card-hover);
-  color: var(--card-t1);
 }
 
 /* The condition kind picker inside a card. */

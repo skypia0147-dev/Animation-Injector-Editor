@@ -27,6 +27,7 @@ A Windows program for making action mods for [Animation Injector](https://github
 - A transition three or more HKX share is shown as a **→ Transition ①** mark on each HKX card instead of lines. Its lines appear while that HKX or the transition card is selected; click the mark to select its line, and Delete cuts it.
 - A **condition card** picks the action to go to by the situation (weapon, movement direction, being in the air, the previous action, the hit just taken, weather and more); a **QTE** sets the next action for each result (success, failure, perfect).
 - The **Event registry** card gathers the event names the project uses and what each event does.
+- An HKX card's event list shows the events its annotations send and the features registered on them. An annotation `AI.Command|values` (e.g. `AI.IFrameOn|0.3`) runs at its time with no registration.
 - A key input is a key and pad button set directly, or a game control (Jump, Sprint, Sneak, ...). A game control follows the player's key bindings.
 - A start card's **Press** picks On press, Tap, Double or Hold. A game control press no start takes goes back to the game (e.g. tap Jump to dodge, hold it to jump).
 - Charge: a transition's input can be **On end** (when the HKX ends) or **On release** (while the held key is up) or **On move change** (to go between directional dash loops), an HKX card can **Loop** (with a max hold), and the **Held time** condition picks a weak or strong release.

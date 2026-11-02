@@ -31,11 +31,19 @@ const eventMark = (event, seconds = 0) => ({...mark(seconds), basis: 'event', ev
 
 test('summaries and XML leave defaults out; checks warn about game-wide names and lasting functions', () => {
   assert.deepEqual(doAttrs({op: 'hide', target: 'sender', from: 'any', plugin: 'x.esp'}), {op: 'hide'});
-  assert.deepEqual(doAttrs({op: 'spell', target: 'both', plugin: 'a.esp', form: '1', stamina: '3'}), {
-    op: 'spell',
+  // The magic function's action is written after its op (runtime 11-01: op="magic" action).
+  assert.deepEqual(doAttrs({op: 'magicCast', target: 'both', plugin: 'a.esp', form: '1', stamina: '3'}), {
+    op: 'magic',
+    action: 'cast',
     plugin: 'a.esp',
     form: '1',
   });
+  assert.deepEqual(Object.keys(doAttrs({op: 'magicAdd', plugin: 'a.esp', form: '1'})), [
+    'op',
+    'action',
+    'plugin',
+    'form',
+  ]);
   assert.equal(functionSummary({op: 'hide'}), '무기 숨김');
   assert.equal(functionSummary({op: 'shake'}), '카메라 흔들림');
   // A set shake says its numbers (a card item would otherwise show none).
@@ -57,7 +65,7 @@ test('summaries and XML leave defaults out; checks warn about game-wide names an
   w.eventRegistry.at(-1).functions[0].values.target = 'partner';
   assert.ok(validateWorkspace(w).some(i => i.level === 'error' && /적용|등록 기능 속성/.test(i.message)));
   delete w.eventRegistry.at(-1).functions[0].values.target;
-  w = addFunction(w, 'Cast', 'stateOn');
+  w = addFunction(w, 'Cast', 'magicAdd');
   assert.ok(validateWorkspace(w).some(i => i.level === 'error' && i.message.includes('플러그인')));
   assert.throws(() => addEventRow(w, 'WEAPONSWING'), /이미/);
 });

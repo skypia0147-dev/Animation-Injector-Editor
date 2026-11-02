@@ -116,7 +116,7 @@ const scenarios = [
     DDS,
     w => pin(w, 'startCard:start1', 'trigger', 'a2'),
     [START + 'to="BowDodge_L1" key="Mouse2" cooldown="0.2" block="blockStart,bashStart"/>'],
-    ['<Check kind="sneaking"/>'],
+    ['<Check kind="actorStatus" option="sneaking"/>'],
   ],
   [
     'P1 페어 상대 기본값으로',

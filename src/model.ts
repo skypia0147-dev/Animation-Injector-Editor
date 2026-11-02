@@ -22,6 +22,9 @@ export type Step = {
   position: Position;
 };
 export type RangeSlot = {enabled: boolean; from: Mark; until: Mark};
+/** The time scale window (runtime <TimeScale>, 11-01): the player's global time multiplier, reached and given back
+ *  over `ease` real seconds (0 = at once). */
+export type TimeSlot = RangeSlot & {factor: number; ease: number};
 export type Project = {
   schema: 2;
   kind: 'single';
@@ -53,9 +56,9 @@ export type Project = {
   exit: Mark;
   graph: string[];
   rotationLocked?: boolean;
-  slots: Record<'rotate' | 'iframe' | 'armor', RangeSlot>;
+  slots: Record<'rotate' | 'iframe' | 'armor', RangeSlot> & {time: TimeSlot};
   recovery: {enabled: boolean; at: Mark; blend: number};
-  cost: {enabled: boolean; at: Mark; stamina: number; magicka: number};
+  cost: {enabled: boolean; at: Mark; stamina: number; magicka: number; health: number; percent: boolean};
   trigger: Position;
   steps: Step[];
 };
@@ -170,9 +173,9 @@ export function createProject(): Project {
     exit: mark(0.05, 'end'),
     graph: [fullBodyGraph],
     rotationLocked: false,
-    slots: {rotate: range(), iframe: range(), armor: range()},
+    slots: {rotate: range(), iframe: range(), armor: range(), time: {...range(), factor: 0.5, ease: 0}},
     recovery: {enabled: false, at: mark(0.9), blend: 0.15},
-    cost: {enabled: false, at: mark(0.05), stamina: 0, magicka: 0},
+    cost: {enabled: false, at: mark(0.05), stamina: 0, magicka: 0, health: 0, percent: false},
     trigger: {x: 40, y: 150},
     steps: [
       {
@@ -295,7 +298,12 @@ export function validate(p: Project): Issue[] {
     error('project', tr('지원 그래프를 하나 이상 선택하세요.'));
   if (p.attack && !eventValid(p.attack)) error('project', tr('공격 데이터 이름이 잘못되었습니다.'));
   if (!num(p.enterBlend, 5) || !num(p.exitBlend, 5)) error('project', tr('블렌드(0~5)를 확인하세요.'));
-  if (!num(p.recovery.blend, 5) || !num(p.cost.stamina, 100000) || !num(p.cost.magicka, 100000))
+  if (
+    !num(p.recovery.blend, 5) ||
+    !num(p.cost.stamina, p.cost.percent ? 100 : 100000) ||
+    !num(p.cost.magicka, p.cost.percent ? 100 : 100000) ||
+    !num(p.cost.health, p.cost.percent ? 100 : 100000)
+  )
     error('project', tr('리커버리 블렌드 또는 자원 소모 범위를 확인하세요.'));
   const inputIds = new Set<string>();
   for (const i of p.inputs) {
@@ -334,6 +342,8 @@ export function validate(p: Project): Issue[] {
       if (s.from.basis === 'seconds' && s.until.basis === 'seconds' && s.from.seconds > s.until.seconds)
         error('project', tr('{name}: 종료가 시작보다 빠릅니다.', {name}));
     }
+  if (!num(p.slots.time.factor, 5, 0.05) || !num(p.slots.time.ease, 2))
+    error('project', tr('시간 배율은 0.05~5, 전환 시간은 0~2초입니다.'));
   if (p.recovery.enabled) checkMark(p.recovery.at, 'project', ['seconds', 'event'], 'seconds');
   for (const s of p.steps)
     if (s.recovery) {

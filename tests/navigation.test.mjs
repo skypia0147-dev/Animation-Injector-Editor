@@ -19,10 +19,10 @@ const e = (source, target) => ({id: source + '>' + target, source, target, pin: 
 
 test('region arrangement follows nested pass/fail routes regardless of IDs and storage order', () => {
   const nodes = [
-    n('a-fail', 'owner', 'conditionBranch'),
-    n('unconnected', 'owner', 'conditionBranch'),
-    n('z-first', 'owner', 'conditionBranch'),
-    n('b-pass', 'owner', 'conditionBranch'),
+    n('a-fail', 'owner', 'conditionCard'),
+    n('unconnected', 'owner', 'conditionCard'),
+    n('z-first', 'owner', 'conditionCard'),
+    n('b-pass', 'owner', 'conditionCard'),
     n('entry', '', 'entry'),
     n('anim-fail', 'f'),
     n('anim-pass', 'p'),
@@ -108,7 +108,7 @@ test('focused flow includes complete camera exit, trims other candidates, shows 
   const nodes = [
     n('entry', '', 'entry'),
     n('event', 'dispatch', 'markerReceive'),
-    n('table', 'dispatch', 'conditionTable'),
+    n('table', 'dispatch', 'conditionCard'),
     n('condition', 'other', 'stateCondition'),
     n('a', 'a'),
     n('b', 'b'),
@@ -228,29 +228,6 @@ test('a single-flow view keeps its neighbors dimmed and draws only the lines int
   assert.ok(graph.edges.some(x => x.source === 'hand' && x.target === 'b'));
   assert.ok(!graph.edges.some(x => x.source === 'b'));
 });
-test("a single-flow view shows the other HKX its own condition picks, not another action's candidates", () => {
-  const g = {
-    nodes: [
-      n('start', 'a', 'markerReceive'),
-      n('room', 'a', 'conditionBranch'),
-      n('a', 'a'),
-      n('fallback', 'f'),
-      n('dispatch', 'd', 'conditionTable'),
-      n('sibling', 's'),
-    ],
-    edges: [e('start', 'room'), e('room', 'a'), e('room', 'fallback'), e('dispatch', 'room'), e('dispatch', 'sibling')],
-  };
-  const v = actionFlow(g, 'a');
-  assert.deepEqual(
-    v.nodes.filter(x => x.neighbor).map(x => x.id),
-    ['fallback']
-  );
-  assert.ok(v.edges.some(x => x.source === 'room' && x.target === 'fallback'));
-  assert.ok(!v.nodes.some(x => x.id === 'sibling'));
-  const at = id => v.nodes.find(x => x.id === id).position;
-  assert.equal(at('fallback').x, at('a').x);
-});
-
 test('a carry putdown flow shows the lift that hands over to it and the lift start route', async () => {
   const {readFileSync} = await import('node:fs');
   const {importWorkspaceXml} = await import('../src/importXml.ts');

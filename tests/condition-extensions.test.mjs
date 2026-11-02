@@ -28,7 +28,7 @@ function sample(kind) {
   w.actions[0].config.actionId = 'test';
   // A roll, the world, the movement keys: no partner target.
   const subject = subjectlessKinds.includes(kind) ? 'self' : 'partner';
-  const t = {id: 'Condition1', kind, subject, minimum: 0, ...extensionDefaults(kind)};
+  const t = {id: 'Condition1', kind, subject, ...extensionDefaults(kind)};
   // A keyword check names its keyword by editor ID (the default, runtime keyword=); the other forms by plugin and form.
   if (t.keyword !== undefined) t.keyword = 'TestKeyword';
   else if (definition(kind)?.form) t.form = {plugin: 'Test.esp', id: '123'};

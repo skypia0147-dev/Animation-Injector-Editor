@@ -280,12 +280,8 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
         s.localPath = '';
       }
     } else throw Error(t('graph.requiredNode'));
-  } else if (g.kind === 'start') {
-    if (kind === 'stateCondition') {
-      // The air rule: removed, ground only (the default); added, the ground and the air.
-      p.air = remove ? 'deny' : 'allow';
-    } else throw Error(t('graph.unsupported'));
-  } else throw Error(t('graph.requiredNode'));
+  } else if (g.kind === 'start') throw Error(t('graph.unsupported'));
+  else throw Error(t('graph.requiredNode'));
   return n;
 }
 export function deleteGraphNode(w: Workspace, g: GraphRef, id: string): Workspace {

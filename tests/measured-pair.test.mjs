@@ -16,7 +16,7 @@ const pairs = String.raw`<?xml version="1.0" encoding="utf-8"?>
     <False to="Rko"/>
   </Condition>
   <Condition id="Kind">
-    <Check kind="combat"/>
+    <Check kind="actorStatus" option="combat"/>
     <True to="Swing"/>
     <False to="Rko"/>
   </Condition>

@@ -17,7 +17,10 @@ import {importWorkspaceXml} from '../src/importXml.ts';
 
 // Dragging a condition on a condition card (10-26): between the common conditions, rows and groups, or out into a
 // row of its own.
-const check = (id, kind = 'sneaking') => ({id, kind, subject: 'self', minimum: 0});
+// The states are actorStatus options (11-01).
+const states = ['sneaking', 'weaponDrawn', 'combat'];
+const check = (id, kind = 'sneaking') =>
+  states.includes(kind) ? {id, kind: 'actorStatus', option: kind, subject: 'self'} : {id, kind, subject: 'self'};
 const sample = () => {
   const w = emptyWorkspace();
   w.cards = [
@@ -25,7 +28,7 @@ const sample = () => {
       uid: 'card1',
       tests: [
         check('A', 'weaponDrawn'),
-        {id: 'G', kind: 'any', subject: 'self', minimum: 0, operands: ['B', 'C']},
+        {id: 'G', kind: 'any', subject: 'self', operands: ['B', 'C']},
         check('B', 'attackState'),
         check('C', 'attackState'),
         check('D', 'sneaking'),
@@ -177,16 +180,16 @@ test('condition groups: operators flip with the row, the same operator dissolves
 test('condition groups: the XML writes match="any", reads only the rule', () => {
   const base = `<?xml version="1.0" encoding="utf-8"?>
 <AnimationSet version="6" id="T">
-  <Start id="S" key="G"><Row to="A"><Check kind="combat"/><Check kind="air"/></Row></Start>
+  <Start id="S" key="G"><Row to="A"><Check kind="actorStatus" option="combat"/><Check kind="air" option="any"/></Row></Start>
   <Action id="A" clip="Animations\a.hkx"/>
 </AnimationSet>`;
   const w = importWorkspaceXml(base.replace('<Row to="A">', '<Row to="A" match="any">'));
   assert.equal(w.cards[0].rows[0].any, true);
   assert.match(compileWorkspace(w), /<Row to="A" match="any">/);
   for (const row of [
-    '<Row to="A"><And><Check kind="air"/><Check kind="sneaking"/></And>',
-    '<Row to="A"><Or><Check kind="air"/><Or><Check kind="combat"/><Check kind="sneaking"/></Or></Or>',
-    '<Row to="A"><Or><Check kind="air"/></Or>',
+    '<Row to="A"><And><Check kind="air" option="any"/><Check kind="actorStatus" option="sneaking"/></And>',
+    '<Row to="A"><Or><Check kind="air" option="any"/><Or><Check kind="actorStatus" option="combat"/><Check kind="actorStatus" option="sneaking"/></Or></Or>',
+    '<Row to="A"><Or><Check kind="air" option="any"/></Or>',
   ])
     assert.throws(() => importWorkspaceXml(base.replace('<Row to="A">', row)), /묶음/);
 });

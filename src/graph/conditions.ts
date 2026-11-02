@@ -24,9 +24,6 @@ export type BranchTest = {
     | 'all'
     | 'any'
     | 'not'
-    | 'air'
-    | 'weaponDrawn'
-    | 'combat'
     | 'alive'
     | 'space'
     | 'ground'
@@ -34,7 +31,6 @@ export type BranchTest = {
     | 'global'
     | 'equippedType'
     | 'attackState'
-    | 'sneaking'
     | 'female';
   hand?: 'left' | 'right';
   /** Comma lists: any of them holds (runtime 0.12.301, graph/multiValue.ts). */
@@ -42,7 +38,6 @@ export type BranchTest = {
   attackState?: string;
   operands?: string[];
   subject: 'self' | 'partner';
-  minimum: number;
   form?: {plugin: string; id: string};
   /** A keyword check named by its editor ID (runtime keyword=) instead of `form`; undefined: by plugin and form. */
   keyword?: string;

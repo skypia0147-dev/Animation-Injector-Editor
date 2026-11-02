@@ -16,9 +16,6 @@ type Definition = {
 /** Actor values the runtime's actorValue check takes (0.12.296), as written and as shown. */
 export const actorValueNames = (): [string, string][] => [
   ['level', tr('레벨')],
-  ['Health', tr('체력')],
-  ['Magicka', tr('매지카')],
-  ['Stamina', tr('스태미나')],
   ['OneHanded', tr('한손')],
   ['TwoHanded', tr('양손')],
   ['Marksman', tr('궁술')],
@@ -159,26 +156,23 @@ export const extensionConditions = {
       );
     },
   },
-  essential: {
+  protection: {
     get label() {
-      return tr('필수 대상');
+      return tr('보호 상태');
     },
     get category() {
       return tr('상태');
     },
-    get hint() {
-      return tr('Essential 상태를 검사합니다. 킬무브 대상에서 제외하려면 NOT을 체크하세요.');
-    },
-  },
-  protected: {
-    get label() {
-      return tr('보호 대상');
-    },
-    get category() {
-      return tr('상태');
+    get choices() {
+      return [
+        ['essential', tr('필수 대상')],
+        ['protected', tr('보호 대상')],
+      ] as const;
     },
     get hint() {
-      return tr('Protected 상태를 검사합니다. Essential과는 별도 조건입니다.');
+      return tr(
+        '필수(Essential)·보호(Protected) 상태를 검사합니다. 둘은 별개입니다. 킬무브 대상에서 제외하려면 NOT을 체크하세요.'
+      );
     },
   },
   actorStatus: {
@@ -196,7 +190,13 @@ export const extensionConditions = {
         ['killmove', tr('킬무브 중')],
         ['paired', tr('페어 진행 중')],
         ['staggered', tr('스태거')],
-        ['child', tr('어린이')],
+        ['weaponDrawn', tr('무기 뽑음')],
+        ['combat', tr('전투 중')],
+        ['sneaking', tr('은신 중')],
+        ['blocking', tr('방어 중')],
+        ['sprinting', tr('질주 중')],
+        ['swimming', tr('수영 중')],
+        ['mounted', tr('탑승 중')],
       ] as const;
     },
     get hint() {
@@ -268,50 +268,6 @@ export const extensionConditions = {
     numeric: true,
     get hint() {
       return tr('본인과 상대 기준 위치의 높이 차이 절댓값입니다. 바닥 탐색이나 본 위치 검사는 아닙니다.');
-    },
-  },
-  blocking: {
-    get label() {
-      return tr('방어 중');
-    },
-    get category() {
-      return tr('상태');
-    },
-    get hint() {
-      return tr('현재 방어 상태인지 검사합니다.');
-    },
-  },
-  sprinting: {
-    get label() {
-      return tr('질주 중');
-    },
-    get category() {
-      return tr('상태');
-    },
-    get hint() {
-      return tr('현재 질주 상태인지 검사합니다.');
-    },
-  },
-  swimming: {
-    get label() {
-      return tr('수영 중');
-    },
-    get category() {
-      return tr('상태');
-    },
-    get hint() {
-      return tr('현재 수영 상태인지 검사합니다.');
-    },
-  },
-  mounted: {
-    get label() {
-      return tr('탑승 중');
-    },
-    get category() {
-      return tr('상태');
-    },
-    get hint() {
-      return tr('현재 탈것에 탑승했는지 검사합니다.');
     },
   },
   lineOfSight: {
@@ -471,15 +427,16 @@ export const extensionConditions = {
       );
     },
   },
-  falling: {
+  air: {
     get label() {
-      return tr('낙하 중');
+      return tr('공중');
     },
     get category() {
       return tr('상태');
     },
     get choices() {
       return [
+        ['any', tr('아무거나')],
         ['falling', tr('떨어지는 중')],
         ['rising', tr('오르는 중')],
       ] as const;
@@ -487,8 +444,19 @@ export const extensionConditions = {
     optionalNumeric: true,
     get hint() {
       return tr(
-        '공중에서 오르는 중인지 떨어지는 중인지 봅니다. 낙하 거리를 켜면 땅을 떠난 높이에서 지금까지 떨어진 거리도 비교합니다(엔진이 기억하는 값).'
+        '공중에 있는지 봅니다. 떨어지는 중·오르는 중을 고르면 그때만 통과하고, 낙하 거리를 켜면 땅을 떠난 높이에서 지금까지 떨어진 거리도 비교합니다(엔진이 기억하는 값).'
       );
+    },
+  },
+  child: {
+    get label() {
+      return tr('어린이');
+    },
+    get category() {
+      return tr('대상');
+    },
+    get hint() {
+      return tr('검사 대상이 어린이인지 봅니다.');
     },
   },
   slope: {
@@ -537,7 +505,7 @@ export const extensionConditions = {
     numeric: true,
     get hint() {
       return tr(
-        '이 동작을 시작한 키를 누르고 있던 시간(초)입니다. 키를 떼면 전환이 고르는 순간이면 누른 순간부터 뗀 순간까지입니다. 플레이어에게만 적용됩니다.'
+        '이 동작을 시작한 키를 누르고 있던 시간(초)입니다. 차지 종료가 고르는 순간이면 누른 순간부터 뗀 순간까지입니다. 플레이어에게만 적용됩니다.'
       );
     },
   },
@@ -710,7 +678,9 @@ export function extensionError(t: BranchTest): string | undefined {
     !(Number.isFinite(t.within) && t.within >= 0 && t.within <= 600)
   )
     return tr('맞은 지 시간은 0~600초입니다.');
-  // A fall without its distance asks only rising or falling.
+  // A fall without its distance asks only rising or falling; in the air at all has none.
+  if (t.kind === 'air' && t.option === 'any' && t.compare !== undefined)
+    return tr('낙하 거리는 떨어지는 중·오르는 중에서만 비교합니다.');
   if (d.optionalNumeric && t.compare === undefined) return;
   if (d.numeric || d.optionalNumeric || t.kind === 'chance') {
     if (!Number.isFinite(t.value) || t.value! < 0 || t.value! > extensionMaximum(t))

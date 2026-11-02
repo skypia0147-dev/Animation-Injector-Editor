@@ -63,7 +63,8 @@ test(
     for (const [kind, values, field] of [
       ['equippedType', equippedTypes, 'equipmentType'],
       ['attackState', attackStates, 'attackState'],
-      ['sneaking', [undefined], 'unused'],
+      // Sneaking is a state of actorStatus (11-01).
+      ['actorStatus', ['sneaking', 'weaponDrawn', 'combat'], 'option'],
     ])
       for (const value of values) {
         const w = importWorkspaceXml(raw),
@@ -90,8 +91,9 @@ test(
       'kind="equippedType" hand="feet" type="bow"',
       'kind="equippedType" type="bow"',
       'kind="attackState" state="typo"',
-      'kind="sneaking" hand="left" type="bow"',
-      'kind="sneaking" state="none"',
+      'kind="actorStatus" option="sneaking" hand="left" type="bow"',
+      'kind="actorStatus" option="sneaking" state="none"',
+      'kind="sneaking"',
     ])
       assert.throws(() => importWorkspaceXml(raw.replace('kind="equippedType" hand="left" type="bow"', replacement)));
   }

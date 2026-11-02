@@ -11,6 +11,7 @@ import {
   type Ref,
 } from '../cards.ts';
 import {readExpression, insertExpression} from './conditionExpression.ts';
+import {extensionDefaults} from './conditionExtensions.ts';
 import {tr} from '../i18n/korean.ts';
 
 // A condition card's own edits (docs/설계-형식6-에디터.md 3): its rows, True, False and the conditions on each.
@@ -137,7 +138,6 @@ export function mergeCondition(
       id: testId(card),
       kind: any ? 'all' : 'any',
       subject: 'self',
-      minimum: 0,
       operands: [target, member],
     };
   card.tests.push(group);
@@ -155,11 +155,12 @@ const rootsOf = (c: ConditionCard, place: CardPlace) => {
   if (!r) throw Error(tr('행을 찾지 못했습니다.'));
   return r.guards;
 };
+// A new condition starts as 「공중 · 아무거나」 (11-01: the air check takes an option).
 const newTest = (c: ConditionCard, kind: CardTest['kind'] = 'air'): CardTest => ({
   id: testId(c),
   kind,
   subject: 'self',
-  minimum: 0,
+  ...extensionDefaults(kind),
 });
 /** A new row (with one condition to set: a row needs one), at the end or at `index`. On a True card it takes True's
  *  place and destination. */
@@ -371,7 +372,6 @@ export function rowIntoList(
       id: testId(card),
       kind: rowAny ? 'any' : 'all',
       subject: 'self',
-      minimum: 0,
       operands: copies,
     };
     card.tests.push(group);

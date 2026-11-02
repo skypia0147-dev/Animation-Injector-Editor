@@ -12,13 +12,16 @@ import {
   fmt,
   hkxMoments,
   moveFunction,
+  offChoices,
   otherSenders,
   sentEvents,
   setOffEvent,
   slotOfOp,
+  slotOps,
   slotToEvent,
   type CommandMoment,
   type RegistryMoment,
+  type Sent,
   type SlotKey,
 } from './hkxMoments.ts';
 import {EffectDetails} from '../ui/details/EffectDetails.tsx';
@@ -40,6 +43,7 @@ import {
   ragdollLabels,
   strikeChoices,
   registryFields,
+  windowOns,
   runValues,
   setNodeValues,
   settingLabels,
@@ -119,6 +123,35 @@ function useSentEvents(w: Workspace, action: Action) {
   return useMemo(() => sentEvents(annotations, !!action.pair), [annotations, action.pair]);
 }
 
+/** The event a clip-time item moves to (user request 11-02): 「이벤트」 opens this with none chosen, and the item
+ *  moves (a window, a cost or a function is registered) only when one is picked. */
+function EventPick({events, pick}: {events: Sent[]; pick: (name: string) => void}) {
+  return (
+    <div className="moment-line">
+      <span className="moment-label">{tr('이벤트')}</span>
+      <span className="moment-inline">
+        <select
+          aria-label={tr('이벤트')}
+          value=""
+          onChange={e => {
+            const to = events.find(x => eventKey(x.name) === e.target.value)?.name;
+            if (to) pick(to);
+          }}
+        >
+          <option value="" disabled>
+            {tr('이벤트 선택…')}
+          </option>
+          {events.map(x => (
+            <option key={eventKey(x.name)} value={eventKey(x.name)}>
+              {x.name}
+            </option>
+          ))}
+        </select>
+      </span>
+    </div>
+  );
+}
+
 /** A clip-time function: its time on the clip bar, then its settings. */
 function ClipEffectFields({w, action, effect, edit}: {w: Workspace; action: Action; effect: Effect; edit: Edit}) {
   const {length, ticks} = useClipBar(w, action);
@@ -133,27 +166,32 @@ function ClipEffectFields({w, action, effect, edit}: {w: Workspace; action: Acti
       return putAction(w, a);
     });
   const at = Number(effect.values.at ?? 0);
+  const [picking, setPicking] = useState(false);
   return (
     <div className="moment-fields">
       <WhenSwitch
-        clip
+        clip={!picking}
         disabled={{event: events.length ? undefined : noEventsText()}}
-        choose={() =>
-          edit(w =>
-            switchTo(action.uid, {event: events[0].name})(clipToEvent(w, action.uid, effect.id, events[0].name))
-          )
-        }
+        choose={clip => setPicking(!clip)}
       />
-      <ClipBar
-        label={tr('시각')}
-        length={length}
-        ticks={ticks}
-        at={at}
-        others={clipEffects(action)
-          .filter(e => e.id !== effect.id)
-          .map(e => Number(e.values.at ?? 0))}
-        onAt={t => change({...effect, values: {...effect.values, at: fmt(barToSeconds(t, length, at))}})}
-      />
+      {picking && (
+        <EventPick
+          events={events}
+          pick={to => edit(w => switchTo(action.uid, {event: to})(clipToEvent(w, action.uid, effect.id, to)))}
+        />
+      )}
+      {!picking && (
+        <ClipBar
+          label={tr('시각')}
+          length={length}
+          ticks={ticks}
+          at={at}
+          others={clipEffects(action)
+            .filter(e => e.id !== effect.id)
+            .map(e => Number(e.values.at ?? 0))}
+          onAt={t => change({...effect, values: {...effect.values, at: fmt(barToSeconds(t, length, at))}})}
+        />
+      )}
       <EffectDetails effect={effect} timeline pair={!!action.pair} self={!action.pair} change={change} />
     </div>
   );
@@ -178,25 +216,26 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
   const row = timelineRows(w, action).find(r => r.id === id);
   const {length, ticks} = useClipBar(w, action);
   const events = useSentEvents(w, action);
+  const [picking, setPicking] = useState(false);
   if (!row) return null;
   const pair = id.startsWith('pair:');
   // A recovery's and a cancel's event is the action's own; a window's and a cost's is the registry's.
   const own = kind === 'recovery' || kind === 'cancel';
   const isEvent = own && row.from.basis === 'event';
   const set = (change: {from?: Mark; until?: Mark}) => edit(w => patch(w, action.uid, id, change));
+  // 「이벤트」 opens the picker; the item moves to an event only when one is picked (user request 11-02).
   const choose = (clip: boolean) => {
-    if (own) {
-      const to = events[0]?.name;
-      if (clip) set({from: toClip(row.from), ...(row.until?.basis === 'event' ? {until: toClip(row.until)} : {})});
-      else if (to) set({from: {...row.from, basis: 'event', event: to, fallback: false, fallbackBasis: 'seconds'}});
-      return;
-    }
-    if (!clip && events.length)
+    setPicking(!clip);
+    if (clip && own && isEvent)
+      set({from: toClip(row.from), ...(row.until?.basis === 'event' ? {until: toClip(row.until)} : {})});
+  };
+  const pick = (to: string) => {
+    setPicking(false);
+    if (own) set({from: {...row.from, basis: 'event', event: to, fallback: false, fallbackBasis: 'seconds'}});
+    else
       edit(w =>
-        switchTo(action.uid, {event: events[0].name})(
-          kind === 'slot'
-            ? slotToEvent(w, action.uid, id as SlotKey, events[0].name)
-            : costToEvent(w, action.uid, events[0].name)
+        switchTo(action.uid, {event: to})(
+          kind === 'slot' ? slotToEvent(w, action.uid, id as SlotKey, to) : costToEvent(w, action.uid, to)
         )
       );
   };
@@ -226,13 +265,15 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
   return (
     <div className="moment-fields">
       <WhenSwitch
-        clip={!isEvent}
+        clip={!isEvent && !picking}
         disabled={{
           event: pair ? tr('페어 트랙은 클립 시각으로만 정합니다.') : events.length ? undefined : noEventsText(),
         }}
         choose={choose}
       />
-      {isEvent ? (
+      {picking && !isEvent ? (
+        <EventPick events={events} pick={pick} />
+      ) : isEvent ? (
         <>
           <div className="moment-line">
             <span className="moment-label">{kind === 'cancel' ? tr('열림 이벤트') : tr('이벤트')}</span>
@@ -344,12 +385,6 @@ const Roles = ({roles}: {roles: Set<'initiator' | 'receiver'>}) => (
   </>
 );
 
-/** An event's name that opens the registry node on that event's row (no separate link, user request 10-25). */
-export const EventLink = ({event}: {event: string}) => (
-  <button type="button" className="event-link" title={tr('등록에서 보기')} onClick={() => showRegistry(event)}>
-    {event}
-  </button>
-);
 /** Where a registry function is shown from a card: the registry node, that event's row open. */
 export const RegistryLink = ({event, text}: {event: string; text: string}) => (
   <button type="button" className="moment-link" onClick={() => showRegistry(event)}>
@@ -363,36 +398,48 @@ function RegistryPart({event, values}: {event: string; values: Record<string, st
   // A strike's whom and how (runtime 0.12.293): each choice as the registry set it, the hit choice an area's only.
   const choice = (key: string) =>
     strikeChoices[key]().find(([x]) => x === (values[key] ?? strikeChoices[key]()[0][0]))?.[1];
-  const text =
-    values.op === 'ragdoll'
-      ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
-      : values.op === 'sound'
-        ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
-        : values.op === 'modEvent'
-          ? [values.name, values.text].filter(Boolean).join(' · ')
-          : values.op === 'strike'
-            ? [
-                choice('pick'),
-                values.pick === 'area' && choice('hit'),
-                choice('hand'),
-                choice('block'),
-                values.reaction && values.reaction !== 'none' && choice('reaction'),
-              ]
-                .filter(Boolean)
-                .join(' · ')
-            : [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 마법이 없습니다');
-  const label =
-    values.op === 'ragdoll'
-      ? settingLabels.direction
-      : values.op === 'strike'
-        ? tr('대상·방식')
+  const text = windowOns.includes(values.op)
+    ? Number(values.duration)
+      ? values.duration + tr('초')
+      : tr('없음')
+    : values.op === 'cost'
+      ? values.measure === 'percent'
+        ? tr('최대치의 %')
+        : tr('수치')
+      : values.op === 'ragdoll'
+        ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
         : values.op === 'sound'
-          ? tr('소리')
-          : values.op === 'globalSet'
-            ? tr('전역 값')
-            : values.op === 'modEvent'
-              ? tr('이벤트')
-              : tr('마법');
+          ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
+          : values.op === 'modEvent'
+            ? [values.name, values.text].filter(Boolean).join(' · ')
+            : values.op === 'strike'
+              ? [
+                  choice('pick'),
+                  values.pick === 'area' && choice('hit'),
+                  choice('hand'),
+                  choice('block'),
+                  values.reaction && values.reaction !== 'none' && choice('reaction'),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : [values.plugin, values.form].filter(Boolean).join(' · ') ||
+                (values.op === 'globalSet' ? tr('등록에 전역 값이 없습니다') : tr('등록에 마법이 없습니다'));
+  // A window's span and a cost's unit are the registry's too (runtime 11-02, 10-31).
+  const label = windowOns.includes(values.op)
+    ? tr('지속 시간')
+    : values.op === 'cost'
+      ? settingLabels.measure
+      : values.op === 'ragdoll'
+        ? settingLabels.direction
+        : values.op === 'strike'
+          ? tr('대상·방식')
+          : values.op === 'sound'
+            ? tr('소리')
+            : values.op === 'globalSet'
+              ? tr('전역 값')
+              : values.op === 'modEvent'
+                ? tr('이벤트')
+                : tr('마법');
   return (
     <div className="moment-line">
       <span className="moment-label">{label}</span>
@@ -491,6 +538,48 @@ function EventChoice({
   );
 }
 
+/** A window's off event: this HKX's events (with the time it sends each first), then the others'. */
+function OffChoice({
+  choices,
+  value,
+  change,
+}: {
+  choices: ReturnType<typeof offChoices>;
+  value: string | null;
+  change: (to: string | null) => void;
+}) {
+  const key = value === null ? '' : eventKey(value);
+  const all = [...choices.here.map(x => x.name), ...choices.others.map(x => x.name)];
+  return (
+    <select
+      aria-label={tr('끄는 시점')}
+      value={key}
+      onChange={e => change(all.find(x => eventKey(x) === e.target.value) ?? null)}
+    >
+      <option value="">{tr('끄는 이벤트 없음')}</option>
+      {value !== null && !all.some(x => eventKey(x) === key) && <option value={key}>{value}</option>}
+      {choices.here.length > 0 && (
+        <optgroup label={tr('이 HKX')}>
+          {choices.here.map(x => (
+            <option key={eventKey(x.name)} value={eventKey(x.name)}>
+              {x.times.length ? `${x.name} · ${fmt(Math.min(...x.times))}${tr('초')}` : x.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {choices.others.length > 0 && (
+        <optgroup label={tr('다른 HKX')}>
+          {choices.others.map(x => (
+            <option key={eventKey(x.name)} value={eventKey(x.name)}>
+              {x.from ? `${x.name} · ${x.from}` : x.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
 /** A registered function of an event this HKX sends (docs/mockup-event-node-values): the registry decides the event
  *  and what it acts with; this node holds the numbers it runs with here. A window's on function carries its off
  *  function (docs/mockup-moment-timing). */
@@ -545,9 +634,7 @@ export function RegistryMomentRow({
           {(missing || functionParts(run).length > 0) && (
             <em className="row-par">{missing ? tr('수치를 넣으세요') : functionParts(run).join(' · ')}</em>
           )}
-          <small title={item.event}>
-            {slotOfOp(op) ? item.event + ' → ' + (item.off ? item.off.event : tr('동작 끝')) : item.event}
-          </small>
+          <small title={item.event}>{item.off ? item.event + ' → ' + item.off.event : item.event}</small>
         </button>
       </div>
       {open && (
@@ -564,11 +651,9 @@ export function RegistryMomentRow({
             <div className="moment-line">
               <span className="moment-label">{tr('끄는 시점')}</span>
               <span className="moment-inline">
-                <EventChoice
-                  events={events}
+                <OffChoice
+                  choices={offChoices(w, action, annotations, slotOps[slot][1])}
                   value={item.off ? item.off.event : null}
-                  label={tr('끄는 시점')}
-                  none={tr('동작이 끝날 때')}
                   change={to => edit(w => setOffEvent(w, slot, off, to))}
                 />
               </span>
@@ -606,46 +691,46 @@ export function RegistryMomentRow({
 /** An AI. annotation command of this HKX: shown, never edited (it lives in the HKX). */
 export function CommandMomentRow({item}: {item: CommandMoment}) {
   const [open, setOpen] = useState(false);
-  const times = item.rows.map(r => fmt(r.time)).join(' · ');
-  const one = item.rows.length === 1 ? item.rows[0] : undefined;
+  const all = [...item.rows, ...item.off].sort((a, b) => a.time - b.time);
+  const times =
+    item.rows.map(r => fmt(r.time)).join(' · ') +
+    (item.off.length ? ' → ' + item.off.map(r => fmt(r.time)).join(' · ') : '');
+  const parts = item.rows.length === 1 ? functionParts(item.rows[0].values) : [];
   return (
-    <div className={'checklist-row moment annotation-moment' + (item.bad.length && !item.rows.length ? ' bad' : '')}>
+    <div className={'checklist-row moment annotation-moment' + (item.rows.length ? '' : ' bad')}>
       <div className="checklist-row-heading">
-        {/* What on the left (the command and its numbers), when on the right: the HKX annotation's time, plain text
+        {/* What on the left (the function and its values), when on the right: the HKX annotation's time, plain text
             since it points at nothing to open (docs/mockup-design-unify A). */}
         <button
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           title={tr('HKX 주석에서 만든 항목입니다. 끄거나 고치려면 HKX의 주석을 고치세요.')}
         >
-          <span>{item.rows.length ? item.label : tr('알 수 없는 주석 명령')}</span>
-          {item.rows.length > 0 && (
-            <em className="row-par">
-              {one
-                ? tr('세기 {s} · {d}초', {s: one.strength, d: one.duration})
-                : tr('{n}곳 · 시점마다 세기·시간', {n: item.rows.length})}
-            </em>
+          <span>{item.label}</span>
+          {item.rows.length > 1 ? (
+            <em className="row-par">{tr('{n}곳', {n: item.rows.length})}</em>
+          ) : (
+            parts.length > 0 && <em className="row-par">{parts.join(' · ')}</em>
           )}
           <small className="time">
-            {tr('HKX 주석')} ·{' '}
-            {item.rows.length ? times + tr('초') : item.bad.map(b => fmt(b.time)).join(' · ') + tr('초')}
+            {tr('HKX 주석')} · {item.rows.length ? times : item.bad.map(b => fmt(b.time)).join(' · ')}
+            {tr('초')}
           </small>
         </button>
       </div>
       {open && (
         <div className="checklist-fields moment-fields">
-          {item.rows.length > 0 && (
-            <table className="moment-table">
+          {all.length > 0 && (
+            <table className="moment-table copyable nodrag nopan">
               <thead>
                 <tr>
                   <th>{tr('시각')}</th>
                   <th>{tr('보내는 쪽')}</th>
-                  <th>{tr('세기')}</th>
-                  <th>{tr('시간')}</th>
+                  <th>{tr('주석')}</th>
                 </tr>
               </thead>
               <tbody>
-                {item.rows.map((r, i) => (
+                {all.map((r, i) => (
                   <tr key={i}>
                     <td>
                       {fmt(r.time)}
@@ -654,10 +739,8 @@ export function CommandMomentRow({item}: {item: CommandMoment}) {
                     <td>
                       <Roles roles={r.roles} />
                     </td>
-                    <td>{r.strength}</td>
                     <td>
-                      {r.duration}
-                      {tr('초')}
+                      <code>AI.{r.text}</code>
                     </td>
                   </tr>
                 ))}
@@ -665,10 +748,12 @@ export function CommandMomentRow({item}: {item: CommandMoment}) {
             </table>
           )}
           {item.bad.map((b, i) => (
-            <p key={i} className="moment-note warn">
+            <p key={i} className="moment-note warn copyable nodrag nopan">
               {fmt(b.time)}
               {tr('초')} <code>{b.text}</code> ·{' '}
-              {tr('실행되지 않습니다. AI.CamShake|세기|시간 형식으로 숫자를 모두 적어야 합니다.')}
+              {b.usage
+                ? tr('실행되지 않습니다. {usage} 형식으로 값을 모두 적어야 합니다.', {usage: b.usage})
+                : tr('실행되지 않습니다. 없는 명령입니다.')}
             </p>
           ))}
           <p className="moment-note">

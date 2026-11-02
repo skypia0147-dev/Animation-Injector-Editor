@@ -69,7 +69,7 @@ export function GraphDetails({
     );
   if (kind === 'entry') return <HelpNote label={t('node.entry')}>{t('graph.entryHint')}</HelpNote>;
   if (!a) return <p>{t('graph.selectNode')}</p>;
-  if (graph.kind === 'anim' || graph.kind === 'root' || kind === 'stateCondition')
+  if (graph.kind === 'anim' || graph.kind === 'root')
     return (
       <DetailFocus.Provider value={t('node.' + kind)}>
         <StateDetails

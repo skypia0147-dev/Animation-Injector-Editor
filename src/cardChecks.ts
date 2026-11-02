@@ -41,9 +41,6 @@ const refOk = (r: any) =>
     Object.keys(r).length === 1 &&
     (typeof r.action === 'string' || typeof r.card === 'string'));
 export const checkKinds = [
-  'air',
-  'weaponDrawn',
-  'combat',
   'alive',
   'space',
   'ground',
@@ -51,7 +48,6 @@ export const checkKinds = [
   'global',
   'equippedType',
   'attackState',
-  'sneaking',
   'female',
   ...extensionKinds,
 ];
@@ -142,7 +138,6 @@ export function checkCards(w: any) {
         ids.has(t.id) ||
         typeof t.kind !== 'string' ||
         typeof t.subject !== 'string' ||
-        typeof t.minimum !== 'number' ||
         'pass' in t ||
         'fail' in t ||
         (t.negate !== undefined && typeof t.negate !== 'boolean') ||
@@ -237,8 +232,6 @@ function testErrors(w: Workspace, t: CardTest): string[] {
         errors.push(tr('지면 검사의 높이·경사·반경을 확인하세요.'));
     }
   }
-  if (!Number.isFinite(t.minimum) || t.minimum < 0 || t.minimum > 1000000)
-    errors.push(tr('자원 최솟값이 잘못되었습니다.'));
   return errors;
 }
 

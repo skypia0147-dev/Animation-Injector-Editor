@@ -42,9 +42,9 @@ import {errorText} from './errorText.ts';
 export const operations = [
   'hide',
   'show',
-  'spell',
-  'stateOn',
-  'stateOff',
+  'magicAdd',
+  'magicRemove',
+  'magicCast',
   'cost',
   'shake',
   'iframeOn',
@@ -902,7 +902,10 @@ export function validateWorkspace(w: Workspace): Issue[] {
         t.from.seconds >= t.until.seconds
       )
         err(a.uid, key + tr(': 종료는 시작보다 뒤여야 합니다.'));
-      if (!number(t.stamina, 0, 100000) || !number(t.magicka, 0, 100000)) err(a.uid, key + tr(': 자원 소모 범위 오류'));
+      if (!number(t.stamina, 0, 100000) || !number(t.magicka, 0, 100000) || !number(t.health ?? 0, 0, 100000))
+        err(a.uid, key + tr(': 자원 소모 범위 오류'));
+      if (!number(t.factor, 0.05, 5) || !number(t.ease, 0, 2))
+        err(a.uid, key + tr(': 시간 배율은 0.05~5, 전환 시간은 0~2초입니다.'));
     }
     const effects = new Set<string>();
     for (const e of [...p.effects, ...pairTimelineEffects(p)]) {
@@ -939,7 +942,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
     if (!['input', 'event', 'end', 'release', 'move'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
     if (l.mode === 'end' || l.mode === 'release' || l.mode === 'move') {
       // Charge (runtime 10-30): an ordinary HKX's; an end once per HKX, none from a loop (it has no end).
-      if (a.pair) err(l.id, tr('끝나면·키를 떼면 전환은 일반 HKX에서만 씁니다.'));
+      if (a.pair) err(l.id, tr('끝나면·차지 종료·이동 전환은 일반 HKX에서만 씁니다.'));
       if (l.mode === 'end') {
         if (a.config.loop) err(l.id, tr('반복 재생 HKX에는 끝이 없어 끝나면 전환을 쓸 수 없습니다.'));
         if (w.links.some(x => x !== l && x.from === l.from && x.mode === 'end'))

@@ -1,18 +1,16 @@
 import type {Action, Effect} from './workspace.ts';
 
 /** An ordinary action's clip-time functions (runtime 0.12.274, <Action><Do at>): they change the actor playing it,
- *  so they hold no target. Windows and costs are its own slots (Rotate, IFrame, HyperArmor, Cost) and ending a pair
- *  is a pair's. A shot at a clip time is one of them (runtime 0.12.303: any number). */
+ *  so they hold no target. Windows and costs are its own slots (Rotate, IFrame, HyperArmor, TimeScale, Cost) and
+ *  ending a pair is a pair's. A shot at a clip time is one of them (runtime 0.12.303: any number). */
 export const ordinaryEffectOps = [
   'hide',
   'show',
-  'spell',
-  'stateOn',
-  'stateOff',
+  'magicAdd',
+  'magicRemove',
+  'magicCast',
   'shake',
   'stopVelocity',
-  'timeOn',
-  'timeOff',
   'ragdoll',
   'strike',
   'sound',

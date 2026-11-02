@@ -9,12 +9,8 @@ import './conditionEditor.css';
  *  the built-in ones get one here. A function so a language change reads the labels again. */
 function kindList(withGroups: boolean) {
   const base: [string, string, string][] = [
-    ['air', tr('공중'), tr('상태')],
-    ['weaponDrawn', tr('무기 뽑음'), tr('상태')],
-    ['combat', tr('전투 중'), tr('상태')],
     ['alive', tr('살아 있음'), tr('상태')],
     ['attackState', t('ext.attackState'), tr('상태')],
-    ['sneaking', t('ext.sneaking'), tr('상태')],
     ['female', tr('여성'), tr('대상')],
     ['space', tr('공간 확보'), tr('공간')],
     ['ground', tr('지면 확보'), tr('공간')],

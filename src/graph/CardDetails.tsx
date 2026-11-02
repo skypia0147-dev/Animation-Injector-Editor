@@ -24,6 +24,7 @@ import {timingLabel} from '../model.ts';
 import type {Setting} from './cardSettings.tsx';
 import {
   linkBlend,
+  linkToCancel,
   patchLink,
   patchStart,
   setLinkKey,
@@ -316,15 +317,15 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
           : l.mode === 'end'
             ? tr('끝나면')
             : l.mode === 'release'
-              ? tr('키를 떼면')
+              ? tr('차지 종료')
               : l.mode === 'move'
-                ? tr('이동키를 누르면')
+                ? tr('이동 전환')
                 : tr('받을 때'),
       value: chip(
         l.mode === 'end'
           ? tr('이 HKX가 끝날 때')
           : l.mode === 'move'
-            ? tr('이동키 · 선입력·유지 포함')
+            ? tr('차지 중 이동키')
             : l.mode === 'event'
               ? l.event || tr('이벤트 미지정')
               : keyed
@@ -338,23 +339,35 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
           <DetailRow
             label={tr('입력')}
             hint={tr(
-              '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 키를 떼면: 감지 구간 안에서 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간).'
+              '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 차지 종료: 감지 구간 안에서 차지 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간). 이동 전환: 차지 중에 이동키를 누르면(선입력·누르고 있음 포함) 넘어갑니다.'
             )}
           >
-            <select value={l.mode} onChange={e => edit(w => setLinkMode(w, id, e.target.value as Link['mode']))}>
+            <select
+              value={l.mode}
+              onChange={e =>
+                edit(w =>
+                  e.target.value === 'vanilla'
+                    ? linkToCancel(w, id)
+                    : setLinkMode(w, id, e.target.value as Link['mode'])
+                )
+              }
+            >
               <option value="input">{tr('키 입력')}</option>
               <option value="event">{tr('이벤트')}</option>
               <option value="end" disabled={!!from?.config.loop}>
                 {tr('끝나면')}
               </option>
-              <option value="release">{tr('키를 떼면')}</option>
-              <option value="move">{tr('이동키를 누르면')}</option>
+              <option value="release">{tr('차지 종료')}</option>
+              <option value="move">{tr('이동 전환')}</option>
+              <option value="vanilla" disabled={!!from?.pair}>
+                {tr('바닐라 동작')}
+              </option>
             </select>
           </DetailRow>
           {l.mode === 'release' && (
             <DetailRow
               label={tr('뗄 키')}
-              hint={tr('시작한 키: 이 동작을 시작한 키(끝나면·키를 떼면으로 이어진 동안 유지).')}
+              hint={tr('시작한 키: 이 동작을 시작한 키(끝나면·이동 전환으로 이어진 동안 유지).')}
             >
               <select
                 value={l.input ? 'own' : 'start'}

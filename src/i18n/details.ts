@@ -45,6 +45,7 @@ const entries: Record<string, [string, string]> = {
   'detail.openGraph': ['Open clip graph', '클립 그래프 열기'],
   'detail.stamina': ['Stamina', '스태미나'],
   'detail.magicka': ['Magicka', '매지카'],
+  'detail.health': ['Health', '체력'],
   'detail.delay': ['Delay', '실행 지연'],
   'detail.plugin': ['Plugin', '플러그인'],
   'detail.form': ['Form ID', 'Form ID'],
