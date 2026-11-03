@@ -526,6 +526,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'HKX ボーン階層応答形式が正しくありません。',
     'HKX 骨骼层级响应格式无效。',
   ],
+  'HKX 본 이름을 읽는 중 오류가 발생했습니다.': [
+    'An error occurred while reading the HKX bone names.',
+    'HKX のボーン名を読み取る際にエラーが発生しました。',
+    '读取 HKX 骨骼名称时出错。',
+  ],
   'HKX 본 총량이 넘쳤습니다.': [
     'HKX total bone count overflowed.',
     'HKX のボーン総量がオーバーフローしました。',
@@ -1547,6 +1552,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '가 플레이어일 때 뜸)': [' appears when player)', 'がプレイヤーの時に表示)', '为玩家时弹出)'],
   가고일: ['Gargoyle', 'ガーゴイル', '石像鬼'],
   '가로 간격 (%)': ['Horizontal offset (%)', '水平オフセット (%)', '水平偏移 (%)'],
+  가슴: ['Chest', '胸', '胸部'],
   '가운데 버튼: 회전 · Shift+가운데 버튼: 이동 · 휠: 확대/축소 · Ctrl+휠: 시야각': [
     'Middle button: rotate · Shift+Middle button: pan · Wheel: zoom · Ctrl+Wheel: field of view',
     '中ボタン: 回転 · Shift+中ボタン: 移動 · ホイール: 拡大/縮小 · Ctrl+ホイール: 視野角',
@@ -1932,25 +1938,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   고르세요: ['Select', '選択してください', '请选择'],
   '고른 규칙 하나:': ['Selected rule:', '選択したルール:', '选中的单条规则:'],
   '고른 동작만 정렬': ['Align selected actions only', '選択したアクションのみ整列', '仅对齐选中的动作'],
-  '고른 입력의 키입니다. 시작 키 등 같은 입력을 쓰는 곳도 함께 바뀝니다. 공통 입력은 프로젝트 전체에서 바뀝니다.': [
-    'The key for the chosen input. Places sharing this input, such as start keys, change together. Shared inputs change across the entire project.',
-    '選択した入力のキーです。開始キーなど同じ入力を使用している箇所も一緒に変更されます。共通入力はプロジェクト全体で変更されます。',
-    '所选输入的按键。起始按键等使用相同输入的位置将同步更改。共用输入将在整个项目中更改。',
-  ],
   '고른 파일의 sound 아래 경로가 함수의 소리 파일과 다릅니다.': [
     "The chosen file's path below sound differs from the function's sound file.",
     '選んだファイルの sound 以下のパスが関数のサウンドファイルと異なります。',
     '所选文件在 sound 下的路径与函数的声音文件不同。',
   ],
   '고정 {amount}': ['Fixed {amount}', '固定 {amount}', '固定 {amount}'],
-  '고정 몸체': ['Fixed body', '固定ボディ', '固定刚体'],
   '고정 피해': ['Fixed damage', '固定ダメージ', '固定伤害'],
   고정값: ['Fixed', '固定値', '固定值'],
-  '고정할 자세의 출처입니다. 들기 끝 자세는 들어올리기 페어가 끝나기 직전의 운반자 자세입니다.': [
-    "Source of the pose to pin. The lift end pose is the carrier's pose immediately before the lift pair finishes.",
-    '固定する姿勢のソースです。持ち上げ終了時の姿勢は、持ち上げペアが終了する直前の運搬者の姿勢です。',
-    '固定姿势的来源。抬起结束姿势是抬起配对即将结束前瞬间搬运者的姿势。',
-  ],
+  '고정할 팔': ['Held arm', '固定する腕', '固定手臂'],
   골반: ['Pelvis', '骨盤', '骨盆'],
   곰: ['Bear', 'クマ', '熊'],
   공간: ['Space', '空間', '空间'],
@@ -2250,9 +2246,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '剩余比例是包含强化效果在内的当前资源与最大资源之比。若无法确认最大资源则无法检查。',
   ],
   내려놓기: ['Put down', '下ろす', '放下'],
-  '내려놓기 동작': ['Put down action', '下ろしアクション', '放下动作'],
-  '내려놓기 입력': ['Put down input', '下ろし入力', '放下输入'],
   '내려놓기 키': ['Put down key', '下ろしキー', '放下按键'],
+  '내려놓기 키가 쓰는 입력입니다. 시작 키와 같은 입력을 고르면 한 키로 들고 내려놓습니다. 공통 입력은 프로젝트 전체에서 같은 키를 씁니다.':
+    [
+      "The input the put-down key uses. Choosing the start key's input lifts and puts down with one key. A shared input uses the same key across the project.",
+      '下ろすキーが使う入力です。開始キーと同じ入力を選ぶと、ひとつのキーで持ち上げて下ろします。共通入力はプロジェクト全体で同じキーを使います。',
+      '放下键使用的输入。选择与开始键相同的输入时，用一个键抬起和放下。公共输入在整个项目中使用同一个键。',
+    ],
   '내리막을 볼 때': ['Facing downhill', '下り坂を向くとき', '面向下坡时'],
   '내부 ID가 기본값(MyAnimationSet)입니다. 다른 모드와 겹치지 않게 프로젝트 이름을 영문으로 정하거나 내부 ID를 바꾸세요.':
     [
@@ -2271,6 +2271,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '高さは今の足の高さが基準です。距離・半径はゲーム単位、傾斜は度単位です。',
     '高度以当前脚的高度为基准。距离和半径为游戏单位，坡度为度。',
   ],
+  '놓기 ': ['Release ', '離す ', '放开 '],
   '놓기 블렌드': ['Release blend', '下ろしブレンド', '放下混合'],
   누구에게: ['Who', '誰に', '对谁'],
   '누르지 않았을 때': ['When not pressed', '押さなかった時', '未按下时'],
@@ -2351,11 +2352,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   닭: ['Chicken', 'ニワトリ', '鸡'],
   대검: ['Greatsword', '大剣', '巨剑'],
   대상: ['Target', '対象', '目标'],
-  '대상 고정은 운반이 있는 들기 페어에 연결하세요.': [
-    'Connect fix carried target to lift pair with carry.',
-    '運搬対象の固定は運搬を含む持ち上げペアに接続してください。',
-    '固定搬运目标请连接到带有搬运的抬起配对。',
-  ],
   '대상 관계': ['Target relation', '対象との関係', '目标关系'],
   '대상 놓기': ['Release target', '対象を放す', '放下目标'],
   '대상 놓기 · {name}': ['Release target · {name}', '対象を放す · {name}', '放下目标 · {name}'],
@@ -2390,10 +2386,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '目标骨架的动画路径无效。',
   ],
   '대상 없음': ['No target', '対象なし', '无目标'],
-  '대상 처리': ['Target handling', '対象の処理', '目标处理'],
   '대상·방식': ['Target and method', '対象・方式', '目标与方式'],
   '대상과의 거리': ['Distance to target', '対象との距離', '与目标的距离'],
   '대상과의 높이 차이': ['Height difference to target', '対象との高低差', '与目标的高度差'],
+  '대상을 붙일 손과 들기 끝 자세로 고정할 팔을 함께 정합니다. 양손은 오른손에 붙이고 두 팔을 고정합니다. 다른 본이나 팔을 따로 쓰려면 고급에서 바꿉니다.':
+    [
+      "Sets the hand the target is attached to and the arm held in the lift's end pose together. Both hands attach to the right hand and hold both arms. To use another bone or arm, change it under Advanced.",
+      '対象を付ける手と、持ち上げ終わりの姿勢で固定する腕をまとめて決めます。両手は右手に付けて両腕を固定します。別の骨や腕を使うには詳細設定で変更します。',
+      '同时设置目标附着的手和以抬起结束姿势固定的手臂。双手附着在右手并固定双臂。要使用其他骨骼或手臂，请在高级中更改。',
+    ],
   '대상을 선택하세요.': ['Choose the target.', '対象を選択してください。', '请选择目标。'],
   데이드라: ['Daedra', 'デイドラ', '魔族'],
   도끼: ['War axe', '斧', '战斧'],
@@ -2480,16 +2481,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '드웨머 기계': ['Dwarven automaton', 'ドゥーマーの機械', '矮人机械'],
   '드웨머 발리스타': ['Dwarven Ballista', 'ドワーフ・バリスタ', '矮人弩炮'],
   '드웨머 백부장': ['Dwarven Centurion', 'ドワーフ・センチュリオン', '矮人百夫长'],
-  '들기 끝 자세': ['Lift end pose', '持ち上げ終了時の姿勢', '抬起结束姿势'],
   '들기 블렌드': ['Lift blend', '持ち上げブレンド', '抬起混合'],
   '들기 시작 때 무기 넣기': ['Sheath on lift start', '持ち上げ開始時に納刀', '抬起开始时收起武器'],
-  '들기 자세': ['Lift pose', '持ち上げ姿勢', '抬起姿势'],
   '들리는 상대의 기준 본입니다. 인간·닭의 기본값은 NPC Root [Root]이며 다른 리그는 실제 본 이름을 입력합니다.': [
     'The reference bone of the carried partner. Default for humanoids and chickens is NPC Root [Root]; for other rigs, enter the actual bone name.',
     '持ち上げられる相手の基準ボーンです。人間・ニワトリの既定値は NPC Root [Root] で、他のリグでは実際のボーン名を入力します。',
     '被搬运搭档的基准骨骼。人类和鸡的默认值为 NPC Root [Root]，其他绑定请输入实际骨骼名称。',
   ],
-  등: ['Back', '背中', '背部'],
   등록: ['Registry', '登録', '注册'],
   '등록 기능': ['Registered feature', '登録機能', '已注册功能'],
   '등록 기능 ID 오류': ['Invalid registered feature ID', '登録機能 ID エラー', '已注册功能 ID 错误'],
@@ -2527,7 +2525,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '뗄 키': ['Key to release', '離すキー', '松开的按键'],
   또는: ['Or', 'または', '或'],
   래그돌: ['Ragdoll', 'ラグドール', '布娃娃'],
-  '래그돌 고정': ['Ragdoll fix', 'ラグドール固定', '布娃娃固定'],
   '래그돌 회복 중': ['Recovering from ragdoll', 'ラグドール復帰中', '布娃娃恢复中'],
   '래그돌과 같은 힘(0~20)입니다. 감쇠가 곱해집니다.': [
     'The same force as Ragdoll (0 to 20). The falloff is applied.',
@@ -2539,11 +2536,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Invalid runtime extension settings format.',
     'ランタイム拡張設定の形式が正しくありません。',
     '运行时扩展设置格式无效。',
-  ],
-  '런타임은 들기 끝 자세만 받습니다. 들기 끝 자세를 고르세요.': [
-    'The runtime only accepts the lift end pose. Choose the lift end pose.',
-    'ランタイムは持ち上げ終了時の姿勢のみを受け付けます。持ち上げ終了時の姿勢を選択してください。',
-    '运行时仅接受抬起结束姿势。请选择抬起结束姿势。',
   ],
   '런타임이 이 XML을 거부합니다(게임에서 파일 전체가 무시됨): {v0}': [
     'The runtime rejects this XML (the entire file will be ignored in game): {v0}',
@@ -2579,6 +2571,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ローカルドライブの絶対パスが必要です。',
     '需要本地驱动器的绝对路径。',
   ],
+  루트: ['Root', 'ルート', '根'],
   '루트 본 행렬이 없습니다.': ['Root bone matrix is missing.', 'ルートボーン行列がありません。', '缺少根骨骼矩阵。'],
   '루트 요소는 하나여야 합니다': [
     'There must be one root element',
@@ -2625,6 +2618,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '受击后的时间为 0~600 秒。',
   ],
   '매개변수 ': ['Parameter ', 'パラメータ ', '参数 '],
+  매달림: ['Hanging', 'ぶら下がり', '悬挂'],
   매머드: ['Mammoth', 'マンモス', '猛犸'],
   매지카: ['Magicka', 'マジカ', '魔法值'],
   '매지카 ': ['Magicka ', 'マジカ ', '魔法值 '],
@@ -2692,6 +2686,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'すべての種類は 1× で制限時間 2.4秒です。長押しは押した瞬間からゲージが溜まり、全体の制限時間内に離す必要があります。',
     '所有类型在 1× 下的限制时间均为 2.4 秒。按住时从按下的瞬间开始蓄力，必须在总限制时间内松开。',
   ],
+  목: ['Neck', '首', '颈部'],
+  '목 가운데': ['Middle neck', '首の中ほど', '颈部中段'],
+  '목 아래': ['Lower neck', '首の下', '颈部下段'],
+  '목 위': ['Upper neck', '首の上', '颈部上段'],
   목록: ['List', '一覧', '列表'],
   '목록에 없는 그래프 이벤트 이름의 일부(고급). 쉼표로 여럿을 씁니다.': [
     'Part of a graph event name not in the list (advanced). Separate several with commas.',
@@ -2704,6 +2702,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '已清空去向。可按 Ctrl+Z 撤销。',
   ],
   '목표 연타 횟수': ['Target rapid presses', '目標連打回数', '目标连打次数'],
+  '몸 중심': ['Center of mass', '重心', '重心'],
   몸통: ['Torso', '胴体', '躯干'],
   '몸통(COM)·목·왼 위팔 세 뼈로 가슴이 위를 보는지 검사합니다(바닐라 기상 클립을 고르는 뼈와 같음). 래그돌 회복 QTE의 결과처럼 엔진이 몸을 넘겨받는 순간 고르면 엔진이 고른 기상 자세 그대로라 결과가 엔진과 일치합니다. 서 있는 몸은 가슴이 수평이라 누움으로 셉니다.':
     [
@@ -2916,6 +2915,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '方向はラグドールの下・上・前・後・左・右です。',
     '方向为布娃娃的下、上、前、后、左、右。',
   ],
+  배: ['Belly', '腹', '腹部'],
   배시: ['Bash', 'バッシュ', '格挡重击'],
   배율: ['Scale', '倍率', '倍率'],
   '배율을 넣으세요.': ['Enter a factor.', '倍率を入力してください。', '请输入倍率。'],
@@ -2989,12 +2989,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '볼 동작 선택…': ['Select action to view…', '表示するアクションを選択…', '选择要查看的动作…'],
   '부착 본': ['Attach bone', 'アタッチボーン', '附着骨骼'],
-  '부착 본에 고정할 대상의 본(래그돌 몸체) 이름입니다. 비우면 들어올리기가 끝날 때 부착 본에 가장 가까운 몸체를 고릅니다. 예: 닭은 Neck2(목을 쥠).':
-    [
-      'Name of the target bone (ragdoll body) to attach to the attach bone. If left blank, selects the body closest to the attach bone when the lift ends. Example: Chicken uses Neck2 (holding by neck).',
-      'アタッチボーンに固定する対象のボーン（ラグドールボディ）名です。空欄にすると持ち上げ終了時にアタッチボーンに最も近いボディを選択します。例: ニワトリは Neck2（首を掴む）。',
-      '附着到附着骨骼上的目标骨骼（布娃娃刚体）名称。留空则在抬起结束时选择距离附着骨骼最近的刚体。例如：鸡使用 Neck2（抓颈部）。',
-    ],
   붙여넣기: ['Paste', '貼り付け', '粘贴'],
   "붙여넣었습니다. 공통 설정 {unassigned}개는 '미배정 설정'에서 적용할 HKX를 선택하세요.": [
     "Pasted. For {unassigned} shared settings, select HKX to apply in 'Unassigned Settings'.",
@@ -3287,6 +3281,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '手・装備種類は装備種類判定でのみ使用してください。',
     '手部/装备类型仅可在装备类型检查中使用。',
   ],
+  '손에 고정할 대상의 래그돌 몸체입니다. 목록은 들기 HKX의 상대 본 가운데 래그돌 몸체가 있는 본이고, HKX를 읽지 못하면 대상 스켈레톤의 skeleton.nif에서 가져옵니다. 자동은 들어올리기가 끝날 때 부착 본에 가장 가까운 몸체를 고릅니다.':
+    [
+      "The target's ragdoll body fixed to the hand. The list is the partner's bones in the lift HKX that have a ragdoll body; when the HKX cannot be read, it comes from the target skeleton's skeleton.nif. Auto picks the body nearest the attach bone when the lift ends.",
+      '手に固定する対象のラグドールボディです。一覧は持ち上げ HKX の相手のボーンのうちラグドールボディを持つものです。HKX を読み取れない場合は対象スケルトンの skeleton.nif から取得します。自動は持ち上げが終わるときにアタッチ骨に最も近いボディを選びます。',
+      '固定在手上的目标布娃娃刚体。列表为抬起 HKX 中对方骨骼里带布娃娃刚体的骨骼；无法读取 HKX 时取自目标骨架的 skeleton.nif。自动会在抬起结束时选择离附着骨骼最近的刚体。',
+    ],
   수렴선: ['Converging lines', '収束線', '汇聚线'],
   '수렴선: 화면 양 끝에서 두 선이 모여 가운데서 만나는 순간에 누릅니다. 성공 허용이 지나면 바로 실패합니다. 결과 때 화면이 흔들리고, 실패하면 잠깐 흑백이 됩니다.':
     [
@@ -3493,11 +3493,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '時間スケールは 0.05〜5、切り替え時間は 0〜2 秒です。',
     '时间倍率为 0.05~5，过渡时间为 0~2 秒。',
   ],
-  '시간 제한 없이 운반하다 이 키를 새로 누르면 내려놓기 동작을 재생합니다. 시작 키와 같아도 됩니다. 들어올리는 중에는 눌러도 아무 일도 없고(0.12.221), 공중에서는 내려놓지 않습니다. 셀 이동은 새 셀에서 재부착합니다.':
+  '시간 제한 없이 운반하다 이 키를 새로 누르면 내려놓기 동작을 재생합니다. 시작 키와 같아도 됩니다. 같은 입력을 쓰는 곳(시작 키, 공통 입력)도 함께 바뀌며, 다른 입력은 고급의 입력 연결에서 고릅니다. 들어올리는 중이나 공중에서는 내려놓지 않습니다.':
     [
-      'Plays the put down action when pressing this key anew after carrying indefinitely. Can be the same as the start key. Pressing it during lifting does nothing (0.12.221), and cannot put down while in mid-air. Cell transitions reattach in the new cell.',
-      '無期限に運搬中、このキーを新たに押すと下ろしアクションを再生します。開始キーと同じでも構いません。持ち上げ中に押しても何も起きず（0.12.221）、空中では下ろせません。セル移動時は新しいセルで再アタッチされます。',
-      '无时间限制搬运时，再次按下此键将播放放下动作。可以与起始按键相同。抬起过程中按下无任何反应（0.12.221），且在空中无法放下。单元切转时将在新单元中重新附着。',
+      'While carrying with no time limit, a new press of this key plays the put-down action. It may be the same as the start key. Places using the same input (the start key, a shared input) change with it; choose another input under Advanced > Input binding. It does not put down during the lift or in the air.',
+      '時間制限なく運搬中にこのキーを新たに押すと、下ろすアクションを再生します。開始キーと同じでも構いません。同じ入力を使う所(開始キー、共通入力)も一緒に変わり、別の入力は詳細設定の入力の割り当てで選びます。持ち上げ中や空中では下ろしません。',
+      '无时间限制搬运时重新按下此键会播放放下动作。可以与开始键相同。使用同一输入的地方（开始键、公共输入）也会一起更改；其他输入请在高级的输入绑定中选择。抬起过程中或在空中时不会放下。',
     ],
   '시간(초)': ['Duration (s)', '時間（秒）', '时间（秒）'],
   '시야 확보': ['Line of sight', '視線確保', '视野通畅'],
@@ -3803,13 +3803,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '오류 있음': ['Has errors', 'エラーあり', '有错误'],
   '오르는 중': ['Rising', '上昇中', '上升中'],
   '오르막을 볼 때': ['Facing uphill', '上り坂を向くとき', '面向上坡时'],
+  오른발: ['Right foot', '右足', '右脚'],
   오른손: ['Right hand', '右手', '右手'],
   '오른손 공격': ['Right attack', '右手攻撃', '右手攻击'],
   '오른손@손 칩': ['Right', '右手', '右手'],
   오른쪽: ['Right', '右', '右'],
   '오른쪽 아래': ['Bottom-right', '右下', '右下'],
+  '오른쪽 아래팔': ['Right forearm', '右前腕', '右前臂'],
   '오른쪽 어깨': ['Right shoulder', '右肩', '右肩'],
   '오른쪽 위': ['Top-right', '右上', '右上'],
+  '오른쪽 위팔': ['Right upper arm', '右上腕', '右上臂'],
+  '오른쪽 종아리': ['Right calf', '右ふくらはぎ', '右小腿'],
+  '오른쪽 허벅지': ['Right thigh', '右太もも', '右大腿'],
   오른팔: ['Right arm', '右腕', '右臂'],
   완벽: ['Perfect', '完璧', '完美'],
   '완벽 구간': ['Perfect window', 'パーフェクト区間', '完美区间'],
@@ -3829,6 +3834,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '외 {n}': ['+{n} more', 'ほか {n}', '等 {n} 项'],
   '외부 모드 필요: {v0}': ['External mod required: {v0}', '外部 MOD が必要です: {v0}', '需要外部模组：{v0}'],
   '외침·능력': ['Shout / power', 'シャウト・パワー', '龙吼·能力'],
+  왼발: ['Left foot', '左足', '左脚'],
   왼손: ['Left hand', '左手', '左手'],
   '왼손 강공격 · 오른쪽': ['Left-hand power attack · right', '左手パワーアタック · 右', '左手强力攻击 · 右'],
   '왼손 강공격 · 왼쪽': ['Left-hand power attack · left', '左手パワーアタック · 左', '左手强力攻击 · 左'],
@@ -3840,13 +3846,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   왼쪽: ['Left', '左', '左'],
   '왼쪽 맞춤': ['Align left', '左揃え', '左对齐'],
   '왼쪽 아래': ['Bottom-left', '左下', '左下'],
+  '왼쪽 아래팔': ['Left forearm', '左前腕', '左前臂'],
   '왼쪽 어깨': ['Left shoulder', '左肩', '左肩'],
   '왼쪽 위': ['Top-left', '左上', '左上'],
+  '왼쪽 위팔': ['Left upper arm', '左上腕', '左上臂'],
   '왼쪽 이벤트 목록에서 선택하거나 ＋ 버튼으로 추가하세요.': [
     'Select from the event list on the left or add with the ＋ button.',
     '左のイベント一覧から選択するか、＋ ボタンで追加してください。',
     '请从左侧事件列表中选择，或点击 ＋ 按钮添加。',
   ],
+  '왼쪽 종아리': ['Left calf', '左ふくらはぎ', '左小腿'],
+  '왼쪽 허벅지': ['Left thigh', '左太もも', '左大腿'],
   왼팔: ['Left arm', '左腕', '左臂'],
   '요소 안의 텍스트는 허용하지 않습니다': [
     'Text inside the element is not allowed',
@@ -3876,11 +3886,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '運搬姿勢ボーン数制限',
     '搬运姿势骨骼数量超出限制',
   ],
-  "운반 중 내려놓기 입력을 누르면 운반자가 이 동작을 혼자 재생합니다. 대상은 붙은 채 따라가다 그 동작의 '대상 놓기' 시점에 래그돌로 떨어지고, 일어서는 것은 게임이 합니다. 클립이 먼저 끝나면 끝에서 놓습니다. 시작 입력·조건 분기·방향 클립이 없는 한 사람 일반 동작만 고를 수 있으며, 고르면 그 동작에 '대상 놓기'가 없을 때 클립 끝 0.3초 전으로 추가합니다.":
+  "운반 중 내려놓기 키를 누르면 운반자가 이 동작을 혼자 재생합니다. 대상은 붙은 채 따라가다 그 동작의 '대상 놓기' 시점에 래그돌로 떨어지고, 일어서는 것은 게임이 합니다. 클립이 먼저 끝나면 끝에서 놓습니다. 시작 입력·조건 분기·방향 클립이 없는 한 사람 일반 동작만 고를 수 있으며, 고르면 그 동작에 '대상 놓기'가 없을 때 클립 끝 0.3초 전으로 추가합니다.":
     [
-      "Pressing the put down input while carrying plays this action alone for the carrier. The target follows attached until released as a ragdoll at the action's 'Release carried target' point, and the game handles standing up. If the clip ends first, releases at the end. Only single-actor ordinary actions without start inputs, condition branches, or directional clips can be chosen; selecting one adds a 'Release carried target' 0.3s before clip end if none exists.",
-      '運搬中に下ろし入力を押すと、運搬者がこのアクションを単独で再生します。対象は付着したまま追従し、そのアクションの「運搬対象を放す」時点でラグドールとして落下し、起き上がりはゲームが行います。クリップが先に終了した場合は末尾で放します。開始入力・条件分岐・方向クリップのない単独の一般アクションのみ選択可能で、選択時に「運搬対象を放す」がない場合はクリップ終了 0.3 秒前に追加されます。',
-      '在搬运中按下放下输入时，搬运者将单独播放此动作。目标保持附着跟随，直到该动作的“放下搬运目标”时刻作为布娃娃掉落，起身由游戏处理。若片段先结束，则在末尾放开。仅可选择没有起始输入、条件分支或方向片段的单人普通动作；若选择的动作没有“放下搬运目标”，则会在片段结束前 0.3 秒自动添加。',
+      "Pressing the put-down key while carrying makes the carrier play this action alone. The target stays attached until the action's 'Release carried target' moment, then falls as a ragdoll; getting up is left to the game. If the clip ends first, it is released at the end. Only a plain one-actor action without a start input, condition branch or directional clips can be chosen; choosing one adds a 'Release carried target' 0.3 s before its clip ends if it has none.",
+      '運搬中に下ろすキーを押すと、運搬者がこのアクションをひとりで再生します。対象は付いたままついて行き、そのアクションの「対象を離す」時点でラグドールとして落ち、起き上がりはゲームが行います。クリップが先に終わると終わりで離します。開始入力・条件分岐・方向クリップのない一人用の通常アクションだけを選べ、選ぶとそのアクションに「対象を離す」がなければクリップ終了の0.3秒前に追加します。',
+      '搬运时按下放下键，搬运者会独自播放此动作。目标保持附着跟随，直到该动作的“放开搬运目标”时刻以布娃娃落下，起身由游戏处理。若片段先结束，则在结束时放开。只能选择没有开始输入、条件分支和方向片段的单人普通动作；选择后若该动作没有“放开搬运目标”，会在片段结束前0.3秒添加。',
     ],
   '운반 추가': ['Add carry', '運搬を追加', '添加搬运'],
   '운반 카드의 내려놓기 동작을 먼저 변경하세요.': [
@@ -3978,7 +3988,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '運搬の下ろす動作（putdown）は開始で始まりません: ',
     '搬运的放下动作（putdown）不能由启动开始：',
   ],
-  '운반자 상체': ['Carrier upper body', '運搬者の上半身', '搬运者上半身'],
   '운반자 스켈레톤의 본과 가중치(0~1)입니다. 이 가중치를 아래 뼈가 모두 물려받고, 아래 뼈에 따로 적으면 그 값이 우선합니다.':
     [
       'Bones and weights (0–1) on the carrier skeleton. Lower bones inherit this weight, but individual child bone settings take precedence.',
@@ -3991,11 +4000,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '運搬者スケルトンのボーンです。ペア終了直前のこのボーンと対象ルート間の位置差・相対回転を保存して追従します。ボーン原点へ移動させるわけではありません。一覧からの選択または直接入力が可能で、ボーンが存在しない場合は開始しません。',
       '搬运者骨架上的骨骼。通过保存配对结束前该骨骼与目标根节点之间的位置差与相对旋转来跟随。不会移动到骨骼原点。可从列表选择或手动输入；若缺少骨骼则不会启动。',
     ],
-  '운반하는 동안 고른 팔을 들기 자세로 고정합니다. 나머지 뼈는 평소 이동 애니메이션을 따릅니다. 쇄골 하나에 가중치를 주면 그 아래 팔 전체가 물려받습니다. 직접 지정은 뼈마다 가중치(1 = 들기 자세, 0 = 이동, 사이 = 섞기)를 정합니다.':
+  '운반하는 동안 고른 팔을 들기 끝 자세로 고정합니다. 나머지 뼈는 평소 이동 애니메이션을 따릅니다. 쇄골 하나에 가중치를 주면 그 아래 팔 전체가 물려받습니다. 직접 지정은 뼈마다 가중치(1 = 들기 자세, 0 = 이동, 사이 = 섞기)를 정합니다.':
     [
-      'Pins the chosen arm in the lift pose while carrying. Remaining bones follow normal locomotion animations. Weighting a clavicle propagates to the entire arm below it. Custom mode sets weights per bone (1 = lift pose, 0 = locomotion, between = blend).',
-      '運搬中、選択した腕を持ち上げ姿勢で固定します。残りのボーンは通常の移動アニメーションに従います。鎖骨 1 つにウェイトを指定するとその下位の腕全体が継承します。個別指定ではボーンごとにウェイト（1 = 持ち上げ姿勢、0 = 移動、中間 = ブレンド）を設定します。',
-      '搬运期间将所选手臂固定为抬起姿势。其余骨骼沿用平时的移动动画。为锁骨赋予权重时，其下方的整条手臂均会继承。手动指定可单独为各骨骼设置权重（1 = 抬起姿势，0 = 移动，中间值 = 混合）。',
+      "While carrying, the chosen arm keeps the lift's end pose. The other bones follow the usual movement animation. A weight on one clavicle is inherited by the whole arm below it. Custom sets a weight per bone (1 = lift pose, 0 = movement, between = blend).",
+      '運搬中、選んだ腕を持ち上げ終わりの姿勢で固定します。ほかの骨は通常の移動アニメーションに従います。鎖骨ひとつにウェイトを与えると、その下の腕全体が受け継ぎます。直接指定は骨ごとにウェイト(1 = 持ち上げ姿勢、0 = 移動、その間 = ブレンド)を決めます。',
+      '搬运期间，所选手臂保持抬起结束时的姿势。其余骨骼跟随平常的移动动画。给一根锁骨设置权重时，其下整条手臂都会继承。直接指定为每根骨骼设置权重（1 = 抬起姿势，0 = 移动，中间值 = 混合）。',
     ],
   웅크리기: ['Sneak', '隠密', '潜行'],
   '원본 미지정': ['No source chosen', '原本未指定', '未指定源文件'],
@@ -4518,6 +4527,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '입력 방식': ['Input method', '入力方式', '输入方式'],
   '입력 삭제': ['Delete input', '入力を削除', '删除输入'],
   '입력 없음': ['No input', '入力なし', '无输入'],
+  '입력 연결': ['Input binding', '入力の割り当て', '输入绑定'],
   '입력 키를 지정하세요.': ['Assign an input key.', '入力キーを指定してください。', '请指定输入键。'],
   '입력·이벤트 대상 형식 오류': [
     'Invalid input/event target format',
@@ -4536,11 +4546,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '自分自身や子グループへ移動することはできません。',
     '无法移动到自身或子组。',
   ],
-  '자동 (부착 본에 가장 가까운 몸체)': [
-    'Auto (body closest to attach bone)',
-    '自動（アタッチボーンに最も近いボディ）',
-    '自动（最靠近附着骨骼的刚体）',
-  ],
+  자동: ['Auto', '自動', '自动'],
+  '자동 (손에 가장 가까운 곳)': ['Auto (nearest the hand)', '自動(手に最も近い所)', '自动（离手最近处）'],
   '자동 이동': ['Auto-move', '自動移動', '自动移动'],
   '자물쇠 따기': ['Lockpicking', '開錠', '开锁'],
   '자산 검사를 완료하세요. 누락·중복·잘못된 원본이 있습니다.': [
@@ -4555,12 +4562,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'アセットの重複または外部提供 MOD の設定エラー',
     '资产重复或外部来源模组设置错误',
   ],
-  '자세 고정': ['Fixed pose', '姿勢固定', '固定姿势'],
-  '자세 고정: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 래그돌 고정: 몸체 하나만 부착 본에 고정하고 나머지는 물리로 흔들립니다(대상 스켈레톤의 래그돌 프로필 값). 래그돌을 준비하지 못하면 자세 고정으로 운반합니다.':
+  '자세 그대로': ['Keep pose', '姿勢のまま', '保持姿势'],
+  '자세 그대로: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 매달림: 쥐는 곳 하나만 손에 고정하고 나머지는 물리로 흔들립니다(대상 스켈레톤의 래그돌 프로필 값). 래그돌을 준비하지 못하면 자세 그대로 운반합니다.':
     [
-      "Fixed pose: remains attached in the exact final pose of the lift. Ragdoll fix: pins only a single body to the attach bone while the rest swings with physics (using the target skeleton's ragdoll profile). If the ragdoll fails to prepare, carries in fixed pose.",
-      '姿勢固定: 持ち上げの最後の姿勢のまま追従します。ラグドール固定: 1 つのボディのみをアタッチボーンに固定し、残りは物理で揺れます（対象スケルトンのラグドールプロファイル値）。ラグドールを準備できない場合は姿勢固定で運搬します。',
-      '固定姿势：保持抬起动作的最终姿势附着跟随。布娃娃固定：仅将一个刚体固定在附着骨骼上，其余部分受物理摆动（使用目标骨架的布娃娃配置文件）。若无法准备布娃娃，则以固定姿势搬运。',
+      "Keep pose: the target stays attached in the lift's last pose. Hanging: only the grip point is fixed to the hand and the rest swings with physics (the target skeleton's ragdoll profile). If the ragdoll cannot be prepared, it is carried in its pose.",
+      '姿勢のまま: 持ち上げの最後の姿勢のまま付いて回ります。ぶら下がり: つかむ所ひとつだけを手に固定し、残りは物理で揺れます(対象スケルトンのラグドールプロファイルの値)。ラグドールを準備できない場合は姿勢のまま運搬します。',
+      '保持姿势：目标以抬起的最后姿势附着移动。悬挂：只将抓握处固定在手上，其余部分随物理摆动（目标骨架的布娃娃配置值）。无法准备布娃娃时按原姿势搬运。',
     ],
   자원: ['Resource', 'リソース', '资源'],
   '자원 비교': ['Resource comparison', 'リソース比較', '资源比较'],
@@ -4583,6 +4590,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '无效的声音文件路径（.wav、.xwm）：{s}',
   ],
   '잘못된 조건 수치: ': ['Invalid condition number: ', '無効な条件数値: ', '无效的条件数值: '],
+  '잡는 손': ['Gripping hand', 'つかむ手', '抓握的手'],
+  '잡는 손을 따름': ['Follow gripping hand', 'つかむ手に合わせる', '跟随抓握的手'],
   '장비 키워드': ['Equipment keyword', '装備キーワード', '装备关键词'],
   '장비·능력': ['Equipment and abilities', '装備・能力', '装备与能力'],
   '장착 종류': ['Equipment type', '装備の種類', '装备类型'],
@@ -4895,6 +4904,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '中央または四隅を基準に配置します。「画面比率」は画面比率（0〜100%、中央 50%）で配置します（ランタイム既定値）。基準点を変更すると位置が初期値に戻ります。上のプレビューで QTE をドラッグして移動することもできます。',
       '基于中央或角落进行定位。“屏幕比例”按屏幕百分比（0~100%，居中 50%）放置（运行时默认值）。更改基准点会将位置重置为初始值。也可以在上方预览中拖动 QTE 来移动位置。',
     ],
+  '쥐는 곳': ['Grip point', 'つかむ所', '抓握处'],
   즐겨찾기: ['Favorites', 'お気に入り', '收藏'],
   '지금 날씨의 분류입니다.': ["The current weather's class.", '現在の天気の分類です。', '当前天气的类别。'],
   '지금 발 높이를 기준으로 25단위 이하 간격마다 중심과 주변 4점을 검사합니다. 작은 틈을 모두 감지하거나 착지를 보장하지는 않습니다. 동적 물체 등 불명확한 결과는 실패로 보냅니다.':
@@ -5064,6 +5074,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '直前の動作が存在しない動作を指しています: ',
     '上一个动作指向不存在的动作: ',
   ],
+  '직접 (고급)': ['Custom (Advanced)', '直接(詳細設定)', '自定义（高级）'],
   '직접 입력': ['Custom', '直接入力', '手动输入'],
   '직접 입력…': ['Type a name…', '直接入力…', '手动输入…'],
   '직접 지정': ['Custom', '個別指定', '手动指定'],
@@ -5776,6 +5787,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '行が複数あるカードは True を使いません。行を一つだけ残してください。',
     '有多行的卡不使用 True。请只保留一行。',
   ],
+  허리: ['Waist', '腰', '腰'],
   '허용 범위가 런타임 범위를 벗어납니다.': [
     'Allowed range is outside the runtime range.',
     '許容範囲がランタイム範囲外です。',

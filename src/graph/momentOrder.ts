@@ -40,7 +40,6 @@ export function itemPlace(
   }
   if (n.kind === 'carryRelease')
     return at(a.config.carryRelease ? markTime(a.config.carryRelease.at, eventTimes, length) : Infinity);
-  if (n.kind === 'carryFix') return at(a.pair?.carry?.fix ? a.pair.carry.fix.at.seconds : Infinity);
   if (n.notify) {
     // 회전 · 전 구간 금지 holds the whole play.
     if (n.notify === 'rotate' && !a.pair && a.config.rotationLocked) return WHOLE;

@@ -60,7 +60,6 @@ export const nodeCatalog = {
     outputs: ['pose'],
   },
   carryRelease: {layer: 'anim', fields: ['config.carryRelease'], inputs: ['trigger'], outputs: []},
-  carryFix: {layer: 'anim', fields: ['pair.carry.fix'], inputs: ['trigger'], outputs: []},
   suppress: {layer: 'anim', fields: ['config.suppress'], inputs: ['trigger'], outputs: []},
   carry: {layer: 'anim', fields: ['pair.carry'], inputs: ['trigger'], outputs: ['trigger']},
   outputPose: {layer: 'anim', fields: ['config.graph'], inputs: ['pose'], outputs: []},

@@ -525,6 +525,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             hkx::hkx_meta,
             hkx::viewer::hkx_frames,
+            hkx::viewer::hkx_pair_bones,
             hkx::skin::hkx_skin,
             hkx::skin::pick_viewer_asset,
             open_document,

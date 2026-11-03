@@ -1142,9 +1142,60 @@ pub async fn hkx_frames(request: ViewerRequest) -> Result<tauri::ipc::Response, 
         .map(tauri::ipc::Response::new)
 }
 
+/// A pair HKX's bones by actor: its transform track names, the second actor's under `2_` (PairedRoot is neither). A
+/// carry picks its bones from them (CarryFields). A clip of one actor gives the second none.
+fn pair_bones(bytes: &[u8]) -> Result<[Vec<String>; 2], String> {
+    let classes: indexmap::IndexMap<usize, Classes<'_>> =
+        serde_hkx::from_bytes(bytes).map_err(|e| format!("HKX 해석 실패: {e}"))?;
+    let source = animation_source(&classes).ok_or("지원되는 spline/interleaved 애니메이션이 없습니다.")?;
+    let parent = source.parent();
+    let names = animation_track_names(parent, track_count(parent)?)?;
+    let mut result = [Vec::new(), Vec::new()];
+    for name in &names {
+        if let Some((actor, bone)) = pair_target(name) {
+            if !result[actor].contains(&bone) {
+                result[actor].push(bone);
+            }
+        }
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn hkx_pair_bones(path: String) -> Result<[Vec<String>; 2], String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = validate_hkx_path(&path)?;
+        let bytes = read_limited(&path)?;
+        std::panic::catch_unwind(|| pair_bones(&bytes))
+            .map_err(|_| "HKX 본 이름을 읽는 중 오류가 발생했습니다.".to_owned())?
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Grapple's lift (a local mod, AIE_GRAPPLE_HKX_DIR, so ignored by default): the carrier's tracks and the target's
+    // under 2_, which a carry's bone fields list.
+    #[test]
+    #[ignore]
+    fn grapple_lift_lists_both_actors_bones() {
+        let dir = std::env::var("AIE_GRAPPLE_HKX_DIR").expect("AIE_GRAPPLE_HKX_DIR: the folder holding Grapple's HKX");
+        let bytes = fs::read(Path::new(&dir).join("Grapple_Lift.hkx")).unwrap();
+        let [carrier, target] = pair_bones(&bytes).unwrap();
+        for bone in ["NPC L Hand [LHnd]", "NPC Root [Root]"] {
+            assert!(carrier.iter().any(|b| b == bone), "{bone}");
+        }
+        for bone in ["NPC Root [Root]", "NPC COM [COM ]"] {
+            assert!(target.iter().any(|b| b == bone), "{bone}");
+        }
+        assert!(!carrier
+            .iter()
+            .chain(&target)
+            .any(|b| b.starts_with("2_") || b == "PairedRoot"));
+    }
 
     // Grapple's pairs (a local mod, AIE_GRAPPLE_HKX_DIR, so ignored by default): the four played from behind are the
     // only ones whose two actors face the same way at the first frame; their XML keeps reorientSupport="false".

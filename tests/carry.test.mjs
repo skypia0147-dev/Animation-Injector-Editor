@@ -12,6 +12,12 @@ import {deleteSharedInput, inputReferences} from '../src/sharedSettings.ts';
 import {
   validBoneName,
   carryHoldPreset,
+  carryHand,
+  carrySummary,
+  defaultCarry,
+  rigBoneOptions,
+  carryBoneLists,
+  setCarryHand,
   defaultCarryHold,
   defaultCarryFix,
   setPutdown,
@@ -19,6 +25,7 @@ import {
   NEW_CARRY_INPUT,
 } from '../src/carry.ts';
 import {checklistModel} from '../src/graph/checklist.ts';
+import {pairedRigs} from '../src/pairedRigs.ts';
 import {t} from '../src/i18n/index.ts';
 import {editBlend, animId} from '../src/graph/blends.ts';
 import {timelineRows, patch, remove} from '../src/timeline/model.ts';
@@ -86,7 +93,7 @@ test('context add creates a carry attached to pair; the putdown Action can be co
   assert.ok(option);
   const added = addConnected(w, hkx.id, option, {x: 500, y: 500});
   w = added.workspace;
-  assert.equal(w.actions[0].pair.carry.bone, 'NPC R Clavicle [RClv]');
+  assert.equal(w.actions[0].pair.carry.bone, 'NPC R Hand [RHnd]');
   assert.ok(!contextualAdds(w, hkx.id).some(o => o.kind === 'carry'));
   const lower = flatGraph(w).nodes.find(n => n.kind === 'hkxPlay' && n.action === w.actions[1].uid);
   w = connectFlat(w, added.id, lower.id);
@@ -354,36 +361,82 @@ test('an invalid fix moment is rejected like the runtime', needsChecker, () => {
   w.actions[0].pair.carry.fix.at = {...w.actions[0].pair.carry.fix.at, basis: 'event', event: 'Grab'};
   assert.throws(() => compileWorkspace(w), /대상 고정 시점/);
 });
-test('every carry has the fix item on its lift card: the lift end by default, a moment from details', () => {
-  let w = importWorkspaceXml(heldXml());
+test('the fix moment is part of the carry item: no card item of its own, the lift end by default', () => {
+  const w = importWorkspaceXml(heldXml());
   const lift = w.actions[0].uid,
-    clip = id => flatGraph(w).nodes.find(n => n.kind === 'hkxPlay' && n.action === id),
-    fixNode = () => flatGraph(w).nodes.find(n => n.kind === 'carryFix' && n.action === lift);
-  // The carry brings it (no <Fix> = the lift's end), so neither card offers to add one.
-  for (const a of w.actions) assert.ok(!contextualAdds(w, clip(a.uid).id).some(o => o.kind === 'carryFix'));
+    clip = flatGraph(w).nodes.find(n => n.kind === 'hkxPlay' && n.action === lift);
   assert.equal(w.actions[0].pair.carry.fix, null);
-  assert.equal(fixNode().summary, t('carryFix.liftEnd'));
-  const item = checklistModel(w)
-    .items.get(clip(lift).id)
-    .find(i => i.node.kind === 'carryFix');
-  assert.equal(item.category, 'event');
-  assert.equal(item.removable, false);
+  assert.ok(!flatGraph(w).nodes.some(n => n.kind === 'carryFix'));
+  assert.ok(
+    !checklistModel(w)
+      .items.get(clip.id)
+      .some(i => i.node.kind === 'carryFix')
+  );
   assert.doesNotMatch(compileWorkspace(w), /<Fix /);
-  // A moment moves the fix into the lift.
+  // A moment (from the carry item or the timeline) is written into the lift.
   w.actions[0].pair.carry.fix = defaultCarryFix();
-  assert.equal(fixNode().summary, '1초');
   assert.match(compileWorkspace(w), /<Fix at="1"\/>/);
-  // Cutting its wire or deleting it goes back to the lift's end; the item and the carry stay.
-  const node = fixNode(),
-    edge = flatGraph(w).edges.find(e => e.target === node.id);
-  assert.doesNotMatch(compileWorkspace(disconnectEdge(w, edge)), /<Fix /);
-  const removed = deleteFlat(w, node.id);
-  assert.equal(removed.actions[0].pair.carry.fix, null);
-  assert.equal(removed.actions[0].pair.carry.target, 'physics');
-  assert.ok(flatGraph(removed).nodes.some(n => n.kind === 'carryFix' && n.action === lift));
-  // A pair without a carry has none.
-  const bare = importWorkspaceXml(carryXml(undefined, '').replace(/<Carry [^>]*\/>\n/, ''));
-  assert.ok(!flatGraph(bare).nodes.some(n => n.kind === 'carryFix'));
+});
+// The gripping hand reads the attach bone and the held arm together (docs/mockup-carry-simplify, 11-04).
+test('carry hand: one choice sets the attach bone and the held arm; other pairs stay custom', () => {
+  const base = defaultCarry();
+  assert.equal(base.bone, 'NPC R Hand [RHnd]');
+  assert.equal(carryHand(base), 'right');
+  const left = setCarryHand(base, 'left');
+  assert.equal(left.bone, 'NPC L Hand [LHnd]');
+  assert.equal(carryHoldPreset(left.hold), 'left');
+  assert.equal(carryHand(left), 'left');
+  // Both hands attach to the right hand (one bone) and hold both arms.
+  const both = setCarryHand({...base, hold: null}, 'both');
+  assert.equal(both.bone, 'NPC R Hand [RHnd]');
+  assert.equal(carryHoldPreset(both.hold), 'both');
+  assert.equal(carryHand(both), 'both');
+  // An arm hold left off stays off; the hand still reads.
+  const off = setCarryHand({...base, hold: null}, 'left');
+  assert.equal(off.hold, null);
+  assert.equal(carryHand(off), 'left');
+  // A shoulder, or a hand with the other arm, keeps its values and reads as custom.
+  assert.equal(carryHand({...base, bone: 'NPC R Clavicle [RClv]'}), 'custom');
+  assert.equal(carryHand({...left, hold: defaultCarryHold()}), 'custom');
+  assert.equal(carrySummary(left), '왼손 · 자세 그대로');
+  assert.equal(carrySummary({...left, target: 'physics', part: 'NPC COM [COM ]'}), '왼손 · 매달림 · 몸 중심');
+});
+test("bone lists come from each rig's skeleton.nif: every bone, and the bodies a carry can hold", () => {
+  const human = rigBoneOptions('character').map(o => o.name);
+  for (const bone of ['NPC R Hand [RHnd]', 'NPC Root [Root]', 'NPC R Clavicle [RClv]']) assert.ok(human.includes(bone));
+  assert.equal(rigBoneOptions('character')[0].label !== undefined, true);
+  const bodies = rigBoneOptions('character', true).map(o => o.name);
+  assert.ok(bodies.includes('NPC COM [COM ]'));
+  assert.ok(!bodies.some(n => /CharacterController|CharacterBumper|Root/.test(n)));
+  assert.deepEqual(
+    rigBoneOptions('chicken', true)
+      .map(o => o.name)
+      .sort(),
+    ['HEAD', 'LeftAnkle', 'Neck0', 'Neck1', 'Neck2', 'Pelvis', 'RightAnkle']
+  );
+  for (const r of pairedRigs) assert.ok(rigBoneOptions(r.id, true).length > 0, r.id);
+  assert.deepEqual(rigBoneOptions('unknown'), []);
+});
+test('a carry lists the lift HKX bones first; the grip point keeps the ones with a ragdoll body', () => {
+  const names = list => list.map(o => o.name);
+  // No HKX bones (browser preview, no local file, a one-actor clip): the rig tables.
+  let lists = carryBoneLists('chicken', null);
+  assert.deepEqual(names(lists.carrier), names(rigBoneOptions('character')));
+  assert.deepEqual(names(lists.bodies), names(rigBoneOptions('chicken', true)));
+  lists = carryBoneLists('chicken', [['NPC L Hand [LHnd]'], []]);
+  assert.deepEqual(names(lists.carrier), ['NPC L Hand [LHnd]']);
+  assert.deepEqual(names(lists.target), names(rigBoneOptions('chicken')));
+  // The HKX's own bones, the grip point only where the rig has a body (case-insensitive like the NIF names).
+  lists = carryBoneLists('chicken', [
+    ['NPC Root [Root]', 'NPC R Hand [RHnd]'],
+    ['NPC Root [Root]', 'pelvis', 'Neck2', 'RAnkleToe10'],
+  ]);
+  assert.deepEqual(names(lists.carrier), ['NPC Root [Root]', 'NPC R Hand [RHnd]']);
+  assert.deepEqual(names(lists.target).sort(), ['NPC Root [Root]', 'Neck2', 'RAnkleToe10', 'pelvis']);
+  assert.deepEqual(names(lists.bodies).sort(), ['Neck2', 'pelvis']);
+  // A skeleton the rig table does not know: every HKX bone.
+  lists = carryBoneLists('chicken', [[], ['CustomA', 'CustomB']]);
+  assert.deepEqual(names(lists.bodies), ['CustomA', 'CustomB']);
 });
 // The carry weapon setting: sheathed (default) or sheathe. weapon="keep" and weaponShow went in runtime 0.12.238.
 const keepXml = (attrs = 'weapon="sheathe"') => heldXml(`target="physics" part="Neck2" ${attrs}`);

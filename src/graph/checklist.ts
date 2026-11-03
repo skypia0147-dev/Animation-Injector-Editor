@@ -10,21 +10,17 @@ export const internalKinds = new Set([
   'loopRule',
   'cameraRestore',
   'carryRelease',
-  'carryFix',
   'suppress',
   'carry',
   'findPartner',
   'pairedPlay',
 ]);
 export const eventItem = (n: FlatNode) =>
-  n.kind === 'cameraRestore' ||
-  n.kind === 'carryRelease' ||
-  n.kind === 'carryFix' ||
-  (!!n.notify && n.notify.startsWith('effect:'));
+  n.kind === 'cameraRestore' || n.kind === 'carryRelease' || (!!n.notify && n.notify.startsWith('effect:'));
 export type ChecklistItem = {
   node: FlatNode;
   bindings: GraphEdge[];
-  /** The card's 「삭제」 button: everything but the pair's own pieces (partner search, paired play, carry fix). */
+  /** The card's 「삭제」 button: everything but the pair's own pieces (partner search, paired play). */
   removable: boolean;
   scope: string;
   category: 'feature' | 'event';
@@ -65,7 +61,7 @@ export function checklistModel(w: Workspace, raw = flatGraph(w)) {
       items.get(p.id)!.push({
         node: n,
         bindings,
-        removable: !['findPartner', 'pairedPlay', 'carryFix'].includes(n.kind),
+        removable: !['findPartner', 'pairedPlay'].includes(n.kind),
         scope: parents.length > 1 ? tr('동작 공통 · {length}클립', {length: parents.length}) : tr('이 클립'),
         category: eventItem(n) ? 'event' : 'feature',
         ...(blend ? {blend} : {}),

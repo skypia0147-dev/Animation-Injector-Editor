@@ -2,7 +2,6 @@ import {RuntimeEventFields} from './RuntimeEventFields.tsx';
 import './inspector.css';
 import {pairedRigs} from '../../pairedRigs.ts';
 import {CarryFields} from './CarryFields.tsx';
-import {defaultCarryFix} from '../../carry.ts';
 import type {Action, Workspace, Pair, CameraRestore} from '../../workspace.ts';
 import {defaultPair, defaultCamera} from '../../workspace.ts';
 import {cameraReset} from '../../sharedSettings.ts';
@@ -307,33 +306,6 @@ export function StateDetails({
             </Category>
           )}
           <CarryFields action={a} w={w} change={change} edit={edit} focused={!!focused} compact={integrated} />
-          {pair.carry && (
-            // Every carry fixes its target: at the lift's end unless a moment is given.
-            <Category title={t('node.carryFix')} initialOpen>
-              <Prop
-                id="mode"
-                label={t('carryFix.at')}
-                hint={t('carryFix.hint')}
-                value={pair.carry.fix ? 'time' : 'end'}
-                initial="end"
-                options={[
-                  ['end', t('carryFix.liftEnd')],
-                  ['time', t('carryFix.time')],
-                ]}
-                change={mode => pp({carry: {...pair.carry!, fix: mode === 'time' ? defaultCarryFix() : null}})}
-              />
-              {pair.carry.fix && (
-                <DetailRow label={t('carryFix.time')}>
-                  <TimeField
-                    value={pair.carry.fix.at}
-                    change={at => pp({carry: {...pair.carry!, fix: {at}}})}
-                    label={t('carryFix.time')}
-                    bases={['seconds']}
-                  />
-                </DetailRow>
-              )}
-            </Category>
-          )}
         </>
       )}
       {/* Camera restore: any action (10-16, runtime 0.12.260); it was a pair's before. */}

@@ -8,7 +8,7 @@ export const extensionsEn = {
   'carryRelease.hint':
     'Putdown action of a carry: at this moment the carried target is let go and falls as a ragdoll. Time and fallback are seconds from the clip start; an event is an HKX annotation name. If the clip ends first, the target is let go at the end.',
   'node.carryFix': 'Fix carried target',
-  'carryFix.at': 'Fix time',
+  'carryFix.at': 'Pose lock',
   'carryFix.hint':
     "Lift pair of a carry: the moment the target keeps the pose it has then and starts following the carrier bone. By default the lift's end; a set time moves it earlier into the lift (seconds from the lift clip start; events are not supported). Physics starts after the lift ends.",
   'carryFix.liftEnd': 'Lift end',
@@ -45,7 +45,7 @@ export const extensionsKo = {
   'carryRelease.hint':
     '운반의 내려놓기 동작에서 이 시점에 들고 있던 대상을 놓아 래그돌로 떨어뜨립니다. 시각·대체값은 클립 시작 기준 초, 이벤트는 HKX 주석 이름입니다. 클립이 먼저 끝나면 끝에서 놓습니다.',
   'node.carryFix': '대상 고정',
-  'carryFix.at': '고정 시점',
+  'carryFix.at': '자세 고정',
   'carryFix.hint':
     '운반의 들기 페어에서 대상이 그 순간 자세 그대로 운반자 뼈를 따라가기 시작하는 시점입니다. 기본은 들기 끝이며, 시점을 지정하면 들기 도중으로 앞당깁니다(들기 클립 시작 기준 초, 이벤트는 지원하지 않음). 물리는 들기가 끝난 뒤 시작합니다.',
   'carryFix.liftEnd': '들기 끝',

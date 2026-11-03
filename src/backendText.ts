@@ -27,6 +27,7 @@ const patterns = [
   trPattern('HKX 변환 트랙 개수가 유효하지 않습니다.'),
   trPattern('HKX 변환 트랙 수가 유효하지 않습니다.'),
   trPattern('HKX 변환 트랙 수가 음수입니다.'),
+  trPattern('HKX 본 이름을 읽는 중 오류가 발생했습니다.'),
   trPattern('HKX 본 총량이 넘쳤습니다.'),
   trPattern('HKX 본 행렬에 유한하지 않은 값이 있습니다.'),
   trPattern('HKX 블록 개수 계산이 넘쳤습니다.'),

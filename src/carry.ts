@@ -3,6 +3,7 @@ import type {Mark} from './model.ts';
 import {mark} from './model.ts';
 import {tr} from './i18n/korean.ts';
 import {reaches} from './cards.ts';
+import {rigBones} from './rigBones.ts';
 
 // Runtime counterparts: CarrySpec / CarryHoldSpec (AnimationInjector runtime/CarrySpec.h).
 export type CarryHoldBone = {name: string; weight: number};
@@ -36,13 +37,13 @@ export type Carry = {
 };
 export type CarryWeapon = 'sheathed' | 'sheathe';
 export const defaultCarry = (a?: Action): Carry => ({
-  bone: 'NPC R Clavicle [RClv]',
+  bone: 'NPC R Hand [RHnd]',
   targetRoot: 'NPC Root [Root]',
   putdownAction: '',
   input: a?.config.inputs[0]?.id || '',
   target: 'pose',
   part: '',
-  hold: null,
+  hold: defaultCarryHold(),
   fix: null,
   weapon: 'sheathed',
 });
@@ -78,16 +79,97 @@ export function carryHoldPreset(hold: CarryHold | null): string {
     a.length === b.length && a.every((x, i) => x.name === b[i].name && x.weight === b[i].weight);
   return carryHoldPresets.find(([, , bones]) => same(hold.bones, bones))?.[0] ?? 'custom';
 }
-// Verified against HKX_Viewer's character skeleton metadata. Custom rigs may use other names.
-export const carryBones = (): [string, string][] => [
-  ['NPC R Clavicle [RClv]', tr('오른쪽 어깨')],
-  ['NPC L Clavicle [LClv]', tr('왼쪽 어깨')],
-  ['NPC R Hand [RHnd]', tr('오른손')],
-  ['NPC L Hand [LHnd]', tr('왼손')],
-  ['NPC Spine2 [Spn2]', tr('등')],
-  ['NPC Pelvis [Pelv]', tr('골반')],
-  ['NPC Head [Head]', tr('머리')],
+export type CarryHand = 'right' | 'left' | 'both' | 'custom';
+const handBones = {right: 'NPC R Hand [RHnd]', left: 'NPC L Hand [LHnd]', both: 'NPC R Hand [RHnd]'};
+/** The gripping hand: the attach bone and the held arm read together. Both hands attach to the right hand (an attach
+ *  is one bone) and hold both arms. Any other pair (a shoulder, the other side's arm, arm bones of its own) is
+ *  'custom' and keeps its values. */
+export function carryHand(c: Carry): CarryHand {
+  const arm = carryHoldPreset(c.hold);
+  if (c.bone === handBones.right)
+    return arm === 'both' ? 'both' : arm === 'right' || arm === 'off' ? 'right' : 'custom';
+  if (c.bone === handBones.left) return arm === 'left' || arm === 'off' ? 'left' : 'custom';
+  return 'custom';
+}
+/** Choosing a hand sets the attach bone and, unless the arm hold is off, the held arm to match; both hands hold both. */
+export function setCarryHand(c: Carry, hand: Exclude<CarryHand, 'custom'>): Carry {
+  const bones = carryHoldPresets.find(([id]) => id === hand)![2];
+  return {
+    ...c,
+    bone: handBones[hand],
+    hold: c.hold || hand === 'both' ? {...(c.hold ?? defaultCarryHold()), bones: structuredClone(bones)} : null,
+  };
+}
+export const carryHands = (): [Exclude<CarryHand, 'custom'>, string][] => [
+  ['right', tr('오른손')],
+  ['left', tr('왼손')],
+  ['both', tr('양손')],
 ];
+export type BoneOption = {name: string; label?: string};
+// Names for the bones a carry picks most: the character's attach bones and ragdoll bodies, and the chicken's bodies.
+const boneLabels = (): Record<string, string> => ({
+  'NPC R Hand [RHnd]': tr('오른손'),
+  'NPC L Hand [LHnd]': tr('왼손'),
+  'NPC R Clavicle [RClv]': tr('오른쪽 어깨'),
+  'NPC L Clavicle [LClv]': tr('왼쪽 어깨'),
+  'NPC Pelvis [Pelv]': tr('골반'),
+  'NPC Root [Root]': tr('루트'),
+  'NPC COM [COM ]': tr('몸 중심'),
+  'NPC Spine [Spn0]': tr('허리'),
+  'NPC Spine1 [Spn1]': tr('배'),
+  'NPC Spine2 [Spn2]': tr('가슴'),
+  'NPC Neck [Neck]': tr('목'),
+  'NPC Head [Head]': tr('머리'),
+  'NPC R UpperArm [RUar]': tr('오른쪽 위팔'),
+  'NPC L UpperArm [LUar]': tr('왼쪽 위팔'),
+  'NPC R Forearm [RLar]': tr('오른쪽 아래팔'),
+  'NPC L Forearm [LLar]': tr('왼쪽 아래팔'),
+  'NPC R Thigh [RThg]': tr('오른쪽 허벅지'),
+  'NPC L Thigh [LThg]': tr('왼쪽 허벅지'),
+  'NPC R Calf [RClf]': tr('오른쪽 종아리'),
+  'NPC L Calf [LClf]': tr('왼쪽 종아리'),
+  'NPC R Foot [Rft ]': tr('오른발'),
+  'NPC L Foot [Lft ]': tr('왼발'),
+  Pelvis: tr('몸통'),
+  Neck0: tr('목 아래'),
+  Neck1: tr('목 가운데'),
+  Neck2: tr('목 위'),
+  HEAD: tr('머리'),
+  RightAnkle: tr('오른발'),
+  LeftAnkle: tr('왼발'),
+});
+/** Bone names as options, the named ones first. */
+export function boneOptions(names: string[]): BoneOption[] {
+  const labels = boneLabels(),
+    options = names.map(name => (labels[name] ? {name, label: labels[name]} : {name}));
+  return [...options.filter(o => o.label), ...options.filter(o => !o.label)];
+}
+/** A rig's bones from its skeleton.nif (src/rigBones.ts). Unknown rigs have none. */
+export function rigBoneOptions(rig: string, bodies = false): BoneOption[] {
+  const entry = rigBones[rig];
+  return boneOptions((bodies ? entry?.bodies : entry?.bones) ?? []);
+}
+/** The lists a carry's bone fields offer. The lift HKX's own bones come first (`pair`: the carrier's tracks and the
+ *  target's 2_ tracks, from the backend's hkx_pair_bones); without them, the rig's skeleton.nif. The grip point is a
+ *  ragdoll body, which an HKX does not know: its target bones that the rig has a body on, or all of them when the
+ *  rig names none of them (a custom skeleton). */
+export function carryBoneLists(rig: string, pair?: [string[], string[]] | null) {
+  const carrier = pair?.[0].length ? boneOptions(pair[0]) : rigBoneOptions('character'),
+    target = pair?.[1].length ? boneOptions(pair[1]) : rigBoneOptions(rig);
+  if (!pair?.[1].length) return {carrier, target, bodies: rigBoneOptions(rig, true)};
+  const known = new Set((rigBones[rig]?.bodies ?? []).map(n => n.toLowerCase())),
+    held = pair[1].filter(n => known.has(n.toLowerCase()));
+  return {carrier, target, bodies: boneOptions(held.length ? held : pair[1])};
+}
+/** The carry item's line on its card: the hand, then how the target hangs (and where it is held). */
+export function carrySummary(c: Carry): string {
+  const hand = carryHand(c),
+    labels = boneLabels(),
+    name = hand === 'custom' ? labels[c.bone] || c.bone : carryHands().find(([id]) => id === hand)![1];
+  if (c.target === 'pose') return name + ' · ' + tr('자세 그대로');
+  const part = c.part ? labels[c.part] || c.part : tr('자동');
+  return name + ' · ' + tr('매달림') + ' · ' + part;
+}
 export function validBoneName(value: unknown): value is string {
   return (
     typeof value === 'string' &&

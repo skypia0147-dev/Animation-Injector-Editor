@@ -189,7 +189,6 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
   const eventOption = (kind: string) =>
     kind === 'cameraRestore' ||
     kind === 'carryRelease' ||
-    kind === 'carryFix' ||
     (kind.startsWith('notify:') && !['rotate', 'iframe', 'armor', 'time', 'vanillaCancel'].includes(kind.slice(7)));
   // The playback settings (docs/mockup unify ⑩, 10-27): a chip for each that differs from its default, opening in
   // place to its fields; the rest from 「＋ 설정」. A category of the Details (StateDetails) opens alone (OnlySection).

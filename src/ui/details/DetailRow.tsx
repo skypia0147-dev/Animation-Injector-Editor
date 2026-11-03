@@ -96,6 +96,7 @@ export function DetailCategory({
   title,
   children,
   advanced,
+  advancedOpen = true,
   initialOpen = false,
 }: {
   sectionId?: string;
@@ -104,12 +105,14 @@ export function DetailCategory({
   title: string;
   children?: ReactNode;
   advanced?: ReactNode;
+  /** Whether 고급 starts open: most categories show it; the carry folds its bone names (docs/mockup-carry-simplify). */
+  advancedOpen?: boolean;
   initialOpen?: boolean;
 }) {
   const rows = useContext(CategoryRows);
   const query = useContext(DetailSearch),
     [open, setOpen] = useState(rows ? false : initialOpen),
-    [more, setMore] = useState(true),
+    [more, setMore] = useState(advancedOpen),
     id = useId();
   useEffect(() => {
     if (rows?.allOpen !== undefined) setOpen(rows.allOpen);

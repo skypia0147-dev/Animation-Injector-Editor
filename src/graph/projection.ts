@@ -1,4 +1,4 @@
-import {defaultCarry, defaultCarryFix} from '../carry.ts';
+import {carrySummary, defaultCarry} from '../carry.ts';
 import type {Workspace, Action} from '../workspace.ts';
 import {addAction, removeAction, defaultCamera, duplicateAction} from '../workspace.ts';
 import {cameraReset} from '../sharedSettings.ts';
@@ -184,18 +184,11 @@ export function projectGraph(w: Workspace, g: GraphRef): {nodes: GraphNode[]; ed
   if (a.exitBlendEnabled) pass('blendOut', String(p.exitBlend) + tr('초'));
   if (a.cameraEnabled && a.camera) pass('cameraRestore', cameraReset(w, a.camera));
   if (a.pair?.carry) {
-    add('carry', 'carry', a.pair.carry.bone, x, 240, {inputs: ['trigger'], outputs: ['trigger']});
+    add('carry', 'carry', carrySummary(a.pair.carry), x, 240, {inputs: ['trigger'], outputs: ['trigger']});
     const clipId = 'clip_' + p.entry;
     const clipNode = nodes.find(n => n.id === clipId);
     if (clipNode && !clipNode.outputs.includes('trigger')) clipNode.outputs.push('trigger');
     if (clipNode) edge(clipId, 'carry', 'trigger');
-    // The fix moment is an event item of every lift pair's card: the lift's end unless a moment is given.
-    const fix = a.pair.carry.fix;
-    add('carryFix', 'carryFix', fix ? timingLabel(fix.at) : t('carryFix.liftEnd'), x, 1040, {
-      inputs: ['trigger'],
-      outputs: [],
-    });
-    if (clipNode) edge(clipId, 'carryFix', 'trigger');
   }
   if (p.carryRelease) {
     add('carryRelease', 'carryRelease', timingLabel(p.carryRelease.at), x, 880, {inputs: ['trigger'], outputs: []});
@@ -254,17 +247,6 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
           });
           a.pair.carry.input = 'PutDown';
         }
-      }
-      return n;
-    }
-    if (kind === 'carryFix') {
-      if (remove) {
-        if (a.pair?.carry) a.pair.carry.fix = null;
-      } else {
-        if (!a.pair) throw Error(tr('대상 고정은 운반이 있는 들기 페어에 연결하세요.'));
-        // A draft pair carries the moment in its own carry until it is attached (attachDraft).
-        a.pair.carry ??= defaultCarry(a);
-        a.pair.carry.fix ??= defaultCarryFix();
       }
       return n;
     }
