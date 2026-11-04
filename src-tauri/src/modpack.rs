@@ -40,6 +40,9 @@ pub struct Request {
     pub sounds: Vec<Sound>,
     pub plugins: Vec<String>,
     pub xml: String,
+    /// The carry lift actions' ragdoll files, written beside the XML (ragdoll.rs).
+    #[serde(default)]
+    pub ragdolls: Vec<crate::ragdoll::RagdollFile>,
 }
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -211,8 +214,15 @@ fn validate(r: &Request) -> Result<(), String> {
             return Err("자산 중복 또는 외부 공급 모드 설정 오류".into());
         }
     }
-    if r.sounds.len() > 500 {
+    if r.sounds.len() > 500 || r.ragdolls.len() > 256 {
         return Err("패키지 설정/크기 제한을 확인하세요.".into());
+    }
+    let mut ragdolls = BTreeSet::new();
+    for f in &r.ragdolls {
+        crate::ragdoll::check(f)?;
+        if !ragdolls.insert(f.id.to_lowercase()) {
+            return Err(format!("래그돌 파일이 두 번 있습니다: {}", f.id));
+        }
     }
     let mut files = BTreeSet::new();
     for s in &r.sounds {
@@ -483,6 +493,12 @@ pub fn export_to(r: &Request, parent: &Path) -> Result<Exported, String> {
             format!("SKSE/Plugins/AnimationInjector/{0}/{0}.xml", r.folder),
             r.xml.as_bytes(),
         )?;
+        for f in &r.ragdolls {
+            add(
+                format!("SKSE/Plugins/AnimationInjector/{}/Ragdoll/{}.xml", r.folder, f.id),
+                f.contents.as_bytes(),
+            )?;
+        }
         for (a, row) in r.assets.iter().zip(&report.assets) {
             if a.mode != "copy" {
                 continue;
@@ -791,6 +807,7 @@ mod tests {
             sounds: vec![],
             plugins: vec![],
             xml: "<?xml version=\"1.0\"?><AnimationSet/>".into(),
+            ragdolls: vec![],
         }
     }
     fn ready(r: &mut Request) {
@@ -921,6 +938,27 @@ mod tests {
         assert_eq!(inspect(&r).unwrap().assets[0].status, "invalid");
     }
     #[test]
+    fn exports_ragdoll_files_beside_the_xml() {
+        let t = Temp::new();
+        let source = t.asset("Source");
+        let mut r = request();
+        r.assets[0].paths.push(source.to_string_lossy().into_owned());
+        let doc = "<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<Ragdoll rig=\"character\" version=\"1\"/>
+";
+        r.ragdolls = vec![crate::ragdoll::RagdollFile {
+            id: "Lift".into(),
+            contents: doc.into(),
+        }];
+        ready(&mut r);
+        let output = export_to(&r, &t.0).unwrap();
+        let file =
+            Path::new(&output.path).join(format!("SKSE/Plugins/AnimationInjector/{}/Ragdoll/Lift.xml", r.folder));
+        assert_eq!(fs::read_to_string(file).unwrap(), doc);
+        r.ragdolls[0].id = "../Lift".into();
+        assert!(validate(&r).is_err());
+    }
+    #[test]
     fn exports_unicode_assets_and_rejects_existing_directory() {
         let t = Temp::new();
         let source = t.asset("Source");
@@ -989,7 +1027,7 @@ mod tests {
         r.assets[0].dependency = "Base".into();
         let xml = |blend: &str| {
             format!(
-                r#"<?xml version="1.0" encoding="utf-8"?><AnimationSet version="6" id="E2"><Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs><Start input="use" to="First"/><Action id="First" clip="Animations\A.hkx"><Transition input="next" from="0.1" until="end-0.1"{blend}><Row to="Second"><Check kind="blocking"/></Row></Transition></Action><Action id="Second" clip="Animations\B.hkx"/></AnimationSet>"#
+                r#"<?xml version="1.0" encoding="utf-8"?><AnimationSet version="6" id="E2"><Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs><Start input="use" to="First"/><Action id="First" clip="Animations\A.hkx"><Transition input="next" from="0.1" until="end-0.1"{blend}><Row to="Second"><Check kind="actorStatus" option="blocking"/></Row></Transition></Action><Action id="Second" clip="Animations\B.hkx"/></AnimationSet>"#
             )
         };
         r.xml = xml("");

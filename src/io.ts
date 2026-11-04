@@ -131,3 +131,19 @@ export async function openPath(path: string): Promise<OpenedDocument> {
   if (!isTauri()) throw new Error(t('export.desktop'));
   return invoke<OpenedDocument>('read_document', {path});
 }
+
+/** The carry lift actions' ragdoll files beside a saved XML (`<folder>/Ragdoll/<id>.xml`, ragdoll.ts); contents
+ *  null where there is none. */
+export async function readRagdolls(xmlPath: string, ids: string[]): Promise<{id: string; contents: string | null}[]> {
+  if (!isTauri()) return [];
+  return invoke('read_ragdolls', {xmlPath, ids});
+}
+/** Writes these ragdoll files beside the XML and removes those named in `remove`. */
+export async function writeRagdolls(
+  xmlPath: string,
+  files: {id: string; contents: string}[],
+  remove: string[]
+): Promise<void> {
+  if (!isTauri()) return;
+  await invoke('write_ragdolls', {xmlPath, files, remove});
+}

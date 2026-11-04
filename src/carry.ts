@@ -4,6 +4,7 @@ import {mark} from './model.ts';
 import {tr} from './i18n/korean.ts';
 import {reaches} from './cards.ts';
 import {rigBones} from './rigBones.ts';
+import type {Ragdoll} from './ragdoll.ts';
 
 // Runtime counterparts: CarrySpec / CarryHoldSpec (AnimationInjector runtime/CarrySpec.h).
 export type CarryHoldBone = {name: string; weight: number};
@@ -34,6 +35,10 @@ export type Carry = {
   /** sheathed = starts only sheathed, drawing drops the target; sheathe = may start drawn: the carrier's weapon
    *  goes to its sheath with no animation as the lift starts, then drawing drops the target, runtime 0.12.195. */
   weapon: CarryWeapon;
+  /** physics only: the ragdoll values the lift action's file holds (<folder>/Ragdoll/<lift id>.xml, ragdoll.ts);
+   *  null = no file, vanilla (the runtime's built-in values). Read from and written to that file, never kept in the XML's editor
+   *  block (the file is what the game reads). */
+  ragdoll: Ragdoll | null;
 };
 export type CarryWeapon = 'sheathed' | 'sheathe';
 export const defaultCarry = (a?: Action): Carry => ({
@@ -46,6 +51,7 @@ export const defaultCarry = (a?: Action): Carry => ({
   hold: defaultCarryHold(),
   fix: null,
   weapon: 'sheathed',
+  ragdoll: null,
 });
 /** Default fix moment for a new '대상 고정' item: 1 s, dragged into place on the lift's timeline. */
 export const defaultCarryFix = (): {at: Mark} => ({at: mark(1)});

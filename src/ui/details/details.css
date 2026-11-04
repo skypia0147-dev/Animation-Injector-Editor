@@ -254,3 +254,125 @@
   font-size: var(--fs-sm);
   margin: 6px 0;
 }
+
+/* Carry ragdoll values (RagdollFields, docs/mockup-carry-ragdoll). */
+.ragdoll-fields {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid var(--ue-line, #2f2f2f);
+  margin-top: 6px;
+  padding-top: 4px;
+}
+.ragdoll-title,
+.ragdoll-sub {
+  font-size: 11px;
+  color: var(--ue-dim, #8c8c8c);
+  margin: 6px 0 2px 10px;
+}
+.ragdoll-builtin {
+  display: grid;
+  gap: 6px;
+  margin: 2px 5px 2px 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1px solid var(--ue-line, #2f2f2f);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.ragdoll-builtin small,
+.ragdoll-file {
+  color: var(--ue-dim, #8c8c8c);
+  line-height: 1.5;
+}
+.ragdoll-file {
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+.ragdoll-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ragdoll-slider input[type='range'] {
+  flex: 1;
+  min-width: 60px;
+}
+.shell .ragdoll-slider input[type='number'],
+.shell input.ragdoll-optional {
+  width: 72px;
+  flex: none;
+}
+.ragdoll-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ragdoll-bodies {
+  display: grid;
+  margin: 2px 5px 2px 10px;
+  border: 1px solid var(--ue-line, #2f2f2f);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ragdoll-body {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  border-top: 1px solid var(--ue-line, #262626);
+}
+.ragdoll-body:first-child {
+  border-top: 0;
+}
+.ragdoll-name {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+.ragdoll-name > span {
+  white-space: nowrap;
+}
+.ragdoll-name code {
+  color: var(--ue-dim, #8c8c8c);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shell .ragdoll-more {
+  border-color: transparent;
+  background: none;
+  padding: 0 4px;
+  min-height: 0;
+}
+.ragdoll-joint {
+  display: grid;
+  padding: 2px 0 6px 22px;
+  border-top: 1px solid var(--ue-line, #262626);
+  background: rgba(0, 0, 0, 0.15);
+}
+.ragdoll-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin: 4px 5px 2px 10px;
+}
+
+.ragdoll-body.selected {
+  background: rgba(143, 211, 255, 0.12);
+  box-shadow: inset 3px 0 0 #8fd3ff;
+}
+.ragdoll-name {
+  cursor: pointer;
+}
+.shell .ragdoll-simulate.on {
+  border-color: #3d5563;
+  background: #26323a;
+  color: #bfe6ff;
+}

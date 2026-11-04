@@ -234,7 +234,7 @@ mod tests {
   <Inputs><Input id="use" key="Num0"/><Input id="next" key="Num1"/></Inputs>
   <Start input="use" press="tap" to="First"/>
   <Action id="First" clip="Animations\ComboTest\test_Attack1.hkx">
-    <Transition input="next" from="0.1" until="end-0.1" buffer="true"BLEND><Row to="Second"><Check kind="blocking"/></Row></Transition>
+    <Transition input="next" from="0.1" until="end-0.1" buffer="true"BLEND><Row to="Second"><Check kind="actorStatus" option="blocking"/></Row></Transition>
   </Action>
   <Action id="Second" clip="Animations\ComboTest\test_Attack2.hkx"/>
 </AnimationSet>"#;
@@ -243,8 +243,12 @@ mod tests {
         let Some(checker) = checker() else { return };
         let verdict = check_with(&checker, &VALID.replace("BLEND", ""));
         assert!(verdict.available && verdict.valid, "{verdict:?}");
-        // A transition through a condition card goes through a selecting action the runtime makes for it (format 6).
-        assert_eq!(verdict.actions, ["First", "Second", "First_Transition"]);
+        // A transition through a condition card goes through a selecting action the runtime makes for it (format 6);
+        // the runtime names every action of a file after its AnimationSet id.
+        assert_eq!(
+            verdict.actions,
+            ["E2Check_First", "E2Check_Second", "E2Check_First_Transition"]
+        );
         assert!(verdict.errors.is_empty() && verdict.warnings.is_empty());
     }
     #[test]

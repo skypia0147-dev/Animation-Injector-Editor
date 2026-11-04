@@ -4,6 +4,7 @@ import {compileWorkspace} from './workspace.ts';
 import {clipEffects} from './clipEffects.ts';
 import {t} from './i18n/index.ts';
 import {isFirstPersonClip, stepFiles} from './view.ts';
+import {ragdollWrites} from './ragdoll.ts';
 export type Asset = {
   actorRoots: string[];
   clip: string;
@@ -57,6 +58,8 @@ export type PackageRequest = {
   sounds: SoundAsset[];
   plugins: string[];
   xml: string;
+  /** The carry lift actions' own ragdoll files, written beside the XML (ragdoll.ts). */
+  ragdolls: {id: string; contents: string}[];
 };
 export const assetKey = (clip: string) => clip.replaceAll('\\', '/').toLowerCase();
 export function assets(w: Workspace): Asset[] {
@@ -266,5 +269,6 @@ export function request(w: Workspace, report?: PackageReport): PackageRequest {
     sounds: played,
     plugins: plugins(w),
     xml: compileWorkspace(w),
+    ragdolls: ragdollWrites(w, [], []).files,
   };
 }

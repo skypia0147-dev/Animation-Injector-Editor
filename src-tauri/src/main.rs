@@ -3,6 +3,7 @@ mod digest;
 mod hkx;
 mod ipc_binary;
 mod modpack;
+mod ragdoll;
 mod runtime_check;
 use std::{
     fs,
@@ -311,7 +312,7 @@ fn writable_xml(contents: &str, draft: bool) -> Result<(), String> {
     runtime_check::require(contents)
 }
 
-fn write_document(path: &Path, contents: &str) -> Result<(), String> {
+pub(crate) fn write_document(path: &Path, contents: &str) -> Result<(), String> {
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|e| e.to_string())?
@@ -532,6 +533,8 @@ fn main() {
             read_document,
             save_document,
             save_to_path,
+            ragdoll::read_ragdolls,
+            ragdoll::write_ragdolls,
             pick_hkx,
             resolve_hkx,
             files_exist,

@@ -28,6 +28,7 @@ import {NumberField} from './NumberField.tsx';
 import {Property as Prop} from './Property.tsx';
 import {TimeField} from './TimeField.tsx';
 import {BonePicker} from './BonePicker.tsx';
+import {RagdollFields} from './RagdollFields.tsx';
 import {t} from '../../i18n/index.ts';
 import {tr} from '../../i18n/korean.ts';
 import {gameControlLabel} from '../../keys.ts';
@@ -291,6 +292,15 @@ export function CarryFields({
         ]}
         change={choice => change(chooseCarryInput(w, a, choice))}
       />
+      {c.target === 'physics' && (
+        <RagdollFields
+          ragdoll={c.ragdoll}
+          rig={rig}
+          liftId={a.config.actionId}
+          uid={a.uid}
+          change={ragdoll => patch({ragdoll})}
+        />
+      )}
     </>
   );
   return (
@@ -337,7 +347,7 @@ export function CarryFields({
           <DetailRow
             label={tr('대상')}
             hint={tr(
-              '자세 그대로: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 매달림: 쥐는 곳 하나만 손에 고정하고 나머지는 물리로 흔들립니다(대상 스켈레톤의 래그돌 프로필 값). 래그돌을 준비하지 못하면 자세 그대로 운반합니다.'
+              '자세 그대로: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 매달림: 쥐는 곳 하나만 손에 고정하고 나머지는 물리로 흔들립니다(래그돌 묶음의 값, 정하지 않으면 바닐라). 래그돌을 준비하지 못하면 자세 그대로 운반합니다.'
             )}
           >
             <Segments

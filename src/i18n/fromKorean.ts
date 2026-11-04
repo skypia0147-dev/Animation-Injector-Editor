@@ -156,6 +156,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '第一人称文件必须与第三人称具有相同的相对路径：{v0}',
   ],
   '3440 × 1440 · 울트라와이드': ['3440 × 1440 · Ultrawide', '3440 × 1440 · ウルトラワイド', '3440 × 1440 · 超宽屏'],
+  '3D 보기에서 이 운반의 래그돌을 움직여 봅니다. 값을 바꾸면 바로 따라 움직입니다.': [
+    "Moves this carry's ragdoll in the 3D view. It follows the values as you change them.",
+    '3D ビューでこの運搬のラグドールを動かしてみます。値を変えるとすぐに追従します。',
+    '在 3D 视图中让此搬运的布娃娃动起来。更改数值后会立即跟随。',
+  ],
   '3D 뷰어 준비 중…': ['Preparing 3D viewer…', '3D ビューア準備中…', '正在准备 3D 查看器…'],
   '3인칭': ['Third person', '三人称', '第三人称'],
   ': 0.12.281부터 수치는 이 이벤트를 보내는 동작(또는 페어)의 <EventValues>에 씁니다. 등록에는 op와 대상(spell의 plugin·form, ragdoll의 direction)만 씁니다':
@@ -230,6 +235,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     ': ペアトラックはクリップ時刻（秒）を使用します。イベントで有効・無効を切り替えるにはイベント登録の機能を使用してください。',
     '：配对轨道使用片段时刻（秒）。若要通过事件开关，请使用事件注册中的功能。',
   ],
+  '<Body>에 bone이 없습니다.': ['<Body> has no bone.', '<Body> に bone がありません。', '<Body> 没有 bone。'],
   '<Condition>은 행의 맨 끝에 씁니다': [
     '<Condition> goes at the end of a row',
     '<Condition> は行の最後に書きます',
@@ -239,6 +245,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '<False> goes at the end of a card',
     '<False> はカードの最後に書きます',
     '<False> 写在卡的末尾',
+  ],
+  '<Motion>은 하나만 쓸 수 있습니다.': [
+    'Only one <Motion> is allowed.',
+    '<Motion> は一つだけ書けます。',
+    '只能有一个 <Motion>。',
+  ],
+  '<Ragdoll version>은 1이어야 합니다.': [
+    '<Ragdoll version> must be 1.',
+    '<Ragdoll version> は 1 でなければなりません。',
+    '<Ragdoll version> 必须为 1。',
   ],
   'A · 수축 원형': ['A · Shrinking Circle', 'A · 収縮サークル', 'A · 汇聚圆形'],
   'AI는 주석 명령 전용 이벤트 이름입니다(0.12.274): AI.CamShake|세기|시간': [
@@ -1041,6 +1057,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'XML サイズ制限超過または不正な制御文字です。',
     'XML 超出大小限制或包含无效控制字符。',
   ],
+  'XML 폴더가 없습니다.': ['The XML has no folder.', 'XML のフォルダーがありません。', 'XML 没有所在文件夹。'],
   'XML을 복사했습니다.': ['Copied XML.', 'XML をコピーしました。', '已复制 XML。'],
   'XML의 Cancel id입니다. 런타임 창 이벤트 이름(AI_<동작>_<ID>Open/Close)에 쓰입니다. 비우면 자동 이름({id})을 씁니다.':
     [
@@ -1499,6 +1516,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{v0}: maxHold は loop="true" と一緒に使います。',
     '{v0}: maxHold 需与 loop="true" 一起使用。',
   ],
+  '{v0}: 래그돌 파일이 너무 큽니다.': [
+    '{v0}: the ragdoll file is too large.',
+    '{v0}: ラグドールファイルが大きすぎます。',
+    '{v0}：布娃娃文件过大。',
+  ],
   '{v0}: 마지막 검사 이후 원본이 변경되었습니다. 다시 검사하세요.': [
     '{v0}: Source was modified since the last inspection. Inspect again.',
     '{v0}: 前回の検査以降に原本が変更されました。再検査してください。',
@@ -1522,10 +1544,40 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '{v0}초': ['{v0} s', '{v0} 秒', '{v0} 秒'],
   '{v} 빼기': ['Remove {v}', '{v}を外す', '移除 {v}'],
+  '{where} simulate: true 또는 false여야 합니다.': [
+    '{where} simulate: must be true or false.',
+    '{where} simulate: true か false でなければなりません。',
+    '{where} simulate：必须是 true 或 false。',
+  ],
+  '{where} swingFrom: 뼈 이름이 비었습니다.': [
+    '{where} swingFrom: the bone name is empty.',
+    '{where} swingFrom: ボーン名が空です。',
+    '{where} swingFrom：骨骼名称为空。',
+  ],
+  '{where} {key}="{text}": {lo}~{hi} 사이의 숫자여야 합니다.': [
+    '{where} {key}="{text}": must be a number from {lo} to {hi}.',
+    '{where} {key}="{text}": {lo}~{hi} の数値でなければなりません。',
+    '{where} {key}="{text}"：必须是 {lo}~{hi} 之间的数字。',
+  ],
+  '{where} {key}="{text}": 「최소 최대」 도, ±{limit} 안이어야 합니다.': [
+    '{where} {key}="{text}": must be "minimum maximum" degrees within ±{limit}.',
+    '{where} {key}="{text}": 「最小 最大」の度数で ±{limit} 以内でなければなりません。',
+    '{where} {key}="{text}"：必须是「最小 最大」度数，且在 ±{limit} 以内。',
+  ],
+  '{where}: 같은 뼈가 두 번 있습니다.': [
+    '{where}: the same bone is listed twice.',
+    '{where}: 同じボーンが二回あります。',
+    '{where}：同一骨骼出现了两次。',
+  ],
   '{where}: 알 수 없는 게임 동작 {text} ({names})': [
     '{where}: unknown game control {text} ({names})',
     '{where}: 不明なゲーム操作 {text}（{names}）',
     '{where}: 未知的游戏操作 {text}（{names}）',
+  ],
+  '{where}: 알 수 없는 속성 {name}': [
+    '{where}: unknown attribute {name}',
+    '{where}: 不明な属性 {name}',
+    '{where}：未知属性 {name}',
   ],
   '{where}: 알 수 없는 패드 버튼 {text} (A B X Y LB RB LT RT LS RS Start Back Up Down Left Right 또는 code:숫자)': [
     '{where}: unknown gamepad button {text} (A B X Y LB RB LT RT LS RS Start Back Up Down Left Right or code:number)',
@@ -1536,6 +1588,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '· 값': ['· Values', '· 値', '· 值'],
   '· 시점': ['· Timing', '· タイミング', '· 时机'],
   '→ 전환': ['→ Transition', '→ 遷移', '→ 过渡'],
+  '● 시뮬레이션 보는 중': ['● Showing simulation', '● シミュレーション表示中', '● 正在查看模拟'],
   '⚠ 게임 전체 적용': ['⚠ Applies game-wide', '⚠ ゲーム全体に適用', '⚠ 全游戏生效'],
   '⚠ 바닐라·흔한 이벤트 이름입니다. 기능을 붙이면 게임 전체 애니메이션에서 실행됩니다. 모드 고유 접두어를 권장합니다.':
     [
@@ -1752,6 +1805,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   거리: ['Distance', '距離', '距离'],
   거인: ['Giant', '巨人', '巨人'],
   거짓: ['False', '偽', '为假'],
+  '걷기 → 정지': ['Walk → stop', '歩き → 停止', '行走 → 停止'],
   '걷기·뛰기': ['Walk / run', '歩く・走る', '行走·奔跑'],
   검: ['Sword', '剣', '剑'],
   '검사 값': ['Test value', '判定値', '检测值'],
@@ -1873,6 +1927,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '游戏内时刻（0~24 时）。范围可跨越午夜（20 时~5 时）。',
   ],
   '게임 원래 동작': ["The game's own action", 'ゲーム本来の動作', '游戏原本的动作'],
+  '게임 원래 래그돌 값(바닐라)으로 움직입니다. 래그돌 파일을 쓰지 않습니다.': [
+    "Moves with the game's own ragdoll values (vanilla). No ragdoll file is written.",
+    'ゲーム本来のラグドール値(バニラ)で動きます。ラグドールファイルは書きません。',
+    '使用游戏原本的布娃娃值（原版）运动。不写入布娃娃文件。',
+  ],
   '게임 이벤트': ['Game event', 'ゲームイベント', '游戏事件'],
   '게임에서는 아무것도 그리지 않고 입력만 받습니다. 결과 효과음과 결과 동작은 그대로입니다. 판정 뒤 결과 표시 시간 없이 바로 끝납니다.':
     [
@@ -1982,6 +2041,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '以攻击者脚部为 0，按目标脚部的高度测量。',
   ],
   '공격하는 쪽': ['Attacker', '攻撃する側', '攻击方'],
+  '공기 저항': ['Air drag', '空気抵抗', '空气阻力'],
   '공유 규칙 ·': ['Shared rules ·', '共有ルール ·', '共享规则 ·'],
   '공유 규칙 전체 제거': ['Remove entire shared rule', '共有ルールをすべて削除', '移除全部共享规则'],
   '공유 규칙 형식 오류': ['Invalid sharing rule format', '共有ルール形式エラー', '共用规则格式错误'],
@@ -2031,6 +2091,9 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '公共为真 → 从上往下第一个匹配的行',
   ],
   관계: ['Relation', '関係', '关系'],
+  관성: ['Inertia', '慣性', '惯性'],
+  '관절 마찰': ['Joint friction', '関節摩擦', '关节摩擦'],
+  '관절 축': ['Joint axis', '関節軸', '关节轴'],
   구간: ['Window', '区間', '区间'],
   '구간 기능의 duration(지속 시간)은 이벤트 등록에서 정합니다': [
     "A window's duration (span) is set in the event registry",
@@ -2133,9 +2196,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '기본 공격 데이터 사용': ['Use default attack data', '既定の攻撃データを使用', '使用默认攻击数据'],
   '기본 시점 복귀': ['Reset view', '既定の視点に戻す', '恢复默认视角'],
   '기본 인칭 형식 오류': ['Invalid default view format', '既定の視点形式エラー', '默认视角格式错误'],
+  '기본 자세에서 시작': ['Starts from the rest pose', '基本姿勢から開始', '从默认姿势开始'],
   기본값: ['Defaults', '既定値', '默认值'],
   '기본값: {v}': ['Default: {v}', '既定値: {v}', '默认值:{v}'],
+  '기본값에서 시작해 고치기': ['Start from the defaults and edit', '既定値から始めて編集', '从默认值开始编辑'],
   기본값으로: ['Back to default', '既定値に戻す', '恢复默认'],
+  '기본값으로 되돌리기': ['Reset to defaults', '既定値に戻す', '恢复默认值'],
   '기본값이면 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다. 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.':
     [
       "By default, the QTE appears only when the role sending the event is the player. If the sender is 'Either side', it appears regardless of role.",
@@ -2349,6 +2415,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '关闭时刻必须在开启之后。',
   ],
   '닫힘 이벤트': ['Close event', '閉じるイベント', '关闭事件'],
+  '달리기 → 급정지': ['Run → sudden stop', '走り → 急停止', '奔跑 → 急停'],
   닭: ['Chicken', 'ニワトリ', '鸡'],
   대검: ['Greatsword', '大剣', '巨剑'],
   대상: ['Target', '対象', '目标'],
@@ -2401,6 +2468,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   도살물고기: ['Slaughterfish', 'スローターフィッシュ', '食人鱼'],
   도착: ['Destination', '終点', '目标'],
   독: ['Poison', '毒', '毒药'],
+  '돌아가는 흔들림이 가라앉는 정도(각 감쇠, 0~10)입니다. 게임 값보다 작아지지 않습니다(0 = 게임 값).': [
+    "How fast spinning settles (angular damping, 0~10). Never below the game's value (0 = the game's value).",
+    '回転する揺れが収まる度合い(角減衰、0~10)です。ゲームの値より小さくはなりません(0 = ゲームの値)。',
+    '旋转摇晃平息的程度（角阻尼，0~10）。不会低于游戏值（0 = 游戏值）。',
+  ],
   동물: ['Animal', '動物', '动物'],
   동작: ['Action', 'アクション', '动作'],
   '동작 ID가 중복되었거나 잘못되었습니다.': [
@@ -2483,11 +2555,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '드웨머 백부장': ['Dwarven Centurion', 'ドワーフ・センチュリオン', '矮人百夫长'],
   '들기 블렌드': ['Lift blend', '持ち上げブレンド', '抬起混合'],
   '들기 시작 때 무기 넣기': ['Sheath on lift start', '持ち上げ開始時に納刀', '抬起开始时收起武器'],
+  '들기 자세에서 시작': ['Starts from the lift pose', '持ち上げ姿勢から開始', '从抬起姿势开始'],
   '들리는 상대의 기준 본입니다. 인간·닭의 기본값은 NPC Root [Root]이며 다른 리그는 실제 본 이름을 입력합니다.': [
     'The reference bone of the carried partner. Default for humanoids and chickens is NPC Root [Root]; for other rigs, enter the actual bone name.',
     '持ち上げられる相手の基準ボーンです。人間・ニワトリの既定値は NPC Root [Root] で、他のリグでは実際のボーン名を入力します。',
     '被搬运搭档的基准骨骼。人类和鸡的默认值为 NPC Root [Root]，其他绑定请输入实际骨骼名称。',
   ],
+  '들린 대상이 물리로 흔들리는 방식입니다. 바닐라는 게임 원래 래그돌 값 그대로이고(파일 없음), 이 동작의 값은 동작 XML 옆 Ragdoll\\<동작 ID>.xml에 모든 값을 저장합니다. 게임은 들 때마다 그 파일을 다시 읽습니다.':
+    [
+      "How the lifted target sways under physics. Vanilla is the game's own ragdoll values (no file); this action's values are saved, every value, in Ragdoll\\<action ID>.xml beside the action XML. The game reads that file again at every pickup.",
+      '持ち上げた対象が物理で揺れる方式です。バニラはゲーム本来のラグドール値そのまま(ファイルなし)で、この動作の値は動作 XML の横の Ragdoll\\<動作 ID>.xml にすべての値を保存します。ゲームは持ち上げるたびにそのファイルを読み直します。',
+      '被抬起目标受物理摇晃的方式。原版即游戏原本的布娃娃值（无文件）；此动作的值会把所有值保存到动作 XML 旁的 Ragdoll\\<动作 ID>.xml。游戏每次抬起时都会重新读取该文件。',
+    ],
   등록: ['Registry', '登録', '注册'],
   '등록 기능': ['Registered feature', '登録機能', '已注册功能'],
   '등록 기능 ID 오류': ['Invalid registered feature ID', '登録機能 ID エラー', '已注册功能 ID 错误'],
@@ -2502,6 +2581,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '注册的 duration 是 iframeOn·armorOn·rotateOn·timeOn 的持续时间',
   ],
   디자인: ['Design', 'デザイン', '设计'],
+  따라가기: ['Follow', '追従', '跟随'],
+  '따라가기 0 · 중력·저항·관성·관절은 {rig} 스켈레톤의 게임 값 그대로 · 모든 몸체가 물리로 흔들림': [
+    'Follow 0 · gravity, damping, inertia and joints as the {rig} skeleton has them in the game · every body sways under physics',
+    '追従 0 · 重力・抵抗・慣性・関節は {rig} スケルトンのゲームの値のまま · すべてのボディが物理で揺れる',
+    '跟随 0 · 重力、阻力、惯性、关节保持 {rig} 骨架的游戏值 · 所有身体受物理摇晃',
+  ],
   '따라오는 것': ['Brings along', '付随する効果', '附带效果'],
   '따라오는 것에 없는 항목입니다: {name}': [
     'Not something a hit brings along: {name}',
@@ -2525,6 +2610,38 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '뗄 키': ['Key to release', '離すキー', '松开的按键'],
   또는: ['Or', 'または', '或'],
   래그돌: ['Ragdoll', 'ラグドール', '布娃娃'],
+  '래그돌 값': ['Ragdoll values', 'ラグドール値', '布娃娃值'],
+  '래그돌 파일 개수 제한': ['Ragdoll file count limit', 'ラグドールファイル数の上限', '布娃娃文件数量限制'],
+  '래그돌 파일 이름(동작 ID)이 잘못되었습니다: {v0}': [
+    'The ragdoll file name (action ID) is invalid: {v0}',
+    'ラグドールファイル名(動作 ID)が不正です: {v0}',
+    '布娃娃文件名（动作 ID）无效：{v0}',
+  ],
+  '래그돌 파일 형식 오류: {v0}': [
+    'Ragdoll file format error: {v0}',
+    'ラグドールファイル形式のエラー: {v0}',
+    '布娃娃文件格式错误：{v0}',
+  ],
+  '래그돌 파일은 저장된 XML 옆에만 둡니다.': [
+    'Ragdoll files go only beside a saved XML.',
+    'ラグドールファイルは保存した XML の横にだけ置きます。',
+    '布娃娃文件只能放在已保存的 XML 旁。',
+  ],
+  '래그돌 파일을 쓰지 못했습니다: {error}': [
+    'Could not write the ragdoll files: {error}',
+    'ラグドールファイルを書き込めませんでした: {error}',
+    '无法写入布娃娃文件：{error}',
+  ],
+  '래그돌 파일을 읽지 못해 기본값으로 열고 파일은 그대로 둡니다: {error}': [
+    'Could not read a ragdoll file, so it opens on the default values and the file is left as it is: {error}',
+    'ラグドールファイルを読めなかったため、デフォルト値で開き、ファイルはそのままにします: {error}',
+    '无法读取布娃娃文件，因此以默认值打开，文件保持不变：{error}',
+  ],
+  '래그돌 파일이 두 번 있습니다: {v0}': [
+    'A ragdoll file is listed twice: {v0}',
+    'ラグドールファイルが二回あります: {v0}',
+    '布娃娃文件出现了两次：{v0}',
+  ],
   '래그돌 회복 중': ['Recovering from ragdoll', 'ラグドール復帰中', '布娃娃恢复中'],
   '래그돌과 같은 힘(0~20)입니다. 감쇠가 곱해집니다.': [
     'The same force as Ragdoll (0 to 20). The falloff is applied.',
@@ -2676,6 +2793,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请选择模组或 Data 文件夹中 sound 文件夹下的声音文件。',
   ],
   '모든 HKX 카드 펼치기': ['Expand all HKX cards', 'すべての HKX カードを展開', '展开所有 HKX 卡片'],
+  '모든 관절의 마찰(0~100)입니다. 비우면 바닐라 관절 그대로입니다.': [
+    'The friction of every joint (0~100). Left empty, the vanilla joints as they are.',
+    'すべての関節の摩擦(0~100)です。空ならバニラの関節のままです。',
+    '所有关节的摩擦（0~100）。留空则保持原版关节。',
+  ],
   '모든 순서에 키보드·마우스 또는 게임패드 키를 지정하세요.': [
     'Assign a keyboard/mouse or gamepad key to every step in the sequence.',
     'すべての順序にキーボード・マウスまたはゲームパッドのキーを指定してください。',
@@ -2703,6 +2825,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '목표 연타 횟수': ['Target rapid presses', '目標連打回数', '目标连打次数'],
   '몸 중심': ['Center of mass', '重心', '重心'],
+  '몸체 {n} · 관절 {m} · 60 Hz': [
+    '{n} bodies · {m} joints · 60 Hz',
+    'ボディ {n} · 関節 {m} · 60 Hz',
+    '身体 {n} · 关节 {m} · 60 Hz',
+  ],
+  '몸체 {n}개 · 체크 = 물리로 흔들림, 끄면 위 몸체에 붙어 가거나(위가 흔들릴 때) 들기 자세를 따라감': [
+    '{n} bodies · checked = sways under physics, unchecked = carried by the body above (when it sways) or follows the lift pose',
+    'ボディ {n} 個 · チェック = 物理で揺れる、外すと上のボディに付いて動く(上が揺れるとき)か持ち上げ姿勢に従う',
+    '{n} 个身体 · 勾选 = 受物理摇晃，取消则随上方身体移动（上方摇晃时）或跟随抬起姿势',
+  ],
+  '몸체 클릭 = 선택 · 더블클릭 = 쥐는 곳으로': [
+    'Click a body = select · double-click = grip point',
+    'ボディをクリック = 選択 · ダブルクリック = 掴む所に',
+    '单击身体 = 选择 · 双击 = 设为抓取处',
+  ],
   몸통: ['Torso', '胴体', '躯干'],
   '몸통(COM)·목·왼 위팔 세 뼈로 가슴이 위를 보는지 검사합니다(바닐라 기상 클립을 고르는 뼈와 같음). 래그돌 회복 QTE의 결과처럼 엔진이 몸을 넘겨받는 순간 고르면 엔진이 고른 기상 자세 그대로라 결과가 엔진과 일치합니다. 서 있는 몸은 가슴이 수평이라 누움으로 셉니다.':
     [
@@ -2780,6 +2917,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   문자열: ['Text', '文字列', '字符串'],
   '문제 {n}': ['Problems {n}', '問題 {n}', '问题 {n}'],
   '문제 · {n}': ['Problems · {n}', '問題 · {n}', '问题 · {n}'],
+  '물리로 흔들림': ['Sways under physics', '物理で揺れる', '受物理摇晃'],
+  '물리로 흔들림. 끄면 스스로 흔들리지 않고, 위 몸체가 흔들리면 그 관절을 처음 각도로 고정해 함께 움직입니다.': [
+    'Sways under physics. Off: it never sways on its own; when the body above sways, its joint stays at its first angle and it moves along.',
+    '物理で揺れる。オフにすると自分では揺れず、上のボディが揺れるとその関節を最初の角度に固定して一緒に動きます。',
+    '受物理摇晃。关闭后自身不摇晃；上方身体摇晃时，该关节固定在初始角度并一起移动。',
+  ],
   '미니맵 닫기': ['Hide Minimap', 'ミニマップを隠す', '隐藏小地图'],
   '미니맵 열기': ['Show Minimap', 'ミニマップを表示', '显示小地图'],
   미등록: ['Unregistered', '未登録', '未注册'],
@@ -2799,6 +2942,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   밀쳐내기: ['Push', '押し飛ばし', '推开'],
   '밀쳐내는 힘': ['Push force', '押し飛ばす力', '推开的力'],
   밀치기: ['Bash', 'バッシュ', '盾击'],
+  바닐라: ['Vanilla', 'バニラ', '原版'],
+  '바닐라 (위 몸체와의 관절)': [
+    'Vanilla (the joint to the body above)',
+    'バニラ (上のボディとの関節)',
+    '原版（与上方身体的关节）',
+  ],
   '바닐라 동작': ['Vanilla action', 'バニラ動作', '原版动作'],
   '바닐라 동작: 감지 구간 안에서 플레이어가 그 바닐라 동작(공격 버튼 등)을 하면, 이 클립을 끝내고 게임 원래 동작으로 넘어갑니다. 키 설정·패드와 상관없이 게임 입력을 그대로 씁니다.':
     [
@@ -2823,6 +2972,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '这是原版或常见的事件名称。注册的功能将在整个游戏动画中运行。建议使用模组专属前缀。',
   ],
   바닐라처럼: ['As vanilla', 'バニラ通り', '与原版相同'],
+  '바닥 충돌': ['Floor collision', '床の衝突', '地面碰撞'],
   '바이너리 응답 머리글 길이가 올바르지 않습니다.': [
     'Invalid binary response header length.',
     'バイナリ応答ヘッダーの長さが正しくありません。',
@@ -3031,6 +3181,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '空欄なら時間に関係なく最後に受けた攻撃だけを見ます。',
     '留空时不论多久，只看最后一次受到的攻击。',
   ],
+  '비틀림 제한': ['Twist limit', 'ねじれ制限', '扭转限制'],
+  '비틀림 제한 (도)': ['Twist limit (°)', 'ねじれ制限 (度)', '扭转限制（度）'],
   '빈 그룹': ['Empty group', '空のグループ', '空组'],
   '빈 조건 그룹이 있습니다. 조건을 넣거나 그룹을 지우세요.': [
     'There is an empty condition group. Add a condition or delete the group.',
@@ -3176,6 +3328,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '選択した HKX のエントリ・適用機能・終了ルートのみを自動整列します。他の HKX と全体のグラフ配置は維持されます。',
     '仅自动对齐所选 HKX 的入口、应用功能与退出路径。其他 HKX 及整体图表布局将保持不变。',
   ],
+  '선택한 몸체': ['Selected body', '選択したボディ', '选中的身体'],
   '선택한 손에 장착한 무기·주문 등의 키워드를 검사합니다.': [
     'Checks keywords of weapon, spell, or item equipped in the selected hand.',
     '選択した手に装備している武器や呪文などのキーワードを判定します。',
@@ -3500,6 +3653,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '无时间限制搬运时重新按下此键会播放放下动作。可以与开始键相同。使用同一输入的地方（开始键、公共输入）也会一起更改；其他输入请在高级的输入绑定中选择。抬起过程中或在空中时不会放下。',
     ],
   '시간(초)': ['Duration (s)', '時間（秒）', '时间（秒）'],
+  '시뮬레이션 보기': ['Show simulation', 'シミュレーションを見る', '查看模拟'],
   '시야 확보': ['Line of sight', '視線確保', '视野通畅'],
   시작: ['Start', '開始', '开始'],
   '시작 HKX가 없습니다.': ['No starting HKX.', '開始 HKX がありません。', '缺少起始 HKX。'],
@@ -3614,6 +3768,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   "알 수 없는 속성 '": ["Unknown attribute '", "不明な属性 '", "未知属性 '"],
   '알 수 없는 연출 속성': ['Unknown effect attribute', '不明な演出属性', '未知的演出属性'],
+  '알 수 없는 요소 <{name}>': ['Unknown element <{name}>', '不明な要素 <{name}>', '未知元素 <{name}>'],
   '알 수 없는 저장 형식입니다.': ['Unknown save format.', '不明な保存形式です。', '未知的保存格式。'],
   '알 수 없는 주석 명령': ['Unknown annotation command', '不明な注釈コマンド', '未知的注释命令'],
   '알 수 없는 주석 명령 · {usage} 형식으로 값을 모두 적어야 합니다': [
@@ -3627,6 +3782,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '앞에 블렌드 추가': ['Add blend before', '前にブレンドを追加', '在前面添加混合'],
   '앞에 조건 카드 추가': ['Add condition card in front', '前に条件カードを追加', '在前面添加条件卡'],
   '앞으로 이동': ['Move forward', '前へ移動', '向前移动'],
+  '애니메이션 보기로': ['Back to the animation', 'アニメーション表示へ', '返回动画'],
   '애니메이션 프로젝트를 기준으로 검사합니다. 미확인 리그는 NOT에서도 통과하지 않습니다. 인간형은 인간용 리그를 사용하는 종족을 포함합니다.':
     [
       'Inspects based on the animation project. Unidentified rigs will not pass even with NOT. Humanoid includes races that use human rigs.',
@@ -3879,6 +4035,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '운반 고정': ['Carry fix', '運搬固定', '搬运固定'],
   '운반 고정 시점': ['Carry fix time', '運搬固定時点', '搬运固定时刻'],
   '운반 내려놓기': ['Carry put down', '運搬下ろし', '搬运放下'],
+  '운반 래그돌 값 오류': ['Carry ragdoll values error', '運搬ラグドール値のエラー', '搬运布娃娃值错误'],
   '운반 자세': ['Carry hold', '運搬姿勢', '搬运姿势'],
   '운반 자세 본': ['Carry hold bone', '運搬姿勢ボーン', '搬运姿势骨骼'],
   '운반 자세 본 개수 제한': [
@@ -3988,6 +4145,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '運搬の下ろす動作（putdown）は開始で始まりません: ',
     '搬运的放下动作（putdown）不能由启动开始：',
   ],
+  운반자: ['Carrier', '運搬者', '搬运者'],
   '운반자 스켈레톤의 본과 가중치(0~1)입니다. 이 가중치를 아래 뼈가 모두 물려받고, 아래 뼈에 따로 적으면 그 값이 우선합니다.':
     [
       'Bones and weights (0–1) on the carrier skeleton. Lower bones inherit this weight, but individual child bone settings take precedence.',
@@ -4000,12 +4158,19 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '運搬者スケルトンのボーンです。ペア終了直前のこのボーンと対象ルート間の位置差・相対回転を保存して追従します。ボーン原点へ移動させるわけではありません。一覧からの選択または直接入力が可能で、ボーンが存在しない場合は開始しません。',
       '搬运者骨架上的骨骼。通过保存配对结束前该骨骼与目标根节点之间的位置差与相对旋转来跟随。不会移动到骨骼原点。可从列表选择或手动输入；若缺少骨骼则不会启动。',
     ],
+  '운반자의 속도가 바뀔 때 몸에 바로 주는 몫입니다. 1이면 충격 없이 따라옵니다.': [
+    "The share of the carrier's speed change given to the body at once. At 1 it follows without a jolt.",
+    '運搬者の速度が変わるとき体に直接与える割合です。1 なら衝撃なく追従します。',
+    '搬运者速度变化时直接传给身体的比例。为 1 时无冲击地跟随。',
+  ],
   '운반하는 동안 고른 팔을 들기 끝 자세로 고정합니다. 나머지 뼈는 평소 이동 애니메이션을 따릅니다. 쇄골 하나에 가중치를 주면 그 아래 팔 전체가 물려받습니다. 직접 지정은 뼈마다 가중치(1 = 들기 자세, 0 = 이동, 사이 = 섞기)를 정합니다.':
     [
       "While carrying, the chosen arm keeps the lift's end pose. The other bones follow the usual movement animation. A weight on one clavicle is inherited by the whole arm below it. Custom sets a weight per bone (1 = lift pose, 0 = movement, between = blend).",
       '運搬中、選んだ腕を持ち上げ終わりの姿勢で固定します。ほかの骨は通常の移動アニメーションに従います。鎖骨ひとつにウェイトを与えると、その下の腕全体が受け継ぎます。直接指定は骨ごとにウェイト(1 = 持ち上げ姿勢、0 = 移動、その間 = ブレンド)を決めます。',
       '搬运期间，所选手臂保持抬起结束时的姿势。其余骨骼跟随平常的移动动画。给一根锁骨设置权重时，其下整条手臂都会继承。直接指定为每根骨骼设置权重（1 = 抬起姿势，0 = 移动，中间值 = 混合）。',
     ],
+  움직임: ['Motion', '動き', '动作'],
+  '움직임 속도': ['Motion speed', '動きの速度', '动作速度'],
   웅크리기: ['Sneak', '隠密', '潜行'],
   '원본 미지정': ['No source chosen', '原本未指定', '未指定源文件'],
   '원본 파일': ['Source file', '原本ファイル', '源文件'],
@@ -4014,8 +4179,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '元ファイルは 0 より大きく 64 MB 以下である必要があります。',
     '源文件必须大于 0 且不超过 64 MB。',
   ],
+  '원뿔 제한': ['Cone limit', '円錐制限', '锥形限制'],
+  '원뿔 제한 (도)': ['Cone limit (°)', '円錐制限 (度)', '锥形限制（度）'],
   원형: ['Circle', '円形', '圆形'],
   위: ['Up', '上', '上'],
+  '위 몸체에 붙어 감(물리 끔)': [
+    'Carried by the body above (physics off)',
+    '上のボディに付いていく(物理オフ)',
+    '随上方身体移动（关闭物理）',
+  ],
   위스프: ['Wisp', 'ウィスプ', '幽魂'],
   '위스프 마더': ['Wispmother', 'ウィスプマザー', '幽魂之母'],
   '위에서부터 처음 맞는 행 하나': [
@@ -4134,6 +4306,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'この動作をすると遷移します。「攻撃」は強攻撃も含みます。',
     '做出此动作即转换。“攻击”也包括重击。',
   ],
+  '이 동작의 값': ["This action's values", 'この動作の値', '此动作的值'],
   '이 동작의 제작 매개변수를 먼저 삭제하세요.': [
     'Delete the authoring parameters of this action first.',
     'このアクションの作成パラメータを先に削除してください。',
@@ -4144,6 +4317,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このアクション自身が待つイベントです。他の HKX には影響しません。',
     '这是此动作自己等待的事件，不影响其他 HKX。',
   ],
+  '이 리그의 래그돌 데이터가 없습니다: ': [
+    'No ragdoll data for this rig: ',
+    'このリグのラグドールデータがありません: ',
+    '此骨架没有布娃娃数据：',
+  ],
+  '이 몸체만의 값': ["This body's own values", 'このボディだけの値', '此身体自己的值'],
+  '이 몸체와 위 몸체 사이의 몸체 없는 뼈입니다. 관절 축을 그 뼈로 옮기고 그 뼈를 함께 돌립니다. 비우면 바닐라 관절입니다.':
+    [
+      'A bodiless bone between this body and the body above. The joint axis moves onto it and it turns along. Left empty, the vanilla joint.',
+      'このボディと上のボディの間にあるボディのないボーンです。関節軸をそのボーンに移し、そのボーンも一緒に回します。空ならバニラの関節です。',
+      '此身体与上方身体之间无身体的骨骼。关节轴移到该骨骼上并一起转动。留空则为原版关节。',
+    ],
   '이 선은 끊을 수 없습니다. 카드를 지우세요.': [
     'This line cannot be cut. Delete the card.',
     'この線は切れません。カードを削除してください。',
@@ -4563,12 +4748,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '资产重复或外部来源模组设置错误',
   ],
   '자세 그대로': ['Keep pose', '姿勢のまま', '保持姿势'],
-  '자세 그대로: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 매달림: 쥐는 곳 하나만 손에 고정하고 나머지는 물리로 흔들립니다(대상 스켈레톤의 래그돌 프로필 값). 래그돌을 준비하지 못하면 자세 그대로 운반합니다.':
+  '자세 그대로: 들어올리기의 마지막 자세 그대로 붙어 다닙니다. 매달림: 쥐는 곳 하나만 손에 고정하고 나머지는 물리로 흔들립니다(래그돌 묶음의 값, 정하지 않으면 바닐라). 래그돌을 준비하지 못하면 자세 그대로 운반합니다.':
     [
-      "Keep pose: the target stays attached in the lift's last pose. Hanging: only the grip point is fixed to the hand and the rest swings with physics (the target skeleton's ragdoll profile). If the ragdoll cannot be prepared, it is carried in its pose.",
-      '姿勢のまま: 持ち上げの最後の姿勢のまま付いて回ります。ぶら下がり: つかむ所ひとつだけを手に固定し、残りは物理で揺れます(対象スケルトンのラグドールプロファイルの値)。ラグドールを準備できない場合は姿勢のまま運搬します。',
-      '保持姿势：目标以抬起的最后姿势附着移动。悬挂：只将抓握处固定在手上，其余部分随物理摆动（目标骨架的布娃娃配置值）。无法准备布娃娃时按原姿势搬运。',
+      "Keep pose: the target stays attached in the lift's last pose. Hanging: only the grip point is fixed to the hand and the rest swings with physics (the Ragdoll group's values; vanilla unless set). If the ragdoll cannot be prepared, it is carried in its pose.",
+      '姿勢のまま: 持ち上げの最後の姿勢のまま付いて回ります。ぶら下がり: つかむ所ひとつだけを手に固定し、残りは物理で揺れます(ラグドール欄の値、決めなければバニラ)。ラグドールを準備できない場合は姿勢のまま運搬します。',
+      '保持姿势：目标以抬起的最后姿势附着移动。悬挂：只将抓握处固定在手上，其余部分随物理摆动（布娃娃组的值，未设置时为原版）。无法准备布娃娃时按原姿势搬运。',
     ],
+  '자세를 따라감(물리 끔)': ['Follows the pose (physics off)', '姿勢に従う(物理オフ)', '跟随姿势（物理关闭）'],
   자원: ['Resource', 'リソース', '资源'],
   '자원 비교': ['Resource comparison', 'リソース比較', '资源比较'],
   '자원 비교 기준을 선택하세요.': [
@@ -4645,8 +4831,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   전쟁망치: ['Warhammer', 'ウォーハンマー', '战锤'],
   전체: ['All', 'すべて', '全部'],
   '전체 {n}': ['All {n}', 'すべて {n}', '全部 {n}'],
+  '전체 값': ['Overall value', '全体の値', '整体值'],
   '전체 보기': ['Zoom to Fit', '全体を表示', '缩放到适合'],
   '전체 선택': ['Select All', 'すべて選択', '全选'],
+  '전체 움직임': ['Overall motion', '全体の動き', '整体运动'],
   '전체 자산은 2 GB 이하여야 합니다.': [
     'Total assets must be 2 GB or smaller.',
     'アセット全体で 2 GB 以下である必要があります。',
@@ -4718,6 +4906,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   정지: ['Stop', '停止', '停止'],
   제거: ['Remove', '除去', '移除'],
   제련: ['Smithing', '鍛冶', '锻造'],
+  '제자리 회전': ['Turn in place', 'その場で回転', '原地转身'],
   '제작 매개변수': ['Authoring parameter', 'オーサリングパラメータ', '制作参数'],
   '제작 매개변수 개수 제한': ['Authoring parameter count limit', 'オーサリングパラメータ数の上限', '制作参数数量限制'],
   '제작 매개변수 형식 오류': [
@@ -4896,6 +5085,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '주석 이벤트 {length}종': ['{length} annotation event types', '注釈イベント {length} 種', '{length} 种注释事件'],
   '중간에 끝남': ['Ended early', '途中で終了', '中途结束'],
   중갑: ['Heavy Armor', '重装', '重甲'],
+  중력: ['Gravity', '重力', '重力'],
+  '중력 배율(1~4)입니다. 1 = 게임 중력.': [
+    "The gravity factor (1~4). 1 = the game's gravity.",
+    '重力倍率(1~4)です。1 = ゲームの重力。',
+    '重力倍率（1~4）。1 = 游戏重力。',
+  ],
   '중복 요소': ['Duplicate element', '重複した要素', '重复的元素'],
   중앙: ['Center', '中央', '居中'],
   '중앙 또는 모서리를 기준으로 배치합니다. "화면 비율"은 화면 비율(0~100%, 가운데 50%)로 둡니다(런타임 기본값). 기준점을 바꾸면 위치를 처음 값으로 되돌립니다. 위 미리보기에서 QTE를 끌어 옮길 수도 있습니다.':
@@ -5143,6 +5338,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'チャンネルが異なる QTE は同じタイミングで同時に表示され、各自のキーのみを受け付けます。同じチャンネルでは先に出現した QTE の進行中、後続の QTE は表示されません。',
       '处于不同通道的 QTE 会在同一时刻一同出现，各自仅接收自己的按键。在同一通道中，先出现的 QTE 进行期间不会弹出后续 QTE。',
     ],
+  처음부터: ['Restart', '最初から', '从头开始'],
   '척추 뼈에는 0.3 이하의 작은 값만 권합니다. 크게 주면 걸음의 몸통 흔들림이 사라져 상체와 다리가 어긋납니다.': [
     'Small values of 0.3 or lower are recommended for spine bones. High values eliminate natural torso sway during walking, misaligning the upper body and legs.',
     '脊椎ボーンには 0.3 以下の小さい値のみをお勧めします。大きく設定すると歩行時の胴体の揺れが失われ、上半身と下半身が不自然にずれます。',
@@ -5167,6 +5363,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '仅当游戏读取的正文为空集合时才能保存草稿。',
   ],
   최근: ['Recent', '最近', '最近'],
+  최대: ['maximum', '最大', '最大'],
   '최대 {v0}초': ['Max {v0} s', '最大{v0}秒', '最长 {v0} 秒'],
   '최대 경사각': ['Max slope angle', '最大傾斜角', '最大倾斜角'],
   '최대 유지 시간은 0.1~600초입니다.': [
@@ -5176,6 +5373,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '최대 유지(초)': ['Max hold (s)', '最大維持(秒)', '最长保持(秒)'],
   '최대치의 %': ['% of maximum', '最大値の %', '最大值的 %'],
+  '최상위 요소가 <Ragdoll>이 아닙니다.': [
+    'The root element is not <Ragdoll>.',
+    'ルート要素が <Ragdoll> ではありません。',
+    '根元素不是 <Ragdoll>。',
+  ],
+  최소: ['minimum', '最小', '最小'],
   추가: ['Add', '追加', '添加'],
   '추가할 값': ['Values to add', '追加する値', '可添加的值'],
   축소: ['Zoom out', '縮小', '缩小'],
@@ -5329,6 +5532,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '켜는 이벤트': ['On event', 'オンにするイベント', '开启事件'],
   켬: ['On', 'オン', '开'],
   쿨다운: ['Cooldown', 'クールダウン', '冷却时间'],
+  크기: ['Scale', '大きさ', '大小'],
   '크기 배율': ['Size scale', 'サイズ倍率', '大小倍率'],
   크리쳐: ['Creature', 'クリーチャー', '生物'],
   '크리쳐 전체': ['All creatures', 'クリーチャー全体', '全部生物'],
@@ -5493,6 +5697,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ファイルが見つかりませんでした。原本を選択するか、外部提供 MOD を指定してください。',
     '未找到文件。请选择源文件或指定外部来源模组。',
   ],
+  '파일의 리그 {file}가 들기 대상 리그 {rig}와 다릅니다.': [
+    "The file's rig {file} is not the lifted target's rig {rig}.",
+    'ファイルのリグ {file} が持ち上げ対象のリグ {rig} と異なります。',
+    '文件的骨架 {file} 与被抬起目标的骨架 {rig} 不同。',
+  ],
   '파일이 4 MB 제한을 넘었습니다.': [
     'File exceeds the 4 MB limit.',
     'ファイルが 4 MB の制限を超えました。',
@@ -5617,6 +5826,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '편집 메뉴': ['Edit menu', '編集メニュー', '编辑菜单'],
   펼치기: ['Expand', '展開', '展开'],
+  '평면 제한': ['Plane limit', '平面制限', '平面限制'],
+  '평면 제한 (도)': ['Plane limit (°)', '平面制限 (度)', '平面限制（度）'],
   '폭풍 아트로나크': ['Storm Atronach', '雷のアトロナック', '风暴元素'],
   '폼 ID': ['Form ID', 'Form ID', 'Form ID'],
   '폼 설정은 폼 검사에서만 사용하세요.': [
@@ -5901,7 +6112,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   횃불: ['Torch', '松明', '火把'],
   회복: ['Restoration', '回復', '恢复'],
   '회전 · 전 구간 금지': ['Rotation · Full lock', '回転 · 全区間禁止', '旋转 · 全程锁定'],
+  '회전 관성 배율(1~10)입니다. 질량은 그대로입니다.': [
+    'The rotational inertia factor (1~10). The mass stays as it is.',
+    '回転慣性の倍率(1~10)です。質量はそのままです。',
+    '转动惯量倍率（1~10）。质量不变。',
+  ],
   '회전 방식': ['Rotation mode', '回転方式', '旋转方式'],
+  '회전 저항': ['Spin damping', '回転抵抗', '旋转阻力'],
   '회전 허용': ['Allow Rotation', '回転を許可', '允许旋转'],
   '회전 허용 해제': ['Disable rotation allowance', '回転許可を解除', '解除允许旋转'],
   '효과 움직임 축소': ['Reduce motion effects', 'エフェクトの動きを軽減', '减弱动态特效'],
@@ -5909,6 +6126,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '흐름 동작 선택': ['Select flow action', 'フローアクションを選択', '选择流程动作'],
   '흐름:': ['Flow:', 'フロー:', '流程:'],
   흐림: ['Cloudy', '曇り', '阴'],
+  '흔들림이 가라앉는 정도(선 감쇠, 0~10)입니다. 게임 값보다 작아지지 않습니다(0 = 게임 값).': [
+    "How fast swaying settles (linear damping, 0~10). Never below the game's value (0 = the game's value).",
+    '揺れが収まる度合い(線形減衰、0~10)です。ゲームの値より小さくはなりません(0 = ゲームの値)。',
+    '摇晃平息的程度（线性阻尼，0~10）。不会低于游戏值（0 = 游戏值）。',
+  ],
   힘: ['Force', '力', '力度'],
   '힘 {f}': ['Force {f}', '力 {f}', '力度 {f}'],
   '힘은 래그돌·타격에서만 씁니다.': [

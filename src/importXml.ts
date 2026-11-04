@@ -364,6 +364,7 @@ export function importWorkspaceXml(text: string): Workspace {
             : null,
           fix: fix ? {at: mark(Number(fixAt))} : null,
           weapon,
+          ragdoll: null,
         };
       }
     } else if (dos.length) a.config.effects = dos.map((e, i) => ({id: 'effect' + (i + 1), values: readDo(e, true)}));

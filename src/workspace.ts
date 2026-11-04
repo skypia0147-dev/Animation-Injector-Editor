@@ -1,6 +1,7 @@
 import {qteErrors, qteToChoose, qteXml, eventQteXml, qteChannelClashes} from './qte.ts';
 import {isPairedRig, type PairedRig} from './pairedRigs.ts';
 import {defaultCarry, defaultCarryFix, defaultCarryHold, carryErrors, strayCarryRelease} from './carry.ts';
+import {validRagdoll} from './ragdoll.ts';
 import {XML_FORMAT_VERSION} from './xmlFormat.ts';
 import {isGameControl} from './keys.ts';
 import {sourceLinks} from './graph/playback.ts';
@@ -648,7 +649,12 @@ function checkAction(a: any): Project {
     const {carry, ...pairBase} = a.pair;
     exact(pairBase, defaultPair(), tr('페어'));
     if (carry !== undefined) {
-      exact(carry, defaultCarry(), tr('운반'));
+      // The ragdoll values come from their own file (ragdoll.ts): a saved editor block has none.
+      const {ragdoll, ...carryBase} = carry;
+      const {ragdoll: _none, ...carrySample} = defaultCarry();
+      exact(carryBase, carrySample, tr('운반'));
+      if (ragdoll === undefined) carry.ragdoll = null;
+      else if (ragdoll !== null && !validRagdoll(ragdoll)) throw new Error(tr('운반 래그돌 값 오류'));
       if (carry.hold !== null) {
         exact(carry.hold, defaultCarryHold(), tr('운반 자세'));
         if (!Array.isArray(carry.hold.bones) || carry.hold.bones.length > 256)

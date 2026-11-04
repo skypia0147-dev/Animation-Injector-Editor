@@ -1,0 +1,495 @@
+{
+ "format": 2,
+ "ragdolls": [
+  {
+   "id": "character",
+   "rig": "character",
+   "skeleton": "character",
+   "label": {
+    "ko": "인간",
+    "en": "character"
+   },
+   "source": "meshes/actors/character/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "ashhopper",
+   "rig": "ashhopper",
+   "skeleton": null,
+   "label": {
+    "ko": "애쉬 호퍼",
+    "en": "ashhopper"
+   },
+   "source": "meshes/actors/dlc02/scrib/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "atronachflame",
+   "rig": "atronachflame",
+   "skeleton": "atronachflame",
+   "label": {
+    "ko": "화염 아트로나크",
+    "en": "atronachflame"
+   },
+   "source": "meshes/actors/atronachflame/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "atronachfrost",
+   "rig": "atronachfrost",
+   "skeleton": "atronachfrost",
+   "label": {
+    "ko": "서리 아트로나크",
+    "en": "atronachfrost"
+   },
+   "source": "meshes/actors/atronachfrost/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "atronachstorm",
+   "rig": "atronachstorm",
+   "skeleton": "atronachstorm",
+   "label": {
+    "ko": "폭풍 아트로나크",
+    "en": "atronachstorm"
+   },
+   "source": "meshes/actors/atronachstorm/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "bear",
+   "rig": "bear",
+   "skeleton": "bear",
+   "label": {
+    "ko": "곰",
+    "en": "bear"
+   },
+   "source": "meshes/actors/bear/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "boar",
+   "rig": "boar",
+   "skeleton": null,
+   "label": {
+    "ko": "멧돼지",
+    "en": "boar"
+   },
+   "source": "meshes/actors/dlc02/boarriekling/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "chaurus",
+   "rig": "chaurus",
+   "skeleton": "chaurus",
+   "label": {
+    "ko": "차루스",
+    "en": "chaurus"
+   },
+   "source": "meshes/actors/chaurus/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "chaurusflyer",
+   "rig": "chaurusflyer",
+   "skeleton": null,
+   "label": {
+    "ko": "차루스 헌터",
+    "en": "chaurusflyer"
+   },
+   "source": "meshes/actors/dlc01/chaurusflyer/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "chicken",
+   "rig": "chicken",
+   "skeleton": "chicken",
+   "label": {
+    "ko": "닭",
+    "en": "chicken"
+   },
+   "source": "meshes/actors/ambient/chicken/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "cow",
+   "rig": "cow",
+   "skeleton": "cow",
+   "label": {
+    "ko": "소",
+    "en": "cow"
+   },
+   "source": "meshes/actors/cow/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "deer",
+   "rig": "deer",
+   "skeleton": "deer",
+   "label": {
+    "ko": "사슴",
+    "en": "deer"
+   },
+   "source": "meshes/actors/deer/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dog",
+   "rig": "dog",
+   "skeleton": "canine_dog",
+   "label": {
+    "ko": "개",
+    "en": "dog"
+   },
+   "source": "meshes/actors/canine/Character Assets Dog/skeleton.nif"
+  },
+  {
+   "id": "dragon",
+   "rig": "dragon",
+   "skeleton": "dragon",
+   "label": {
+    "ko": "드래곤",
+    "en": "dragon"
+   },
+   "source": "meshes/actors/dragon/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dragonpriest",
+   "rig": "dragonpriest",
+   "skeleton": "dragonpriest",
+   "label": {
+    "ko": "드래곤 프리스트",
+    "en": "dragonpriest"
+   },
+   "source": "meshes/actors/dragonpriest/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "draugr",
+   "rig": "draugr",
+   "skeleton": "draugr",
+   "label": {
+    "ko": "드로거",
+    "en": "draugr"
+   },
+   "source": "meshes/actors/draugr/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dwarvenballistacenturion",
+   "rig": "dwarvenballistacenturion",
+   "skeleton": null,
+   "label": {
+    "ko": "드웨머 발리스타",
+    "en": "dwarvenballistacenturion"
+   },
+   "source": "meshes/actors/dlc02/dwarvenballistacenturion/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dwarvenspherecenturion",
+   "rig": "dwarvenspherecenturion",
+   "skeleton": "dwarvenspherecenturion",
+   "label": {
+    "ko": "드웨머 구체",
+    "en": "dwarvenspherecenturion"
+   },
+   "source": "meshes/actors/dwarvenspherecenturion/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dwarvenspider",
+   "rig": "dwarvenspider",
+   "skeleton": "dwarvenspider",
+   "label": {
+    "ko": "드웨머 거미",
+    "en": "dwarvenspider"
+   },
+   "source": "meshes/actors/dwarvenspider/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "dwarvensteamcenturion",
+   "rig": "dwarvensteamcenturion",
+   "skeleton": "dwarvensteamcenturion",
+   "label": {
+    "ko": "드웨머 백부장",
+    "en": "dwarvensteamcenturion"
+   },
+   "source": "meshes/actors/dwarvensteamcenturion/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "falmer",
+   "rig": "falmer",
+   "skeleton": "falmer",
+   "label": {
+    "ko": "팔머",
+    "en": "falmer"
+   },
+   "source": "meshes/actors/falmer/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "frostbitespider",
+   "rig": "frostbitespider",
+   "skeleton": "frostbitespider",
+   "label": {
+    "ko": "서리 거미",
+    "en": "frostbitespider"
+   },
+   "source": "meshes/actors/frostbitespider/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "gargoyle",
+   "rig": "gargoyle",
+   "skeleton": null,
+   "label": {
+    "ko": "가고일",
+    "en": "gargoyle"
+   },
+   "source": "meshes/actors/dlc01/vampirebrute/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "giant",
+   "rig": "giant",
+   "skeleton": "giant",
+   "label": {
+    "ko": "거인",
+    "en": "giant"
+   },
+   "source": "meshes/actors/giant/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "goat",
+   "rig": "goat",
+   "skeleton": "goat",
+   "label": {
+    "ko": "염소",
+    "en": "goat"
+   },
+   "source": "meshes/actors/goat/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "hagraven",
+   "rig": "hagraven",
+   "skeleton": "hagraven",
+   "label": {
+    "ko": "해그레이븐",
+    "en": "hagraven"
+   },
+   "source": "meshes/actors/hagraven/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "hare",
+   "rig": "hare",
+   "skeleton": "hare",
+   "label": {
+    "ko": "토끼",
+    "en": "hare"
+   },
+   "source": "meshes/actors/ambient/hare/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "horker",
+   "rig": "horker",
+   "skeleton": "horker",
+   "label": {
+    "ko": "호커",
+    "en": "horker"
+   },
+   "source": "meshes/actors/horker/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "horse",
+   "rig": "horse",
+   "skeleton": "horse",
+   "label": {
+    "ko": "말",
+    "en": "horse"
+   },
+   "source": "meshes/actors/horse/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "icewraith",
+   "rig": "icewraith",
+   "skeleton": "icewraith",
+   "label": {
+    "ko": "얼음 망령",
+    "en": "icewraith"
+   },
+   "source": "meshes/actors/icewraith/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "lurker",
+   "rig": "lurker",
+   "skeleton": null,
+   "label": {
+    "ko": "러커",
+    "en": "lurker"
+   },
+   "source": "meshes/actors/dlc02/benthiclurker/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "mammoth",
+   "rig": "mammoth",
+   "skeleton": "mammoth",
+   "label": {
+    "ko": "매머드",
+    "en": "mammoth"
+   },
+   "source": "meshes/actors/mammoth/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "mudcrab",
+   "rig": "mudcrab",
+   "skeleton": "mudcrab",
+   "label": {
+    "ko": "진흙게",
+    "en": "mudcrab"
+   },
+   "source": "meshes/actors/mudcrab/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "netch",
+   "rig": "netch",
+   "skeleton": null,
+   "label": {
+    "ko": "네치",
+    "en": "netch"
+   },
+   "source": "meshes/actors/dlc02/netch/CharacterAssets/skeleton.nif"
+  },
+  {
+   "id": "riekling",
+   "rig": "riekling",
+   "skeleton": null,
+   "label": {
+    "ko": "리클링",
+    "en": "riekling"
+   },
+   "source": "meshes/actors/dlc02/riekling/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "sabrecat",
+   "rig": "sabrecat",
+   "skeleton": "sabrecat",
+   "label": {
+    "ko": "검치호",
+    "en": "sabrecat"
+   },
+   "source": "meshes/actors/sabrecat/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "seeker",
+   "rig": "seeker",
+   "skeleton": null,
+   "label": {
+    "ko": "시커",
+    "en": "seeker"
+   },
+   "source": "meshes/actors/dlc02/hmdaedra/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "skeever",
+   "rig": "skeever",
+   "skeleton": "skeever",
+   "label": {
+    "ko": "스키버",
+    "en": "skeever"
+   },
+   "source": "meshes/actors/skeever/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "skeleton",
+   "rig": "skeleton",
+   "skeleton": "draugr_s",
+   "label": {
+    "ko": "해골",
+    "en": "skeleton"
+   },
+   "source": "meshes/actors/draugr/character assets/skeletons.nif"
+  },
+  {
+   "id": "slaughterfish",
+   "rig": "slaughterfish",
+   "skeleton": "slaughterfish",
+   "label": {
+    "ko": "도살물고기",
+    "en": "slaughterfish"
+   },
+   "source": "meshes/actors/slaughterfish/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "spriggan",
+   "rig": "spriggan",
+   "skeleton": "spriggan",
+   "label": {
+    "ko": "스프리건",
+    "en": "spriggan"
+   },
+   "source": "meshes/actors/spriggan/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "troll",
+   "rig": "troll",
+   "skeleton": "troll",
+   "label": {
+    "ko": "트롤",
+    "en": "troll"
+   },
+   "source": "meshes/actors/troll/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "vampirelord",
+   "rig": "vampirelord",
+   "skeleton": null,
+   "label": {
+    "ko": "뱀파이어 로드",
+    "en": "vampirelord"
+   },
+   "source": "meshes/actors/vampirelord/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "werewolf",
+   "rig": "werewolf",
+   "skeleton": "werewolfbeast",
+   "label": {
+    "ko": "늑대인간",
+    "en": "werewolf"
+   },
+   "source": "meshes/actors/werewolfbeast/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "wispmother",
+   "rig": "wispmother",
+   "skeleton": "wisp",
+   "label": {
+    "ko": "위스프 마더",
+    "en": "wispmother"
+   },
+   "source": "meshes/actors/wisp/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "witchlight",
+   "rig": "witchlight",
+   "skeleton": "witchlight",
+   "label": {
+    "ko": "위스프",
+    "en": "witchlight"
+   },
+   "source": "meshes/actors/witchlight/Character Assets/skeleton.nif"
+  },
+  {
+   "id": "wolf",
+   "rig": "wolf",
+   "skeleton": "canine_wolf",
+   "label": {
+    "ko": "늑대",
+    "en": "wolf"
+   },
+   "source": "meshes/actors/canine/Character Assets Wolf/skeleton.nif"
+  },
+  {
+   "id": "character_female",
+   "rig": "character",
+   "skeleton": "character_female",
+   "label": {
+    "ko": "인간 (여성)",
+    "en": "character (female)"
+   },
+   "source": "meshes/actors/character/character assets female/skeleton_female.nif"
+  },
+  {
+   "id": "draugr_f",
+   "rig": "draugr",
+   "skeleton": "draugr_f",
+   "label": {
+    "ko": "드로거 (여성)",
+    "en": "draugr (female)"
+   },
+   "source": "meshes/actors/draugr/character assets/skeletonf.nif"
+  }
+ ]
+}

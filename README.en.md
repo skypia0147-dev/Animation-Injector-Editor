@@ -50,6 +50,15 @@ A Windows program for making action mods for [Animation Injector](https://github
 
 The viewer does not reproduce the game's collision, physics and so on. Check the final result in game.
 
+## Carry ragdoll
+
+When a carry item's target is **Hanging**, the lifted target swings under physics, and the **Ragdoll** group sets how.
+
+- **Vanilla**: the game's own ragdoll values (no file).
+- **This action's values**: the overall motion values and, per body, physics on or off, damping and joint limits. A body with physics off moves along with the body above it, its joint held at its first angle, when that body swings; below bodies that are all off, it follows the lift pose.
+- Saving writes the values beside the XML as `Ragdoll\<lift action ID>.xml`, and a mod folder export includes the file. The game reads it again at every lift, so an edit made while the game runs applies from the next lift.
+- **Show simulation** runs the lifted target's ragdoll in the viewport. It follows value changes at once, and clicking a body shows its row on the card. The preview imitates the game's physics and can differ a little from the game.
+
 ## Shortcuts
 
 | Key | Action |

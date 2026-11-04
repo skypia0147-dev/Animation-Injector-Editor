@@ -1,5 +1,8 @@
 import {UI_SCALES, applyUiScale, storedUiScale} from './ui/uiScale.ts';
 import {localProject, shareableProject} from './localPaths.ts';
+import {applyRagdollFiles, carryLifts, ragdollWrites, withoutRagdolls} from './ragdoll.ts';
+import {RagdollPreviewContext} from './ui/ragdollPreviewContext.ts';
+import {matrixAt} from './viewport/matrices.ts';
 import {executeGraphCommand} from './graph/commands.ts';
 import {facingChanges, pairSources, withFacings} from './graph/pairFacing.ts';
 import {functionSummary} from './eventRegistry.ts';
@@ -90,6 +93,7 @@ import {addRecent, getRecent, removeRecent} from './recent.ts';
 import type {RecentFile} from './recent.ts';
 import {lazy, Suspense} from 'react';
 const Viewport = lazy(() => import('./viewport/Viewport.tsx').then(m => ({default: m.Viewport})));
+const RagdollView = lazy(() => import('./viewport/RagdollView.tsx').then(m => ({default: m.RagdollView})));
 import {pickViewerAsset, useViewerData} from './viewport/adapter.ts';
 import {usePlayback} from './viewport/playback.ts';
 import {frameAtTime, viewerMeta} from './viewport/types.ts';
@@ -189,6 +193,10 @@ function Editor() {
   // The stamp (SHA-256) of the XML at xmlExportPath as last read or written: Save refuses to write over a file that
   // changed on disk since then (another editor window, a text editor, a sync tool) and asks instead.
   const xmlStamp = useRef('');
+  // The carry lifts' ragdoll files beside the document's XML (ragdoll.ts): the ids read or written last, so Save
+  // removes a renamed lift's old file, and those rejected on opening, which Save never touches.
+  const ragdollIds = useRef<string[]>([]);
+  const ragdollRejected = useRef<string[]>([]);
   const [ui, dispatchUI] = useReducer(uiReducer, initialUI);
   const [timelineMetadata, setTimelineMetadata] = useState<{action: string; meta?: Meta; clip: string; error?: string}>(
     {action: '', clip: ''}
@@ -420,6 +428,26 @@ function Editor() {
     },
     [notify]
   );
+  // The carry ragdoll simulation in the 3D view (viewport/RagdollView): the lift action it shows and the body selected.
+  const [ragdollView, setRagdollView] = useState<string | null>(null),
+    [ragdollBody, setRagdollBody] = useState(''),
+    [ragdollReveal, setRagdollReveal] = useState(0);
+  const ragdollPreview = useMemo(
+    () => ({
+      active: ragdollView,
+      selected: ragdollBody,
+      toggle: (uid: string) => {
+        setRagdollView(current => (current === uid ? null : uid));
+        setPanels(p => (p.viewport ? p : {...p, viewport: true}));
+      },
+      reveal: ragdollReveal,
+      select: (bone: string, fromView = false) => {
+        setRagdollBody(bone);
+        if (fromView) setRagdollReveal(n => n + 1);
+      },
+    }),
+    [ragdollView, ragdollBody, ragdollReveal]
+  );
   // A sound file chosen in a function's field: its source is what the mod package copies (package.ts sounds).
   const soundSource = useMemo(
     () => ({
@@ -609,6 +637,8 @@ function Editor() {
     setSelection(next.actions[0]?.uid ?? 'project');
     setXmlExportPath(opts.xmlPath ?? '');
     xmlStamp.current = opts.xmlPath ? (opts.stamp ?? '') : '';
+    ragdollIds.current = [];
+    ragdollRejected.current = [];
     setCompiled(null);
     setPreviewSelection({action: '', step: ''});
     setViewerRevision(value => value + 1);
@@ -635,7 +665,24 @@ function Editor() {
         ? await connectXmlAssets(next, doc.path, io.resolveHkx, io.filesExist, io.modSounds)
         : null;
     if (sources) next = sources.workspace;
+    // The carry lifts' ragdoll values are their files beside the XML (ragdoll.ts), not the editor block.
+    let ragdoll: ReturnType<typeof applyRagdollFiles> | null = null;
+    const lifts = kind === 'xml' && doc.path ? carryLifts(next) : [];
+    if (lifts.length && isTauri()) {
+      ragdoll = applyRagdollFiles(
+        next,
+        await io.readRagdolls(
+          doc.path,
+          lifts.map(l => l.id)
+        )
+      );
+      next = ragdoll.workspace;
+    }
     adopt(next, {name: doc.name, fresh: !restored, xmlPath: kind === 'xml' ? doc.path : '', stamp: doc.stamp});
+    if (ragdoll) {
+      ragdollIds.current = lifts.map(l => l.id);
+      ragdollRejected.current = ragdoll.rejected;
+    }
     if (kind === 'xml' && !restored) setArrangeRequest(value => value + 1);
     // Sound files the functions play, found beside the XML (importAssets.ts connectXmlSounds).
     const soundNote = sources?.sounds.connected
@@ -660,6 +707,8 @@ function Editor() {
               : '')) + soundNote,
       saved?.stale ? 'warn' : 'ok'
     );
+    for (const error of ragdoll?.errors ?? [])
+      notify(tr('래그돌 파일을 읽지 못해 기본값으로 열고 파일은 그대로 둡니다: {error}', {error}), 'warn');
   };
   const guarded = (fn: () => void) => {
     if (dirtyRef.current && started) {
@@ -810,7 +859,7 @@ function Editor() {
         }
         const draft = !!blocking && isDraftBody(body);
         // The block is shipped with the mod: no local paths in it (localPaths.ts).
-        const text = withEditorBlock(body, shareableProject(project));
+        const text = withEditorBlock(body, shareableProject(withoutRagdolls(project)));
         const suggested =
           mode === 'xml'
             ? xmlExportPath
@@ -837,6 +886,14 @@ function Editor() {
             setXmlExportPath(path);
             xmlStamp.current = written.stamp;
             setRecent(addRecent(path, baseName(path)));
+            // The carry lifts' ragdoll files beside the XML (ragdoll.ts).
+            try {
+              const files = ragdollWrites(w, ragdollIds.current, ragdollRejected.current);
+              if (files.files.length || files.remove.length) await io.writeRagdolls(path, files.files, files.remove);
+              ragdollIds.current = carryLifts(w).map(l => l.id);
+            } catch (e) {
+              notify(tr('래그돌 파일을 쓰지 못했습니다: {error}', {error: errorText(e)}), 'error');
+            }
           }
           for (const warning of verdict?.warnings ?? []) notify(t('export.runtimeWarning', {text: warning}), 'warn');
           if (draft)
@@ -1285,6 +1342,23 @@ function Editor() {
       `${timelineAction?.uid ?? ''}:${previewStep?.id ?? ''}:${previewPath}:${viewerRevision}`
     ),
     previewFrame = frameAtTime(playback.time, viewer.data),
+    // The ragdoll simulation's lift (a physics carry) and its start pose: the lift HKX's partner at the fix moment
+    // (else its last frame) when the 3D view has that HKX loaded; otherwise the rest pose.
+    ragdollAction = ragdollView
+      ? w.actions.find(a => a.uid === ragdollView && a.pair?.carry?.target === 'physics')
+      : undefined,
+    ragdollPose = useMemo(() => {
+      const data = viewer.data;
+      if (!ragdollAction || timelineAction?.uid !== ragdollAction.uid || !data?.paired || !data.actors[1])
+        return undefined;
+      const actor = data.actors[1],
+        fix = ragdollAction.pair!.carry!.fix;
+      const frame =
+        fix && fix.at.basis === 'seconds'
+          ? Math.min(data.frameCount - 1, Math.max(0, Math.round(fix.at.seconds * data.fps)))
+          : data.frameCount - 1;
+      return new Map(actor.bones.map((b, i) => [b.name.replace(/^2_/, ''), matrixAt(actor, frame, i)]));
+    }, [ragdollAction?.uid, ragdollAction?.pair?.carry?.fix?.at.seconds, timelineAction?.uid, viewer.data]),
     previewSkinPaths =
       viewer.data?.actors.map((actor, index) =>
         skinPathForActor(w, previewClip, index, actor.skeleton, actor.skeletonPath)
@@ -1606,725 +1680,742 @@ function Editor() {
 
   return (
     <SoundSourceContext.Provider value={soundSource}>
-      <div
-        className={'shell' + (dropping ? ' dropping' : '')}
-        data-drop={t('drop.registerHint')}
-        onContextMenu={context}
-      >
-        {contextMenu}
-        <header className="application-header">
-          <div className="application-title">
-            Animation Injector <span>Editor</span>
-          </div>
-          <MenuBar
-            menus={menus}
-            after={
-              <div className="view-switch" role="tablist" aria-label={t('menu.view')}>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === 'graph'}
-                  className={view === 'graph' ? 'on' : ''}
-                  onClick={() => setView('graph')}
-                >
-                  {t('menu.view.graph')}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={view === 'xml'}
-                  className={view === 'xml' ? 'on' : ''}
-                  onClick={() => setView('xml')}
-                >
-                  XML
-                </button>
-              </div>
-            }
-            right={
-              <>
-                <b>{w.name}</b>
-                {dirty ? ' •' : ''}
-                {xmlExportPath ? ' · ' + baseName(xmlExportPath) : ''}
-              </>
-            }
-          />
-          <ToolBar
-            compile={compileState}
-            errors={errors.length}
-            warnings={issues.length - errors.length}
-            onCompile={compile}
-            onSave={() => void save('save')}
-            dirty={dirty}
-            pending={pending}
-            onFind={() => {
-              setPanels(p => (p.myProject ? p : {...p, myProject: true}));
-              setTimeout(() => searchRef.current?.focus(), 30);
-            }}
-            onExportXml={() => openExport('xml')}
-            onExportMod={exportMod}
-            exportDisabled={pending}
-          />
-        </header>
-        <div className="work" ref={workRef} style={{gridTemplateColumns: columns}}>
-          {showLeft && (
-            <PanelResize
-              label="layout.left"
-              axis="x"
-              value={fitted.left}
-              min={180}
-              max={Math.min(500, workSize.width - fitted.right - 320)}
-              change={v => resize('left', v)}
-              reset={() => resize('left', defaultSizes.left)}
-              style={{left: fitted.left - 3}}
-            />
-          )}
-          {showRight && (
-            <PanelResize
-              label="layout.right"
-              axis="x"
-              value={fitted.right}
-              min={240}
-              max={Math.min(600, workSize.width - fitted.left - 320)}
-              scale={-1}
-              change={v => resize('right', v)}
-              reset={() => resize('right', defaultSizes.right)}
-              style={{right: fitted.right - 3}}
-            />
-          )}
-          {showLeft && (
-            <aside
-              className={'dock left' + (panels.myProject && panels.hkx ? '' : ' single')}
-              style={
-                panels.myProject && panels.hkx
-                  ? {gridTemplateRows: `minmax(0, ${fitted.project}fr) minmax(0, ${100 - fitted.project}fr)`}
-                  : undefined
+      <RagdollPreviewContext.Provider value={ragdollPreview}>
+        <div
+          className={'shell' + (dropping ? ' dropping' : '')}
+          data-drop={t('drop.registerHint')}
+          onContextMenu={context}
+        >
+          {contextMenu}
+          <header className="application-header">
+            <div className="application-title">
+              Animation Injector <span>Editor</span>
+            </div>
+            <MenuBar
+              menus={menus}
+              after={
+                <div className="view-switch" role="tablist" aria-label={t('menu.view')}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === 'graph'}
+                    className={view === 'graph' ? 'on' : ''}
+                    onClick={() => setView('graph')}
+                  >
+                    {t('menu.view.graph')}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={view === 'xml'}
+                    className={view === 'xml' ? 'on' : ''}
+                    onClick={() => setView('xml')}
+                  >
+                    XML
+                  </button>
+                </div>
               }
-            >
-              {panels.myProject && panels.hkx && (
-                <PanelResize
-                  label="layout.project"
-                  axis="y"
-                  value={fitted.project}
-                  min={20}
-                  max={80}
-                  scale={100 / Math.max(1, workSize.height)}
-                  change={v => resize('project', v)}
-                  reset={() => resize('project', defaultSizes.project)}
-                  style={{top: `calc(${fitted.project}% - 3px)`}}
-                />
-              )}
-              {panels.myProject && (
-                <section className="panel" data-testid="panel-my-project">
-                  <div className="ptab">
-                    <span>{t('panel.myProject')}</span>
-                    {closeButton('myProject')}
-                  </div>
-                  <div className="pbody">
-                    <MyProject
-                      issues={issues}
-                      onOpenGraph={stable('tree.openGraph', (action: string) => openGraph({kind: 'anim', action}))}
-                      selectedResource={
-                        selection === 'inputs'
-                          ? selectedInput
-                          : selection === 'parameters'
-                            ? selectedParameter
-                            : selectedMarker
-                      }
-                      w={w}
-                      selection={selection}
-                      search={search}
-                      setSearch={setSearch}
-                      select={stable('tree.select', selectAndReveal)}
-                      selectedClip={flatSelection?.step}
-                      selectClip={stable('tree.selectClip', (action: string, step: string) => {
-                        const a = w.actions.find(a => a.uid === action);
-                        const n = a && playbackNode(selectionGraph.nodes, a, step);
-                        if (!n) return;
-                        dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node: n.id}});
-                        setReveal(r => ({action, seq: (r?.seq ?? 0) + 1}));
-                      })}
-                      onAddState={stable('tree.addState', () => createAction())}
-                      onOpenInputs={stable('tree.inputs', (id?: string) => {
-                        if (id) {
-                          setSelectedInput(id);
-                          setSelection('inputs');
-                        } else addInput();
-                      })}
-                      onOpenMarker={stable('tree.marker', (name?: string) => {
-                        if (name) {
-                          setSelectedMarker(name);
-                          setSelection('markers');
-                        } else addMarker();
-                      })}
-                      onOpenEffect={stable('tree.effect', (action: string, id: string) => {
-                        setSelectedEffect({action, id});
-                        setSelection('effects');
-                      })}
-                      onOpenParameters={stable('tree.parameters', (id?: string) => {
-                        if (id) {
-                          setSelectedParameter(id);
-                          setSelection('parameters');
-                        } else addParameter();
-                      })}
-                      onOpenProject={stable('tree.project', () => setSelection('project'))}
-                      searchRef={searchRef}
-                    />
-                  </div>
-                </section>
-              )}
-              {panels.hkx && (
-                <section className="panel" data-testid="panel-hkx">
-                  <div className="ptab">
-                    <span>{t('panel.hkxBrowser')}</span>
-                    {closeButton('hkx')}
-                  </div>
-                  <div className="pbody">
-                    <HkxBrowser
-                      entries={library}
-                      sounds={soundEntries}
-                      onRemoveSound={stable('sound.remove', (file: string) => edit(w => unregisterSound(w, file)))}
-                      onAddSound={stable(
-                        'sound.add',
-                        () =>
-                          void withBusy(async () => {
-                            try {
-                              const picked = await io.pickSound();
-                              if (picked) edit(w => selectSound(w, picked.file, picked.path));
-                            } catch (e) {
-                              notify(errorText(e), 'error');
-                            }
-                          })
-                      )}
-                      selected={selectedAsset}
-                      onSelect={setSelectedAsset}
-                      names={stable('hkx.names', nameOf)}
-                      onSelectUser={stable('hkx.selectUser', selectAndReveal)}
-                      onRemove={stable('hkx.remove', (clip: string) => edit(w => unregisterAsset(w, clip)))}
-                      onAdd={stable(
-                        'hkx.add',
-                        () =>
-                          void withBusy(async () => {
-                            try {
-                              const picked = await io.pickHkx();
-                              if (picked) {
-                                edit(w => registerAssets(w, [picked]));
-                                notify(t('hkx.registered', {n: 1}), 'ok');
-                              }
-                            } catch (e) {
-                              notify(errorText(e), 'error');
-                            }
-                          })
-                      )}
-                    />
-                  </div>
-                </section>
-              )}
-            </aside>
-          )}
-          <main
-            className={
-              'dock center graphite-dock' +
-              (panels.viewport ? ' has-viewer' : '') +
-              (panels.bottom ? ' has-bottom' : '') +
-              (compactDock ? ' compact-dock' : '')
-            }
-            style={{
-              gridTemplateRows: `minmax(260px, 1fr) ${fitted.bottom}px`,
-              gridTemplateColumns:
-                panels.viewport && panels.bottom && !compactDock
-                  ? `minmax(260px,1fr) ${fitted.viewport}px`
-                  : 'minmax(0,1fr)',
-            }}
-          >
-            {(panels.bottom || panels.viewport) && (
+              right={
+                <>
+                  <b>{w.name}</b>
+                  {dirty ? ' •' : ''}
+                  {xmlExportPath ? ' · ' + baseName(xmlExportPath) : ''}
+                </>
+              }
+            />
+            <ToolBar
+              compile={compileState}
+              errors={errors.length}
+              warnings={issues.length - errors.length}
+              onCompile={compile}
+              onSave={() => void save('save')}
+              dirty={dirty}
+              pending={pending}
+              onFind={() => {
+                setPanels(p => (p.myProject ? p : {...p, myProject: true}));
+                setTimeout(() => searchRef.current?.focus(), 30);
+              }}
+              onExportXml={() => openExport('xml')}
+              onExportMod={exportMod}
+              exportDisabled={pending}
+            />
+          </header>
+          <div className="work" ref={workRef} style={{gridTemplateColumns: columns}}>
+            {showLeft && (
               <PanelResize
-                label="layout.bottom"
-                axis="y"
-                value={fitted.bottom}
-                min={150}
-                max={workSize.height - 260}
-                scale={-1}
-                change={v => resize('bottom', v)}
-                reset={() => resize('bottom', defaultSizes.bottom)}
-                style={{bottom: fitted.bottom - 3}}
-              />
-            )}
-            {panels.bottom && panels.viewport && !compactDock && (
-              <PanelResize
-                label="layout.viewport"
+                label="layout.left"
                 axis="x"
-                value={fitted.viewport}
-                min={240}
-                max={Math.max(240, workSize.width - fitted.left - fitted.right - 260)}
-                scale={-1}
-                change={v => resize('viewport', v)}
-                reset={() => resize('viewport', defaultSizes.viewport)}
-                style={{right: fitted.viewport - 3, top: 'auto', bottom: 0, height: fitted.bottom}}
+                value={fitted.left}
+                min={180}
+                max={Math.min(500, workSize.width - fitted.right - 320)}
+                change={v => resize('left', v)}
+                reset={() => resize('left', defaultSizes.left)}
+                style={{left: fitted.left - 3}}
               />
             )}
-            {panels.viewport ? (
-              <section
-                className="panel viewport-panel"
-                data-testid="panel-viewport"
-                style={{display: compactDock && panels.bottom && bottomTab !== 'viewer' ? 'none' : undefined}}
+            {showRight && (
+              <PanelResize
+                label="layout.right"
+                axis="x"
+                value={fitted.right}
+                min={240}
+                max={Math.min(600, workSize.width - fitted.left - 320)}
+                scale={-1}
+                change={v => resize('right', v)}
+                reset={() => resize('right', defaultSizes.right)}
+                style={{right: fitted.right - 3}}
+              />
+            )}
+            {showLeft && (
+              <aside
+                className={'dock left' + (panels.myProject && panels.hkx ? '' : ' single')}
+                style={
+                  panels.myProject && panels.hkx
+                    ? {gridTemplateRows: `minmax(0, ${fitted.project}fr) minmax(0, ${100 - fitted.project}fr)`}
+                    : undefined
+                }
               >
-                <div className="ptab">
-                  {compactDock && panels.bottom && (
-                    <button className="tab off" onClick={() => setBottomTab('timeline')}>
-                      {tr('타임라인')}
-                    </button>
-                  )}
-                  <span>{t('panel.viewport')}</span>
-                  <span
-                    className="who"
-                    title={
-                      (timelineAction?.config.name ?? t('timeline.selectState')) +
-                      (previewStep ? ' · ' + previewStep.label : '')
-                    }
-                  >
-                    {timelineAction?.config.name ?? t('timeline.selectState')}
-                    {previewStep ? ' · ' + previewStep.label : ''}
-                  </span>
-                  {closeButton('viewport')}
-                </div>
-                <Suspense
-                  fallback={
-                    <div className="viewport-message" role="status">
-                      {tr('뷰어 준비 중…')}
-                    </div>
-                  }
-                >
-                  <Viewport
-                    clip={previewClip}
-                    path={previewPath}
-                    person={previewShown}
-                    choosePerson={
-                      timelineAction && actionView(w, timelineAction) === 'both' ? setPreviewChoice : undefined
-                    }
-                    pairExpected={!!timelineAction?.pair}
-                    resources={previewResource}
-                    skinPaths={previewSkinPaths}
-                    viewer={viewer}
-                    frame={previewFrame}
-                    time={playback.time}
-                    playing={playback.playing}
-                    play={playback.play}
-                    pause={playback.pause}
-                    stop={playback.stop}
-                    reload={() => setViewerRevision(value => value + 1)}
-                    pick={pickPreviewAsset}
-                    clear={(kind, actor) => changePreviewAsset(kind, actor, '')}
-                  />
-                </Suspense>
-              </section>
-            ) : null}
-            <section className="panel graph-area" data-testid="panel-graph">
-              {view === 'xml' ? (
-                <div className="xml-document">
-                  <pre>{xml}</pre>
-                </div>
-              ) : (
-                <FlatGraph
-                  w={w}
-                  globalSettings={stable('flat.globalSettings', () => setSelection('project'))}
-                  selected={
-                    ui.selection.kind === 'notify'
-                      ? ui.selection.id.startsWith('runtime:')
-                        ? `anim:${ui.selection.action}:|${ui.selection.id.slice(8)}`
-                        : `notify:${ui.selection.action}|${ui.selection.id}`
-                      : ui.selection.kind === 'node'
-                        ? ui.selection.node
-                        : selection
-                  }
-                  edit={edit}
-                  arrangeRequest={arrangeRequest}
-                  settle={settle}
-                  select={stable('flat.select', (node: string) =>
-                    dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
-                  )}
-                  reveal={reveal}
-                  status={setStatus}
-                  onPick={stable('flat.pick', setPicked)}
-                  onLine={stable('flat.line', setLine)}
-                />
-              )}
-            </section>
-            {panels.bottom ? (
-              <section
-                className="panel bottom-dock"
-                data-testid="panel-bottom"
-                style={{display: compactDock && panels.viewport && bottomTab === 'viewer' ? 'none' : undefined}}
-              >
-                <div className="ptab">
-                  <button
-                    type="button"
-                    className={'tab' + (bottomTab === 'timeline' ? '' : ' off')}
-                    onClick={() => setBottomTab('timeline')}
-                  >
-                    {t('panel.timeline')}
-                  </button>
-                  <button
-                    type="button"
-                    className={'tab' + (bottomTab === 'results' ? '' : ' off')}
-                    onClick={() => setBottomTab('results')}
-                  >
-                    {t('panel.compileResults')}
-                    {errors.length ? <small>{errors.length}</small> : null}
-                  </button>
-                  {compactDock && panels.viewport && (
-                    <button className="tab off" onClick={() => setBottomTab('viewer')}>
-                      {tr('HKX 뷰어')}
-                    </button>
-                  )}
-                  <span className="who" title={timelineAction?.config.name ?? t('timeline.selectState')}>
-                    {timelineAction?.config.name ?? t('timeline.selectState')}
-                  </span>
-                  {closeButton('bottom')}
-                </div>
-                {bottomTab !== 'results' ? (
-                  <Timeline
-                    w={w}
-                    action={timelineAction}
-                    step={activeGraph.kind === 'anim' ? activeGraph.step : undefined}
-                    selected={ui.selection.kind === 'notify' ? ui.selection.id : (flatSelection?.notify ?? '')}
-                    edit={edit}
-                    status={setStatus}
-                    onMetadata={setTimelineMetadata}
-                    selectedStep={previewStep?.id}
-                    person={previewChoice}
-                    onStepChange={step => timelineAction && setPreviewSelection({action: timelineAction.uid, step})}
-                    playhead={playback.time}
-                    onScrub={playback.seek}
-                    externalMeta={previewMeta}
-                    key={timelineAction?.uid ?? 'empty'}
-                    onSelect={id => {
-                      if (id.startsWith('playNotify:')) {
-                        const [action, notifyId] = id.slice(11).split('|');
-                        dispatchUI({type: 'select', selection: {kind: 'notify', action, id: notifyId}});
-                      } else if (id.startsWith('link:')) openGraph({kind: 'link', link: id.slice(5)});
-                      else if (id.startsWith('clipWindow:') && timelineAction)
-                        dispatchUI({
-                          type: 'select',
-                          selection: {
-                            kind: 'node',
-                            graph: {kind: 'root'},
-                            node: `anim:${timelineAction.uid}:|clip_${id.slice(11)}`,
-                          },
-                        });
-                      else if (timelineAction)
-                        dispatchUI({type: 'select', selection: {kind: 'notify', action: timelineAction.uid, id}});
-                    }}
-                  />
-                ) : (
-                  <CompileResults
-                    issues={issues}
-                    log={log}
-                    compiledAt={compiled?.serialized === serialized ? compiled.at : null}
-                    onSelect={node => setSelection(node)}
-                    where={where}
+                {panels.myProject && panels.hkx && (
+                  <PanelResize
+                    label="layout.project"
+                    axis="y"
+                    value={fitted.project}
+                    min={20}
+                    max={80}
+                    scale={100 / Math.max(1, workSize.height)}
+                    change={v => resize('project', v)}
+                    reset={() => resize('project', defaultSizes.project)}
+                    style={{top: `calc(${fitted.project}% - 3px)`}}
                   />
                 )}
-              </section>
-            ) : (
-              <div />
+                {panels.myProject && (
+                  <section className="panel" data-testid="panel-my-project">
+                    <div className="ptab">
+                      <span>{t('panel.myProject')}</span>
+                      {closeButton('myProject')}
+                    </div>
+                    <div className="pbody">
+                      <MyProject
+                        issues={issues}
+                        onOpenGraph={stable('tree.openGraph', (action: string) => openGraph({kind: 'anim', action}))}
+                        selectedResource={
+                          selection === 'inputs'
+                            ? selectedInput
+                            : selection === 'parameters'
+                              ? selectedParameter
+                              : selectedMarker
+                        }
+                        w={w}
+                        selection={selection}
+                        search={search}
+                        setSearch={setSearch}
+                        select={stable('tree.select', selectAndReveal)}
+                        selectedClip={flatSelection?.step}
+                        selectClip={stable('tree.selectClip', (action: string, step: string) => {
+                          const a = w.actions.find(a => a.uid === action);
+                          const n = a && playbackNode(selectionGraph.nodes, a, step);
+                          if (!n) return;
+                          dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node: n.id}});
+                          setReveal(r => ({action, seq: (r?.seq ?? 0) + 1}));
+                        })}
+                        onAddState={stable('tree.addState', () => createAction())}
+                        onOpenInputs={stable('tree.inputs', (id?: string) => {
+                          if (id) {
+                            setSelectedInput(id);
+                            setSelection('inputs');
+                          } else addInput();
+                        })}
+                        onOpenMarker={stable('tree.marker', (name?: string) => {
+                          if (name) {
+                            setSelectedMarker(name);
+                            setSelection('markers');
+                          } else addMarker();
+                        })}
+                        onOpenEffect={stable('tree.effect', (action: string, id: string) => {
+                          setSelectedEffect({action, id});
+                          setSelection('effects');
+                        })}
+                        onOpenParameters={stable('tree.parameters', (id?: string) => {
+                          if (id) {
+                            setSelectedParameter(id);
+                            setSelection('parameters');
+                          } else addParameter();
+                        })}
+                        onOpenProject={stable('tree.project', () => setSelection('project'))}
+                        searchRef={searchRef}
+                      />
+                    </div>
+                  </section>
+                )}
+                {panels.hkx && (
+                  <section className="panel" data-testid="panel-hkx">
+                    <div className="ptab">
+                      <span>{t('panel.hkxBrowser')}</span>
+                      {closeButton('hkx')}
+                    </div>
+                    <div className="pbody">
+                      <HkxBrowser
+                        entries={library}
+                        sounds={soundEntries}
+                        onRemoveSound={stable('sound.remove', (file: string) => edit(w => unregisterSound(w, file)))}
+                        onAddSound={stable(
+                          'sound.add',
+                          () =>
+                            void withBusy(async () => {
+                              try {
+                                const picked = await io.pickSound();
+                                if (picked) edit(w => selectSound(w, picked.file, picked.path));
+                              } catch (e) {
+                                notify(errorText(e), 'error');
+                              }
+                            })
+                        )}
+                        selected={selectedAsset}
+                        onSelect={setSelectedAsset}
+                        names={stable('hkx.names', nameOf)}
+                        onSelectUser={stable('hkx.selectUser', selectAndReveal)}
+                        onRemove={stable('hkx.remove', (clip: string) => edit(w => unregisterAsset(w, clip)))}
+                        onAdd={stable(
+                          'hkx.add',
+                          () =>
+                            void withBusy(async () => {
+                              try {
+                                const picked = await io.pickHkx();
+                                if (picked) {
+                                  edit(w => registerAssets(w, [picked]));
+                                  notify(t('hkx.registered', {n: 1}), 'ok');
+                                }
+                              } catch (e) {
+                                notify(errorText(e), 'error');
+                              }
+                            })
+                        )}
+                      />
+                    </div>
+                  </section>
+                )}
+              </aside>
             )}
-          </main>
-          {showRight && (
-            <aside className="dock right">
-              <section className="panel" data-testid="panel-details">
-                <div className="ptab">
-                  <span>{t('panel.details')}</span>
-                  {closeButton('details')}
-                </div>
-                {view === 'graph' && picked.length > 1 ? (
-                  <div className="details-body multi-pick" data-testid="multi-pick">
-                    <div className="multi-pick-head">
-                      <b>
-                        {tr('카드')} {picked.length}
-                        {tr('개 선택')}
-                      </b>
-                      <button onClick={() => graphCommand('clear')}>{tr('선택 해제')}</button>
-                    </div>
-                    <ul>
-                      {picked.map(p => (
-                        <li key={p.id}>{p.title}</li>
-                      ))}
-                    </ul>
-                    <div className="multi-pick-actions">
-                      <button onClick={() => graphCommand('copy')}>{tr('복사')}</button>
-                      <button onClick={() => graphCommand('alignLeft')}>{tr('왼쪽 맞춤')}</button>
-                      <button className="danger" onClick={() => graphCommand('delete')}>
-                        {tr('삭제')}
+            <main
+              className={
+                'dock center graphite-dock' +
+                (panels.viewport ? ' has-viewer' : '') +
+                (panels.bottom ? ' has-bottom' : '') +
+                (compactDock ? ' compact-dock' : '')
+              }
+              style={{
+                gridTemplateRows: `minmax(260px, 1fr) ${fitted.bottom}px`,
+                gridTemplateColumns:
+                  panels.viewport && panels.bottom && !compactDock
+                    ? `minmax(260px,1fr) ${fitted.viewport}px`
+                    : 'minmax(0,1fr)',
+              }}
+            >
+              {(panels.bottom || panels.viewport) && (
+                <PanelResize
+                  label="layout.bottom"
+                  axis="y"
+                  value={fitted.bottom}
+                  min={150}
+                  max={workSize.height - 260}
+                  scale={-1}
+                  change={v => resize('bottom', v)}
+                  reset={() => resize('bottom', defaultSizes.bottom)}
+                  style={{bottom: fitted.bottom - 3}}
+                />
+              )}
+              {panels.bottom && panels.viewport && !compactDock && (
+                <PanelResize
+                  label="layout.viewport"
+                  axis="x"
+                  value={fitted.viewport}
+                  min={240}
+                  max={Math.max(240, workSize.width - fitted.left - fitted.right - 260)}
+                  scale={-1}
+                  change={v => resize('viewport', v)}
+                  reset={() => resize('viewport', defaultSizes.viewport)}
+                  style={{right: fitted.viewport - 3, top: 'auto', bottom: 0, height: fitted.bottom}}
+                />
+              )}
+              {panels.viewport ? (
+                <section
+                  className="panel viewport-panel"
+                  data-testid="panel-viewport"
+                  style={{display: compactDock && panels.bottom && bottomTab !== 'viewer' ? 'none' : undefined}}
+                >
+                  <div className="ptab">
+                    {compactDock && panels.bottom && (
+                      <button className="tab off" onClick={() => setBottomTab('timeline')}>
+                        {tr('타임라인')}
                       </button>
-                    </div>
-                    <p className="hint">
-                      {tr(
-                        'Shift+클릭·끌기로 더하고, Ctrl+클릭·끌기로 넣고 뺍니다. 머리줄을 끌면 함께 옮겨지고, Esc로 선택을 풉니다.'
-                      )}
-                    </p>
+                    )}
+                    <span>{t('panel.viewport')}</span>
+                    <span
+                      className="who"
+                      title={
+                        (timelineAction?.config.name ?? t('timeline.selectState')) +
+                        (previewStep ? ' · ' + previewStep.label : '')
+                      }
+                    >
+                      {timelineAction?.config.name ?? t('timeline.selectState')}
+                      {previewStep ? ' · ' + previewStep.label : ''}
+                    </span>
+                    {closeButton('viewport')}
                   </div>
-                ) : view === 'graph' && line ? (
-                  <div className="details-body line-pick" data-testid="line-pick">
-                    <div className="multi-pick-head">
-                      <b>
-                        {tr('연결선')}
-                        {line.route ? ` · ${line.route}` : ''}
-                      </b>
-                    </div>
-                    <div className="line-pick-end">
-                      <em className="from">{tr('출발')}</em>
-                      <span>{line.from.title}</span>
-                      <button onClick={() => graphCommand('go:' + line.from.id)}>{tr('이 카드로 이동')}</button>
-                    </div>
-                    <div className="line-pick-arrow">↓{line.route ? ` ${line.route}` : ''}</div>
-                    <div className="line-pick-end">
-                      <em className="to">{tr('도착')}</em>
-                      <span>{line.to.title}</span>
-                      <button onClick={() => graphCommand('go:' + line.to.id)}>{tr('이 카드로 이동')}</button>
-                    </div>
-                    <div className="multi-pick-actions">
-                      <button className="danger" onClick={() => graphCommand('cutLine')}>
-                        {tr('연결선 삭제')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="details-head">
-                      <div className={'details-symbol ' + (flatSelection?.kind ?? '')}>
-                        <Icon
-                          name={
-                            flatSelection?.kind === 'hkxPlay'
-                              ? 'play'
-                              : flatSelection?.kind?.startsWith('condition')
-                                ? 'branch'
-                                : flatSelection?.kind === 'blend'
-                                  ? 'blend'
-                                  : 'settings'
+                  <Suspense
+                    fallback={
+                      <div className="viewport-message" role="status">
+                        {tr('뷰어 준비 중…')}
+                      </div>
+                    }
+                  >
+                    {ragdollAction ? (
+                      <div className="ragdoll-view-panel">
+                        <div className="ragdoll-view-head">
+                          <span className="ragdoll-view-mode">{tr('래그돌')}</span>
+                          <span>{ragdollAction.config.name}</span>
+                          <span className="sp" />
+                          <button type="button" onClick={() => setRagdollView(null)}>
+                            {tr('애니메이션 보기로')}
+                          </button>
+                        </div>
+                        <RagdollView
+                          rig={ragdollAction.pair!.targetRig ?? 'character'}
+                          ragdoll={ragdollAction.pair!.carry!.ragdoll}
+                          anchor={ragdollAction.pair!.carry!.part}
+                          poseWorlds={ragdollPose}
+                          selected={ragdollBody}
+                          select={bone => ragdollPreview.select(bone, true)}
+                          anchorTo={bone =>
+                            edit(w => ({
+                              ...w,
+                              actions: w.actions.map(a =>
+                                a.uid === ragdollAction.uid && a.pair?.carry
+                                  ? {...a, pair: {...a.pair, carry: {...a.pair.carry, part: bone}}}
+                                  : a
+                              ),
+                            }))
                           }
-                          size={23}
                         />
                       </div>
-                      <span className="kind">
-                        <b className={detailsKind}>
-                          {ui.selection.kind === 'notify' ? t('timeline.track') : t('details.' + detailsKind)}
-                        </b>
-                        {flatSelection?.kind === 'hkxPlay'
-                          ? timelineAction?.config.name
-                          : (link?.id ?? action?.config.actionId ?? (detailsKind === 'project' ? w.id : ''))}
-                      </span>
-                      <h2>
-                        {ui.selection.kind === 'notify' && timelineAction
-                          ? notifyRows(w, timelineAction).find(
-                              r => r.id === (ui.selection.kind === 'notify' ? ui.selection.id : '')
-                            )?.label
-                          : ui.selection.kind === 'node'
-                            ? (flatSelection?.title ??
-                              projectGraph(w, activeGraph).nodes.find(
-                                n => n.id === (ui.selection.kind === 'node' ? ui.selection.node : '')
-                              )?.title ??
-                              graphTitle(w, activeGraph))
-                            : detailsTitle}
-                      </h2>
-                    </div>
-                    <div className="details-body">
-                      {flatSelection && (
-                        <PinConnections
-                          w={w}
-                          id={flatSelection.id}
-                          edit={edit}
-                          status={setStatus}
-                          select={node =>
-                            dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
-                          }
-                        />
-                      )}
-                      {flatSelection &&
-                        w.sharedRules
-                          ?.filter(g => g.members.some(m => ruleNode(g.kind, m, w) === flatSelection.id))
-                          .map((g, i) => (
-                            <details key={i} open>
-                              <summary>
-                                {tr('공유 규칙 ·')} {g.members.length}
-                                {tr('개 동작에 적용')}
-                              </summary>
-                              {g.members.map(m => (
-                                <div key={m}>
-                                  {w.actions.find(a => a.uid === ruleOwner(w, g.kind, m))?.config.name ?? m}{' '}
-                                  <button
-                                    onClick={() =>
-                                      edit(next => {
-                                        next.sharedRules = next.sharedRules
-                                          ?.map(x =>
-                                            x.kind === g.kind && x.members.includes(m)
-                                              ? {...x, members: x.members.filter(v => v !== m)}
-                                              : x
-                                          )
-                                          .filter(x => x.members.length > 1);
-                                        return next;
-                                      })
-                                    }
-                                  >
-                                    {tr('개별 편집으로 분리')}
-                                  </button>
-                                </div>
-                              ))}
-                            </details>
-                          ))}
-                      {ui.selection.kind === 'notify' && timelineAction ? (
-                        <NotifyDetails
-                          w={w}
-                          action={timelineAction}
-                          id={ui.selection.id}
-                          edit={edit}
-                          meta={timelineMetadata.action === timelineAction.uid ? timelineMetadata.meta : undefined}
-                        />
-                      ) : flatSelection?.notify && timelineAction ? (
-                        <NotifyDetails
-                          w={w}
-                          action={timelineAction}
-                          id={flatSelection.notify}
-                          edit={edit}
-                          meta={timelineMetadata.action === timelineAction.uid ? timelineMetadata.meta : undefined}
-                        />
-                      ) : flatSelection?.kind === 'qte' ? (
-                        <QteDetails w={w} id={flatSelection.id} edit={edit} />
-                      ) : flatSelection && qteCardOf(flatSelection.id) ? (
-                        <QteDetails w={w} id={qteCardOf(flatSelection.id)} edit={edit} />
-                      ) : flatSelection?.kind === 'blend' ? (
-                        <BlendDetails w={w} id={flatSelection.id} edit={edit} status={setStatus} />
-                      ) : flatSelection?.kind === 'hkxPlay' && timelineAction ? (
-                        <HkxCardInfo
-                          key={timelineAction.uid}
-                          w={w}
-                          action={timelineAction}
-                          stepId={flatSelection.step}
-                          node={flatSelection.id}
-                          issues={issues}
-                          edit={edit}
-                          status={setStatus}
-                          select={stable('inspector.select', (node: string) =>
-                            dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
-                          )}
-                          reveal={stable('inspector.reveal', () =>
-                            setReveal(r => ({action: timelineAction.uid, seq: (r?.seq ?? 0) + 1}))
-                          )}
-                        />
-                      ) : ui.selection.kind === 'node' ? (
-                        <GraphDetails
-                          w={w}
-                          graph={flatSelection?.scope ?? activeGraph}
-                          node={flatSelection?.original ?? ui.selection.node}
-                          edit={edit}
-                          status={setStatus}
-                          open={openGraph}
-                          selectedAsset={selectedAsset}
-                          onGlobalSettings={() => setSelection('project')}
-                        />
-                      ) : detailsKind === 'preferences' ? (
-                        <Preferences onResetLayout={resetLayout} />
-                      ) : detailsKind === 'effects' && effect && effectAction?.pair ? (
-                        <DetailPanel>
-                          <DetailCategory title={t('detail.notify')} initialOpen>
-                            <EffectDetails
-                              effect={effect}
-                              pair
-                              change={next =>
-                                changeAction({
-                                  ...effectAction,
-                                  pair: {
-                                    ...effectAction.pair!,
-                                    effects: effectAction.pair!.effects.map(e => (e.id === next.id ? next : e)),
-                                  },
-                                })
-                              }
-                            />
-                          </DetailCategory>
-                        </DetailPanel>
-                      ) : detailsKind === 'markers' ? (
-                        <MarkerDetails
-                          w={w}
-                          name={selectedMarker}
-                          select={setSelectedMarker}
-                          edit={edit}
-                          status={setStatus}
-                        />
-                      ) : detailsKind === 'parameters' ? (
-                        <ParameterDetails w={w} selected={selectedParameter} edit={edit} status={setStatus} />
-                      ) : detailsKind === 'inputs' ? (
-                        <InputDetails
-                          w={w}
-                          selected={selectedInput}
-                          edit={edit}
-                          changeAction={changeAction}
-                          status={setStatus}
-                        />
-                      ) : link ? (
-                        <TransitionDetails
-                          w={w}
-                          l={link}
-                          change={l =>
-                            edit(w => {
-                              w.links = w.links.map(x => (x.id === l.id ? l : x));
-                              return w;
-                            })
-                          }
-                        />
-                      ) : action ? (
-                        <StateDetails
-                          key={action.uid + ':' + (action.pair ? 'pair' : action.config.kind)}
-                          w={w}
-                          library={library}
-                          selectedAsset={library.find(e => e.clip === selectedAsset)}
-                          action={action}
-                          change={changeAction}
-                          edit={edit}
-                          switchKind={kind => {
-                            try {
-                              const next = switchPlaybackKind(w, action.uid, kind);
-                              edit(() => next);
-                              notify(t('shell.kindChanged'), 'ok');
-                            } catch (e) {
-                              notify(errorText(e), 'error');
-                            }
-                          }}
-                          status={setStatus}
-                          onGlobalSettings={() => setSelection('project')}
-                        />
-                      ) : (
-                        <ProjectDetails w={w} edit={edit} />
-                      )}
-                    </div>
-                  </>
+                    ) : (
+                      <Viewport
+                        clip={previewClip}
+                        path={previewPath}
+                        person={previewShown}
+                        choosePerson={
+                          timelineAction && actionView(w, timelineAction) === 'both' ? setPreviewChoice : undefined
+                        }
+                        pairExpected={!!timelineAction?.pair}
+                        resources={previewResource}
+                        skinPaths={previewSkinPaths}
+                        viewer={viewer}
+                        frame={previewFrame}
+                        time={playback.time}
+                        playing={playback.playing}
+                        play={playback.play}
+                        pause={playback.pause}
+                        stop={playback.stop}
+                        reload={() => setViewerRevision(value => value + 1)}
+                        pick={pickPreviewAsset}
+                        clear={(kind, actor) => changePreviewAsset(kind, actor, '')}
+                      />
+                    )}
+                  </Suspense>
+                </section>
+              ) : null}
+              <section className="panel graph-area" data-testid="panel-graph">
+                {view === 'xml' ? (
+                  <div className="xml-document">
+                    <pre>{xml}</pre>
+                  </div>
+                ) : (
+                  <FlatGraph
+                    w={w}
+                    globalSettings={stable('flat.globalSettings', () => setSelection('project'))}
+                    selected={
+                      ui.selection.kind === 'notify'
+                        ? ui.selection.id.startsWith('runtime:')
+                          ? `anim:${ui.selection.action}:|${ui.selection.id.slice(8)}`
+                          : `notify:${ui.selection.action}|${ui.selection.id}`
+                        : ui.selection.kind === 'node'
+                          ? ui.selection.node
+                          : selection
+                    }
+                    edit={edit}
+                    arrangeRequest={arrangeRequest}
+                    settle={settle}
+                    select={stable('flat.select', (node: string) =>
+                      dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
+                    )}
+                    reveal={reveal}
+                    status={setStatus}
+                    onPick={stable('flat.pick', setPicked)}
+                    onLine={stable('flat.line', setLine)}
+                  />
                 )}
               </section>
-            </aside>
-          )}
-        </div>
-        {!modal && <Toasts notices={notices} dismiss={dismiss} />}
-        {modal && (
-          <div className="modal-shade">
-            <section
-              className={'modal ' + (modal === 'package' ? 'xml-modal package-modal' : '')}
-              role="dialog"
-              aria-modal="true"
-              aria-label={
-                modal === 'help'
-                  ? t('help.title')
-                  : modal === 'shortcuts'
-                    ? t('help.shortcutsTitle')
-                    : modal === 'package'
-                      ? t('export.title')
-                      : modal === 'about'
-                        ? t('menu.help.about')
-                        : modal === 'changed'
-                          ? t('shell.changedTitle')
-                          : t('shell.discardTitle')
-              }
-            >
-              <div className="modal-head">
-                <h2>
-                  {modal === 'help'
+              {panels.bottom ? (
+                <section
+                  className="panel bottom-dock"
+                  data-testid="panel-bottom"
+                  style={{display: compactDock && panels.viewport && bottomTab === 'viewer' ? 'none' : undefined}}
+                >
+                  <div className="ptab">
+                    <button
+                      type="button"
+                      className={'tab' + (bottomTab === 'timeline' ? '' : ' off')}
+                      onClick={() => setBottomTab('timeline')}
+                    >
+                      {t('panel.timeline')}
+                    </button>
+                    <button
+                      type="button"
+                      className={'tab' + (bottomTab === 'results' ? '' : ' off')}
+                      onClick={() => setBottomTab('results')}
+                    >
+                      {t('panel.compileResults')}
+                      {errors.length ? <small>{errors.length}</small> : null}
+                    </button>
+                    {compactDock && panels.viewport && (
+                      <button className="tab off" onClick={() => setBottomTab('viewer')}>
+                        {tr('HKX 뷰어')}
+                      </button>
+                    )}
+                    <span className="who" title={timelineAction?.config.name ?? t('timeline.selectState')}>
+                      {timelineAction?.config.name ?? t('timeline.selectState')}
+                    </span>
+                    {closeButton('bottom')}
+                  </div>
+                  {bottomTab !== 'results' ? (
+                    <Timeline
+                      w={w}
+                      action={timelineAction}
+                      step={activeGraph.kind === 'anim' ? activeGraph.step : undefined}
+                      selected={ui.selection.kind === 'notify' ? ui.selection.id : (flatSelection?.notify ?? '')}
+                      edit={edit}
+                      status={setStatus}
+                      onMetadata={setTimelineMetadata}
+                      selectedStep={previewStep?.id}
+                      person={previewChoice}
+                      onStepChange={step => timelineAction && setPreviewSelection({action: timelineAction.uid, step})}
+                      playhead={playback.time}
+                      onScrub={playback.seek}
+                      externalMeta={previewMeta}
+                      key={timelineAction?.uid ?? 'empty'}
+                      onSelect={id => {
+                        if (id.startsWith('playNotify:')) {
+                          const [action, notifyId] = id.slice(11).split('|');
+                          dispatchUI({type: 'select', selection: {kind: 'notify', action, id: notifyId}});
+                        } else if (id.startsWith('link:')) openGraph({kind: 'link', link: id.slice(5)});
+                        else if (id.startsWith('clipWindow:') && timelineAction)
+                          dispatchUI({
+                            type: 'select',
+                            selection: {
+                              kind: 'node',
+                              graph: {kind: 'root'},
+                              node: `anim:${timelineAction.uid}:|clip_${id.slice(11)}`,
+                            },
+                          });
+                        else if (timelineAction)
+                          dispatchUI({type: 'select', selection: {kind: 'notify', action: timelineAction.uid, id}});
+                      }}
+                    />
+                  ) : (
+                    <CompileResults
+                      issues={issues}
+                      log={log}
+                      compiledAt={compiled?.serialized === serialized ? compiled.at : null}
+                      onSelect={node => setSelection(node)}
+                      where={where}
+                    />
+                  )}
+                </section>
+              ) : (
+                <div />
+              )}
+            </main>
+            {showRight && (
+              <aside className="dock right">
+                <section className="panel" data-testid="panel-details">
+                  <div className="ptab">
+                    <span>{t('panel.details')}</span>
+                    {closeButton('details')}
+                  </div>
+                  {view === 'graph' && picked.length > 1 ? (
+                    <div className="details-body multi-pick" data-testid="multi-pick">
+                      <div className="multi-pick-head">
+                        <b>
+                          {tr('카드')} {picked.length}
+                          {tr('개 선택')}
+                        </b>
+                        <button onClick={() => graphCommand('clear')}>{tr('선택 해제')}</button>
+                      </div>
+                      <ul>
+                        {picked.map(p => (
+                          <li key={p.id}>{p.title}</li>
+                        ))}
+                      </ul>
+                      <div className="multi-pick-actions">
+                        <button onClick={() => graphCommand('copy')}>{tr('복사')}</button>
+                        <button onClick={() => graphCommand('alignLeft')}>{tr('왼쪽 맞춤')}</button>
+                        <button className="danger" onClick={() => graphCommand('delete')}>
+                          {tr('삭제')}
+                        </button>
+                      </div>
+                      <p className="hint">
+                        {tr(
+                          'Shift+클릭·끌기로 더하고, Ctrl+클릭·끌기로 넣고 뺍니다. 머리줄을 끌면 함께 옮겨지고, Esc로 선택을 풉니다.'
+                        )}
+                      </p>
+                    </div>
+                  ) : view === 'graph' && line ? (
+                    <div className="details-body line-pick" data-testid="line-pick">
+                      <div className="multi-pick-head">
+                        <b>
+                          {tr('연결선')}
+                          {line.route ? ` · ${line.route}` : ''}
+                        </b>
+                      </div>
+                      <div className="line-pick-end">
+                        <em className="from">{tr('출발')}</em>
+                        <span>{line.from.title}</span>
+                        <button onClick={() => graphCommand('go:' + line.from.id)}>{tr('이 카드로 이동')}</button>
+                      </div>
+                      <div className="line-pick-arrow">↓{line.route ? ` ${line.route}` : ''}</div>
+                      <div className="line-pick-end">
+                        <em className="to">{tr('도착')}</em>
+                        <span>{line.to.title}</span>
+                        <button onClick={() => graphCommand('go:' + line.to.id)}>{tr('이 카드로 이동')}</button>
+                      </div>
+                      <div className="multi-pick-actions">
+                        <button className="danger" onClick={() => graphCommand('cutLine')}>
+                          {tr('연결선 삭제')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="details-head">
+                        <div className={'details-symbol ' + (flatSelection?.kind ?? '')}>
+                          <Icon
+                            name={
+                              flatSelection?.kind === 'hkxPlay'
+                                ? 'play'
+                                : flatSelection?.kind?.startsWith('condition')
+                                  ? 'branch'
+                                  : flatSelection?.kind === 'blend'
+                                    ? 'blend'
+                                    : 'settings'
+                            }
+                            size={23}
+                          />
+                        </div>
+                        <span className="kind">
+                          <b className={detailsKind}>
+                            {ui.selection.kind === 'notify' ? t('timeline.track') : t('details.' + detailsKind)}
+                          </b>
+                          {flatSelection?.kind === 'hkxPlay'
+                            ? timelineAction?.config.name
+                            : (link?.id ?? action?.config.actionId ?? (detailsKind === 'project' ? w.id : ''))}
+                        </span>
+                        <h2>
+                          {ui.selection.kind === 'notify' && timelineAction
+                            ? notifyRows(w, timelineAction).find(
+                                r => r.id === (ui.selection.kind === 'notify' ? ui.selection.id : '')
+                              )?.label
+                            : ui.selection.kind === 'node'
+                              ? (flatSelection?.title ??
+                                projectGraph(w, activeGraph).nodes.find(
+                                  n => n.id === (ui.selection.kind === 'node' ? ui.selection.node : '')
+                                )?.title ??
+                                graphTitle(w, activeGraph))
+                              : detailsTitle}
+                        </h2>
+                      </div>
+                      <div className="details-body">
+                        {flatSelection && (
+                          <PinConnections
+                            w={w}
+                            id={flatSelection.id}
+                            edit={edit}
+                            status={setStatus}
+                            select={node =>
+                              dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
+                            }
+                          />
+                        )}
+                        {flatSelection &&
+                          w.sharedRules
+                            ?.filter(g => g.members.some(m => ruleNode(g.kind, m, w) === flatSelection.id))
+                            .map((g, i) => (
+                              <details key={i} open>
+                                <summary>
+                                  {tr('공유 규칙 ·')} {g.members.length}
+                                  {tr('개 동작에 적용')}
+                                </summary>
+                                {g.members.map(m => (
+                                  <div key={m}>
+                                    {w.actions.find(a => a.uid === ruleOwner(w, g.kind, m))?.config.name ?? m}{' '}
+                                    <button
+                                      onClick={() =>
+                                        edit(next => {
+                                          next.sharedRules = next.sharedRules
+                                            ?.map(x =>
+                                              x.kind === g.kind && x.members.includes(m)
+                                                ? {...x, members: x.members.filter(v => v !== m)}
+                                                : x
+                                            )
+                                            .filter(x => x.members.length > 1);
+                                          return next;
+                                        })
+                                      }
+                                    >
+                                      {tr('개별 편집으로 분리')}
+                                    </button>
+                                  </div>
+                                ))}
+                              </details>
+                            ))}
+                        {ui.selection.kind === 'notify' && timelineAction ? (
+                          <NotifyDetails
+                            w={w}
+                            action={timelineAction}
+                            id={ui.selection.id}
+                            edit={edit}
+                            meta={timelineMetadata.action === timelineAction.uid ? timelineMetadata.meta : undefined}
+                          />
+                        ) : flatSelection?.notify && timelineAction ? (
+                          <NotifyDetails
+                            w={w}
+                            action={timelineAction}
+                            id={flatSelection.notify}
+                            edit={edit}
+                            meta={timelineMetadata.action === timelineAction.uid ? timelineMetadata.meta : undefined}
+                          />
+                        ) : flatSelection?.kind === 'qte' ? (
+                          <QteDetails w={w} id={flatSelection.id} edit={edit} />
+                        ) : flatSelection && qteCardOf(flatSelection.id) ? (
+                          <QteDetails w={w} id={qteCardOf(flatSelection.id)} edit={edit} />
+                        ) : flatSelection?.kind === 'blend' ? (
+                          <BlendDetails w={w} id={flatSelection.id} edit={edit} status={setStatus} />
+                        ) : flatSelection?.kind === 'hkxPlay' && timelineAction ? (
+                          <HkxCardInfo
+                            key={timelineAction.uid}
+                            w={w}
+                            action={timelineAction}
+                            stepId={flatSelection.step}
+                            node={flatSelection.id}
+                            issues={issues}
+                            edit={edit}
+                            status={setStatus}
+                            select={stable('inspector.select', (node: string) =>
+                              dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node}})
+                            )}
+                            reveal={stable('inspector.reveal', () =>
+                              setReveal(r => ({action: timelineAction.uid, seq: (r?.seq ?? 0) + 1}))
+                            )}
+                          />
+                        ) : ui.selection.kind === 'node' ? (
+                          <GraphDetails
+                            w={w}
+                            graph={flatSelection?.scope ?? activeGraph}
+                            node={flatSelection?.original ?? ui.selection.node}
+                            edit={edit}
+                            status={setStatus}
+                            open={openGraph}
+                            selectedAsset={selectedAsset}
+                            onGlobalSettings={() => setSelection('project')}
+                          />
+                        ) : detailsKind === 'preferences' ? (
+                          <Preferences onResetLayout={resetLayout} />
+                        ) : detailsKind === 'effects' && effect && effectAction?.pair ? (
+                          <DetailPanel>
+                            <DetailCategory title={t('detail.notify')} initialOpen>
+                              <EffectDetails
+                                effect={effect}
+                                pair
+                                change={next =>
+                                  changeAction({
+                                    ...effectAction,
+                                    pair: {
+                                      ...effectAction.pair!,
+                                      effects: effectAction.pair!.effects.map(e => (e.id === next.id ? next : e)),
+                                    },
+                                  })
+                                }
+                              />
+                            </DetailCategory>
+                          </DetailPanel>
+                        ) : detailsKind === 'markers' ? (
+                          <MarkerDetails
+                            w={w}
+                            name={selectedMarker}
+                            select={setSelectedMarker}
+                            edit={edit}
+                            status={setStatus}
+                          />
+                        ) : detailsKind === 'parameters' ? (
+                          <ParameterDetails w={w} selected={selectedParameter} edit={edit} status={setStatus} />
+                        ) : detailsKind === 'inputs' ? (
+                          <InputDetails
+                            w={w}
+                            selected={selectedInput}
+                            edit={edit}
+                            changeAction={changeAction}
+                            status={setStatus}
+                          />
+                        ) : link ? (
+                          <TransitionDetails
+                            w={w}
+                            l={link}
+                            change={l =>
+                              edit(w => {
+                                w.links = w.links.map(x => (x.id === l.id ? l : x));
+                                return w;
+                              })
+                            }
+                          />
+                        ) : action ? (
+                          <StateDetails
+                            key={action.uid + ':' + (action.pair ? 'pair' : action.config.kind)}
+                            w={w}
+                            library={library}
+                            selectedAsset={library.find(e => e.clip === selectedAsset)}
+                            action={action}
+                            change={changeAction}
+                            edit={edit}
+                            switchKind={kind => {
+                              try {
+                                const next = switchPlaybackKind(w, action.uid, kind);
+                                edit(() => next);
+                                notify(t('shell.kindChanged'), 'ok');
+                              } catch (e) {
+                                notify(errorText(e), 'error');
+                              }
+                            }}
+                            status={setStatus}
+                            onGlobalSettings={() => setSelection('project')}
+                          />
+                        ) : (
+                          <ProjectDetails w={w} edit={edit} />
+                        )}
+                      </div>
+                    </>
+                  )}
+                </section>
+              </aside>
+            )}
+          </div>
+          {!modal && <Toasts notices={notices} dismiss={dismiss} />}
+          {modal && (
+            <div className="modal-shade">
+              <section
+                className={'modal ' + (modal === 'package' ? 'xml-modal package-modal' : '')}
+                role="dialog"
+                aria-modal="true"
+                aria-label={
+                  modal === 'help'
                     ? t('help.title')
                     : modal === 'shortcuts'
                       ? t('help.shortcutsTitle')
@@ -2334,136 +2425,152 @@ function Editor() {
                           ? t('menu.help.about')
                           : modal === 'changed'
                             ? t('shell.changedTitle')
-                            : t('shell.discardTitle')}
-                </h2>
-                <button disabled={pending} onClick={() => setModal(null)}>
-                  {t('shell.close')}
-                </button>
-              </div>
-              {modal === 'package' ? (
-                <ExportSheet
-                  mode={exportMode}
-                  setMode={setExportMode}
-                  w={w}
-                  xml={xml}
-                  edit={edit}
-                  status={setStatus}
-                  busy={pending}
-                  setBusy={setPending}
-                  saveXml={() => void save('xml')}
-                  message={notices.at(-1)?.text ?? ''}
-                />
-              ) : modal === 'about' ? (
-                <p>{t('help.about', {version: EDITOR_VERSION})}</p>
-              ) : modal === 'shortcuts' ? (
-                <table className="shortcuts">
-                  <tbody>
-                    {[
-                      [
-                        'Ctrl+N / O / S',
-                        t('menu.file.new') + ' / ' + t('menu.file.open') + ' / ' + t('menu.file.save'),
-                      ],
-                      ['Ctrl+Shift+S', t('menu.file.saveAs')],
-                      ['Ctrl+E / Ctrl+Shift+E', t('menu.file.exportXml') + ' / ' + t('menu.file.exportMod')],
-                      ['F7', t('menu.project.compile')],
-                      ['Ctrl+Z / Ctrl+Y', t('menu.edit.undo') + ' / ' + t('menu.edit.redo')],
-                      ['Ctrl+W / Del', t('menu.edit.duplicate') + ' / ' + t('menu.edit.delete')],
-                      ['Home', t('menu.view.fit')],
-                      ['Ctrl+`', t('menu.view.xml')],
-                    ].map(([k, v]) => (
-                      <tr key={k}>
-                        <td>
-                          <kbd>{k}</kbd>
-                        </td>
-                        <td>{v}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : modal === 'help' ? (
-                <>
-                  <ol>
-                    {[1, 2, 3, 4].map(n => (
-                      <li key={n}>{t('help.step' + n)}</li>
-                    ))}
-                  </ol>
-                  <p>{t('help.drop')}</p>
-                </>
-              ) : modal === 'changed' ? (
-                <>
-                  <p>{t('shell.changedBody', {path: xmlExportPath})}</p>
-                  <div className="top-actions">
-                    <button onClick={() => setModal(null)}>{t('shell.cancel')}</button>
-                    <button
-                      onClick={() => {
-                        setModal(null);
-                        void save('saveAs');
-                      }}
-                    >
-                      {t('menu.file.saveAs')}
-                    </button>
-                    <button
-                      className="danger"
-                      onClick={() => {
-                        setModal(null);
-                        void save('save', true);
-                      }}
-                    >
-                      {t('shell.overwrite')}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p>{t('shell.discardBody')}</p>
-                  <div className="top-actions">
-                    <button
-                      onClick={() => {
-                        setModal(null);
-                        setPendingAction(null);
-                      }}
-                    >
-                      {modal === 'close' ? t('shell.continueEditing') : t('shell.cancel')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const closing = modal === 'close';
-                        setModal(null);
-                        void save('save').then(ok => {
-                          if (ok) {
-                            if (closing) void getCurrentWindow().destroy();
-                            else pendingAction?.();
+                            : t('shell.discardTitle')
+                }
+              >
+                <div className="modal-head">
+                  <h2>
+                    {modal === 'help'
+                      ? t('help.title')
+                      : modal === 'shortcuts'
+                        ? t('help.shortcutsTitle')
+                        : modal === 'package'
+                          ? t('export.title')
+                          : modal === 'about'
+                            ? t('menu.help.about')
+                            : modal === 'changed'
+                              ? t('shell.changedTitle')
+                              : t('shell.discardTitle')}
+                  </h2>
+                  <button disabled={pending} onClick={() => setModal(null)}>
+                    {t('shell.close')}
+                  </button>
+                </div>
+                {modal === 'package' ? (
+                  <ExportSheet
+                    mode={exportMode}
+                    setMode={setExportMode}
+                    w={w}
+                    xml={xml}
+                    edit={edit}
+                    status={setStatus}
+                    busy={pending}
+                    setBusy={setPending}
+                    saveXml={() => void save('xml')}
+                    message={notices.at(-1)?.text ?? ''}
+                  />
+                ) : modal === 'about' ? (
+                  <p>{t('help.about', {version: EDITOR_VERSION})}</p>
+                ) : modal === 'shortcuts' ? (
+                  <table className="shortcuts">
+                    <tbody>
+                      {[
+                        [
+                          'Ctrl+N / O / S',
+                          t('menu.file.new') + ' / ' + t('menu.file.open') + ' / ' + t('menu.file.save'),
+                        ],
+                        ['Ctrl+Shift+S', t('menu.file.saveAs')],
+                        ['Ctrl+E / Ctrl+Shift+E', t('menu.file.exportXml') + ' / ' + t('menu.file.exportMod')],
+                        ['F7', t('menu.project.compile')],
+                        ['Ctrl+Z / Ctrl+Y', t('menu.edit.undo') + ' / ' + t('menu.edit.redo')],
+                        ['Ctrl+W / Del', t('menu.edit.duplicate') + ' / ' + t('menu.edit.delete')],
+                        ['Home', t('menu.view.fit')],
+                        ['Ctrl+`', t('menu.view.xml')],
+                      ].map(([k, v]) => (
+                        <tr key={k}>
+                          <td>
+                            <kbd>{k}</kbd>
+                          </td>
+                          <td>{v}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : modal === 'help' ? (
+                  <>
+                    <ol>
+                      {[1, 2, 3, 4].map(n => (
+                        <li key={n}>{t('help.step' + n)}</li>
+                      ))}
+                    </ol>
+                    <p>{t('help.drop')}</p>
+                  </>
+                ) : modal === 'changed' ? (
+                  <>
+                    <p>{t('shell.changedBody', {path: xmlExportPath})}</p>
+                    <div className="top-actions">
+                      <button onClick={() => setModal(null)}>{t('shell.cancel')}</button>
+                      <button
+                        onClick={() => {
+                          setModal(null);
+                          void save('saveAs');
+                        }}
+                      >
+                        {t('menu.file.saveAs')}
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          setModal(null);
+                          void save('save', true);
+                        }}
+                      >
+                        {t('shell.overwrite')}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>{t('shell.discardBody')}</p>
+                    <div className="top-actions">
+                      <button
+                        onClick={() => {
+                          setModal(null);
+                          setPendingAction(null);
+                        }}
+                      >
+                        {modal === 'close' ? t('shell.continueEditing') : t('shell.cancel')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const closing = modal === 'close';
+                          setModal(null);
+                          void save('save').then(ok => {
+                            if (ok) {
+                              if (closing) void getCurrentWindow().destroy();
+                              else pendingAction?.();
+                            }
+                            setPendingAction(null);
+                          });
+                        }}
+                      >
+                        {t('shell.saveFirst')}
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          const closing = modal === 'close';
+                          setModal(null);
+                          clearRecovery();
+                          if (closing) void getCurrentWindow().destroy();
+                          else {
+                            const fn = pendingAction;
+                            setPendingAction(null);
+                            dirtyRef.current = false;
+                            fn?.();
                           }
-                          setPendingAction(null);
-                        });
-                      }}
-                    >
-                      {t('shell.saveFirst')}
-                    </button>
-                    <button
-                      className="danger"
-                      onClick={() => {
-                        const closing = modal === 'close';
-                        setModal(null);
-                        clearRecovery();
-                        if (closing) void getCurrentWindow().destroy();
-                        else {
-                          const fn = pendingAction;
-                          setPendingAction(null);
-                          dirtyRef.current = false;
-                          fn?.();
-                        }
-                      }}
-                    >
-                      {modal === 'close' ? t('shell.quitWithoutSave') : t('shell.discard')}
-                    </button>
-                  </div>
-                </>
-              )}
-            </section>
-          </div>
-        )}
-      </div>
+                        }}
+                      >
+                        {modal === 'close' ? t('shell.quitWithoutSave') : t('shell.discard')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            </div>
+          )}
+        </div>
+      </RagdollPreviewContext.Provider>
     </SoundSourceContext.Provider>
   );
 }
