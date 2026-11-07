@@ -716,6 +716,7 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     'actions',
     'within',
     'ended',
+    'events',
   ]);
   const kind = required(n, 'kind');
   if (!checkKinds.includes(kind)) throw Error(tr('지원하지 않는 조건입니다: ') + kind);
@@ -741,8 +742,15 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     throw Error(tr('폼 설정은 폼 검사에서만 사용하세요.'));
   // The last action the subject finished (runtime 0.12.296): actions by XML id, within, ended.
   if (kind === 'previousAction') required(n, 'actions');
-  else if (['actions', 'ended'].some(k => n.attrs[k] !== undefined) || (kind !== 'hitReceived' && n.attrs.within))
+  else if (
+    ['actions', 'ended'].some(k => n.attrs[k] !== undefined) ||
+    (!['hitReceived', 'recentEvent'].includes(kind) && n.attrs.within)
+  )
     throw Error(tr('직전 동작 설정은 직전 동작 조건에서만 사용하세요.'));
+  if (kind === 'recentEvent') {
+    required(n, 'events');
+    required(n, 'within');
+  } else if (n.attrs.events !== undefined) throw Error(tr('이벤트 목록은 최근 이벤트 조건에서만 사용하세요.'));
   if (kind === 'global') required(n, 'equals');
   else if (n.attrs.equals !== undefined) throw Error(tr('일치 값은 전역 값 비교에서만 사용하세요.'));
   if (subjectlessKinds.includes(kind) && (n.attrs.subject ?? 'self') !== 'self')
@@ -764,6 +772,15 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     ...(extensionKinds.includes(kind as never) ? readExtension(kind, n.attrs) : {}),
     ...(kind === 'global' ? {equals: num(n, 'equals', 1)} : {}),
     ...(kind === 'hitReceived' && n.attrs.within !== undefined ? {within: num(n, 'within', 0)} : {}),
+    ...(kind === 'recentEvent'
+      ? {
+          events: required(n, 'events')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean),
+          within: num(n, 'within', 0),
+        }
+      : {}),
     ...(kind === 'previousAction'
       ? {
           actions: required(n, 'actions')

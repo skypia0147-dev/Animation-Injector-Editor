@@ -53,6 +53,11 @@ export function checkXml(w: Workspace, c: Pick<ConditionCard, 'tests'>, id: stri
     }
     // The last weapon hit the subject received: how long ago it may be.
     if (t.kind === 'hitReceived' && t.within !== undefined) out.attrs.within = String(t.within);
+    // An animation event the subject received within some seconds (runtime 1.0.3).
+    if (t.kind === 'recentEvent') {
+      out.attrs.events = (t.events ?? []).join(',');
+      out.attrs.within = String(t.within);
+    }
     // Measured where the actor stands, for no particular action (runtime 0.12.299): no candidate.
     if ((t.kind === 'space' || t.kind === 'ground') && t.space)
       Object.assign(out.attrs, {distance: String(t.space.distance), direction: t.space.direction!});

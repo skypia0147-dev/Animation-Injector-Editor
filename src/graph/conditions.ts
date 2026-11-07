@@ -18,6 +18,8 @@ export type BranchTest = {
   measure?: 'current' | 'percent' | 'base';
   /** previousAction (runtime 0.12.296): the actions (uids), the seconds since it ended (absent = any time) and how. */
   actions?: string[];
+  /** recentEvent (runtime 1.0.3): the animation event names; `within` is then the seconds since one arrived. */
+  events?: string[];
   within?: number;
   ended?: 'any' | 'completed' | 'cancelled';
   value?: number;

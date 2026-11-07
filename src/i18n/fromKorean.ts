@@ -2729,6 +2729,40 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '맞는 행 없음': ['No row holds', '一致する行なし', '无匹配行'],
   '맞은 뒤': ['After the hit', '当たった後', '命中后'],
   '맞은 지': ['Since the hit', '被弾から', '受击后'],
+  '받은 지': ['Since received', '受信から', '收到后'],
+  '이 시간 안에 받았으면 통과합니다.': [
+    'Passes when it arrived within this time.',
+    'この時間内に受け取っていれば通過します。',
+    '在此时间内收到即通过。',
+  ],
+  '공격 중': ['Attacking', '攻撃中', '攻击中'],
+  '최근 이벤트': ['Recent event', '最近のイベント', '最近事件'],
+  '검사 대상이 정한 시간 안에 고른 애니메이션 이벤트 중 하나를 받았는지 봅니다(그래프로 보낸 이벤트와 그래프가 보낸 주석 모두). 질주 공격 직후의 sprintStop을 거르려면 attackStop을 0.5초 이내로 두고 NOT을 켭니다. 이 조건을 쓸 때만 기록합니다.':
+    [
+      'Checks whether the subject received one of the chosen animation events within the set time (events sent to the graph and annotations the graph sends). To skip the sprintStop right after a sprint attack, set attackStop within 0.5 seconds and turn on NOT. Recorded only while this condition is used.',
+      '検査対象が設定した時間内に選んだアニメーションイベントのいずれかを受け取ったかを調べます（グラフへ送られたイベントとグラフが送る注釈の両方）。スプリント攻撃直後の sprintStop を除くには attackStop を 0.5 秒以内にして NOT をオンにします。この条件を使うときだけ記録します。',
+      '检查检测对象是否在设定时间内收到所选动画事件之一（发送给图的事件和图发出的注释都算）。要排除冲刺攻击后紧接的 sprintStop，请将 attackStop 设为 0.5 秒以内并打开 NOT。仅在使用此条件时记录。',
+    ],
+  '이벤트를 하나 이상 입력하세요.': [
+    'Enter at least one event.',
+    'イベントを 1 つ以上入力してください。',
+    '请至少输入一个事件。',
+  ],
+  '이벤트 이름은 공백 없는 영문·숫자·기호로 32개까지 씁니다.': [
+    'Event names use letters, digits and symbols without spaces, up to 32 of them.',
+    'イベント名は空白なしの英数字・記号で、32 個までです。',
+    '事件名称使用不含空格的英文、数字和符号，最多 32 个。',
+  ],
+  '받은 지 시간은 0~600초입니다.': [
+    'The time since it arrived is 0 to 600 seconds.',
+    '受信からの時間は 0〜600 秒です。',
+    '收到后的时间为 0~600 秒。',
+  ],
+  '이벤트 목록은 최근 이벤트 조건에서만 사용하세요.': [
+    'Use an event list only in a recent event condition.',
+    'イベント一覧は最近のイベント条件でのみ使用してください。',
+    '事件列表仅用于最近事件条件。',
+  ],
   '맞은 지 시간은 0~600초입니다.': [
     'The time since the hit is 0 to 600 seconds.',
     '被弾からの時間は 0〜600 秒です。',

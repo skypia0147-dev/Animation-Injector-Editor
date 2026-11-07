@@ -2,7 +2,7 @@ import {ExtendedConditionFields} from './ExtendedConditionFields.tsx';
 import {Unchosen} from '../ui/details/Unchosen.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {ConditionKindPicker} from './ConditionKindPicker.tsx';
-import {useId} from 'react';
+import {useEffect, useId, useState} from 'react';
 import {
   byKeywordName,
   definition,
@@ -24,6 +24,38 @@ import {DetailPanel, DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 /** The last action the subject finished (runtime 0.12.296): which of this project's actions, how long ago, and
  *  whether it played to its end. */
+/** Event names, comma separated. The text is a draft while typing: the list read back from it would drop a trailing
+ *  comma and the user could not go on to the next name. */
+function EventNamesField({
+  events,
+  change,
+}: {
+  events: string[] | undefined;
+  change: (patch: Partial<BranchTest>) => void;
+}) {
+  const parse = (text: string) =>
+    text
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  const joined = (events ?? []).join(', ');
+  const [draft, setDraft] = useState(joined);
+  useEffect(() => {
+    if (parse(draft).join(',') !== (events ?? []).join(',')) setDraft(joined);
+    // Only a change from outside (undo, another view) replaces the draft.
+  }, [joined]);
+  return (
+    <input
+      type="text"
+      placeholder="attackStop, attackPowerStop"
+      value={draft}
+      onChange={e => {
+        setDraft(e.target.value);
+        change({events: parse(e.target.value)});
+      }}
+    />
+  );
+}
 function PreviousActionFields({
   w,
   test,
@@ -153,6 +185,27 @@ export function ConditionFields({
         </DetailRow>
       )}
       {test.kind === 'previousAction' && <PreviousActionFields w={w} test={test} change={change} />}
+      {test.kind === 'recentEvent' && (
+        <>
+          <DetailRow label={tr('이벤트')} hint={definition('recentEvent')?.hint}>
+            <EventNamesField events={test.events} change={change} />
+          </DetailRow>
+          <DetailRow label={tr('받은 지')} hint={tr('이 시간 안에 받았으면 통과합니다.')}>
+            <span className="strike-inline">
+              <input
+                type="number"
+                className="strike-number"
+                min="0"
+                max="600"
+                step="0.1"
+                value={test.within ?? ''}
+                onChange={e => change({within: e.target.value === '' ? undefined : Number(e.target.value)})}
+              />
+              {tr('초 이내')}
+            </span>
+          </DetailRow>
+        </>
+      )}
       {test.kind === 'hitReceived' && (
         <DetailRow label={tr('맞은 지')} hint={tr('비워 두면 시간과 상관없이 마지막으로 맞은 공격만 봅니다.')}>
           <span className="strike-inline">

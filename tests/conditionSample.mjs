@@ -29,5 +29,6 @@ export function sampleSettings(kind) {
     ...(kind === 'heldTime' ? {compare: 'ge', value: 1.5} : {}),
     ...(kind === 'weather' ? {option: 'rainy'} : {}),
     ...(kind === 'hitReceived' ? {option: 'power', within: 0.5} : {}),
+    ...(kind === 'recentEvent' ? {events: ['attackStop', 'attackPowerStop'], within: 0.5} : {}),
   };
 }

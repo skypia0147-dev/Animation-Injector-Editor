@@ -197,6 +197,7 @@ export const extensionConditions = {
         ['sprinting', tr('질주 중')],
         ['swimming', tr('수영 중')],
         ['mounted', tr('탑승 중')],
+        ['attacking', tr('공격 중')],
       ] as const;
     },
     get hint() {
@@ -521,6 +522,19 @@ export const extensionConditions = {
       return tr('게임 안 시각(0~24시)입니다. 범위는 자정을 넘을 수 있습니다(20시~5시).');
     },
   },
+  recentEvent: {
+    get label() {
+      return tr('최근 이벤트');
+    },
+    get category() {
+      return tr('상태');
+    },
+    get hint() {
+      return tr(
+        '검사 대상이 정한 시간 안에 고른 애니메이션 이벤트 중 하나를 받았는지 봅니다(그래프로 보낸 이벤트와 그래프가 보낸 주석 모두). 질주 공격 직후의 sprintStop을 거르려면 attackStop을 0.5초 이내로 두고 NOT을 켭니다. 이 조건을 쓸 때만 기록합니다.'
+      );
+    },
+  },
   hitReceived: {
     get label() {
       return tr('받은 공격');
@@ -634,6 +648,7 @@ export function extensionDefaults(kind: string): Partial<BranchTest> {
   if (!d) return {};
   return {
     ...(kind === 'previousAction' ? {actions: [], ended: 'any' as const} : {}),
+    ...(kind === 'recentEvent' ? {events: []} : {}),
     ...(d.form ? (keywordKinds.includes(kind) ? {keyword: ''} : {form: {plugin: '', id: ''}}) : {}),
   };
 }
@@ -650,6 +665,7 @@ export function kindPatch(t: BranchTest, kind: string): Partial<BranchTest> {
     value: undefined,
     upper: undefined,
     within: undefined,
+    events: undefined,
     ...extensionDefaults(kind),
     // A keyword name left from the previous kind must not stay behind, hidden.
     ...(keywordKinds.includes(kind) ? {} : {keyword: undefined}),
@@ -693,6 +709,14 @@ export function extensionError(t: BranchTest): string | undefined {
     if (t.within !== undefined && !(Number.isFinite(t.within) && t.within >= 0 && t.within <= 600))
       return tr('끝난 지 시간은 0~600초입니다.');
     if (!['any', 'completed', 'cancelled'].includes(t.ended ?? 'any')) return tr('끝난 방식을 선택하세요.');
+  }
+  if (t.kind === 'recentEvent') {
+    if (t.events !== undefined && !t.events.length) return tr('이벤트를 하나 이상 입력하세요.');
+    if (t.events?.some(e => !/^[\x21-\x7E]{1,256}$/.test(e)) || (t.events?.length ?? 0) > 32)
+      return tr('이벤트 이름은 공백 없는 영문·숫자·기호로 32개까지 씁니다.');
+    // Reading the XML checks the shared settings before the events and the time are in (importXml.ts reads those).
+    if (t.events !== undefined && !(Number.isFinite(t.within) && t.within! > 0 && t.within! <= 600))
+      return tr('받은 지 시간은 0~600초입니다.');
   }
   if (
     t.kind === 'hitReceived' &&
@@ -797,7 +821,8 @@ export function extensionSummary(t: BranchTest): string | undefined {
         : t.kind === 'chance'
           ? `${t.value}%`
           : undefined,
-    (t.kind === 'previousAction' || t.kind === 'hitReceived') && t.within !== undefined
+    t.kind === 'recentEvent' ? (t.events ?? []).join('·') : undefined,
+    (t.kind === 'previousAction' || t.kind === 'hitReceived' || t.kind === 'recentEvent') && t.within !== undefined
       ? tr('{seconds}초 안', {seconds: t.within})
       : undefined,
   ]
