@@ -180,6 +180,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'safety',
         'loop',
         'maxHold',
+        'rig',
         ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : []),
       ],
       [
@@ -225,6 +226,17 @@ export function importWorkspaceXml(text: string): Workspace {
       p.inputs.push({id, label: id, key: k.key, gamepad: k.gamepad, ...(k.control ? {control: k.control} : {})});
       return id;
     };
+    // A creature's own action or a pair it starts (runtime 1.1.0): the runtime refuses the character-only parts on it
+    // (creatureLimits).
+    if (n.attrs.rig !== undefined) {
+      const rig = choice(
+        n,
+        'rig',
+        pairedRigs.map(r => r.id),
+        'character'
+      );
+      if (rig !== 'character') p.rig = rig;
+    }
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
     // Charge (runtime 10-30): a clip that plays on until its key is let go or maxHold.

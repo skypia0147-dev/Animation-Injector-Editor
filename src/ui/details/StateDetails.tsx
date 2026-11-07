@@ -24,6 +24,17 @@ import {AnglePreview} from './AnglePreview.tsx';
 import {AttackDataField} from './AttackDataField.tsx';
 import {exitSummary, setSingleAttack} from './inspectorModel.ts';
 import {tr} from '../../i18n/korean.ts';
+import {
+  actionRig,
+  familyLabel,
+  partnerRig,
+  resolvePairRole,
+  sameFamily,
+  withRig,
+  withRigOf,
+} from '../../creatureRig.ts';
+import {pairSourcePath, usePairInfo} from '../../graph/pairFacing.ts';
+import type {PairedRig} from '../../pairedRigs.ts';
 export function StateDetails({
   action: a,
   w,
@@ -53,6 +64,8 @@ export function StateDetails({
   // Re-render on a language switch: the labels below are tr() text.
   useLanguage();
   const focused = useContext(DetailFocus);
+  // A pair's two roles' skeletons as its HKX tells them (graph/pairFacing.ts), once read.
+  const pairInfo = usePairInfo(a.pair ? pairSourcePath(w, a) : '');
   const p = a.config,
     pair = a.pair,
     d = createProject(),
@@ -128,7 +141,14 @@ export function StateDetails({
               edit={editAll}
               row={detailRow}
               change={(clip, localPath) =>
-                patch({steps: p.steps.map(x => (x.id === s.id ? {...x, clip, localPath} : x))})
+                change({
+                  ...a,
+                  config: withRigOf(
+                    a,
+                    {...p, steps: p.steps.map(x => (x.id === s.id ? {...x, clip, localPath} : x))},
+                    localPath
+                  ),
+                })
               }
             />
             <Prop
@@ -268,7 +288,7 @@ export function StateDetails({
               sectionId="pair-target"
               group="playback"
               title={t('node.findPartner')}
-              summary={`${pair.targetRig ?? 'character'} · ${pair.range} · ${pair.angle}°`}
+              summary={`${familyLabel(actionRig(a))} → ${familyLabel(partnerRig(a))} · ${pair.range} · ${pair.angle}°`}
               advanced={
                 // Read from the HKX's start pose (graph/pairFacing.ts): a pair played from behind does not turn the two
                 // to face each other.
@@ -277,16 +297,25 @@ export function StateDetails({
                 </DetailRow>
               }
             >
-              <Prop
+              <PairRoleRow
+                id="initiator"
+                label={tr('시작 스켈레톤')}
+                hint={tr(
+                  '페어를 시작하는 쪽(가해자)의 스켈레톤입니다. 페어 HKX의 트랙 이름으로 찾으며, 크리처면 그 크리처가 이 페어를 시작합니다.'
+                )}
+                value={actionRig(a)}
+                candidates={pairInfo?.rigs?.[0]}
+                change={rig => change({...a, config: withRig(p, rig)})}
+              />
+              <PairRoleRow
                 id="target"
                 label={tr('대상 스켈레톤')}
                 hint={tr(
                   '페어 HKX를 제작할 때 사용한 상대 스켈레톤입니다. 해당 계열만 대상으로 찾으며, 내보내기는 인간과 상대의 경로에 HKX를 함께 배치합니다.'
                 )}
-                value={pair.targetRig ?? 'character'}
-                initial="character"
+                value={partnerRig(a)}
+                candidates={pairInfo?.rigs?.[1]}
                 change={targetRig => pp({targetRig})}
-                options={pairedRigs.map(r => [r.id, `${r.label} · ${r.id}`])}
               />
               {pairNumber('range', 'range', 10000, 1)}
               {pairNumber('angle', 'angle', 360, 5)}
@@ -415,5 +444,61 @@ export function StateDetails({
         </DetailRow>
       </Category>
     </DetailPanel>
+  );
+}
+
+/** A pair role's skeleton (docs/mockup-creature-pair 2안): what its HKX tells, shown as found; one button per skeleton
+ *  family when the HKX cannot tell them apart (giant and lurker); a choice when there is no HKX to read. */
+function PairRoleRow({
+  id,
+  label,
+  hint,
+  value,
+  candidates,
+  change,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  value: PairedRig;
+  candidates?: PairedRig[];
+  change: (rig: PairedRig) => void;
+}) {
+  const resolved = candidates?.length ? resolvePairRole(candidates, value) : undefined;
+  if (resolved?.choices.length)
+    return (
+      <DetailRow label={label} hint={hint}>
+        <span className="pair-role-choices">
+          {resolved.choices.map(rig => (
+            <button
+              key={rig}
+              type="button"
+              className={sameFamily(rig, value) ? 'active' : ''}
+              aria-pressed={sameFamily(rig, value)}
+              onClick={() => change(rig)}
+            >
+              {familyLabel(rig)}
+            </button>
+          ))}
+        </span>
+      </DetailRow>
+    );
+  if (resolved?.rig)
+    return (
+      <DetailRow label={label} hint={hint}>
+        <span className="pair-role-found">
+          {familyLabel(value)}
+          <small>{tr('HKX에서 찾음')}</small>
+        </span>
+      </DetailRow>
+    );
+  return (
+    <DetailRow label={label} hint={hint}>
+      <select aria-label={label} data-role={id} value={value} onChange={e => change(e.target.value as PairedRig)}>
+        {pairedRigs.map(r => (
+          <option key={r.id} value={r.id}>{`${r.label} · ${r.id}`}</option>
+        ))}
+      </select>
+    </DetailRow>
   );
 }

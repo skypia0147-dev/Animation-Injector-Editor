@@ -47,6 +47,7 @@ import {AddSetting, SettingChips, useSettings, type Setting} from './cardSetting
 import {useDragToCard} from './dragToCard.tsx';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
+import {actionRig, creatureHiddenSettings, isCreatureRig, withRigOf} from '../creatureRig.ts';
 import {errorText} from '../errorText.ts';
 
 type Context = {
@@ -298,7 +299,12 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       blend('exit'),
     ];
   };
-  const playSettings = useSettings(playback(), fold);
+  // A creature card is not offered what the runtime refuses on it; one already set stays, shown as the card's problem.
+  const creature = !!action && isCreatureRig(actionRig(action));
+  const playSettings = useSettings(
+    playback().map(s => (creature && creatureHiddenSettings.includes(s.id) && !s.set ? {...s, applies: false} : s)),
+    fold
+  );
   // One "+ 기능" (10-16, docs/mockup-feature-merge): what applies to the whole play, then what happens at a moment.
   const addMenu = () => (
     <AddItemMenu
@@ -346,10 +352,17 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
                       a.uid === action.uid
                         ? {
                             ...a,
-                            config: {
-                              ...a.config,
-                              steps: a.config.steps.map(s => (s.id === node.step ? {...s, clip: value, localPath} : s)),
-                            },
+                            // The folder of the picked HKX tells whose skeleton plays it (creatureRig.ts).
+                            config: withRigOf(
+                              a,
+                              {
+                                ...a.config,
+                                steps: a.config.steps.map(s =>
+                                  s.id === node.step ? {...s, clip: value, localPath} : s
+                                ),
+                              },
+                              localPath
+                            ),
                           }
                         : a
                     ),

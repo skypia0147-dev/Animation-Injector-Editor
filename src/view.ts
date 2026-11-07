@@ -12,6 +12,7 @@ import {assetKey} from './package.ts';
 import {registerAssets} from './assets.ts';
 import {clone} from './model.ts';
 import {tr} from './i18n/korean.ts';
+import {withRigOf} from './creatureRig.ts';
 
 export type View = 'third' | 'first' | 'both';
 export type FirstPersonStart = 'block' | 'switch';
@@ -143,9 +144,11 @@ export function placeStepFile(w: Workspace, uid: string, stepId: string, clip: s
     return assignFirstPerson(next, uid, stepId, clip, path);
   }
   const next = view === 'first' ? setActionView(w, uid, same ? 'both' : 'third') : clone(w);
-  const step = next.actions.find(x => x.uid === uid)!.config.steps.find(x => x.id === stepId)!;
+  const target = next.actions.find(x => x.uid === uid)!,
+    step = target.config.steps.find(x => x.id === stepId)!;
   step.clip = clip;
   step.localPath = path;
+  target.config = withRigOf(target, target.config, path);
   return path ? registerAssets(next, [{clip, path}]) : next;
 }
 

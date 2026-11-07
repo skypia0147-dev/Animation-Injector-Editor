@@ -6154,4 +6154,46 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '＋ 조건': ['＋ Condition', '＋ 条件', '＋ 条件'],
   '＋ 조건 추가': ['＋ Add condition', '＋ 条件を追加', '＋ 添加条件'],
   '＋ 키': ['＋ Key', '＋ キー', '＋ 按键'],
+  인칭: ['View', '視点', '视角'],
+  '1인칭에서': ['In first person', '一人称で', '第一人称时'],
+  '운반의 내려놓기 동작': ["A carry's putdown action", '運搬の下ろす動作', '搬运的放下动作'],
+  'HKX 재생 ({family}) · {v0}': [
+    'HKX play ({family}) · {v0}',
+    'HKX 再生 ({family}) · {v0}',
+    'HKX 播放 ({family}) · {v0}',
+  ],
+  '스켈레톤이 다른 동작으로는 전환할 수 없습니다({from} → {to}).': [
+    'A transition cannot go to an action of another skeleton ({from} → {to}).',
+    'スケルトンが異なる動作には遷移できません（{from} → {to}）。',
+    '不能转换到骨架不同的动作（{from} → {to}）。',
+  ],
+  '경로 기준: {root}\\': ['Relative to: {root}\\', '基準フォルダー: {root}\\', '相对于: {root}\\'],
+  '{family} 동작에는 쓸 수 없습니다: {items}': [
+    'Not available on a {family} action: {items}',
+    '{family} の動作には使えません: {items}',
+    '{family} 动作不能使用: {items}',
+  ],
+  'HKX 재생 ({from} → {to}) · {v0}': [
+    'HKX play ({from} → {to}) · {v0}',
+    'HKX 再生 ({from} → {to}) · {v0}',
+    'HKX 播放 ({from} → {to}) · {v0}',
+  ],
+  '상대의 다음 동작은 상대 스켈레톤({rig})의 동작이어야 합니다.': [
+    "The partner's next action must be one of the partner's skeleton ({rig}).",
+    '相手の次の動作は相手のスケルトン（{rig}）の動作でなければなりません。',
+    '对方的下一个动作必须是对方骨架（{rig}）的动作。',
+  ],
+  '시작 스켈레톤': ['Initiator skeleton', '開始側スケルトン', '发起方骨架'],
+  '페어를 시작하는 쪽(가해자)의 스켈레톤입니다. 페어 HKX의 트랙 이름으로 찾으며, 크리처면 그 크리처가 이 페어를 시작합니다.':
+    [
+      "The skeleton of the side that starts the pair (the attacker). Found from the paired HKX's track names; a creature here starts this pair itself.",
+      'ペアを開始する側（攻撃側）のスケルトンです。ペア HKX のトラック名から見つけ、クリーチャーならそのクリーチャーがこのペアを開始します。',
+      '发起配对一方（攻击方）的骨架。根据配对 HKX 的轨道名称识别；若为生物，则由该生物发起此配对。',
+    ],
+  'HKX에서 찾음': ['Found in the HKX', 'HKX から検出', '从 HKX 识别'],
+  '크리처가 시작하는 페어의 상대는 인간만 됩니다.': [
+    'A pair a creature starts can only partner a human.',
+    'クリーチャーが開始するペアの相手は人間のみです。',
+    '生物发起的配对只能以人类为对象。',
+  ],
 };

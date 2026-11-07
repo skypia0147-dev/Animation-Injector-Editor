@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "animation-injector-editor"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "havok_classes",
  "indexmap 2.14.2",

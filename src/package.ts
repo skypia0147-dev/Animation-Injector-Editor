@@ -5,6 +5,7 @@ import {clipEffects} from './clipEffects.ts';
 import {t} from './i18n/index.ts';
 import {isFirstPersonClip, stepFiles} from './view.ts';
 import {ragdollWrites} from './ragdoll.ts';
+import {actionRig, clipRoot, rigRoot} from './creatureRig.ts';
 export type Asset = {
   actorRoots: string[];
   clip: string;
@@ -74,7 +75,8 @@ export function assets(w: Workspace): Asset[] {
           const policy = w.packaging.policies.find(p => assetKey(p.clip) === key);
           found = {
             clip: file.clip,
-            actorRoots: ['meshes/actors/character'],
+            // A creature's own clip goes to its actor folder only; a pair's to the character's (creatureRig.ts).
+            actorRoots: [clipRoot(a)],
             paths: [],
             mode: policy?.mode ?? 'copy',
             dependency: policy?.dependency ?? '',
@@ -83,7 +85,7 @@ export function assets(w: Workspace): Asset[] {
           map.set(key, found);
         }
         if (file.firstPerson) continue; // its source is the library entry
-        const targetRoot = a.pair ? pairedRig(a.pair.targetRig).actorRoot : 'meshes/actors/character';
+        const targetRoot = a.pair ? pairedRig(a.pair.targetRig).actorRoot : rigRoot(actionRig(a));
         if (!found.actorRoots.includes(targetRoot)) found.actorRoots.push(targetRoot);
         if (s.localPath && !found.paths.some(p => assetKey(p) === assetKey(s.localPath))) found.paths.push(s.localPath);
       }

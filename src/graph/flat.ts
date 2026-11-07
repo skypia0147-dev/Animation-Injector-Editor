@@ -17,6 +17,7 @@ import {timingLabel, mark} from '../model.ts';
 import {animId} from './blends.ts';
 import {addAction, uid, type Link} from '../workspace.ts';
 import {tr} from '../i18n/korean.ts';
+import {crossRigError, partnerRigError} from '../creatureRig.ts';
 import {functionParts} from '../eventRegistry.ts';
 import {
   cardTitle,
@@ -449,6 +450,12 @@ export function setDestination(w: Workspace, source: string, pin: string | undef
         if (!partner || partner.pair || l.card || next.actions.find(x => x.uid === l.to)?.pair)
           throw Error(tr('페어에서 양쪽 일반 동작으로 가는 전환만 상대(피해자) 동작을 가질 수 있습니다.'));
         if (a === l.to) throw Error(tr('시작자(가해자)와 상대(피해자)는 다른 동작으로 연결하세요.'));
+        // The partner plays it: its skeleton is the pair's partner's (runtime 1.1.0).
+        const partnerRigIssue = partnerRigError(
+          next.actions.find(x => x.uid === l.from)!,
+          partner
+        );
+        if (partnerRigIssue) throw Error(partnerRigIssue);
       }
       l.partnerTo = a;
       return next;
@@ -576,6 +583,10 @@ export function addTransition(
   const a = w.actions.find(a => a.uid === from);
   if (!a) throw Error(tr('출발 HKX를 찾지 못했습니다.'));
   if (refAction(to) === from) throw Error(tr('출발 동작 자신으로는 전환할 수 없습니다.'));
+  // A transition stays within one skeleton (runtime 1.1.0 creature actions).
+  const b = w.actions.find(x => x.uid === refAction(to));
+  const crossRig = b && crossRigError(a, b);
+  if (crossRig) throw new Error(crossRig);
   const id = uid(
     'link',
     w.links.map(l => l.id)

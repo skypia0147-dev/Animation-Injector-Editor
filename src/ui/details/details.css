@@ -376,3 +376,22 @@
   background: #26323a;
   color: #bfe6ff;
 }
+
+/* A pair role's skeleton found in its HKX, or the families it cannot tell apart (StateDetails PairRoleRow). */
+.shell .pair-role-found {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.shell .pair-role-found small {
+  color: var(--ue-good);
+  font-size: 11px;
+}
+.shell .pair-role-choices {
+  display: inline-flex;
+  gap: 4px;
+}
+.shell .pair-role-choices button.active {
+  border-color: var(--ue-select);
+  color: var(--ue-select);
+}

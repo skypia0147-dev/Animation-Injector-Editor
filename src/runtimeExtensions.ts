@@ -1,6 +1,7 @@
 import type {Project, Step} from './model.ts';
 import {tr} from './i18n/korean.ts';
 import {isGameControl} from './keys.ts';
+import {pairedRigs} from './pairedRigs.ts';
 /** A new action shot: on the attack button's release, no clip time (an event shot is a registry function). */
 /** when '' until chosen (11-02: added, it chooses nothing for the user). */
 export type Suppression = {events: string[]; when: 'startable' | 'active' | 'both' | ''};
@@ -93,6 +94,11 @@ export function stripExtensions(value: any): unknown {
       delete i.control;
       i.key = 'Num0';
     }
+  // A creature's own action (runtime 1.1.0): an optional skeleton other than the character's.
+  if (p?.rig !== undefined) {
+    if (typeof p.rig !== 'string' || p.rig === 'character' || !pairedRigs.some(r => r.id === p.rig)) fail();
+    delete p.rig;
+  }
   // Charge (runtime 10-30): an optional loop {maxHold}.
   if (p?.loop !== undefined) {
     const l = p.loop;

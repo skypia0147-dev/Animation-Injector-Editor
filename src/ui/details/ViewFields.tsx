@@ -22,6 +22,7 @@ import {
 } from '../../view.ts';
 import type {FirstPersonStart, View} from '../../view.ts';
 import {AssetField} from './AssetField.tsx';
+import {actionRig, isCreatureRig, rigRoot} from '../../creatureRig.ts';
 
 /** How the caller lays out one labelled control (a card row or a Details row). */
 export type ViewRow = (id: LabelId, label: string, control: ReactNode, hint?: string) => ReactNode;
@@ -126,6 +127,7 @@ export function StepFiles({
             library={third}
             selected={selectedIn(third)}
             status={status}
+            root={isCreatureRig(actionRig(action)) ? rigRoot(actionRig(action)) : undefined}
             // A picked first-person file goes to the first-person copy and the view follows it.
             change={(clip, path) =>
               isFirstPersonClip(clip)

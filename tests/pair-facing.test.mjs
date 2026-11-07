@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {projectText} from '../tools/projectFile.mjs';
 import {parseWorkspace, compileWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
-import {withFacings, pairSources} from '../src/graph/pairFacing.ts';
+import {withPairChanges, pairSources} from '../src/graph/pairFacing.ts';
 
 // 10-16 (runtime 0.12.259): a pair's alignment wait, tolerance and motion from the root are gone; whether its start
 // turns the two to face each other comes from the HKX (graph/pairFacing.ts), not a checkbox.
@@ -28,16 +28,16 @@ test('a facing read from the HKX sets the pair; a pair facing each other writes 
   const w = grapple();
   const suplex = byName(w, 'GrappleSuplex'),
     front = byName(w, 'GrappleAttackFront');
-  const turned = withFacings(
+  const turned = withPairChanges(
     w,
     new Map([
-      [suplex.uid, true],
-      [front.uid, false],
+      [suplex.uid, {reorientSupport: true}],
+      [front.uid, {reorientSupport: false}],
     ])
   );
   assert.equal(byName(turned, 'GrappleSuplex').pair.reorientSupport, true);
   assert.equal(byName(turned, 'GrappleAttackFront').pair.reorientSupport, false);
-  assert.equal(withFacings(w, new Map()), w);
+  assert.equal(withPairChanges(w, new Map()), w);
   assert.equal(
     turned.actions.find(a => a.uid === byName(w, 'GrappleRKO').uid),
     byName(w, 'GrappleRKO')

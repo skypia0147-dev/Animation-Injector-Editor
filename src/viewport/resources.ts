@@ -7,13 +7,22 @@ import {tr} from '../i18n/korean.ts';
 export type PreviewAssetKind = 'skeletons' | 'skins';
 export const emptyPreviewAssets = (): PreviewAssets => ({skeletons: [], skins: []});
 
-export function previewAssets(w: Workspace, clip: string, targetRig?: PairedRig): PreviewAssets {
+/** A pair's preview skeletons: each role's built-in one when either is a creature (A1 the initiator, A2 the partner),
+ *  unless the user set one for the clip. */
+export function previewAssets(
+  w: Workspace,
+  clip: string,
+  targetRig?: PairedRig,
+  initiatorRig?: PairedRig
+): PreviewAssets {
   const result = clone(
     w.assets.find(asset => assetKey(asset.clip) === assetKey(clip))?.preview ?? emptyPreviewAssets()
   );
-  if (targetRig && targetRig !== 'character') {
-    result.skeletons[0] ||= pairedRig('character').previewSkeleton;
-    result.skeletons[1] ||= pairedRig(targetRig).previewSkeleton;
+  const initiator = initiatorRig ?? 'character',
+    target = targetRig ?? 'character';
+  if (initiator !== 'character' || target !== 'character') {
+    result.skeletons[0] ||= pairedRig(initiator).previewSkeleton;
+    result.skeletons[1] ||= pairedRig(target).previewSkeleton;
   }
   return result;
 }

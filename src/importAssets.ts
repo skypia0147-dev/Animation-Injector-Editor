@@ -1,6 +1,7 @@
 import type {Workspace} from './workspace.ts';
 import {assetLibrary} from './assets.ts';
 import {assetKey, selectAsset, selectSound, soundLibrary} from './package.ts';
+import {clipRoot} from './creatureRig.ts';
 
 type Resolved = {path: string; clip: string; error: string};
 
@@ -47,7 +48,12 @@ export async function connectXmlAssets(
         !/[<>:"|?*\x00-\x1f]/.test(clip) &&
         /\.hkx$/i.test(clip) &&
         clip.split('/').every(part => part && part !== '.' && part !== '..' && !/[. ]$/.test(part));
-      return {clip: asset.clip, path: safe ? `${root}/meshes/actors/character/${clip}`.replaceAll('/', '\\') : ''};
+      // A creature's clip is relative to its actor folder (creatureRig.ts).
+      const owner = result.workspace.actions.find(a =>
+        a.config.steps.some(s => assetKey(s.clip) === assetKey(asset.clip))
+      );
+      const folder = owner ? clipRoot(owner) : 'meshes/actors/character';
+      return {clip: asset.clip, path: safe ? `${root}/${folder}/${clip}`.replaceAll('/', '\\') : ''};
     });
   result.missing = candidates.length;
   const safe = candidates.filter(candidate => candidate.path);

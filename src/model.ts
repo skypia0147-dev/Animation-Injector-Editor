@@ -9,6 +9,7 @@ export type Mark = {
   fallbackBasis: 'seconds' | 'end';
 };
 import {tr} from './i18n/korean.ts';
+import type {PairedRig} from './pairedRigs.ts';
 import {errorText} from './errorText.ts';
 /** A key and button, or a game control (control, runtime 0.12.292) instead of both. */
 export type Input = {id: string; label: string; key: string; gamepad: number; control?: GameControl};
@@ -38,6 +39,9 @@ export type Project = {
   /** Charge (runtime 10-30, <Action loop="true" maxHold>): the clip plays over and over; at maxHold seconds its key
    *  counts as released. Absent = plays once. */
   loop?: {maxHold: number};
+  /** Whose skeleton plays it (runtime 1.1.0 <Action rig>): found from the HKX (rigDetect.ts), absent = the character.
+   *  A creature's clip is relative to its actor folder and its whole skeleton family plays it. Never on a pair. */
+  rig?: PairedRig;
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;

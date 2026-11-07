@@ -4,7 +4,7 @@ import {applyRagdollFiles, carryLifts, ragdollWrites, withoutRagdolls} from './r
 import {RagdollPreviewContext} from './ui/ragdollPreviewContext.ts';
 import {matrixAt} from './viewport/matrices.ts';
 import {executeGraphCommand} from './graph/commands.ts';
-import {facingChanges, pairSources, withFacings} from './graph/pairFacing.ts';
+import {pairChanges, pairSources, withPairChanges} from './graph/pairFacing.ts';
 import {functionSummary} from './eventRegistry.ts';
 import {dropGrid, freePlayPosition} from './graph/placement.ts';
 import {SUMMARY_HEIGHT} from './graph/cardPresentation.ts';
@@ -318,17 +318,17 @@ function Editor() {
     dirty = serialized !== saved;
   const current = useRef(w);
   current.current = w;
-  // A pair's facing follows its HKX (graph/pairFacing.ts): set when a pair's file is found or changes, outside the
-  // undo history, as an imported XML's arrangement is.
+  // A pair's facing and its two roles' skeletons follow its HKX (graph/pairFacing.ts): set when a pair's file is found
+  // or changes, outside the undo history, as an imported XML's arrangement is.
   const pairFiles = pairSources(w)
     .map(s => s.action + '=' + s.path)
     .join('|');
   useEffect(() => {
     if (!pairFiles) return;
     let cancelled = false;
-    void facingChanges(current.current).then(changes => {
+    void pairChanges(current.current).then(changes => {
       if (cancelled || !changes.size) return;
-      const next = withFacings(current.current, changes);
+      const next = withPairChanges(current.current, changes);
       current.current = next;
       dispatchDocument({type: 'replace', next});
     });
@@ -1323,7 +1323,12 @@ function Editor() {
       previewSource.path ||
       library.find(asset => asset.clip.toLowerCase() === previewClip.toLowerCase())?.localPath ||
       '',
-    previewResource = previewAssets(w, previewClip, timelineAction?.pair?.targetRig),
+    previewResource = previewAssets(
+      w,
+      previewClip,
+      timelineAction?.pair?.targetRig,
+      timelineAction?.pair ? timelineAction.config.rig : undefined
+    ),
     viewerRequest = useMemo(
       () =>
         panels.viewport && previewPath

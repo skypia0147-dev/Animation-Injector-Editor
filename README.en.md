@@ -1,11 +1,11 @@
-# Animation Injector Editor · 1.0.0
+# Animation Injector Editor · 1.0.1
 
 A Windows program for making action mods for [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector). Place HKX files as cards and connect them to build actions (done alone or as pairs), then export the XML the game reads or a mod folder.
 
 ## Requirements
 
 - Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 1.0.0 or later** and its requirements
+- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later)
 - Keep the included `AnimationInjectorXmlCheck.exe` in the same folder as `AnimationInjectorEditor.exe`. When you save, it checks that the game can read the XML. Without it the editor saves unchecked and shows a warning.
 
 ## Getting started
@@ -58,6 +58,13 @@ When a carry item's target is **Hanging**, the lifted target swings under physic
 - **This action's values**: the overall motion values and, per body, physics on or off, damping and joint limits. A body with physics off moves along with the body above it, its joint held at its first angle, when that body swings; below bodies that are all off, it follows the lift pose.
 - Saving writes the values beside the XML as `Ragdoll\<lift action ID>.xml`, and a mod folder export includes the file. The game reads it again at every lift, so an edit made while the game runs applies from the next lift.
 - **Show simulation** runs the lifted target's ragdoll in the viewport. It follows value changes at once, and clicking a body shows its row on the card. The preview imitates the game's physics and can differ a little from the game.
+
+## Creature actions
+
+- An HKX inside a creature folder (`meshes\actors\canine\...` and so on) makes a creature action. You don't pick the skeleton: the HKX's folder decides it, and the action plays on every creature that shares that folder and skeleton (dog and wolf, for example).
+- A paired HKX's track names tell the starting and partner skeletons. A creature can start a pair on a human; when more than one family matches, pick it under **Find Partner**.
+- Actions on different skeleton families can't transition into each other. Creature actions have no human-only settings such as first person, in air, attack data or carry.
+- In game they need **Animation Injector 1.0.3 or later**.
 
 ## Shortcuts
 

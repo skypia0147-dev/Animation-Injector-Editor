@@ -576,6 +576,53 @@ pub(crate) fn pair_start_facing(classes: &indexmap::IndexMap<usize, Classes<'_>>
     Some(a[0] * b[0] + a[1] * b[1] < 0.0)
 }
 
+/// The built-in preview skeletons (builtin/skeletons/*.hkx) by path, read once: none in a build without the preview
+/// assets.
+fn builtin_skeletons() -> &'static [(String, SkeletonData)] {
+    static SKELETONS: std::sync::OnceLock<Vec<(String, SkeletonData)>> = std::sync::OnceLock::new();
+    SKELETONS.get_or_init(|| {
+        super::builtin::FILES
+            .iter()
+            .filter(|(name, _)| name.starts_with("builtin/skeletons/") && name.ends_with(".hkx"))
+            .filter_map(|(name, _)| load_skeleton(name).ok().map(|skeleton| ((*name).to_owned(), skeleton)))
+            .collect()
+    })
+}
+
+/// A pair HKX's two roles' skeletons from its track names (A1, the initiator, unprefixed; A2, the partner, "2_"):
+/// for each role the built-in skeletons (their paths, a rig's previewSkeleton) covering its tracks best, several
+/// when their bone names are the same (giant and lurker, falmer and riekling). None for a single clip, unreadable
+/// track names or a build without built-in skeletons. 105 vanilla pairs: every role found (11-05).
+pub(crate) fn pair_rigs(classes: &indexmap::IndexMap<usize, Classes<'_>>) -> Option<[Vec<String>; 2]> {
+    if binding(classes)?.m_originalSkeletonName.as_str() != "PairedRoot" {
+        return None;
+    }
+    let skeletons = builtin_skeletons();
+    if skeletons.is_empty() {
+        return None;
+    }
+    let source = animation_source(classes)?;
+    let parent = source.parent();
+    let names = animation_track_names(parent, track_count(parent).ok()?).ok()?;
+    let targets = pair_track_sets(&names);
+    let best = |target: &HashSet<String>| -> Vec<String> {
+        let scores: Vec<(f64, &str)> = skeletons
+            .iter()
+            .map(|(path, skeleton)| (pair_score(skeleton, target), path.as_str()))
+            .collect();
+        let top = scores.iter().map(|(score, _)| *score).fold(0.0, f64::max);
+        if top <= 0.5 {
+            return Vec::new();
+        }
+        scores
+            .into_iter()
+            .filter(|(score, _)| top - score <= 1e-6)
+            .map(|(_, path)| path.to_owned())
+            .collect()
+    };
+    Some([best(&targets[0]), best(&targets[1])])
+}
+
 fn pair_target(track: &str) -> Option<(usize, String)> {
     if track == "PairedRoot" {
         None

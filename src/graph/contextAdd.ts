@@ -6,6 +6,7 @@ import {parseNodeId} from './nodeRef.ts';
 import {addRow} from './cardCommands.ts';
 import type {Ref} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
+import {actionRig, creatureHiddenAdds, isCreatureRig} from '../creatureRig.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
 export type AddOption = {
   label: string;
@@ -166,9 +167,12 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
         ? {disabled: tr('이미 있음')}
         : {}),
     });
+  const creature = !!a && isCreatureRig(actionRig(a));
   return options
     .sort((a, b) => Number(b.kind === 'blend') - Number(a.kind === 'blend'))
     .filter(o => {
+      // A creature card: only what the runtime plays on a creature (creatureRig.ts).
+      if (creature && creatureHiddenAdds.includes(o.kind)) return false;
       // Charge (runtime 10-30): an ordinary HKX's; an end once and not from a loop, which has none.
       if (o.kind === 'loopRule') return !!a && !a.pair && !a.config.loop;
       // A charge end and a move transition read the charge's held key (runtime 10-31): an HKX in a charge only.

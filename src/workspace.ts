@@ -38,6 +38,15 @@ import type {EventRow} from './eventRegistry.ts';
 import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts} from './view.ts';
 import type {View, FirstPersonStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
+import {
+  actionRig,
+  creatureLimits,
+  crossRigError,
+  familyLabel,
+  isCreatureRig,
+  partnerRig,
+  partnerRigError,
+} from './creatureRig.ts';
 import {ordinaryEffectOps} from './clipEffects.ts';
 import {errorText} from './errorText.ts';
 export const operations = [
@@ -347,6 +356,9 @@ export function addLink(w: Workspace, from: string, to: string): Link {
   const a = w.actions.find(a => a.uid === from),
     b = w.actions.find(a => a.uid === to);
   if (!a || !b || from === to) throw new Error(tr('서로 다른 동작의 핀을 연결하세요.'));
+  // A transition stays within one skeleton (creature actions).
+  const crossRig = crossRigError(a, b);
+  if (crossRig) throw new Error(crossRig);
   return {
     id: uid(
       'link',
@@ -754,6 +766,29 @@ export function validateWorkspace(w: Workspace): Issue[] {
   for (const a of w.actions)
     for (const v of Object.values(a.config.eventValues ?? {})) for (const m of valueErrors(v)) err(a.uid, m);
   out.push(...viewIssues(w));
+  // A creature's own action (runtime 1.1.0): what the runtime refuses on it, and transitions across skeletons.
+  for (const a of w.actions) {
+    const limits = creatureLimits(w, a);
+    if (limits.length)
+      err(
+        a.uid,
+        tr('{family} 동작에는 쓸 수 없습니다: {items}', {family: familyLabel(actionRig(a)), items: limits.join(', ')})
+      );
+  }
+  for (const l of w.links) {
+    const a = w.actions.find(x => x.uid === l.from),
+      b = w.actions.find(x => x.uid === l.to),
+      partner = w.actions.find(x => x.uid === l.partnerTo);
+    const crossRig = a && b && crossRigError(a, b);
+    if (crossRig) err(a.uid, crossRig);
+    // The pair's partner plays its next action (partnerTo): the partner's skeleton.
+    const partnerRigIssue = a?.pair && partner && partnerRigError(a, partner);
+    if (partnerRigIssue) err(a.uid, partnerRigIssue);
+  }
+  // A creature-started pair partners a character only, for now (runtime XmlV2).
+  for (const a of w.actions)
+    if (a.pair && isCreatureRig(actionRig(a)) && isCreatureRig(partnerRig(a)))
+      err(a.uid, tr('크리처가 시작하는 페어의 상대는 인간만 됩니다.'));
   for (const i of qteChannelClashes(w)) out.push({level: 'warning', ...i});
   try {
     parseWorkspace(JSON.stringify(w));

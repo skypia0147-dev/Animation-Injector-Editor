@@ -42,6 +42,8 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
   const attack = p.steps[0].attack || p.attack;
   const out = node('Action', {
     id: p.actionId,
+    // A creature's own action (runtime 1.1.0): the skeleton the HKX was matched to; the character's is not written.
+    rig: p.rig && p.rig !== 'character' ? p.rig : undefined,
     clip: p.steps[0].clip,
     air: p.air === 'allow' ? 'both' : p.air === 'only' ? 'only' : undefined,
     attack: attack || undefined,

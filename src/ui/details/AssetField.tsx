@@ -3,6 +3,7 @@ import type {LibraryEntry} from '../../assets.ts';
 import {t} from '../../i18n/index.ts';
 import * as io from '../../io.ts';
 import {errorText} from '../../errorText.ts';
+import {tr} from '../../i18n/korean.ts';
 export function AssetField({
   clip,
   path,
@@ -12,6 +13,7 @@ export function AssetField({
   status,
   scopeKey,
   fixedPath = false,
+  root,
 }: {
   clip: string;
   path: string;
@@ -22,6 +24,8 @@ export function AssetField({
   scopeKey?: string;
   /** The relative path follows another field (a first-person copy of a `both` action): not typed here. */
   fixedPath?: boolean;
+  /** A creature's clip: the actor folder its path is relative to (creatureRig.ts). */
+  root?: string;
 }) {
   const [busy, setBusy] = useState(false),
     current = useRef({clip, path, change, scopeKey});
@@ -95,6 +99,7 @@ export function AssetField({
         readOnly={fixedPath}
         onChange={e => change(e.target.value, '')}
       />
+      {root && <small className="asset-root">{tr('경로 기준: {root}\\', {root: root.replaceAll('/', '\\')})}</small>}
       {!path && <small>{t('hkx.sourceMissing')}</small>}
     </div>
   );

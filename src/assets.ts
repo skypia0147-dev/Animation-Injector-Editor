@@ -4,6 +4,7 @@ import type {PreviewAssets, Workspace} from './workspace.ts';
 import {assetKey, folderValid} from './package.ts';
 import {stepFiles} from './view.ts';
 import {tr} from './i18n/korean.ts';
+import {withRigOf} from './creatureRig.ts';
 
 export type LibraryEntry = {
   clip: string;
@@ -98,6 +99,7 @@ export function assignClip(w: Workspace, uid: string, clip: string, path: string
   if (!target) throw new Error(tr('클립이 없는 동작입니다.'));
   target.clip = clip;
   target.localPath = path;
+  a.config = withRigOf(a, a.config, path);
   return next;
 }
 

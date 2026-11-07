@@ -7,6 +7,7 @@ import {qteMembers} from './qteGroups.ts';
 import {outcomes, qteTypes, type Outcome, type QteDesign, type QteResult, type QteType} from '../qte.ts';
 import {qteKeyName} from '../qteFace.ts';
 import {tr} from '../i18n/korean.ts';
+import {actionRig, familyLabel, isCreatureRig, partnerRig} from '../creatureRig.ts';
 import {gamepadXml, gameControlLabel} from '../keys.ts';
 import {choosesOrdinary, frontAngle, frontRange, pressTrigger} from '../cards.ts';
 
@@ -148,7 +149,18 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
       rows.push({label: tr('감지 구간'), value: `${timingLabel(window.open)} → ${timingLabel(window.close)}`});
     else rows.push({label: tr('역할'), value: tr('시작자 · 상대')});
     rows.push({label: tr('종료'), value: exitSummary(a)});
-    return {title: tr('HKX 재생 · {v0}', {v0: c.kind === 'single' ? c.name : s.label || s.id}), icon, rows};
+    const name = c.kind === 'single' ? c.name : s.label || s.id,
+      rig = actionRig(a);
+    // A creature's action names its skeleton family in the kind: 「HKX 재생 (늑대·개) · 이름」; a pair with a creature
+    // in either role its two roles: 「HKX 재생 (늑대·개 → 인간) · 이름」 (creatureRig.ts).
+    const partner = a.pair ? partnerRig(a) : undefined;
+    const title =
+      partner && (isCreatureRig(rig) || isCreatureRig(partner))
+        ? tr('HKX 재생 ({from} → {to}) · {v0}', {from: familyLabel(rig), to: familyLabel(partner), v0: name})
+        : isCreatureRig(rig)
+          ? tr('HKX 재생 ({family}) · {v0}', {family: familyLabel(rig), v0: name})
+          : tr('HKX 재생 · {v0}', {v0: name});
+    return {title, icon, rows};
   }
   if (n.kind === 'qte') {
     const face = qteFace(w, n);

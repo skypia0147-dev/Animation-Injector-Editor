@@ -24,6 +24,9 @@ pub struct Metadata {
     /// A pair HKX's start: "front" (the two face each other) or "back" (one behind the other).
     #[serde(rename = "pairFacing", skip_serializing_if = "Option::is_none")]
     pair_facing: Option<&'static str>,
+    /// A pair HKX's skeletons by role (initiator, partner): the rig ids that fit each role's track names best.
+    #[serde(rename = "pairRigs", skip_serializing_if = "Option::is_none")]
+    pair_rigs: Option<[Vec<String>; 2]>,
 }
 
 fn animation(a: &hkaAnimation<'_>) -> Result<AnimationMeta, String> {
@@ -73,9 +76,11 @@ fn decode(bytes: &[u8]) -> Result<Metadata, String> {
         return Err("지원되는 애니메이션이 없는 HKX입니다.".into());
     }
     let pair_facing = viewer::pair_start_facing(&classes).map(|front| if front { "front" } else { "back" });
+    let pair_rigs = viewer::pair_rigs(&classes);
     Ok(Metadata {
         animations,
         pair_facing,
+        pair_rigs,
     })
 }
 pub fn read(path: &str) -> Result<Metadata, String> {
@@ -136,6 +141,47 @@ mod tests {
         let win32 = read(dir.join("attack-win32.hkx").to_str().unwrap()).unwrap();
         assert_eq!(serde_json::to_value(&m).unwrap(), serde_json::to_value(&win32).unwrap());
         fs::write(dir.join("metadata.json"), serde_json::to_vec_pretty(&m).unwrap()).unwrap();
+    }
+    #[test]
+    fn pair_rigs_by_role() {
+        // The runtime's creature-started pair test (a wolf's attack with a character partner, AIE_PAIR_RIG_HKX):
+        // local, skipped when it is not given or this build has no built-in skeletons.
+        let path = std::env::var("AIE_PAIR_RIG_HKX").unwrap_or_default();
+        let path = path.as_str();
+        if path.is_empty()
+            || !Path::new(path).is_file()
+            || !super::builtin::FILES
+                .iter()
+                .any(|(n, _)| n.starts_with("builtin/skeletons/"))
+        {
+            eprintln!("skipped: {path} or the built-in skeletons not found");
+            return;
+        }
+        let [initiator, partner] = read(path).unwrap().pair_rigs.expect("a pair");
+        assert!(
+            initiator.iter().any(|p| p.ends_with("canine_wolf.hkx")),
+            "{initiator:?}"
+        );
+        assert!(initiator.iter().all(|p| p.contains("canine_")), "{initiator:?}");
+        assert!(partner.iter().any(|p| p.ends_with("/character.hkx")), "{partner:?}");
+        assert!(!partner.iter().any(|p| p.contains("canine")), "{partner:?}");
+    }
+    #[test]
+    #[ignore]
+    fn pair_rigs_of_folder() {
+        // Every pair HKX in AIE_PAIR_DIR with the rigs found per role (a survey, not a check).
+        let dir = std::env::var("AIE_PAIR_DIR").expect("set AIE_PAIR_DIR");
+        for entry in fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("hkx")) {
+                if let Ok(Metadata {
+                    pair_rigs: Some(rigs), ..
+                }) = read(path.to_str().unwrap())
+                {
+                    println!("{} {:?}", path.file_name().unwrap().to_string_lossy(), rigs);
+                }
+            }
+        }
     }
     #[test]
     fn rejects_invalid_paths_and_bytes() {

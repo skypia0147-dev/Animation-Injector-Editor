@@ -1,6 +1,6 @@
 [package]
 name = "animation-injector-editor"
-version = "1.0.0"
+version = "1.0.1"
 description = "Animation Injector graph authoring editor"
 authors = ["Smooth"]
 edition = "2021"
