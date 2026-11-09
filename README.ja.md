@@ -1,4 +1,4 @@
-# Animation Injector Editor · 1.0.2
+# Animation Injector Editor · 1.0.3
 
 [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector) 用のアクション MOD を作る Windows プログラムです。HKX をカードとして置いてつなぎ、アクション（一人で行うもの・ペア）を作って、ゲームが読む XML または MOD フォルダとして出力します。
 

@@ -1,4 +1,4 @@
-# Animation Injector Editor · 1.0.2
+# Animation Injector Editor · 1.0.3
 
 用于制作 [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector) 动作模组的 Windows 程序。把 HKX 作为卡片放置并连接，制作动作（单人动作与配对动作），然后导出为游戏读取的 XML 或模组文件夹。
 

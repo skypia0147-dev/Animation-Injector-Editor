@@ -1,4 +1,4 @@
-# Animation Injector Editor · 1.0.2
+# Animation Injector Editor · 1.0.3
 
 [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector)용 동작 모드를 만드는 Windows 프로그램입니다. HKX를 카드로 놓고 연결해 동작(혼자 하는 동작·페어)을 만들고, 게임이 읽는 XML이나 모드 폴더로 내보냅니다.
 

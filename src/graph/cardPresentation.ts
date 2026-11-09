@@ -8,7 +8,7 @@ import {outcomes, qteTypes, type Outcome, type QteDesign, type QteResult, type Q
 import {qteKeyName} from '../qteFace.ts';
 import {tr} from '../i18n/korean.ts';
 import {actionRig, familyLabel, isCreatureRig, partnerRig} from '../creatureRig.ts';
-import {gamepadXml, gameControlLabel} from '../keys.ts';
+import {gamepadXml, gameControlDefaults, gameControlLabel} from '../keys.ts';
 import {choosesOrdinary, frontAngle, frontRange, pressTrigger} from '../cards.ts';
 
 export const cardWidth = (n: Pick<FlatNode, 'kind'>) =>
@@ -74,7 +74,10 @@ function qteFace(w: Workspace, n: FlatNode): QteFace | undefined {
           : times.length === 1 && !events.length
             ? tr('{seconds}초', {seconds: times[0].at.seconds})
             : tr('{length}개 시점', {length: members.length});
-  const key = q.type === 'keySequence' ? '' : q.control ? 'LMB' : qteKeyName(q.key) || '—';
+  // A game control is drawn with its default binding (the game uses the player's own); any control, not only the
+  // attack (11-09: Ready Weapon still read "Normal attack · LMB / RT").
+  const binding = q.control ? gameControlDefaults[q.control] : undefined;
+  const key = q.type === 'keySequence' ? '' : binding ? qteKeyName(binding.key) || '—' : qteKeyName(q.key) || '—';
   return {
     // Not chosen yet (11-02): drawn as the first kind, named as still to choose.
     type: q.type || 'splitArc',
@@ -92,7 +95,7 @@ function qteFace(w: Workspace, n: FlatNode): QteFace | undefined {
       q.type === 'keySequence'
         ? tr('순서 {v0}키', {v0: q.sequence?.length ?? 0})
         : q.control
-          ? tr('일반 공격 · LMB / RT')
+          ? [gameControlLabel(q.control), [key, binding?.pad].filter(Boolean).join(' / ')].join(' · ')
           : tr('키 {key}', {key}),
     start: tr('시작 · ') + start,
     rules: q.group ? members.length : 0,

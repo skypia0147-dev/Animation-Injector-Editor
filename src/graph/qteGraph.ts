@@ -6,6 +6,7 @@ import {graphPosition, moveNodes} from './projection.ts';
 import {qteMembers, qteRulePin, qtePinRule, copyQteRules} from './qteGroups.ts';
 import {animId} from './blends.ts';
 import {tr} from '../i18n/korean.ts';
+import {gameControlLabel} from '../keys.ts';
 export const qteId = (id: string) => 'qte:' + id;
 /** An event QTE's cards (runtime 0.12.248): the event that starts it, and an event a result sends. */
 export const qteEventId = (id: string) => 'qte-event:' + id;
@@ -89,7 +90,7 @@ export function projectQtes(w: Workspace, nodes: FlatNode[], edges: GraphEdge[])
             v2: q.type === '' ? tr('유형 선택') : qteTypes[q.type ?? 'splitArc'],
             speed: q.speed,
           })
-        : `${q.type === '' ? tr('유형 선택') : qteTypes[q.type ?? 'splitArc']} · ${q.control ? tr('일반 공격') : q.key} · ${q.at.basis === 'event' ? q.at.event : q.at.seconds + tr('초')} · ${q.speed}×`,
+        : `${q.type === '' ? tr('유형 선택') : qteTypes[q.type ?? 'splitArc']} · ${q.control ? gameControlLabel(q.control) : q.key} · ${q.at.basis === 'event' ? q.at.event : q.at.seconds + tr('초')} · ${q.speed}×`,
       scope: {kind: 'root'},
       action: q.owner || undefined,
       ...(q.eventStart !== undefined ? {eventQte: true} : {}),

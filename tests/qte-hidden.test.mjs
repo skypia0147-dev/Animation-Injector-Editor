@@ -39,3 +39,29 @@ test('a hidden QTE is written, read back and named on its card', () => {
   );
   assert.throws(() => importWorkspaceXml(xml.replace('hidden="true"', 'hidden="yes"')), /hidden/);
 });
+
+// A QTE bound to a game control names that control and its default key on its card, not always the attack
+// (11-09: Ready Weapon still read "Normal attack · LMB / RT").
+test('a QTE card names its game control and key', () => {
+  let w = emptyWorkspace();
+  const p = createProject('single');
+  p.actionId = 'Press';
+  p.name = 'Press';
+  p.steps[0].clip = 'Animations\Press.hkx';
+  w.actions.push(wrap(p, 'a1'));
+  const added = addChosenQte(w, 'a1', {x: 420, y: 160});
+  w = added.workspace;
+  const card = () =>
+    presentCard(
+      w,
+      flatGraph(w).nodes.find(n => n.id === added.id)
+    ).qte;
+  w.qtes[0].control = 'readyWeapon';
+  assert.equal(card().key, 'R');
+  assert.equal(card().input, '무기 꺼내기·넣기 · R / X');
+  w.qtes[0].control = 'rightAttack';
+  assert.equal(card().input, '오른손 공격 · LMB / RT');
+  // No gamepad default; a key outside the QTE's name table reads as the game draws it.
+  w.qtes[0].control = 'run';
+  assert.equal(card().input, '걷기·뛰기 · Key 42');
+});
