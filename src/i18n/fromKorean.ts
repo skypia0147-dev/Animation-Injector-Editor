@@ -5807,11 +5807,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '運搬（下ろしを含む）は三人称 HKX のみを使用します。',
     '搬运（含放下）仅使用第三人称 HKX。',
   ],
-  '페어의 1인칭 HKX는 3인칭 HKX와 같은 상대 경로여야 합니다: {v0}': [
-    "A pair's first-person HKX must have the third-person HKX's relative path: {v0}",
-    'ペアの一人称 HKX は三人称 HKX と同じ相対パスである必要があります: {v0}',
-    '配对的第一人称 HKX 必须与第三人称 HKX 的相对路径相同：{v0}',
-  ],
   '운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다': [
     'Carries (put-downs included) play in third person only (view="third")',
     '運搬（下ろす動作を含む）は三人称（view="third"）でのみ再生されます',

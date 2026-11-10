@@ -138,8 +138,8 @@ test('pairs: third whatever the file says, first or both (runtime 1.0.8); a carr
   const packaged = Object.fromEntries(assets(w).map(a => [a.clip, a]));
   assert.ok(packaged['Animations\\ViewTest\\hug.hkx'] && packaged['_1stPerson\\Animations\\ViewTest\\hug.hkx']);
   assert.ok(packaged['Animations\\ViewTest\\shove.hkx'] && !packaged['_1stPerson\\Animations\\ViewTest\\shove.hkx']);
-  // A first-person pair needs its clip too: the partner and the player's third-person graph play it.
-  assert.ok(packaged['Animations\\ViewTest\\peek.hkx'] && packaged['_1stPerson\\Animations\\ViewTest\\peek.hkx']);
+  // A first-person pair's one file is its first-person copy (the paired HKX holds both roles).
+  assert.ok(!packaged['Animations\\ViewTest\\peek.hkx'] && packaged['_1stPerson\\Animations\\ViewTest\\peek.hkx']);
   // A project default of both leaves a pair's view alone: its default stays third.
   w = setProjectView(w, 'both');
   assert.deepEqual([byId(w, 'Hug').view, actionView(w, byId(w, 'Shove'))], ['both', 'third']);
@@ -149,14 +149,13 @@ test('pairs: third whatever the file says, first or both (runtime 1.0.8); a carr
   w = setActionView(w, shove, 'third');
   w = setActionView(w, hug, 'third');
   assert.equal(byId(w, 'Hug').view, undefined);
-  // The first-person copy of the pair's own clip makes it both; another path is refused.
+  // A first-person file on a pair, as on an action: its own clip's copy makes it both, another file first person.
   const firstSource = name => `D:\\Mod\\meshes\\actors\\character\\_1stperson\\Animations\\ViewTest\\${name}`;
   w = placeStepFile(w, shove, 'A1', '_1stperson\\Animations\\ViewTest\\shove.hkx', firstSource('shove.hkx'));
   assert.equal(actionView(w, byId(w, 'Shove')), 'both');
-  assert.throws(
-    () => placeStepFile(w, shove, 'A1', '_1stperson\\Animations\\ViewTest\\other.hkx', firstSource('other.hkx')),
-    /같은 상대 경로/
-  );
+  w = placeStepFile(w, shove, 'A1', '_1stperson\\Animations\\ViewTest\\other.hkx', firstSource('other.hkx'));
+  assert.equal(actionView(w, byId(w, 'Shove')), 'first');
+  assert.equal(byId(w, 'Shove').config.steps[0].clip, 'Animations\\ViewTest\\other.hkx');
 });
 
 test('the importer rejects what the runtime rejects', () => {

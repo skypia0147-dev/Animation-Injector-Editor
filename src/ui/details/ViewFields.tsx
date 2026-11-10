@@ -123,10 +123,10 @@ export function StepFiles({
   const selectedIn = (list: LibraryEntry[]) => (selected && list.includes(selected) ? selected : undefined);
   return (
     <>
-      {(view !== 'first' || !!action.pair) &&
+      {view !== 'first' &&
         row(
           'file',
-          view !== 'third' ? t('view.thirdFile') : t('row.file'),
+          view === 'both' ? t('view.thirdFile') : t('row.file'),
           <AssetField
             scopeKey={scopeKey}
             clip={step.clip}
@@ -154,8 +154,8 @@ export function StepFiles({
             library={first}
             selected={selectedIn(first)}
             status={status}
-            // `both` and a pair share the clip's relative path: the third-person file sets it.
-            fixedPath={view === 'both' || !!action.pair}
+            // `both` shares the clip's relative path: the third-person file sets it.
+            fixedPath={view === 'both'}
             change={(clip, path) => edit(w => assignFirstPerson(w, action.uid, step.id, clip, path))}
           />
         )}
