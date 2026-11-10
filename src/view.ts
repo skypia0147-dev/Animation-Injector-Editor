@@ -2,8 +2,11 @@
 //   - third: the third-person graphs (NPCs, the third-person player); HKX under Actors\Character\<clip>
 //   - first: the player's first-person graph; HKX under Actors\Character\_1stPerson\<clip>
 //   - both: either, the camera at the start chooses; the same relative path in both folders
-// The project default is <AnimationSet view>; an action's own view overrides it. Pairs, carries and a
-// carry's putdown Action play in third person whatever the file says. A third-person action started by
+// The project default is <AnimationSet view>; an action's own view overrides it. A carry (a pair with <Carry>) and a
+// carry's putdown Action play in third person whatever the file says. A pair defaults to third whatever the file says
+// and may be first or both (runtime 1.0.8): the player plays its first-person copy in first person, while the partner
+// and the player's third-person graph play the clip itself, so a pair needs its clip in every view; a first-person
+// pair starts only in first person. A third-person action started by
 // the player in first person either does not start (block, default) or switches to third person and
 // back when it ends (firstPerson="switch"). A change of view while an action plays cancels it.
 import type {Action, Workspace} from './workspace.ts';
@@ -31,14 +34,18 @@ export const firstPersonClip = (clip: string) => FIRST_PERSON_FOLDER + '\\' + st
 export const inThird = (v: View) => v !== 'first';
 export const inFirst = (v: View) => v !== 'third';
 export const projectView = (w: Workspace): View => w.view ?? 'third';
-/** Why an action plays in third person whatever its view: a pair (carries are pairs) or a carry's putdown. */
-export function fixedThird(w: Workspace, a: Action): 'pair' | 'putdown' | '' {
-  if (a.pair) return 'pair';
+/** Why an action plays in third person whatever its view: a carry (a pair with one) or a carry's putdown. */
+export function fixedThird(w: Workspace, a: Action): 'carry' | 'putdown' | '' {
+  if (a.pair?.carry) return 'carry';
   return w.actions.some(x => x.pair?.carry?.putdownAction === a.uid) ? 'putdown' : '';
 }
+/** The views an action may take: third only for a carry and its putdown. */
+export const actionViews = (w: Workspace, a: Action): readonly View[] => (fixedThird(w, a) ? ['third'] : views);
+/** The view an action takes when it names none: the file's, a pair's third whatever the file says. */
+export const defaultView = (w: Workspace, a: Action): View => (a.pair ? 'third' : projectView(w));
 /** The view the runtime gives the action. */
 export function actionView(w: Workspace, a: Action): View {
-  return fixedThird(w, a) ? 'third' : (a.view ?? projectView(w));
+  return fixedThird(w, a) ? 'third' : (a.view ?? defaultView(w, a));
 }
 /** The player's start in first person; only a third-person action has one. */
 export const firstPersonStart = (w: Workspace, a: Action): FirstPersonStart =>
@@ -49,7 +56,8 @@ export function setProjectView(w: Workspace, view: View): Workspace {
   const next = clone(w);
   if (view === 'third') delete next.view;
   else next.view = view;
-  for (const a of next.actions) if (a.view === view) delete a.view;
+  // A pair's default is third whatever the file says: its own view stays.
+  for (const a of next.actions) if (!a.pair && a.view === view) delete a.view;
   return next;
 }
 /** Sets an action's view: the project default is stored as no override. */
@@ -57,9 +65,8 @@ export function setActionView(w: Workspace, uid: string, view: View): Workspace 
   const next = clone(w),
     a = next.actions.find(a => a.uid === uid);
   if (!a) throw new Error(tr('동작을 찾지 못했습니다.'));
-  if (fixedThird(next, a) && view !== 'third')
-    throw new Error(tr('페어·운반(내려놓기 포함)은 3인칭으로만 재생됩니다.'));
-  if (view === projectView(next)) delete a.view;
+  if (fixedThird(next, a) && view !== 'third') throw new Error(tr('운반(내려놓기 포함)은 3인칭으로만 재생됩니다.'));
+  if (view === defaultView(next, a)) delete a.view;
   else a.view = view;
   return next;
 }
@@ -73,11 +80,12 @@ export function setFirstPersonStart(w: Workspace, uid: string, start: FirstPerso
 }
 
 /** The files a step needs in the game, relative to Actors\Character: its clip in third person, its
- *  first-person copy (_1stPerson\<clip>) in first person. */
+ *  first-person copy (_1stPerson\<clip>) in first person. A pair needs its clip in every view: the partner and the
+ *  player's third-person graph play it. */
 export function stepFiles(w: Workspace, a: Action, s: Step): {clip: string; firstPerson: boolean}[] {
   const view = actionView(w, a);
   return [
-    ...(inThird(view) ? [{clip: s.clip, firstPerson: false}] : []),
+    ...(inThird(view) || a.pair ? [{clip: s.clip, firstPerson: false}] : []),
     ...(inFirst(view) && s.clip ? [{clip: firstPersonClip(s.clip), firstPerson: true}] : []),
   ];
 }
@@ -106,7 +114,8 @@ export function stepSource(
 }
 
 /** Assigns a step's first-person HKX: a file under Actors\Character\_1stPerson. A first-person action
- *  takes its clip from it; for `both` it must be the third-person clip's path. `path` '' = typed path. */
+ *  takes its clip from it; for `both` and for a pair it must be the third-person clip's path (a step with no clip
+ *  yet takes it). `path` '' = typed path. */
 export function assignFirstPerson(w: Workspace, uid: string, stepId: string, clip: string, path: string): Workspace {
   const a = w.actions.find(a => a.uid === uid),
     s = a?.config.steps.find(s => s.id === stepId);
@@ -116,10 +125,11 @@ export function assignFirstPerson(w: Workspace, uid: string, stepId: string, cli
       tr('1인칭 HKX는 meshes\\actors\\character\\{FIRST_PERSON_FOLDER} 아래의 파일을 고르세요.', {FIRST_PERSON_FOLDER})
     );
   const relative = stripFirstPerson(clip);
-  if (actionView(w, a) === 'both' && assetKey(relative) !== assetKey(s.clip))
+  const sharesPath = actionView(w, a) === 'both' || !!a.pair;
+  if (sharesPath && s.clip && assetKey(relative) !== assetKey(s.clip))
     throw new Error(tr('1인칭 파일은 3인칭과 같은 상대 경로여야 합니다: {v0}', {v0: firstPersonClip(s.clip)}));
   let next = path ? registerAssets(w, [{clip: firstPersonClip(relative), path}]) : clone(w);
-  if (actionView(next, a) === 'first' && assetKey(relative) !== assetKey(s.clip)) {
+  if ((actionView(next, a) === 'first' || !s.clip) && assetKey(relative) !== assetKey(s.clip)) {
     const step = next.actions.find(x => x.uid === uid)!.config.steps.find(x => x.id === stepId)!;
     step.clip = relative;
     step.localPath = ''; // a third-person source of the old clip
@@ -130,7 +140,8 @@ export function assignFirstPerson(w: Workspace, uid: string, stepId: string, cli
 /** A file dropped or picked for a step's HKX, third- or first-person by its folder. The action's view
  *  follows the file: a first-person file on a third-person action makes it `both` when it is the same
  *  animation (same relative path), else `first`; a third-person file on a first-person action likewise
- *  makes it `both` or `third`. Pairs and putdowns take third-person files only. */
+ *  makes it `both` or `third`. A pair takes the first-person copy of its own clip only (it becomes `both`); a carry
+ *  and its putdown take third-person files only. */
 export function placeStepFile(w: Workspace, uid: string, stepId: string, clip: string, path: string): Workspace {
   const a = w.actions.find(a => a.uid === uid),
     s = a?.config.steps.find(s => s.id === stepId);
@@ -139,11 +150,18 @@ export function placeStepFile(w: Workspace, uid: string, stepId: string, clip: s
     view = actionView(w, a),
     same = !!s.clip && assetKey(stripFirstPerson(clip)) === assetKey(s.clip);
   if (first) {
-    if (fixedThird(w, a)) throw new Error(tr('페어·운반(내려놓기 포함)은 3인칭 HKX만 씁니다.'));
-    const next = view === 'first' || (view === 'both' && same) ? w : setActionView(w, uid, same ? 'both' : 'first');
+    if (fixedThird(w, a)) throw new Error(tr('운반(내려놓기 포함)은 3인칭 HKX만 씁니다.'));
+    // A pair keeps one clip in both folders: the copy of its own clip (or the first file of an empty one) only.
+    if (a.pair && s.clip && !same)
+      throw new Error(
+        tr('페어의 1인칭 HKX는 3인칭 HKX와 같은 상대 경로여야 합니다: {v0}', {v0: firstPersonClip(s.clip)})
+      );
+    const keep = view === 'first' || (view === 'both' && (same || !!a.pair));
+    const next = keep ? w : setActionView(w, uid, same || a.pair ? 'both' : 'first');
     return assignFirstPerson(next, uid, stepId, clip, path);
   }
-  const next = view === 'first' ? setActionView(w, uid, same ? 'both' : 'third') : clone(w);
+  // A pair plays its clip in every view: a third-person file never changes its view.
+  const next = view === 'first' && !a.pair ? setActionView(w, uid, same ? 'both' : 'third') : clone(w);
   const target = next.actions.find(x => x.uid === uid)!,
     step = target.config.steps.find(x => x.id === stepId)!;
   step.clip = clip;

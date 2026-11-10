@@ -14,7 +14,7 @@ import type {EventRow} from './eventRegistry.ts';
 import type {Workspace, Link} from './workspace.ts';
 import {parseXml, shapeXml, one} from './xml.ts';
 import type {Xml} from './xml.ts';
-import {views, firstPersonStarts, actionView, fixedThird} from './view.ts';
+import {views, firstPersonStarts, actionView, defaultView, fixedThird} from './view.ts';
 import {readQtes, readEventQtes} from './qte.ts';
 import {checkKinds} from './cardChecks.ts';
 import {
@@ -645,18 +645,19 @@ export function importWorkspaceXml(text: string): Workspace {
       if (!destination) throw Error(tr('운반: 내려놓기 동작이 없습니다.'));
       a.pair.carry.putdownAction = destination.uid;
     }
-  // Views, once the putdowns are known: pairs and putdowns play in third person whatever the file says.
+  // Views, once the putdowns are known: carries and putdowns play in third person whatever the file says, a pair in
+  // third person unless written first or both (runtime 1.0.8).
   for (const a of w.actions) {
     const n = source.get(a.uid)!;
-    const view = choice(n, 'view', views, fixedThird(w, a) ? 'third' : (w.view ?? 'third'));
+    const view = choice(n, 'view', views, fixedThird(w, a) ? 'third' : defaultView(w, a));
     if (fixedThird(w, a)) {
       if (view !== 'third')
         throw new Error(
-          tr('{actionId}: 페어·운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.', {
+          tr('{actionId}: 운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.', {
             actionId: a.config.actionId,
           })
         );
-    } else if (view !== (w.view ?? 'third')) a.view = view;
+    } else if (view !== defaultView(w, a)) a.view = view;
     const start = choice(n, 'firstPerson', firstPersonStarts, 'block');
     if (n.attrs.firstPerson !== undefined && actionView(w, a) !== 'third')
       throw new Error(

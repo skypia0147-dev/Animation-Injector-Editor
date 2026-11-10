@@ -8,6 +8,8 @@ import {assetKey} from '../../package.ts';
 import {t} from '../../i18n/index.ts';
 import {
   actionView,
+  actionViews,
+  defaultView,
   assignFirstPerson,
   firstPersonClip,
   firstPersonStart,
@@ -15,7 +17,6 @@ import {
   fixedThird,
   isFirstPersonClip,
   placeStepFile,
-  projectView,
   setActionView,
   setFirstPersonStart,
   views,
@@ -29,10 +30,16 @@ export type ViewRow = (id: LabelId, label: string, control: ReactNode, hint?: st
 type Edit = (fn: (w: Workspace) => Workspace) => void;
 
 export const viewName = (v: View) => t('view.' + v);
-export const viewOptions = (base: View) =>
-  views.map(v => [v, v === base ? t('view.default', {view: viewName(v)}) : viewName(v)] as const);
+/** The views offered, the default one marked: the project's, or a pair's own (third whatever the project says). */
+export const viewOptions = (base: View, list: readonly View[] = views, pair = false) =>
+  list.map(
+    v => [v, v === base ? t(pair ? 'view.pairDefault' : 'view.default', {view: viewName(v)}) : viewName(v)] as const
+  );
 const cancelHint = (v: View) =>
   t(v === 'third' ? 'view.cancelThird' : v === 'first' ? 'view.cancelFirst' : 'view.cancelBoth');
+// A pair written first or both plays its first-person copy in first person (runtime 1.0.8).
+const hint = (pair: boolean, v: View) =>
+  pair && v !== 'third' ? t(v === 'first' ? 'view.pairFirst' : 'view.pairBoth') : cancelHint(v);
 
 /** The view select and, for a third-person action, what the player's first-person camera does. */
 export function ViewFields({w, action, edit, row}: {w: Workspace; action: Action; edit: Edit; row: ViewRow}) {
@@ -45,7 +52,7 @@ export function ViewFields({w, action, edit, row}: {w: Workspace; action: Action
         t('row.view'),
         fixed ? (
           <select aria-label={t('row.view')} value="third" disabled>
-            <option value="third">{t(fixed === 'pair' ? 'view.fixedPair' : 'view.fixedPutdown')}</option>
+            <option value="third">{t(fixed === 'carry' ? 'view.fixedCarry' : 'view.fixedPutdown')}</option>
           </select>
         ) : (
           <select
@@ -53,14 +60,14 @@ export function ViewFields({w, action, edit, row}: {w: Workspace; action: Action
             value={view}
             onChange={e => edit(w => setActionView(w, action.uid, e.target.value as View))}
           >
-            {viewOptions(projectView(w)).map(([v, label]) => (
+            {viewOptions(defaultView(w, action), actionViews(w, action), !!action.pair).map(([v, label]) => (
               <option key={v} value={v}>
                 {label}
               </option>
             ))}
           </select>
         ),
-        cancelHint(view)
+        hint(!!action.pair, view)
       )}
       {view === 'third' &&
         fixed !== 'putdown' &&
@@ -116,10 +123,10 @@ export function StepFiles({
   const selectedIn = (list: LibraryEntry[]) => (selected && list.includes(selected) ? selected : undefined);
   return (
     <>
-      {view !== 'first' &&
+      {(view !== 'first' || !!action.pair) &&
         row(
           'file',
-          view === 'both' ? t('view.thirdFile') : t('row.file'),
+          view !== 'third' ? t('view.thirdFile') : t('row.file'),
           <AssetField
             scopeKey={scopeKey}
             clip={step.clip}
@@ -147,8 +154,8 @@ export function StepFiles({
             library={first}
             selected={selectedIn(first)}
             status={status}
-            // `both` shares the clip's relative path: the third-person file sets it.
-            fixedPath={view === 'both'}
+            // `both` and a pair share the clip's relative path: the third-person file sets it.
+            fixedPath={view === 'both' || !!action.pair}
             change={(clip, path) => edit(w => assignFirstPerson(w, action.uid, step.id, clip, path))}
           />
         )}

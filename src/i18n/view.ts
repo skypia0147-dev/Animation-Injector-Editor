@@ -30,7 +30,20 @@ const entries: Record<string, [string, string, string, string]> = {
     '{view}(プロジェクト既定)',
     '{view}（项目默认）',
   ],
-  'view.fixedPair': ['Third person (pair)', '3인칭 (페어 고정)', '三人称(ペア固定)', '第三人称（配对固定）'],
+  'view.pairDefault': ['{view} (pair default)', '{view} (페어 기본)', '{view}(ペア既定)', '{view}（配对默认）'],
+  'view.pairFirst': [
+    'Starts in first person only: the player plays the first-person file, the partner the third-person file.',
+    '1인칭에서만 시작합니다. 플레이어는 1인칭 파일로, 상대는 3인칭 파일로 재생합니다.',
+    '一人称でのみ開始します。プレイヤーは一人称ファイル、相手は三人称ファイルで再生します。',
+    '仅在第一人称时开始。玩家使用第一人称文件，对方使用第三人称文件播放。',
+  ],
+  'view.fixedCarry': ['Third person (carry)', '3인칭 (운반 고정)', '三人称(運搬固定)', '第三人称（搬运固定）'],
+  'view.pairBoth': [
+    'In first person the player plays the first-person file (the partner plays in third person); without it, third person.',
+    '1인칭이면 플레이어는 1인칭 파일로 재생합니다(상대는 3인칭). 1인칭 파일이 없으면 3인칭으로 재생합니다.',
+    '一人称ならプレイヤーは一人称ファイルで再生します(相手は三人称)。一人称ファイルがなければ三人称で再生します。',
+    '第一人称时玩家用第一人称文件播放（对方为第三人称）。没有第一人称文件时以第三人称播放。',
+  ],
   'view.fixedPutdown': [
     'Third person (carry putdown)',
     '3인칭 (운반 내려놓기 고정)',

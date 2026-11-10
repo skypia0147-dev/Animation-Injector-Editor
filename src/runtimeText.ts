@@ -172,7 +172,7 @@ const pieces = [
   trFragment('키, 패드 버튼 또는 control이 필요합니다'),
   trFragment('패드 버튼 코드는 정수여야 합니다'),
   trFragment('페어 역할 기능은 <Do at>으로 선언해야 합니다'),
-  trFragment('페어·운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다'),
+  trFragment('운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다'),
   trFragment('행 안의 <Condition>에는 id를 쓰지 않습니다(함께 쓰는 카드는 루트에)'),
   trFragment('행에 쓸 수 없는 요소입니다(조건 <Check>·<And>·<Or>와 이어지는 <Condition>)'),
   trFragment('행에는 to, condition, 이어지는 <Condition> 중 하나가 필요합니다'),

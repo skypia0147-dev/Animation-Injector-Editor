@@ -59,7 +59,7 @@ const views = xml(
 );
 const byId = (w, id) => w.actions.find(a => a.config.actionId === id);
 
-test('views round-trip: the file default, overrides, and third person for pairs and putdowns', needsChecker, () => {
+test('views round-trip: the file default, overrides, and third person for carries and putdowns', needsChecker, () => {
   const source = folder + '/views.xml';
   fs.writeFileSync(source, views);
   assert.equal(run(source).status, 0);
@@ -102,9 +102,70 @@ test('views round-trip: the file default, overrides, and third person for pairs 
   });
 });
 
+test('pairs: third whatever the file says, first or both (runtime 1.0.8); a carry stays third', needsChecker, () => {
+  const pairs = xml(
+    `<Start input="use" to="Hug"/>
+<Pair id="Hug" clip="Animations\\ViewTest\\hug.hkx" view="both"><FindPartner range="200" angle="90"/></Pair>
+<Start input="use" to="Shove"/>
+<Pair id="Shove" clip="Animations\\ViewTest\\shove.hkx"><FindPartner range="200" angle="90"/></Pair>
+<Start input="use" to="Peek"/>
+<Pair id="Peek" clip="Animations\\ViewTest\\peek.hkx" view="first"><FindPartner range="200" angle="90"/></Pair>`,
+    ' view="first"'
+  );
+  const source = folder + '/pairs.xml';
+  fs.writeFileSync(source, pairs);
+  assert.equal(run(source).status, 0);
+  let w = importWorkspaceXml(pairs);
+  const hug = byId(w, 'Hug').uid,
+    shove = byId(w, 'Shove').uid;
+  assert.equal(byId(w, 'Hug').view, 'both');
+  assert.equal(byId(w, 'Shove').view, undefined, "a pair's default is third, not the file's first");
+  assert.deepEqual(
+    ['Hug', 'Shove', 'Peek'].map(id => actionView(w, byId(w, id))),
+    ['both', 'third', 'first']
+  );
+  const out = compileWorkspace(w);
+  assert.match(out, /<Pair id="Hug"[^>]* view="both"/);
+  assert.doesNotMatch(out, /<Pair id="Shove"[^>]* view=/);
+  assert.match(out, /<Pair id="Peek"[^>]* view="first"/);
+  const back = folder + '/pairs-back.xml';
+  fs.writeFileSync(back, out);
+  assert.equal(run(back).status, 0);
+  const compared = run('--compare', source, back);
+  assert.equal(compared.status, 0, compared.stdout + compared.stderr);
+  assert.deepEqual(runtimeViews(back), {ViewTest_Hug: 'view20', ViewTest_Shove: 'view00', ViewTest_Peek: 'view10'});
+  // The packaged files: the pair's clip and, written both, its first-person copy.
+  const packaged = Object.fromEntries(assets(w).map(a => [a.clip, a]));
+  assert.ok(packaged['Animations\\ViewTest\\hug.hkx'] && packaged['_1stPerson\\Animations\\ViewTest\\hug.hkx']);
+  assert.ok(packaged['Animations\\ViewTest\\shove.hkx'] && !packaged['_1stPerson\\Animations\\ViewTest\\shove.hkx']);
+  // A first-person pair needs its clip too: the partner and the player's third-person graph play it.
+  assert.ok(packaged['Animations\\ViewTest\\peek.hkx'] && packaged['_1stPerson\\Animations\\ViewTest\\peek.hkx']);
+  // A project default of both leaves a pair's view alone: its default stays third.
+  w = setProjectView(w, 'both');
+  assert.deepEqual([byId(w, 'Hug').view, actionView(w, byId(w, 'Shove'))], ['both', 'third']);
+  // Any view; third is the default, stored as none.
+  w = setActionView(w, shove, 'first');
+  assert.equal(byId(w, 'Shove').view, 'first');
+  w = setActionView(w, shove, 'third');
+  w = setActionView(w, hug, 'third');
+  assert.equal(byId(w, 'Hug').view, undefined);
+  // The first-person copy of the pair's own clip makes it both; another path is refused.
+  const firstSource = name => `D:\\Mod\\meshes\\actors\\character\\_1stperson\\Animations\\ViewTest\\${name}`;
+  w = placeStepFile(w, shove, 'A1', '_1stperson\\Animations\\ViewTest\\shove.hkx', firstSource('shove.hkx'));
+  assert.equal(actionView(w, byId(w, 'Shove')), 'both');
+  assert.throws(
+    () => placeStepFile(w, shove, 'A1', '_1stperson\\Animations\\ViewTest\\other.hkx', firstSource('other.hkx')),
+    /같은 상대 경로/
+  );
+});
+
 test('the importer rejects what the runtime rejects', () => {
   const reject = (body, root, pattern) => assert.throws(() => importWorkspaceXml(xml(body, root)), pattern);
-  reject(`<Pair id="P" clip="a.hkx" view="first"/>`, '', /3인칭/);
+  reject(
+    `<Pair id="P" clip="a.hkx" view="first"><FindPartner/><Carry bone="NPC R Hand [RHnd]" targetRoot="NPC Root [Root]" putdown="L" input="use"/></Pair><Action id="L" clip="l.hkx"><CarryRelease at="0.5"/></Action>`,
+    '',
+    /3인칭/
+  );
   reject(`<Action id="A" clip="a.hkx" view="first" firstPerson="switch"/>`, '', /firstPerson/);
   reject(`<Action id="A" clip="a.hkx" firstPerson="switch"/>`, ' view="both"', /firstPerson/);
   reject(`<Action id="A" clip="a.hkx" view="side"/>`, '', /지원하지 않는 값/);

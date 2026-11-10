@@ -1,11 +1,11 @@
-# Animation Injector Editor · 1.0.3
+# Animation Injector Editor · 1.0.4
 
 [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector)용 동작 모드를 만드는 Windows 프로그램입니다. HKX를 카드로 놓고 연결해 동작(혼자 하는 동작·페어)을 만들고, 게임이 읽는 XML이나 모드 폴더로 내보냅니다.
 
 ## 필요 사항
 
 - Windows 10/11 x64, Microsoft Edge WebView2 런타임(Windows 11에는 기본으로 들어 있음)
-- 게임에서 쓰려면 **Animation Injector 1.0.0 이상**과 그 필수 모드(크리처 동작은 1.0.3 이상, 최근 이벤트·공격 중 조건은 1.0.4 이상)
+- 게임에서 쓰려면 **Animation Injector 1.0.0 이상**과 그 필수 모드(크리처 동작은 1.0.3 이상, 최근 이벤트·공격 중 조건은 1.0.4 이상, 1인칭 페어(인칭 1인칭·둘 다)는 1.0.8 이상)
 - 함께 든 `AnimationInjectorXmlCheck.exe`를 `AnimationInjectorEditor.exe`와 같은 폴더에 두세요. 저장할 때 게임이 그 XML을 읽을 수 있는지 검사합니다. 없으면 검사 없이 저장하고 경고를 보여 줍니다.
 
 ## 처음 만들기

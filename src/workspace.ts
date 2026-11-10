@@ -35,7 +35,7 @@ import {
   eventKey,
 } from './eventRegistry.ts';
 import type {EventRow} from './eventRegistry.ts';
-import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts} from './view.ts';
+import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts, defaultView} from './view.ts';
 import type {View, FirstPersonStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
 import {
@@ -1093,8 +1093,9 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
     pair = a.pair,
     input = (id: string) => keyAttrs(config.inputs.find(i => i.id === id));
   const out = actionXml(config, a);
-  // The view when it is not the file's; pairs and putdowns play in third person whatever it says.
-  if (!fixedThird(w, a) && actionView(w, a) !== projectView(w)) out.attrs.view = actionView(w, a);
+  // The view when it is not the action's default (the file's; a pair's third); carries and putdowns play in third
+  // person whatever it says.
+  if (!fixedThird(w, a) && actionView(w, a) !== defaultView(w, a)) out.attrs.view = actionView(w, a);
   if (actionView(w, a) === 'third' && a.firstPerson === 'switch') out.attrs.firstPerson = 'switch';
   out.children.push(...qteXml(w, a, x));
   // A vanilla transition: its id when it is not the one the runtime gives it (cancel1, cancel2, ... by position);

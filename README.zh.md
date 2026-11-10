@@ -1,11 +1,11 @@
-# Animation Injector Editor · 1.0.3
+# Animation Injector Editor · 1.0.4
 
 用于制作 [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector) 动作模组的 Windows 程序。把 HKX 作为卡片放置并连接，制作动作（单人动作与配对动作），然后导出为游戏读取的 XML 或模组文件夹。
 
 ## 系统要求
 
 - Windows 10/11 x64，Microsoft Edge WebView2 运行时（Windows 11 已自带）
-- 在游戏中使用需要 **Animation Injector 1.0.0 或更高版本** 及其前置模组（生物动作需要 1.0.3 或更高版本，最近事件和攻击中条件需要 1.0.4 或更高版本）
+- 在游戏中使用需要 **Animation Injector 1.0.0 或更高版本** 及其前置模组（生物动作需要 1.0.3 或更高版本，最近事件和攻击中条件需要 1.0.4 或更高版本，第一人称配对（视角“第一人称”“两者”）需要 1.0.8 或更高版本）
 - 请把附带的 `AnimationInjectorXmlCheck.exe` 与 `AnimationInjectorEditor.exe` 放在同一文件夹。保存时它会检查游戏能否读取该 XML。缺少该文件时会不经检查直接保存并显示警告。
 
 ## 第一次制作

@@ -1,11 +1,11 @@
-# Animation Injector Editor · 1.0.3
+# Animation Injector Editor · 1.0.4
 
 A Windows program for making action mods for [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector). Place HKX files as cards and connect them to build actions (done alone or as pairs), then export the XML the game reads or a mod folder.
 
 ## Requirements
 
 - Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later)
+- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later, a pair in first person (view First or Both) 1.0.8 or later)
 - Keep the included `AnimationInjectorXmlCheck.exe` in the same folder as `AnimationInjectorEditor.exe`. When you save, it checks that the game can read the XML. Without it the editor saves unchecked and shows a warning.
 
 ## Getting started

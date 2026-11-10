@@ -1373,10 +1373,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{actionId}: firstPerson は三人称アクション（view="third"）にのみ使用します。',
     '{actionId}：firstPerson 仅用于第三人称动作（view="third"）。',
   ],
-  '{actionId}: 페어·운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.': [
-    '{actionId}: pairs and carries (including putdown) only play in third person (view="third").',
-    '{actionId}: ペアと運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
-    '{actionId}：配对与搬运（含放下）仅以第三人称（view="third"）播放。',
+  '{actionId}: 운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.': [
+    '{actionId}: carries (including putdown) only play in third person (view="third").',
+    '{actionId}: 運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
+    '{actionId}：搬运（含放下）仅以第三人称（view="third"）播放。',
   ],
   '{first}와 {second}가 같은 순간에 같은 채널 {channel}에서 시작합니다. 게임은 먼저 온 하나만 띄우고 다른 하나는 건너뜁니다. 둘 중 하나의 채널을 바꾸세요.':
     [
@@ -5802,20 +5802,25 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ペアトラックはクリップ時刻でのみ決めます。',
     '配对轨道只能按片段时间设置。',
   ],
-  '페어·운반(내려놓기 포함)은 3인칭 HKX만 씁니다.': [
-    'Pairs and carries (including put down) only use third-person HKX.',
-    'ペア・運搬（下ろしを含む）は三人称 HKX のみを使用します。',
-    '配对·搬运（含放下）仅使用第三人称 HKX。',
+  '운반(내려놓기 포함)은 3인칭 HKX만 씁니다.': [
+    'Carries (including put down) only use third-person HKX.',
+    '運搬（下ろしを含む）は三人称 HKX のみを使用します。',
+    '搬运（含放下）仅使用第三人称 HKX。',
   ],
-  '페어·운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다': [
-    'Pairs and carries (put-downs included) play in third person only (view="third")',
-    'ペア・運搬（下ろす動作を含む）は三人称（view="third"）でのみ再生されます',
-    '配对与搬运（含放下）只以第三人称（view="third"）播放',
+  '페어의 1인칭 HKX는 3인칭 HKX와 같은 상대 경로여야 합니다: {v0}': [
+    "A pair's first-person HKX must have the third-person HKX's relative path: {v0}",
+    'ペアの一人称 HKX は三人称 HKX と同じ相対パスである必要があります: {v0}',
+    '配对的第一人称 HKX 必须与第三人称 HKX 的相对路径相同：{v0}',
   ],
-  '페어·운반(내려놓기 포함)은 3인칭으로만 재생됩니다.': [
-    'Pairs and carries (including put down) only play in third person.',
-    'ペア・運搬（下ろしを含む）は三人称でのみ再生されます。',
-    '配对·搬运（含放下）仅以第三人称播放。',
+  '운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다': [
+    'Carries (put-downs included) play in third person only (view="third")',
+    '運搬（下ろす動作を含む）は三人称（view="third"）でのみ再生されます',
+    '搬运（含放下）只以第三人称（view="third"）播放',
+  ],
+  '운반(내려놓기 포함)은 3인칭으로만 재생됩니다.': [
+    'Carries (including put down) only play in third person.',
+    '運搬（下ろしを含む）は三人称でのみ再生されます。',
+    '搬运（含放下）仅以第三人称播放。',
   ],
   '페어는 RootBehaviorGraph의 단일 HKX와 역할별 연출을 사용합니다.': [
     'Pairs use a single HKX in RootBehaviorGraph and role-based effects.',
