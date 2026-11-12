@@ -177,3 +177,10 @@
   width: calc(100% - 155px);
   margin-left: 145px;
 }
+/* No action chosen: what to do, alone and in the middle (11-12 audit). */
+.notify-none {
+  margin: 0;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--ue-dim);
+}

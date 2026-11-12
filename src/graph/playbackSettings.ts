@@ -1,22 +1,21 @@
 import type {Action, Workspace} from '../workspace.ts';
 import {putAction} from '../workspace.ts';
 import {createProject} from '../model.ts';
-import {actionView, firstPersonStart, fixedThird} from '../view.ts';
+import {offersOtherView, otherViewStart, fixedThird} from '../view.ts';
 import {sharesSourceWindow} from './playback.ts';
 
 // An HKX card's playback settings (unify ⑩, ChecklistCard.tsx): which differ from their default (a chip on the card)
 // and how each goes back to it. tests/card-xml.test.mjs writes their XML.
 
-export type PlaybackSetting = 'kind' | 'view' | 'firstPerson' | 'air' | 'detection' | 'exit' | 'attack';
+export type PlaybackSetting = 'kind' | 'view' | 'otherView' | 'air' | 'detection' | 'exit' | 'attack';
 /** Each setting: whether it applies to this action and whether it is set (not its default). */
 export function playbackState(w: Workspace, a: Action, step: string) {
   const p = a.config,
-    fixed = fixedThird(w, a),
-    view = actionView(w, a);
+    fixed = fixedThird(w, a);
   return {
     kind: {applies: true, set: !!a.pair},
     view: {applies: !fixed, set: a.view !== undefined},
-    firstPerson: {applies: view === 'third' && fixed !== 'putdown', set: firstPersonStart(w, a) !== 'block'},
+    otherView: {applies: offersOtherView(w, a), set: otherViewStart(w, a) !== 'block'},
     // Where it may start (11-01: a playback setting, no longer a 「+ 기능」 item): the ground only is the default.
     air: {applies: true, set: p.air !== 'deny'},
     // The detection window is what the key transitions out of this HKX read when they share it (sourceLinks): with none

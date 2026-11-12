@@ -1102,20 +1102,6 @@ export function eventSlots(w: Workspace): EventSlot[] {
         local: tr('감지 창 끝'),
       });
     }
-    for (const c of a.cancels) {
-      out.push({
-        label: tr('바닐라 전환 시작 · {name}', {name}),
-        node: hkx,
-        mark: c.open,
-        local: tr('바닐라 전환 시작'),
-      });
-      out.push({
-        label: tr('바닐라 전환 끝 · {name}', {name}),
-        node: hkx,
-        mark: c.close,
-        local: tr('바닐라 전환 끝'),
-      });
-    }
     if (p.carryRelease)
       out.push({
         label: tr('대상 놓기 · {name}', {name}),
@@ -1202,6 +1188,25 @@ export function shortUses(name: string, uses: EventUse[]): string[] {
         ? `${labels[0]} ×${labels.length}`
         : labels[0]
   );
+}
+/** The kind of card a use sits on, from its node: the colour its words take on the registry card. */
+export type UseKind = 'qte' | 'start' | 'link' | 'hkx';
+export const useKind = (node: string): UseKind =>
+  node.startsWith('qte:')
+    ? 'qte'
+    : node.startsWith('startCard:')
+      ? 'start'
+      : node.startsWith('transition:')
+        ? 'link'
+        : 'hkx';
+/** The card kind of each of shortUses' texts, in their order. */
+export function shortUseKinds(uses: EventUse[]): UseKind[] {
+  const kinds = new Map<string, UseKind>();
+  for (const u of uses) {
+    const kind = u.label.split(' · ')[0];
+    if (!kinds.has(kind)) kinds.set(kind, useKind(u.node));
+  }
+  return [...kinds.values()];
 }
 /** Uses with the same label, in first-seen order; `text` adds the count ("×21") when repeated. */
 export type UseGroup = {label: string; text: string; uses: EventUse[]};

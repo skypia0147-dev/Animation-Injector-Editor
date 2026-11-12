@@ -27,7 +27,7 @@ export const keyAttrs = (i: Pick<Input, 'key' | 'gamepad' | 'control'> | undefin
         key: i?.key || undefined,
         gamepad: i?.gamepad ? gamepadXml(i.gamepad) : undefined,
       };
-/** A transition's window attributes (format 6, on <Transition>/<Vanilla>): from defaults to the clip start, until
+/** A transition's window attributes (format 6, on <Transition>): from defaults to the clip start, until
  *  to its end, and the buffer is on. */
 export const windowAttrs = (open: Mark, close: Mark, buffered: boolean) =>
   omitDefaults(
@@ -35,7 +35,7 @@ export const windowAttrs = (open: Mark, close: Mark, buffered: boolean) =>
     {from: '0', until: 'end', buffer: true}
   );
 /** An HKX card's own settings as the runtime reads them (format 6, <Action> attributes and its moments). The workspace
- *  adds the rest (workspace.ts actionElement): QTEs, vanilla transitions, pair settings, functions, transitions. */
+ *  adds the rest (workspace.ts actionElement): QTEs, pair settings, functions, transitions. */
 export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendEnabled: boolean}): Xml {
   const errors = validate(p).filter(i => i.level === 'error');
   if (errors.length) throw new Error(errors.map(i => i.message).join('\n'));

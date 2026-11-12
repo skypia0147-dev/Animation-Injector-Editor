@@ -4,6 +4,7 @@ import {t} from '../../i18n/index.ts';
 import {capturedKey} from './keyCapture.ts';
 import {tr} from '../../i18n/korean.ts';
 import {gameControlLabel, gameControls, type GameControl} from '../../keys.ts';
+import {DetailRow} from './DetailRow.tsx';
 export const gamepadButtons = [
   ['—', 0],
   ['A', 4096],
@@ -31,6 +32,7 @@ export function KeyField({
   control,
   changeControl,
   labeled = false,
+  rows = false,
 }: {
   value: string;
   change: (s: string) => void;
@@ -40,6 +42,8 @@ export function KeyField({
   control?: GameControl;
   changeControl?: (control: GameControl | undefined) => void;
   labeled?: boolean;
+  /** On a card (11-11 audit): a row for each control, named (키 · 키보드 · 게임패드), instead of one stack. */
+  rows?: boolean;
 }) {
   const [capture, setCapture] = useState(false),
     [message, setMessage] = useState('');
@@ -75,7 +79,7 @@ export function KeyField({
       value={control ?? ''}
       onChange={e => changeControl((e.target.value || undefined) as GameControl | undefined)}
     >
-      <option value="">{tr('키·패드 직접 지정')}</option>
+      <option value="">{rows ? tr('직접 지정') : tr('키·패드 직접 지정')}</option>
       <optgroup label={tr('게임 동작')}>
         {gameControls.map(c => (
           <option key={c} value={c}>
@@ -85,23 +89,33 @@ export function KeyField({
       </optgroup>
     </select>
   );
-  if (control) return <div className="key-field">{controlPicker}</div>;
-  return (
-    <div className="key-field">
-      {controlPicker}
-      {labeled && <span>{tr('키보드·마우스')}</span>}
-      <div className="key-main">
-        <input aria-label={t('node.keyInput')} list={id} value={value} onChange={e => change(e.target.value)} />
-        <datalist id={id}>
-          {keys.map(k => (
-            <option key={k} value={k} />
-          ))}
-        </datalist>
+  const keyboard = (
+    <div className={'key-main' + (rows ? ' compact' : '')}>
+      <input aria-label={t('node.keyInput')} list={id} value={value} onChange={e => change(e.target.value)} />
+      <datalist id={id}>
+        {keys.map(k => (
+          <option key={k} value={k} />
+        ))}
+      </datalist>
+      {rows ? (
+        // The key gets the row's width: the button is its sign alone, named in its tooltip.
+        <button
+          aria-pressed={capture}
+          aria-label={t('row.pressKey')}
+          onClick={() => setCapture(!capture)}
+          title={t('row.pressKey') + ' · ' + t('detail.captureHint')}
+        >
+          ⌨
+        </button>
+      ) : (
         <button aria-pressed={capture} onClick={() => setCapture(!capture)} title={t('detail.captureHint')}>
           ⌨ {t(capture ? 'detail.capture' : 'row.pressKey')}
         </button>
-      </div>
-      {labeled && <span>{tr('컨트롤러')}</span>}
+      )}
+    </div>
+  );
+  const pad = (
+    <>
       <select
         aria-label={t('row.gamepadButton')}
         value={showCode ? 'custom' : gamepad}
@@ -127,6 +141,35 @@ export function KeyField({
           onChange={e => changeGamepad(Number(e.target.value))}
         />
       )}
+    </>
+  );
+  if (rows)
+    return (
+      <>
+        <DetailRow label={tr('키')}>{controlPicker}</DetailRow>
+        {!control && (
+          <>
+            <DetailRow label={tr('키보드')}>
+              <div className="key-field">
+                {keyboard}
+                {message && <span role="status">{message}</span>}
+              </div>
+            </DetailRow>
+            <DetailRow label={tr('게임패드')}>
+              <div className="key-field">{pad}</div>
+            </DetailRow>
+          </>
+        )}
+      </>
+    );
+  if (control) return <div className="key-field">{controlPicker}</div>;
+  return (
+    <div className="key-field">
+      {controlPicker}
+      {labeled && <span>{tr('키보드·마우스')}</span>}
+      {keyboard}
+      {labeled && <span>{tr('컨트롤러')}</span>}
+      {pad}
       {message && <span role="status">{message}</span>}
     </div>
   );

@@ -18,7 +18,7 @@ import {
   startMode,
 } from '../src/graph/cardEdits.ts';
 import {playbackState, resetAttack, resetDetection, resetExit} from '../src/graph/playbackSettings.ts';
-import {setActionView, setFirstPersonStart, projectView} from '../src/view.ts';
+import {setActionView, setOtherViewStart, projectView} from '../src/view.ts';
 import {setSourceWindow} from '../src/graph/clipWindows.ts';
 import {addConnected, contextualAdds} from '../src/graph/contextAdd.ts';
 import {deleteFlat} from '../src/graph/flat.ts';
@@ -208,9 +208,9 @@ const scenarios = [
   ],
   // ── HKX 카드 재생 설정 (⑩) ──
   [
-    'H1 1인칭에서 기본값으로',
+    'H1 시점 전환 기본값으로',
     DDS,
-    w => setFirstPersonStart(w, 'a1', 'block'),
+    w => setOtherViewStart(w, 'a1', 'block'),
     ['<Action id="BowDodge_B1" clip="Animations\\DynamicDodgeShot\\BowDodgeBack.hkx">'],
     [],
   ],
@@ -370,9 +370,9 @@ test('card XML: the HKX chips follow the XML', () => {
   assert.equal(state(ownDetection(chain)).detection.set, true);
   assert.equal(state(resetDetection(ownDetection(chain), 'a1', entry)).detection.set, false);
   const dds = importWorkspaceXml(fixture(DDS)),
-    first = w => playbackState(w, w.actions[0], w.actions[0].config.entry).firstPerson.set;
+    first = w => playbackState(w, w.actions[0], w.actions[0].config.entry).otherView.set;
   assert.equal(first(dds), true);
-  assert.equal(first(setFirstPersonStart(dds, 'a1', 'block')), false);
+  assert.equal(first(setOtherViewStart(dds, 'a1', 'block')), false);
 });
 test('card XML: the runtime checker takes every result', needsChecker, () => {
   assert.equal(written.length, scenarios.length);

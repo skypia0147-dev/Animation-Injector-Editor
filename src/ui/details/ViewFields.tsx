@@ -12,16 +12,16 @@ import {
   defaultView,
   assignFirstPerson,
   firstPersonClip,
-  firstPersonStart,
-  firstPersonStarts,
+  offersOtherView,
+  otherViewStart,
   fixedThird,
   isFirstPersonClip,
   placeStepFile,
   setActionView,
-  setFirstPersonStart,
+  setOtherViewStart,
   views,
 } from '../../view.ts';
-import type {FirstPersonStart, View} from '../../view.ts';
+import type {View} from '../../view.ts';
 import {AssetField} from './AssetField.tsx';
 import {actionRig, isCreatureRig, rigRoot} from '../../creatureRig.ts';
 
@@ -41,7 +41,10 @@ const cancelHint = (v: View) =>
 const hint = (pair: boolean, v: View) =>
   pair && v !== 'third' ? t(v === 'first' ? 'view.pairFirst' : 'view.pairBoth') : cancelHint(v);
 
-/** The view select and, for a third-person action, what the player's first-person camera does. */
+/** What the switch does for an action of `view`: the camera goes to its view and back. */
+export const switchName = (view: View) => t(view === 'first' ? 'view.switchFirst' : 'view.switchThird');
+
+/** The view select and, for an action of one view, whether the player's camera in the other view switches to it. */
 export function ViewFields({w, action, edit, row}: {w: Workspace; action: Action; edit: Edit; row: ViewRow}) {
   const fixed = fixedThird(w, action),
     view = actionView(w, action);
@@ -69,22 +72,18 @@ export function ViewFields({w, action, edit, row}: {w: Workspace; action: Action
         ),
         hint(!!action.pair, view)
       )}
-      {view === 'third' &&
-        fixed !== 'putdown' &&
+      {offersOtherView(w, action) &&
         row(
-          'firstPerson',
-          t('row.firstPerson'),
-          <select
-            aria-label={t('row.firstPerson')}
-            value={firstPersonStart(w, action)}
-            onChange={e => edit(w => setFirstPersonStart(w, action.uid, e.target.value as FirstPersonStart))}
-          >
-            {firstPersonStarts.map(s => (
-              <option key={s} value={s}>
-                {t('view.' + s)}
-              </option>
-            ))}
-          </select>
+          'otherView',
+          t('row.otherView'),
+          <label>
+            <input
+              type="checkbox"
+              checked={otherViewStart(w, action) === 'switch'}
+              onChange={e => edit(w => setOtherViewStart(w, action.uid, e.target.checked ? 'switch' : 'block'))}
+            />
+            {switchName(view)}
+          </label>
         )}
     </>
   );

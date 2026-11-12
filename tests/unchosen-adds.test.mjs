@@ -61,11 +61,3 @@ test('a registered function and a clip-time one leave their choices to the user'
   assert.equal(e.values.pick, '');
   assert.ok(has(added.workspace, '적용: 선택하세요.'));
 });
-
-test('a vanilla transition added chooses nothing', () => {
-  let w = s4sample();
-  const single = w.actions.find(a => !a.pair);
-  w = addMoment(w, single.uid, 'vanillaCancel', 0.2).workspace;
-  assert.equal(w.actions.find(a => a.uid === single.uid).cancels.at(-1).to, '');
-  assert.ok(has(w, '전환할 바닐라 동작을 고르세요.'));
-});

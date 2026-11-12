@@ -60,20 +60,37 @@ export function useSettings(all: Setting[], fold = false) {
     },
   };
 }
-/** An open setting's fields, with the way back to its default. */
+/** An open setting's fields, with the way back to its default (its trash). */
 function Fields({s, settings}: {s: Setting; settings: Settings}) {
+  const removable = !!s.reset && !s.fixed;
   return (
-    <div className="set-edit nodrag nopan" onClick={e => e.stopPropagation()}>
+    <div className={'set-edit nodrag nopan' + (removable ? ' removable' : '')} onClick={e => e.stopPropagation()}>
       {/* A card's panel: no search line of its own (as an HKX card's rows). */}
       <NestedDetailPanel.Provider value={true}>
         <DetailPanel>{s.fields()}</DetailPanel>
       </NestedDetailPanel.Provider>
-      {s.reset && !s.fixed && (
-        <div className="set-foot">
-          <button type="button" className="set-act" onClick={() => settings.reset(s)}>
-            {tr('기본값으로')}
-          </button>
-        </div>
+      {/* The same trash as a feature row's, at the first row's end (11-11 audit ⑨): back at its default, the setting
+          is off the card. */}
+      {removable && (
+        <button
+          type="button"
+          className="set-remove danger"
+          aria-label={tr('삭제 · 기본값으로')}
+          title={tr('삭제 · 기본값으로')}
+          onClick={() => settings.reset(s)}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            aria-hidden="true"
+          >
+            <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" />
+          </svg>
+        </button>
       )}
     </div>
   );
@@ -97,18 +114,21 @@ export function SettingRows({settings, after}: {settings: Settings; after?: Reac
     </div>
   );
 }
-/** The shown settings as chips (an HKX card's playback, `owner` its node id): one opens its fields under the chips;
+/** The shown settings as chips (an HKX card's playback, `owner` its node id), 「＋ 설정」 after them: one opens its
+ *  fields under the chips;
  *  one that can be, dragged onto another HKX card, moves there or is copied with Ctrl (graph/dragToCard). */
 export function SettingChips({settings, owner}: {settings: Settings; owner: string}) {
   const chips = settings.shown.filter(s => !s.fixed);
   const open = chips.find(s => s.id === settings.open);
-  if (!chips.length) return null;
+  if (!chips.length && !settings.hidden.length) return null;
   return (
     <div className="set-chips-box">
       <span className="cond-chips">
         {chips.map(s => (
           <SettingChip key={s.id} s={s} settings={settings} owner={owner} />
         ))}
+        {/* What adds a chip sits where the chips are (11-11 audit ⑩). */}
+        <AddSetting settings={settings} className="inline" />
       </span>
       {open && <Fields s={open} settings={settings} />}
     </div>

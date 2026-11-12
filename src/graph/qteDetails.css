@@ -184,15 +184,23 @@
   min-width: 0;
 }
 .qte-scale input[type='range'] {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 0;
+  /* A range input keeps its own width unless told: without this only its thumb showed. */
+  width: 0;
+  min-width: 60px;
 }
-.qte-scale input[type='number'] {
+.shell .qte-scale input[type='number'] {
+  flex: 0 0 64px;
   width: 64px;
 }
 .qte-pair input {
   flex: 1;
   min-width: 0;
+}
+/* A sound's plugin name is long and its form id a few digits: the plugin takes the room. */
+.shell .qte-pair.qte-sound input:last-child {
+  flex: 0 0 50px;
+  width: 50px;
 }
 .qte-results {
   display: grid;

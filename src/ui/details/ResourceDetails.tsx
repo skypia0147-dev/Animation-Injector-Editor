@@ -7,6 +7,7 @@ import {DetailPanel, DetailCategory as Category, DetailRow} from './DetailRow.ts
 import {Property as Prop} from './Property.tsx';
 import {KeyField} from './KeyField.tsx';
 import {errorText} from '../../errorText.ts';
+import {tr} from '../../i18n/korean.ts';
 export function InputDetails({
   w,
   selected,
@@ -76,14 +77,26 @@ export function ParameterDetails({
   selected,
   edit,
   status,
+  add,
 }: {
   w: Workspace;
   selected: string;
   edit: (f: (w: Workspace) => Workspace) => void;
   status: (s: string) => void;
+  /** Adds one (the project tree's +), offered when there is none. */
+  add: () => void;
 }) {
   const p = w.parameters.find(p => p.id === selected) ?? w.parameters[0];
-  if (!p) return <p>{t('detail.noSelection')}</p>;
+  // None yet: what one is, and the way to make it ("pick one" had nothing to pick, 11-12 audit).
+  if (!p)
+    return (
+      <div className="details-none">
+        <p>{tr('공유 설정이 없습니다. 여러 동작이 같이 쓸 값을 하나 만들어 두면 각 동작에서 골라 씁니다.')}</p>
+        <button type="button" onClick={add}>
+          {tr('+ 공유 설정 추가')}
+        </button>
+      </div>
+    );
   const a = w.actions.find(a => a.uid === p.action),
     value = parameterValue(w, p);
   const patch = (v: Partial<typeof p>) =>

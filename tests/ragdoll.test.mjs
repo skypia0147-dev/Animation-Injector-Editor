@@ -137,6 +137,13 @@ test('a project reads its lifts files, writes those with values and removes the 
   // The notice names the file (11-04 cleanup: an escaped `\${` printed the template text instead).
   assert.match(applied.errors[0], /^Ragdoll\\Lift\.xml: /);
   assert.deepEqual(ragdollWrites(applied.workspace, ['Lift'], applied.rejected), {files: [], remove: []});
+  // A file that could not be read at all (not UTF-8, too large): the document opens on the built-in values, the
+  // notice names the file and Save leaves it on disk, as a rejected one.
+  applied = applyRagdollFiles(w, [{id: 'Lift', contents: null, error: 'stream did not contain valid UTF-8'}]);
+  assert.equal(applied.workspace.actions[0].pair.carry.ragdoll, null);
+  assert.deepEqual(applied.rejected, ['Lift']);
+  assert.equal(applied.errors[0], 'Ragdoll\\Lift.xml: stream did not contain valid UTF-8');
+  assert.deepEqual(ragdollWrites(applied.workspace, ['Lift'], applied.rejected), {files: [], remove: []});
   // Back on the built-in values: the file goes; a renamed lift's old file goes too.
   assert.deepEqual(ragdollWrites(w, ['Old'], []), {files: [], remove: ['Lift', 'Old']});
   w = applyRagdollFiles(w, [{id: 'Lift', contents: chicken}]).workspace;

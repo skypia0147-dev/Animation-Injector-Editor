@@ -1,7 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import type {CSSProperties} from 'react';
 import {createPortal} from 'react-dom';
-import type {PinRow} from './pinTargets.ts';
+import {END_TARGET, type PinRow} from './pinTargets.ts';
 import {tr} from '../i18n/korean.ts';
 
 // One output pin's destination list: a searchable list grouped by kind; a destination the connection rules
@@ -109,6 +109,19 @@ export function PinMenu({
                 if (e.key === 'Enter' && first) choose(first.id);
               }}
             />
+            {/* A transition's first choice: to end its HKX instead of going on. */}
+            {row.ending && (!q || tr('끝내기').toLowerCase().includes(q)) && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={row.current === END_TARGET}
+                className={row.current === END_TARGET ? 'current' : undefined}
+                title={tr('다른 HKX로 넘어가지 않고 이 HKX를 바로 끝냅니다(이 HKX의 끝 블렌드로). 런타임 1.0.8 이상.')}
+                onClick={() => choose(END_TARGET)}
+              >
+                <span>{tr('끝내기')}</span>
+              </button>
+            )}
             {row.clearable && (
               <button type="button" role="option" aria-selected={!row.current} onClick={() => choose('')}>
                 {tr('연결 안 함')}

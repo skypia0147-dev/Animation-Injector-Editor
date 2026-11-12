@@ -15,7 +15,7 @@ import {
   firstPersonClip,
   placeStepFile,
   setActionView,
-  setFirstPersonStart,
+  setOtherViewStart,
   setProjectView,
   stepSource,
   viewIssues,
@@ -26,7 +26,7 @@ import {checker, needsChecker} from './local.mjs';
 const folder = 'tests/generated/view';
 fs.mkdirSync(folder, {recursive: true});
 const run = (...args) => spawnSync(checker, args, {encoding: 'utf8'});
-/** The runtime's view per action: "view<view><firstPerson>" (0 third/block, 1 first/switch, 2 both). */
+/** The runtime's view per action: "view<view><otherView>" (0 third/block, 1 first/switch, 2 both). */
 function runtimeViews(file) {
   const list = folder + '/list.txt';
   fs.writeFileSync(list, path.resolve(file) + '\n');
@@ -49,10 +49,11 @@ const views = xml(
   `<Start input="use" to="Look"/>
 <Action id="Look" clip="Animations\\ViewTest\\look.hkx"/>
 <Start input="use" to="Roll"/>
-<Action id="Roll" clip="Animations\\ViewTest\\roll.hkx" view="third" firstPerson="switch"/>
+<Action id="Roll" clip="Animations\\ViewTest\\roll.hkx" view="third" otherView="switch"/>
 <Action id="Wave" clip="Animations\\ViewTest\\wave.hkx" view="both"/>
+<Action id="Aim" clip="Animations\\ViewTest\\aim.hkx" otherView="switch"/>
 <Start input="use" to="Lift"/>
-<Pair id="Lift" clip="Animations\\ViewTest\\lift.hkx" firstPerson="switch"><FindPartner range="200" angle="90"/>
+<Pair id="Lift" clip="Animations\\ViewTest\\lift.hkx" otherView="switch"><FindPartner range="200" angle="90"/>
 <Carry bone="NPC R Hand [RHnd]" targetRoot="NPC Root [Root]" putdown="Lower" input="drop"/></Pair>
 <Action id="Lower" clip="Animations\\ViewTest\\lower.hkx"><CarryRelease at="0.5"/></Action>`,
   ' view="first"'
@@ -68,23 +69,26 @@ test('views round-trip: the file default, overrides, and third person for carrie
   // The file's view is no override; an explicit one that differs is; a putdown inherits nothing.
   assert.equal(byId(w, 'Look').view, undefined);
   assert.equal(byId(w, 'Roll').view, 'third');
-  assert.equal(byId(w, 'Roll').firstPerson, 'switch');
+  assert.equal(byId(w, 'Roll').otherView, 'switch');
+  // A first-person action takes it too (runtime 1.0.8): started in third person, the camera goes first person.
+  assert.equal(byId(w, 'Aim').otherView, 'switch');
   assert.equal(byId(w, 'Wave').view, 'both');
-  assert.equal(byId(w, 'Lift').firstPerson, 'switch');
+  assert.equal(byId(w, 'Lift').otherView, 'switch');
   assert.deepEqual(
-    ['Look', 'Roll', 'Wave', 'Lift', 'Lower'].map(id => actionView(w, byId(w, id))),
-    ['first', 'third', 'both', 'third', 'third']
+    ['Look', 'Roll', 'Wave', 'Aim', 'Lift', 'Lower'].map(id => actionView(w, byId(w, id))),
+    ['first', 'third', 'both', 'first', 'third', 'third']
   );
   // The saved project (graph document) keeps them.
   const saved = parseWorkspace(JSON.stringify(captureGraph(w)));
   assert.equal(saved.view, 'first');
   assert.deepEqual(
-    saved.actions.map(a => [a.view, a.firstPerson]),
-    w.actions.map(a => [a.view, a.firstPerson])
+    saved.actions.map(a => [a.view, a.otherView]),
+    w.actions.map(a => [a.view, a.otherView])
   );
   const out = compileWorkspace(saved);
   assert.match(out, /<AnimationSet version="6" id="ViewTest" view="first">/);
-  assert.match(out, /<Action id="Roll"[^>]* view="third" firstPerson="switch"/);
+  assert.match(out, /<Action id="Roll"[^>]* view="third" otherView="switch"/);
+  assert.match(out, /<Action id="Aim"[^>]* otherView="switch"/);
   assert.doesNotMatch(out, /<Action id="Look"[^>]* view=/);
   assert.doesNotMatch(out, /<(Pair id="Lift"|Action id="Lower")[^>]* view=/);
   const back = folder + '/views-back.xml';
@@ -97,6 +101,7 @@ test('views round-trip: the file default, overrides, and third person for carrie
     ViewTest_Look: 'view10',
     ViewTest_Roll: 'view01',
     ViewTest_Wave: 'view20',
+    ViewTest_Aim: 'view11',
     ViewTest_Lift: 'view01',
     ViewTest_Lower: 'view00',
   });
@@ -165,8 +170,13 @@ test('the importer rejects what the runtime rejects', () => {
     '',
     /3인칭/
   );
-  reject(`<Action id="A" clip="a.hkx" view="first" firstPerson="switch"/>`, '', /firstPerson/);
-  reject(`<Action id="A" clip="a.hkx" firstPerson="switch"/>`, ' view="both"', /firstPerson/);
+  reject(`<Action id="A" clip="a.hkx" view="both" otherView="switch"/>`, '', /otherView/);
+  reject(`<Action id="A" clip="a.hkx" otherView="switch"/>`, ' view="both"', /otherView/);
+  reject(`<Action id="A" clip="a.hkx" otherView="maybe"/>`, '', /지원하지 않는 값/);
+  // A first-person pair starts in first person only.
+  reject(`<Pair id="P" clip="a.hkx" view="first" otherView="switch"><FindPartner/></Pair>`, '', /1인칭 페어/);
+  // The name before 1.0.8 is not read.
+  reject(`<Action id="A" clip="a.hkx" firstPerson="switch"/>`, '', /firstPerson/);
   reject(`<Action id="A" clip="a.hkx" view="side"/>`, '', /지원하지 않는 값/);
   reject(`<Action id="A" clip="a.hkx"/>`, ' view="side"', /지원하지 않는 값/);
   assert.throws(
@@ -185,13 +195,15 @@ test('project default and overrides: an override equal to the default is none', 
   w = setActionView(w, byId(w, 'Look').uid, 'first');
   assert.equal(byId(w, 'Look').view, 'first');
   assert.throws(() => setActionView(w, byId(w, 'Lower').uid, 'first'), /3인칭/);
-  // firstPerson is written only for a third-person action, and kept for a switch back.
-  w = setFirstPersonStart(w, byId(w, 'Look').uid, 'switch');
-  assert.doesNotMatch(compileWorkspace(w), /<Action id="Look"[^>]*firstPerson/);
+  // otherView is written for an action of one view, either one, and kept while the action plays in both.
+  w = setOtherViewStart(w, byId(w, 'Look').uid, 'switch');
+  assert.match(compileWorkspace(w), /<Action id="Look"[^>]* view="first" otherView="switch"/);
+  w = setActionView(w, byId(w, 'Look').uid, 'both');
+  assert.doesNotMatch(compileWorkspace(w), /<Action id="Look"[^>]*otherView/);
   w = setActionView(w, byId(w, 'Look').uid, 'third');
-  assert.match(compileWorkspace(w), /<Action id="Look"[^>]* firstPerson="switch"/);
-  w = setFirstPersonStart(w, byId(w, 'Look').uid, 'block');
-  assert.equal(byId(w, 'Look').firstPerson, undefined);
+  assert.match(compileWorkspace(w), /<Action id="Look"[^>]* otherView="switch"/);
+  w = setOtherViewStart(w, byId(w, 'Look').uid, 'block');
+  assert.equal(byId(w, 'Look').otherView, undefined);
 });
 
 test('files: a first-person copy is _1stPerson\\<clip>, sourced from the library, packaged by view', () => {

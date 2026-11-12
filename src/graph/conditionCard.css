@@ -256,6 +256,10 @@
 .shell .p3-node .cond-to-wrap .cond-to.card {
   color: var(--card-cond);
 }
+/* A transition that ends its HKX: no destination, said in the accent colour. */
+.shell .p3-node .cond-to-wrap .cond-to.end {
+  color: var(--card-end, #e8a838);
+}
 .shell .p3-node .cond-to-wrap .cond-to.none {
   color: var(--card-t3);
   border-style: dashed;
@@ -298,13 +302,17 @@
 }
 .cond-item-line {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  /* The name in the fields' label column, so NOT starts where the controls under it do. */
+  grid-template-columns: var(--row-label, 72px) auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   min-height: 30px;
   cursor: pointer;
 }
 .cond-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -350,14 +358,21 @@
   font-weight: 700;
 }
 .shell .p3-node .cond-edit button.cond-x {
-  font-size: 14px;
-  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  color: var(--card-not);
 }
 .shell .p3-node .cond-edit button.cond-not.on {
   color: var(--card-not);
 }
-.shell .p3-node .cond-edit button:is(.cond-not, .cond-x):hover {
+.shell .p3-node .cond-edit button.cond-not:hover {
   color: var(--card-t1);
+}
+.shell .p3-node .cond-edit button.cond-x:hover {
+  background: var(--card-hover);
 }
 .cond-item-fields {
   padding: 0 0 8px;

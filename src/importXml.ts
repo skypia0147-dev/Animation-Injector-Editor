@@ -14,7 +14,7 @@ import type {EventRow} from './eventRegistry.ts';
 import type {Workspace, Link} from './workspace.ts';
 import {parseXml, shapeXml, one} from './xml.ts';
 import type {Xml} from './xml.ts';
-import {views, firstPersonStarts, actionView, defaultView, fixedThird} from './view.ts';
+import {views, otherViewStarts, actionView, hasOtherView, defaultView, fixedThird} from './view.ts';
 import {readQtes, readEventQtes} from './qte.ts';
 import {checkKinds} from './cardChecks.ts';
 import {
@@ -113,7 +113,7 @@ function inputs(n: Xml | undefined): Input[] {
 function key(k: string) {
   return /^0x[\da-f]+$/i.test(k) ? 'code:' + parseInt(k, 16) : /^\d+$/.test(k) ? 'code:' + k : k === 'None' ? '' : k;
 }
-/** A transition's window (format 6: from, until, buffer on <Transition>/<Vanilla>). */
+/** A transition's window (format 6: from, until, buffer on <Transition>). */
 const windowTimes = (n: Xml) => ({
   open: clock(get(n, 'from', '0')),
   close: clock(get(n, 'until', 'end')),
@@ -172,7 +172,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'id',
         'clip',
         'view',
-        'firstPerson',
+        'otherView',
         'air',
         'attack',
         'enter',
@@ -191,7 +191,6 @@ export function importWorkspaceXml(text: string): Workspace {
         'TimeScale',
         'Cost',
         'MoveCancel',
-        'Vanilla',
         'Transition',
         'QTE',
         'CarryRelease',
@@ -296,23 +295,6 @@ export function importWorkspaceXml(text: string): Workspace {
     const recovery = child(n, 'MoveCancel', ['at', 'blend']);
     if (recovery)
       p.recovery = {enabled: true, at: clock(required(recovery, 'at')), blend: num(recovery, 'blend', 0.15)};
-    let cancels = 0;
-    for (const t of n.children.filter(c => c.name === 'Vanilla')) {
-      shapeXml(t, ['id', 'to', 'blend', 'from', 'until', 'buffer']);
-      // The runtime names an unnamed one by its place among the action's: cancel1, cancel2, ...
-      const id = get(t, 'id') || 'cancel' + (cancels + 1);
-      cancels++;
-      a.cancels.push({
-        id,
-        to: required(t, 'to')
-          .split(',')
-          .map(x => (x.trim().startsWith('event:') ? x.trim() : 'vanilla:' + x.trim()))
-          .join(','),
-        ...(hasWindow(t) ? windowTimes(t) : {open: mark(), close: mark(0, 'end'), buffered: true}),
-        blend: t.attrs.blend === undefined ? null : num(t, 'blend', 0),
-        ...(hasWindow(t) ? {} : {always: true as const}),
-      });
-    }
     // Camera restore and clip-time functions sit in the action itself (format 6).
     const camera = child(n, 'Camera', ['reset', 'restore', 'timeout']);
     a.cameraEnabled = !!camera;
@@ -590,11 +572,27 @@ export function importWorkspaceXml(text: string): Workspace {
           'buffer',
           'blend',
           'on',
+          'press',
+          'end',
           'data-input',
         ],
         CARD
       );
-      const to = owner(n);
+      // An ending transition (runtime 1.0.8): end="true" goes nowhere.
+      if (n.attrs.end !== undefined && n.attrs.end !== 'true' && n.attrs.end !== 'false')
+        throw new Error(tr('Transition: end는 true 또는 false입니다.'));
+      const ends = n.attrs.end === 'true';
+      if (
+        ends &&
+        (n.attrs.to !== undefined || n.attrs.condition !== undefined || n.children.some(c => CARD.includes(c.name)))
+      )
+        throw new Error(tr('Transition: 끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다.'));
+      if (ends && (n.attrs.blend !== undefined || n.attrs.partnerTo !== undefined))
+        throw new Error(tr('Transition: 끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다.'));
+      if (ends && a.pair) throw new Error(tr('Transition: 끝내기 전환(end="true")은 일반 동작에만 씁니다.'));
+      if (ends && n.attrs.on === 'end')
+        throw new Error(tr('Transition: 끝내기 전환(end="true")에는 on="end"를 쓰지 않습니다.'));
+      const to = ends ? null : owner(n);
       const partner = n.attrs.partnerTo ? actionUid(n.attrs.partnerTo, 'Transition') : '';
       const l: Link = {
         id: uid(
@@ -624,6 +622,12 @@ export function importWorkspaceXml(text: string): Workspace {
         position: {x: 0, y: 0},
       };
       if (n.attrs.blend !== undefined) l.blend = num(n, 'blend', 0);
+      if (ends) l.end = true;
+      // How its key is pressed (runtime 1.0.8), as a start's.
+      const press = choice(n, 'press', startPresses, 'down');
+      if (n.attrs.press !== undefined && l.mode !== 'input')
+        throw new Error(tr('Transition: press는 키를 누르는 전환에만 씁니다(event·on 전환에는 쓰지 않습니다).'));
+      if (press !== 'down') l.press = press;
       if (l.window) Object.assign(l, windowTimes(n));
       if (n.attrs.on !== undefined && !['end', 'release', 'move'].includes(n.attrs.on))
         throw new Error(tr('Transition: on은 end, release, move 중 하나입니다.'));
@@ -658,12 +662,16 @@ export function importWorkspaceXml(text: string): Workspace {
           })
         );
     } else if (view !== defaultView(w, a)) a.view = view;
-    const start = choice(n, 'firstPerson', firstPersonStarts, 'block');
-    if (n.attrs.firstPerson !== undefined && actionView(w, a) !== 'third')
+    const start = choice(n, 'otherView', otherViewStarts, 'block');
+    if (n.attrs.otherView !== undefined && actionView(w, a) === 'both')
       throw new Error(
-        tr('{actionId}: firstPerson은 3인칭 동작(view="third")에만 씁니다.', {actionId: a.config.actionId})
+        tr('{actionId}: otherView는 한 인칭 동작(view="third" 또는 "first")에만 씁니다.', {
+          actionId: a.config.actionId,
+        })
       );
-    if (start === 'switch') a.firstPerson = start;
+    if (n.attrs.otherView !== undefined && !hasOtherView(w, a))
+      throw new Error(tr('{actionId}: otherView는 1인칭 페어에 쓰지 않습니다.', {actionId: a.config.actionId}));
+    if (start === 'switch') a.otherView = start;
   }
   // QTE results may go through a card too.
   readQtes(w, root, clock, owner);

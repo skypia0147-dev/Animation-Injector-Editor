@@ -9,6 +9,7 @@ import {
   pressTrigger,
   startPresses,
   type StartCard,
+  type StartPress,
 } from '../cards.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {Unchosen} from '../ui/details/Unchosen.tsx';
@@ -25,11 +26,11 @@ import {timingLabel} from '../model.ts';
 import type {Setting} from './cardSettings.tsx';
 import {
   linkBlend,
-  linkToCancel,
   patchLink,
   patchStart,
   setLinkKey,
   setLinkMode,
+  setLinkPress,
   setReleaseKey,
   setLinkWindowScope,
   startDefaults,
@@ -69,7 +70,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
       fixed: true,
       fields: () => (
         <>
-          <DetailRow label={tr('트리거')}>
+          <DetailRow label={tr('입력')}>
             <select
               aria-label={tr('시작 트리거')}
               value={s.mode}
@@ -81,22 +82,21 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
           </DetailRow>
           {input ? (
             <>
-              <DetailRow label={tr('키')}>
-                <KeyField
-                  value={s.key}
-                  gamepad={s.gamepad}
-                  change={key => change({key})}
-                  changeGamepad={gamepad => change({gamepad})}
-                  control={s.control}
-                  changeControl={control =>
-                    change(
-                      control
-                        ? {control, key: '', gamepad: 0, ...(menuControl(control) ? {press: 'down' as const} : {})}
-                        : {control: undefined, key: ''}
-                    )
-                  }
-                />
-              </DetailRow>
+              <KeyField
+                rows
+                value={s.key}
+                gamepad={s.gamepad}
+                change={key => change({key})}
+                changeGamepad={gamepad => change({gamepad})}
+                control={s.control}
+                changeControl={control =>
+                  change(
+                    control
+                      ? {control, key: '', gamepad: 0, ...(menuControl(control) ? {press: 'down' as const} : {})}
+                      : {control: undefined, key: ''}
+                  )
+                }
+              />
               <DetailRow
                 label={tr('누름')}
                 hint={tr(
@@ -332,7 +332,7 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
       id: 'trigger',
       label:
         l.mode === 'input'
-          ? tr('누를 때')
+          ? pressTrigger(l.press ?? 'down')
           : l.mode === 'end'
             ? tr('끝나면')
             : l.mode === 'release'
@@ -361,16 +361,7 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 차지 종료: 감지 구간 안에서 차지 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간). 이동 전환: 차지 중에 이동키를 누르면(선입력·누르고 있음 포함) 넘어갑니다.'
             )}
           >
-            <select
-              value={l.mode}
-              onChange={e =>
-                edit(w =>
-                  e.target.value === 'vanilla'
-                    ? linkToCancel(w, id)
-                    : setLinkMode(w, id, e.target.value as Link['mode'])
-                )
-              }
-            >
+            <select value={l.mode} onChange={e => edit(w => setLinkMode(w, id, e.target.value as Link['mode']))}>
               <option value="input">{tr('키 입력')}</option>
               <option value="event">{tr('이벤트')}</option>
               <option value="end" disabled={!!from?.config.loop}>
@@ -378,9 +369,6 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               </option>
               <option value="release">{tr('차지 종료')}</option>
               <option value="move">{tr('이동 전환')}</option>
-              <option value="vanilla" disabled={!!from?.pair}>
-                {tr('바닐라 동작')}
-              </option>
             </select>
           </DetailRow>
           {l.mode === 'release' && (
@@ -398,16 +386,15 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
             </DetailRow>
           )}
           {l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !keyed) ? null : keyed ? (
-            <DetailRow label={tr('키')}>
-              <KeyField
-                value={inputBinding?.key ?? ''}
-                gamepad={inputBinding?.gamepad ?? 0}
-                change={key => setKey(key, inputBinding?.gamepad ?? 0)}
-                changeGamepad={gamepad => setKey(inputBinding?.key ?? '', gamepad)}
-                control={inputBinding?.control}
-                changeControl={control => (control ? setKey('', 0, control) : setKey('E', 0))}
-              />
-            </DetailRow>
+            <KeyField
+              rows
+              value={inputBinding?.key ?? ''}
+              gamepad={inputBinding?.gamepad ?? 0}
+              change={key => setKey(key, inputBinding?.gamepad ?? 0)}
+              changeGamepad={gamepad => setKey(inputBinding?.key ?? '', gamepad)}
+              control={inputBinding?.control}
+              changeControl={control => (control ? setKey('', 0, control) : setKey('E', 0))}
+            />
           ) : (
             <DetailRow label={tr('이벤트')}>
               <EventPicker
@@ -416,6 +403,26 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
                 events={markerNames(w)}
                 change={event => change({event})}
               />
+            </DetailRow>
+          )}
+          {l.mode === 'input' && (
+            <DetailRow
+              label={tr('누름')}
+              hint={tr(
+                '누를 때: 누르는 순간. 짧게: 짧게 눌렀다 뗄 때. 두 번: 빠르게 두 번 누를 때. 길게: 누른 채 기준 시간을 넘길 때. 같은 키에 방식마다 전환 하나를 둘 수 있습니다(누를 때는 혼자만). 같은 키에 두 번이 있으면 짧게는 두 번째 누름을 기다린 뒤에 나갑니다.'
+              )}
+            >
+              <select
+                aria-label={tr('누름')}
+                value={l.press ?? 'down'}
+                onChange={e => edit(w => setLinkPress(w, id, e.target.value as StartPress))}
+              >
+                {startPresses.map(p => (
+                  <option key={p} value={p}>
+                    {pressName(p)}
+                  </option>
+                ))}
+              </select>
             </DetailRow>
           )}
         </>

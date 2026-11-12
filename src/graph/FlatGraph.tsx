@@ -1,6 +1,5 @@
 import {ChecklistBody, ChecklistContext, UnassignedSettings} from './ChecklistCard.tsx';
 import {StartFace, TransitionFace} from './StartCardFace.tsx';
-import {VanillaFace} from './vanillaTransition.tsx';
 import {drawnLine, STUB_SOURCES, stubLines, type StubLines} from './sharedTransitionLines.ts';
 import {SlimClipBars} from './ClipBar.tsx';
 import {PinMenu} from './PinMenu.tsx';
@@ -55,7 +54,7 @@ import {
 } from '@xyflow/react';
 import type {Node, NodeProps} from '@xyflow/react';
 import type {Workspace} from '../workspace.ts';
-import {flatNode, addFlat, deleteFlat, REGISTRY_NODE} from './flat.ts';
+import {flatNode, addFlat, deleteFlat, REGISTRY_NODE, transitionId} from './flat.ts';
 import {renderedChecklist, renderedLibrary, renderedRegistry} from './renderCache.ts';
 import {advanceGate, gateState} from './cardGate.ts';
 import type {FlatNode} from './flat.ts';
@@ -69,7 +68,7 @@ import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
 /** routeTo: where each route row's pin goes now, by name (routePins); routeKinds: what it reaches (the colour of its
  *  destination chip, as a condition card's). */
-type RouteKind = 'hkx' | 'card' | 'qte' | 'event';
+type RouteKind = 'hkx' | 'card' | 'qte' | 'event' | 'end';
 type Visual = Node<
   FlatNode & {
     presentation: CardPresentation;
@@ -329,9 +328,6 @@ function GatedStartCard({node, routes}: {node: Visual['data']; routes: React.Rea
     return <StartFace w={gate.w} uid={ref.uid} edit={ctx.edit} routes={routes} fold={fold} />;
   if (ref.kind === 'transition')
     return <TransitionFace w={gate.w} id={ref.link} edit={ctx.edit} routes={routes} fold={fold} />;
-  // A vanilla transition's card (11-01): its own settings and the game's action as where it goes.
-  if (ref.kind === 'notify' && ref.local.startsWith('cancel:'))
-    return <VanillaFace w={gate.w} action={ref.owner} id={ref.local.slice(7)} edit={ctx.edit} fold={fold} />;
   return null;
 }
 function GatedChecklist({node}: {node: Visual['data']}) {
@@ -485,11 +481,14 @@ function Card({id, data, selected}: NodeProps<Visual>) {
     );
   };
   // A route row: a box with what it is, where it goes and its pin on the box's edge.
+  // An ending transition's destination (graph/pinTargets.ts END_TARGET) goes nowhere: its own colour, no pin.
+  const ends = (p: string) =>
+    p === 'trigger' && data.kind === 'transition' && !!context?.w.links.find(l => transitionId(l.id) === data.id)?.end;
   const routeRow = (p: string, kind: React.ReactNode, text: string, empty: boolean, extra = '') => (
     <div key={p} className={'route-box tone-' + routeTone(data, p) + extra}>
       <span className="route-label">{kind}</span>
-      {destination(p, text, empty)}
-      <Handle id={p} type="source" position={Position.Right} title={portLabel(data, p)} />
+      {destination(p, text, empty, ends(p) ? 'end' : undefined)}
+      {!ends(p) && <Handle id={p} type="source" position={Position.Right} title={portLabel(data, p)} />}
     </div>
   );
   // One line of a QTE result's box: who goes (a coloured word) and where.

@@ -5,7 +5,7 @@ A Windows program for making action mods for [Animation Injector](https://github
 ## Requirements
 
 - Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later, a pair in first person (view First or Both) 1.0.8 or later)
+- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later, a pair in first person (view First or Both) and a transition's press kind (Tap, Double, Hold), the view switch and an ending transition 1.0.8 or later)
 - Keep the included `AnimationInjectorXmlCheck.exe` in the same folder as `AnimationInjectorEditor.exe`. When you save, it checks that the game can read the XML. Without it the editor saves unchecked and shows a warning.
 
 ## Getting started

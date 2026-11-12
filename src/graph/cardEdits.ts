@@ -4,8 +4,7 @@ import {mark} from '../model.ts';
 import {tr} from '../i18n/korean.ts';
 import {graphPosition} from './projection.ts';
 import {rootGraph} from './state.ts';
-import {vanillaCardId} from './vanilla.ts';
-import type {StartCard} from '../cards.ts';
+import type {StartCard, StartPress} from '../cards.ts';
 import type {GameControl} from '../keys.ts';
 import {addTransition, deleteFlat, dropBinding, readsKey} from './flat.ts';
 import {sourceWindow} from './clipWindows.ts';
@@ -37,6 +36,26 @@ export const patchLink = (w: Workspace, id: string, patch: Partial<Link>): Works
   links: w.links.map(x => (x.id === id ? {...x, ...patch} : x)),
 });
 /** A transition's blend: added at 0.3 s, back to the destination HKX's start blend when reset. */
+/** A key transition's press kind: the moment the key goes down is the absence of one. */
+export const setLinkPress = (w: Workspace, id: string, press: StartPress): Workspace => ({
+  ...w,
+  links: w.links.map(x => {
+    if (x.id !== id) return x;
+    const {press: _, ...rest} = x;
+    return press === 'down' ? rest : {...rest, press};
+  }),
+});
+/** A transition that ends its HKX instead of going on (runtime 1.0.8): it lets go of its destination and blend. */
+export const setLinkEnd = (w: Workspace, id: string, on: boolean): Workspace => ({
+  ...w,
+  links: w.links.map(x => {
+    if (x.id !== id) return x;
+    const {end: _, ...rest} = x;
+    if (!on) return rest;
+    const {blend: __, card: ___, ...kept} = rest;
+    return {...kept, to: '', partnerTo: '', end: true as const};
+  }),
+});
 export const linkBlend = {add: {blend: 0.3}, reset: {blend: undefined}} satisfies Record<string, Partial<Link>>;
 /** A transition's trigger switched: a key's press, an event, the HKX's end or a key let go (charge). Leaving a key
  *  drops its binding; a release starts on the key that started the action, an end has no window. */
@@ -47,11 +66,18 @@ export function setLinkMode(w: Workspace, id: string, mode: Link['mode']): Works
   return dropBinding(
     {
       ...w,
-      links: w.links.map(x =>
-        x.id === id
-          ? {...x, mode, input: '', event: mode === 'event' ? x.event : '', window: mode === 'end' ? false : x.window}
-          : x
-      ),
+      links: w.links.map(x => {
+        if (x.id !== id) return x;
+        // The press kind is a key transition's alone.
+        const {press: _, ...rest} = x;
+        return {
+          ...rest,
+          mode,
+          input: '',
+          event: mode === 'event' ? x.event : '',
+          window: mode === 'end' ? false : x.window,
+        };
+      }),
     },
     l.from,
     l.input
@@ -107,53 +133,4 @@ export function setLinkWindowScope(w: Workspace, id: string, own: boolean): Work
         : rest;
     }),
   };
-}
-
-// A vanilla transition and a transition card switched into each other (11-01, A7).
-type Cancel = Action['cancels'][number];
-/** A vanilla transition switched to another input: the same window on a transition card of that mode. */
-export function cancelToLink(w: Workspace, action: string, id: string, mode: Link['mode']): Workspace {
-  const a = w.actions.find(a => a.uid === action),
-    c = a?.cancels.find(c => c.id === id);
-  if (!a || !c) return w;
-  const at = graphPosition(w, rootGraph, vanillaCardId(action, id), {x: a.position.x + 420, y: a.position.y + 90});
-  const made = addTransition(
-    deleteFlat(w, vanillaCardId(action, id)),
-    action,
-    null,
-    at,
-    mode === 'input' ? 'input' : 'event'
-  );
-  const linkId = made.id.slice('transition:'.length);
-  let next = mode === 'input' || mode === 'event' ? made.workspace : setLinkMode(made.workspace, linkId, mode);
-  if (mode !== 'end')
-    next = {
-      ...next,
-      links: next.links.map(l =>
-        l.id === linkId ? {...l, window: !c.always, open: c.open, close: c.close, buffered: c.buffered} : l
-      ),
-    };
-  return next;
-}
-/** A transition card switched to 「바닐라 동작」: its window becomes the vanilla transition's (an ordinary action's). */
-export function linkToCancel(w: Workspace, link: string): Workspace {
-  const l = w.links.find(l => l.id === link),
-    a = l && w.actions.find(a => a.uid === l.from);
-  if (!l || !a) return w;
-  if (a.pair) throw Error(tr('페어의 종료/전환 기능을 사용하세요.'));
-  const next = deleteFlat(w, 'transition:' + link);
-  const id = uid(
-    'cancel',
-    a.cancels.map(c => c.id)
-  );
-  const c: Cancel = {
-    id,
-    to: '',
-    open: l.window ? l.open : mark(0),
-    close: l.window ? l.close : mark(0, 'end'),
-    buffered: l.buffered,
-    blend: null,
-    ...(l.window ? {} : {always: true as const}),
-  };
-  return {...next, actions: next.actions.map(x => (x.uid === a.uid ? {...x, cancels: [...x.cancels, c]} : x))};
 }

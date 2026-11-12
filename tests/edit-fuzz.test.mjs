@@ -348,7 +348,8 @@ test('free editing never breaks a project (fixed random edits of real projects)'
   }
   t.diagnostic(`${accepted} edits accepted, ${compiled} edited projects compiled and checked by the runtime`);
   assert.ok(accepted > 1500, `only ${accepted} edits were accepted`);
-  assert.ok(compiled > 300, `only ${compiled} edited projects compiled`);
+  // 296 since the vanilla transition went (2026-11-12): one kind of edit fewer, the same random walk otherwise.
+  assert.ok(compiled > 280, `only ${compiled} edited projects compiled`);
   assert.deepEqual(report, []);
 });
 

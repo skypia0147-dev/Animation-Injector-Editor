@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {readEditorBlock} from '../src/editorBlock.ts';
 import {lowerGraph} from '../src/graph/document.ts';
 import {addFlat} from '../src/graph/flat.ts';
-import {addRow, removeRow} from '../src/graph/cardCommands.ts';
+import {addCondition, addRow, removeCondition, removeRow} from '../src/graph/cardCommands.ts';
 import {parseXml} from '../src/xml.ts';
 import {groupRuleError} from '../src/cards.ts';
 
@@ -35,6 +35,27 @@ test('E-17: a row added on a True card and removed again gives True its destinat
   );
 });
 
+// 11-12 design audit: the card deletes a row by its last condition (no row delete of its own).
+test("a row's last condition removed takes the row with it, as removeRow does", () => {
+  let w = emptyWorkspace();
+  w = addFlat(w, '', 'playNode', {x: 0, y: 0}).workspace;
+  w = addFlat(w, '', 'conditionCard', {x: 0, y: 0}).workspace;
+  const uid = w.cards[0].uid;
+  w.cards[0].true = {action: 'a1'};
+  w = addRow(w, uid).workspace;
+  const row = w.cards[0].rows[0];
+  // Two conditions: the first removed leaves the row.
+  w = addCondition(w, uid, 'row:' + row.id).workspace;
+  assert.equal(w.cards[0].rows[0].guards.length, 2);
+  w = removeCondition(w, uid, 'row:' + row.id, w.cards[0].rows[0].guards[0]);
+  assert.equal(w.cards[0].rows.length, 1);
+  assert.equal(w.cards[0].rows[0].guards.length, 1);
+  // The last one removed: the row goes, and True has its destination back.
+  w = removeCondition(w, uid, 'row:' + row.id, w.cards[0].rows[0].guards[0]);
+  assert.deepEqual(w.cards[0].rows, []);
+  assert.deepEqual(w.cards[0].true, {action: 'a1'});
+});
+
 test('E-18: a duplicated action keeps everything the original holds, under its own uid and Action ID', () => {
   let w = emptyWorkspace();
   w = addFlat(w, '', 'playNode', {x: 0, y: 0}).workspace;
@@ -44,9 +65,6 @@ test('E-18: a duplicated action keeps everything the original holds, under its o
   a.exitBlendEnabled = false;
   a.cameraEnabled = true;
   a.camera = {reset: 'Camera_Reset', blend: 0.4};
-  a.cancels = [
-    {id: 'cancel1', to: 'MoveStart', open: {seconds: 0.2}, close: {seconds: 0.6}, buffered: true, blend: 0.15},
-  ];
   a.clipWindows = {[a.config.steps[0].id]: {open: {seconds: 0.1}, close: {seconds: 0.5}}};
   a.view = 'first';
   const copy = duplicateAction(w, a, 'A copy');
@@ -58,8 +76,8 @@ test('E-18: a duplicated action keeps everything the original holds, under its o
   // Everything else is the original's, and a copy of it (editing one never edits the other).
   const strip = x => ({...x, uid: '', position: null, config: {...x.config, actionId: '', name: ''}});
   assert.deepEqual(strip(copy), strip(a));
-  copy.cancels[0].blend = 0.9;
-  assert.equal(a.cancels[0].blend, 0.15);
+  copy.clipWindows[a.config.steps[0].id].close.seconds = 0.9;
+  assert.equal(a.clipWindows[a.config.steps[0].id].close.seconds, 0.5);
 });
 
 test('E-22: an XML declaration with standalone opens, as the runtime reads it', () => {

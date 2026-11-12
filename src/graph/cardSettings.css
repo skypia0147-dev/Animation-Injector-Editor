@@ -46,23 +46,96 @@
   padding: 6px 8px 8px;
   cursor: default;
 }
-.set-foot {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 6px;
+/* A checkbox row in a start's or transition's open setting: its name on one line, the box at the value's end (the
+   rows above it keep their values there). */
+.shell .p3-node .set-edit .detail-row.is-check {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
-.shell .p3-node .set-act,
+.shell .p3-node .set-edit .detail-row.is-check .detail-name {
+  white-space: nowrap;
+}
+.shell .p3-node .set-edit .detail-row.is-check > .detail-value {
+  justify-self: end;
+}
+/* A setting that can leave its card: its rows, and its trash at the first row's end (a feature row's trash, on the
+   same line as what it removes). */
+.set-edit.removable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+  align-items: start;
+}
+.shell .p3-node .set-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--card-not);
+}
+.shell .p3-node .set-remove:hover {
+  background: var(--card-hover);
+}
+/* An open setting's one group of rows ends where its last row does (the Details panel's gap under a category left a
+   blank line under a one-row setting, 11-12 re-check). */
+.shell .p3-node .set-edit .detail-category {
+  margin-bottom: 0;
+}
+/* A lone checkbox setting (시점 전환): what it does at the left, the box at the row's end, as a card's other
+   checkbox rows. The chip above already names it. */
+.shell .p3-node .set-edit .checklist-file:has(> label > input[type='checkbox']) {
+  display: block;
+}
+.shell .p3-node .set-edit .checklist-file:has(> label > input[type='checkbox']) > span {
+  display: none;
+}
+.shell .p3-node .set-edit .checklist-file > label:has(> input[type='checkbox']) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 30px;
+  color: var(--card-t1);
+  font-size: var(--fs-sm);
+}
+.shell .p3-node .set-edit .checklist-file > label > input[type='checkbox'] {
+  order: 1;
+  margin: 0;
+}
+/* 「클립 | 이벤트」 and the like in an open setting: named in the label column, the choice across the rest. */
+.shell .p3-node.card-themed .set-edit .moment-line {
+  display: grid;
+  grid-template-columns: var(--row-label, 72px) minmax(0, 1fr);
+}
+.shell .p3-node.card-themed .set-edit .moment-seg {
+  display: flex;
+  width: 100%;
+}
+.shell .p3-node.card-themed .set-edit .moment-seg > button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* A choice among a few fills its row: no gap left after the last one. */
+.shell .p3-node .set-edit .qte-seg {
+  width: 100%;
+}
+.shell .p3-node .set-edit .qte-seg > button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 .shell .p3-node .set-add {
   min-height: 0;
-  height: auto;
   padding: 2px 8px;
-  border: 0;
   background: transparent;
-  color: var(--card-t2);
-  font-size: var(--fs-xs);
-}
-.shell .p3-node .set-act:hover {
-  color: var(--card-t1);
 }
 .set-add-wrap {
   position: relative;
@@ -125,16 +198,26 @@
   border: 1px solid var(--card-line);
   border-radius: 4px;
 }
-/* An HKX card's 「＋ 기능」 and 「＋ 설정」 side by side; the feature menu, open, takes the whole line. */
-.checklist-add-actions.two {
-  flex-wrap: wrap;
+/* 「＋ 설정」 after an HKX card's chips: a chip's size, its menu under the whole chip line. */
+.set-chips-box > .cond-chips {
+  position: relative;
 }
-.checklist-add-actions.two > * {
-  flex: 1;
-  min-width: 0;
+.set-add-wrap.inline {
+  position: static;
 }
-.checklist-add-actions.two > .checklist-add-menu:has(> div) {
-  flex-basis: 100%;
+.shell .p3-node .set-add-wrap.inline .set-add {
+  width: auto;
+  height: auto;
+  padding: 1px 8px;
+  line-height: 17px;
+}
+.set-add-wrap.inline .set-menu {
+  left: 0;
+  right: 0;
+}
+/* 「＋ 기능」 closes an HKX card's feature list. */
+.checklist-section > .checklist-add-actions {
+  margin-top: 6px;
 }
 .checklist-body > .set-chips-box {
   margin: 6px 0 2px;

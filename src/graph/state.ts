@@ -6,7 +6,7 @@ export type GraphRef =
   | {kind: 'anim'; action: string; step?: string}
   | {kind: 'start'; action: string}
   | {kind: 'link'; link: string};
-export type ResourceKind = 'project' | 'inputs' | 'markers' | 'parameters' | 'effects' | 'preferences';
+export type ResourceKind = 'project' | 'inputs' | 'parameters' | 'preferences';
 export type Selection =
   | {kind: 'notify'; action: string; id: string}
   | {kind: 'state'; action: string}

@@ -13,9 +13,144 @@
   margin: 0 0 10px !important;
   background: var(--ue-ground) !important;
 }
+/* The search is the Details panel's first line, above the connections the app draws before the panel (11-12 audit):
+   the panel's children line up with them, and the search goes first. */
+.dock.right .details-body {
+  display: flex;
+  flex-direction: column;
+}
+.dock.right .details-body > *,
+.dock.right .details-body > .detail-panel > * {
+  flex: 0 0 auto;
+}
+.dock.right .details-body > .detail-panel {
+  display: contents;
+}
+.dock.right .details-body > .detail-panel > .detail-search {
+  order: -1;
+}
 .detail-category {
   margin: 0;
   border-bottom: 1px solid var(--ue-line);
+}
+/* A checkbox row of the Details panel: its name takes the row (a long one ran under the box in the fixed name
+   column, 11-12 re-check), the box at the row's end, as on a card. */
+.dock.right .detail-row.is-check {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.dock.right .detail-row.is-check .detail-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock.right .detail-row.is-check > .detail-value {
+  justify-self: end;
+}
+/* A card's flow (FlowConnections): a line per card it is reached from or goes to; the line goes there. */
+.flow-list {
+  display: grid;
+  /* One column no wider than the panel: a long 「그 앞」 line is cut, it does not push the lines' results out. */
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 2px 4px;
+}
+.flow-group {
+  min-width: 0;
+}
+.flow-group + .flow-group {
+  margin-top: 4px;
+}
+.dock.right .flow-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--ue-line2), transparent 65%);
+  border-radius: 0;
+  background: none;
+  color: var(--ue-text);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.dock.right .flow-line:hover {
+  background: color-mix(in srgb, var(--ue-line2), transparent 70%);
+}
+.flow-kind {
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  line-height: 17px;
+  white-space: nowrap;
+}
+/* The kinds in their cards' colours (graph/cardTheme.css). */
+.flow-kind.hkxPlay {
+  color: #7fd4b0;
+}
+.flow-kind.conditionCard {
+  color: #f08fb0;
+}
+.flow-kind.qte {
+  color: #b9a6d9;
+}
+.flow-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flow-pin {
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.dock.right .flow-head {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 6px 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--ue-dim);
+  font-size: var(--fs-xs);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock.right button.flow-head {
+  cursor: pointer;
+}
+.dock.right button.flow-head:hover {
+  color: var(--ue-text);
+}
+.dock.right .flow-head.after {
+  padding: 2px 6px 4px;
+}
+/* The angle's picture: in the middle of its line. */
+.angle-preview {
+  display: block;
+  margin: 4px auto 0;
+}
+/* A kind of thing the project has none of yet: what it is, and the button that makes one. */
+.details-none p {
+  margin: 0 0 12px;
+  color: var(--ue-dim);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+.details-none button {
+  width: 100%;
+  min-height: 28px;
+  border-style: dashed;
+  background: transparent;
 }
 .detail-category-title {
   display: flex;
@@ -35,7 +170,8 @@
 }
 .detail-row {
   display: grid;
-  grid-template-columns: minmax(80px, 34%) minmax(0, 1fr);
+  /* A fixed name column: every control of the panel starts on one line (11-12 audit). */
+  grid-template-columns: 110px minmax(0, 1fr);
   gap: 5px;
   align-items: start;
   padding: 5px 5px 5px 10px;
@@ -139,6 +275,12 @@
 .key-main input {
   flex: 1;
   min-width: 0;
+}
+/* A card's key row (KeyField rows): the key takes the row, its capture button is the sign alone. */
+.key-main.compact button {
+  flex: 0 0 28px;
+  width: 28px;
+  padding: 2px 0;
 }
 /* Carry hold bone row: the bone name gets a line of its own (a narrow Details panel left it a few characters,
    and a click there opened the name list instead of the field), the weight and delete go below it. */

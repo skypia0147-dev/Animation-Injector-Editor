@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useRef, useState, useSyncExternalStore} from 'react';
+import {createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {createPortal} from 'react-dom';
 import {Handle, Position, useUpdateNodeInternals} from '@xyflow/react';
 import type {Workspace} from '../workspace.ts';
@@ -17,7 +17,6 @@ import {
   transferCondition,
   mergeCondition,
   removeCondition,
-  removeRow,
   rowIntoList,
   setGroupJoin,
   setRowJoin,
@@ -342,17 +341,7 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
               <span className={'cond-item-name' + (t.kind ? '' : ' unset')}>
                 {group ? <JoinBadge kind={t.kind as 'all' | 'any'} small /> : name}
               </span>
-              <span className="cond-item-value">
-                {group ? (
-                  tr('묶음 · 조건 {n}개', {n: (t.operands ?? []).length})
-                ) : (
-                  <>
-                    <HandChip hand={hand} />
-                    {value}
-                    {unset && t.kind && <em className="cond-unset">{tr('미설정')}</em>}
-                  </>
-                )}
-              </span>
+              {/* NOT starts where the fields under it start (11-12 audit). */}
               <button
                 type="button"
                 className={'cond-not' + (t.negate ? ' on' : '')}
@@ -365,16 +354,39 @@ function CondList({w, c, uid, list, ids, picked, pick, remove, edit, attempt}: L
               >
                 NOT
               </button>
+              <span className="cond-item-value">
+                {group ? (
+                  tr('묶음 · 조건 {n}개', {n: (t.operands ?? []).length})
+                ) : (
+                  <>
+                    <HandChip hand={hand} />
+                    {value}
+                    {unset && t.kind && <em className="cond-unset">{tr('미설정')}</em>}
+                  </>
+                )}
+              </span>
+              {/* The one way to delete here: a row's last condition takes the row with it (cardCommands tidyCard). */}
               <button
                 type="button"
                 className="cond-x"
                 aria-label={tr('조건 삭제')}
+                title={tr('조건 삭제')}
                 onClick={e => {
                   e.stopPropagation();
                   attempt(remove(id));
                 }}
               >
-                ×
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  aria-hidden="true"
+                >
+                  <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" />
+                </svg>
               </button>
             </div>
             {on && (
@@ -487,6 +499,17 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
   // Opening a part moves the rows under it: their pins are measured again.
   // A drag widens the gaps between parts (where rows land).
   useEffect(() => update(node), [open, picked, c?.rows.length, c?.true === undefined, dragging, node, update]);
+  // The name column is as wide as the card's longest condition name (11-12 re-check: at a fixed 72px 「이동 입력 방향」
+  // was cut): NOT and the fields under it still start on one line. A name is measured with the column at nothing: in
+  // the column its scrollWidth is never less than the column's own width, and each pass would add to it.
+  useLayoutEffect(() => {
+    const root = face.current;
+    if (!root) return;
+    root.style.setProperty('--row-label', '0px');
+    let width = 72;
+    for (const n of root.querySelectorAll('.cond-item-name')) width = Math.max(width, Math.ceil(n.scrollWidth) + 2);
+    root.style.setProperty('--row-label', Math.min(width, 150) + 'px');
+  });
   if (!c) return null;
   const attempt = (f: (w: Workspace) => Workspace) => {
     try {
@@ -775,24 +798,7 @@ export function ConditionCardFace({w, uid, node, edit, status, chosen = false, f
               >
                 {gap(i)}
                 {line(rowPin(r.id), 'row', r.guards, part)}
-                {isOpen(part) &&
-                  editor(
-                    `row:${r.id}`,
-                    r.guards,
-                    <>
-                      <span className="cond-gap" />
-                      <button
-                        type="button"
-                        className="cond-act danger"
-                        onClick={() => {
-                          close(part);
-                          attempt(w => removeRow(w, uid, r.id));
-                        }}
-                      >
-                        {tr('삭제')}
-                      </button>
-                    </>
-                  )}
+                {isOpen(part) && editor(`row:${r.id}`, r.guards)}
               </div>
             );
           })}

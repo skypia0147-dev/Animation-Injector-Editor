@@ -59,13 +59,6 @@ export function nodeSettings(w: Workspace, id: string): Settings | undefined {
     if (feature) return {kind: 'feature', value: feature};
     const row = rows(w, a).find(r => r.id === local);
     if (row?.effect) return {kind: 'effect', value: row.effect.values};
-    if (local.startsWith('cancel:')) {
-      const c = a.cancels.find(c => c.id === local.slice(7));
-      if (c) {
-        const {id, ...value} = c;
-        return {kind: 'cancel', value};
-      }
-    }
     return;
   }
   if (parts[0] === 'anim' && local.startsWith('clip_')) {
@@ -118,11 +111,6 @@ export function applyNodeSettings(w: Workspace, id: string, v: Settings): void {
   if (v.kind === 'effect') {
     const row = rows(w, a).find(r => r.id === local);
     if (row?.effect) row.effect.values = structuredClone(v.value) as Record<string, string>;
-    return;
-  }
-  if (v.kind === 'cancel') {
-    const c = a.cancels.find(c => c.id === local.slice(7));
-    if (c) Object.assign(c, structuredClone(v.value));
     return;
   }
   if (v.kind === 'clip' || v.kind === 'pairedClip') {

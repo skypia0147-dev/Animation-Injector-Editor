@@ -34,13 +34,15 @@ const HAND = `<AnimationSet version="6" id="Hand">
   <Action id="A1" clip="Animations\\Hand\\A1.hkx">
     <Transition to="A2" key="G" gamepad="RB" from="0.45"/>
     <Transition to="A3" key="H"/>
-    <Vanilla to="Block"/>
   </Action>
-  <Action id="A2" clip="Animations\\Hand\\A2.hkx">
-    <Vanilla to="Jump" until="end-0.2"/>
-  </Action>
+  <Action id="A2" clip="Animations\\Hand\\A2.hkx"/>
   <Action id="A3" clip="Animations\\Hand\\A3.hkx"/>
 </AnimationSet>`;
+
+test('a vanilla transition is not read: the element is gone (2026-11-12)', () => {
+  const old = HAND.replace('<Transition to="A3" key="H"/>', '<Vanilla to="Block"/>');
+  assert.throws(() => importWorkspaceXml(old), /Vanilla/);
+});
 
 test('pad buttons: every name, code:N for the rest, a bare number refused like the runtime', needsChecker, () => {
   for (const [name, code] of Object.entries(gamepadNames)) {

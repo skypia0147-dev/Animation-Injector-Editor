@@ -1,5 +1,4 @@
 import {recoveryRule, recoveryStep, isRecovery} from '../clipRecovery.ts';
-import {vanillaNames} from '../graph/vanilla.ts';
 import {sourceWindow, setSourceWindow} from '../graph/clipWindows.ts';
 import {clone, mark} from '../model.ts';
 import type {Mark} from '../model.ts';
@@ -31,7 +30,6 @@ export const names: Record<string, string> = {
   time: 'notify.timeScale',
   cost: 'notify.resourceCost',
   recovery: 'notify.recovery',
-  vanillaCancel: 'notify.vanillaCancel',
   hide: 'notify.weaponHide',
   show: 'notify.weaponShow',
   ragdoll: 'notify.ragdoll',
@@ -68,14 +66,6 @@ export const roleTitle = (role: string) => pairRoleLabels[role] ?? role;
 export function rows(w: Workspace, a: Action, step?: string): Row[] {
   const p = a.config,
     items: Row[] = [];
-  for (const c of a.cancels ?? [])
-    items.push({
-      id: 'cancel:' + c.id,
-      kind: 'vanillaCancel',
-      label: tr('바닐라 전환 · ') + (vanillaNames(c.to).join(', ') || tr('대상 없음')),
-      from: c.open,
-      until: c.close,
-    });
   for (const s of p.steps.filter(s => (!step || s.id === step) && a.clipWindows?.[s.id])) {
     const win = sourceWindow(a, s.id).value;
     items.push({
@@ -218,12 +208,6 @@ export function patch(w: Workspace, action: string, id: string, change: {from?: 
         ...(change.until ? {close: change.until} : {}),
       })
     );
-  } else if (id.startsWith('cancel:')) {
-    const c = a.cancels.find(c => c.id === id.slice(7));
-    if (c) {
-      if (change.from) c.open = change.from;
-      if (change.until) c.close = change.until;
-    }
   } else if (id.startsWith('link:')) {
     const l = n.links.find(l => l.id === id.slice(5));
     if (l) {
@@ -259,7 +243,6 @@ export function remove(w: Workspace, action: string, id: string): Workspace {
   if (id === 'runtime:carryRelease') delete a.config.carryRelease;
   else if (id === 'runtime:carryFix' && a.pair?.carry) a.pair.carry.fix = null;
   else if (id === 'runtime:cameraRestore') a.cameraEnabled = false;
-  else if (id.startsWith('cancel:')) a.cancels = a.cancels.filter(c => c.id !== id.slice(7));
   else if (id.startsWith('effect:'))
     setClipEffects(
       a,
@@ -322,16 +305,6 @@ export function add(
     return {workspace: assignTrack(n, action, id, track), id};
   }
   const existing = rows(w, a).find(r => r.kind === kind);
-  if (kind === 'vanillaCancel') {
-    if (a.pair) throw Error(tr('페어의 종료/전환 기능을 사용하세요.'));
-    const id = uid(
-      'cancel',
-      a.cancels.map(c => c.id)
-    );
-    // Which vanilla actions take over is the user's to choose (11-02).
-    a.cancels.push({id, to: '', open: mark(time), close: mark(0, 'end'), buffered: true, blend: null});
-    return {workspace: n, id: 'cancel:' + id};
-  }
   if (existing && [...slots, 'cost', 'recovery'].includes(kind)) {
     if (!a.pair || kind === 'recovery') throw Error(t('timeline.singleton'));
     const d = duplicate(w, action, existing.id, time);

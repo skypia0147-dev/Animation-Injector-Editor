@@ -5,9 +5,8 @@ import {RagdollPreviewContext} from './ui/ragdollPreviewContext.ts';
 import {matrixAt} from './viewport/matrices.ts';
 import {executeGraphCommand} from './graph/commands.ts';
 import {pairChanges, pairSources, withPairChanges} from './graph/pairFacing.ts';
-import {functionSummary} from './eventRegistry.ts';
 import {dropGrid, freePlayPosition} from './graph/placement.ts';
-import {SUMMARY_HEIGHT} from './graph/cardPresentation.ts';
+import {SUMMARY_HEIGHT, presentCard} from './graph/cardPresentation.ts';
 import {connectXmlAssets} from './importAssets.ts';
 import {draftBody, isDraftBody, readEditorBlock, savedProject, withEditorBlock} from './editorBlock.ts';
 import {captureGraph, lowerGraph, authorReducer, type AuthorGraph} from './graph/document.ts';
@@ -16,12 +15,11 @@ import {HkxCardInfo} from './ui/details/HkxCardInfo.tsx';
 import {actionNode, playbackNode} from './ui/details/inspectorModel.ts';
 import {TransitionDetails} from './ui/details/TransitionDetails.tsx';
 import {PinConnections} from './ui/details/PinConnections.tsx';
+import {FlowConnections} from './ui/details/FlowConnections.tsx';
 import {ProjectDetails} from './ui/details/ProjectDetails.tsx';
 import {InputDetails, ParameterDetails} from './ui/details/ResourceDetails.tsx';
-import {MarkerDetails} from './ui/details/MarkerDetails.tsx';
-import {EffectDetails} from './ui/details/EffectDetails.tsx';
-import {DetailPanel, DetailCategory} from './ui/details/DetailRow.tsx';
-import {addMarker as addCatalogMarker, markerNames, removeMarker} from './ui/details/markerCatalog.ts';
+import {addEventRow, newEventName} from './eventRegistry.ts';
+import {showRegistry} from './graph/RegistryCard.tsx';
 import {deleteSharedInput, inputReferences} from './sharedSettings.ts';
 import {uid, putAction} from './workspace.ts';
 import {parameterDefault} from './authoring.ts';
@@ -154,8 +152,6 @@ function Editor() {
   const [selectedAsset, setSelectedAsset] = useState('');
   const [selectedInput, setSelectedInput] = useState('');
   const [selectedParameter, setSelectedParameter] = useState('');
-  const [selectedMarker, setSelectedMarker] = useState('');
-  const [selectedEffect, setSelectedEffect] = useState({action: '', id: ''});
   const [documentState, dispatchDocument] = useReducer(authorReducer, {
     present: captureGraph(emptyWorkspace()),
     past: [],
@@ -231,7 +227,7 @@ function Editor() {
           ? {kind: 'link', link: id}
           : {
               kind: 'resource',
-              id: (['inputs', 'markers', 'parameters', 'effects', 'preferences'].includes(id)
+              id: (['inputs', 'parameters', 'preferences'].includes(id)
                 ? id
                 : 'project') as import('./graph/state.ts').ResourceKind,
             },
@@ -252,8 +248,6 @@ function Editor() {
     dispatchUI({type: 'select', selection: {kind: 'node', graph: {kind: 'root'}, node: target}});
     setView('graph');
   };
-  const effectAction = w.actions.find(a => a.uid === selectedEffect.action);
-  const effect = effectAction?.pair?.effects.find(e => e.id === selectedEffect.id);
   // ---- ui state ----
   const [search, setSearch] = useState(''),
     [pending, setPending] = useState(false),
@@ -505,7 +499,7 @@ function Editor() {
     setSelection(copy.uid);
     notify(t('shell.duplicated'), 'ok', true);
   };
-  // Ctrl+W and Edit > Duplicate. A card on the canvas is copied as the action it shows: an HKX card's id is
+  // Ctrl+D and Edit > Duplicate. A card on the canvas is copied as the action it shows: an HKX card's id is
   // anim:<uid>:…, not the action's uid (10-28: duplicating a selected HKX card said 「필수 구조 카드는 제거할 수
   // 없습니다」 and copied nothing).
   const duplicateSelected = () => {
@@ -539,24 +533,6 @@ function Editor() {
         w =>
           executeGraphCommand(w, {type: 'delete', id: ui.selection.kind === 'node' ? ui.selection.node : ''}).workspace
       );
-      return;
-    }
-    if (selection === 'effects' && effectAction?.pair) {
-      changeAction({
-        ...effectAction,
-        pair: {...effectAction.pair, effects: effectAction.pair.effects.filter(e => e.id !== selectedEffect.id)},
-      });
-      setSelection(effectAction.uid);
-      return;
-    }
-    if (selection === 'markers') {
-      try {
-        const next = removeMarker(w, selectedMarker);
-        edit(() => next);
-        setSelection('project');
-      } catch (e) {
-        notify(errorText(e), 'error');
-      }
       return;
     }
     if (selection === 'inputs') {
@@ -651,12 +627,17 @@ function Editor() {
     // An XML saved by the editor carries the whole project (editorBlock.ts): restored as saved while its runtime
     // body is untouched; a body edited elsewhere opens from the XML itself.
     const saved = kind === 'xml' ? savedProject(doc.contents) : null;
-    const restored = !!saved?.project;
-    let next = saved?.project
-      ? parseWorkspace(localProject(saved.project))
-      : kind === 'xml'
-        ? importWorkspaceXml(saved!.body)
-        : parseTemplate(doc.contents);
+    // A block this editor cannot read (saved by another version) counts as none, as a broken one does: the XML
+    // itself is what the game plays.
+    let fromBlock: Workspace | null = null;
+    if (saved?.project)
+      try {
+        fromBlock = parseWorkspace(localProject(saved.project));
+      } catch {
+        saved.stale = true;
+      }
+    const restored = !!fromBlock;
+    let next = fromBlock ?? (kind === 'xml' ? importWorkspaceXml(saved!.body) : parseTemplate(doc.contents));
     // A restored block has no local paths when it was saved on another computer (localPaths.ts): HKX beside the
     // XML are found from its mod folder, as for an XML without a block. A remembered path whose file is gone (the
     // mod folder renamed) is found there again; one still there is left alone.
@@ -669,13 +650,13 @@ function Editor() {
     let ragdoll: ReturnType<typeof applyRagdollFiles> | null = null;
     const lifts = kind === 'xml' && doc.path ? carryLifts(next) : [];
     if (lifts.length && isTauri()) {
-      ragdoll = applyRagdollFiles(
-        next,
-        await io.readRagdolls(
-          doc.path,
-          lifts.map(l => l.id)
-        )
-      );
+      // A read that fails as a whole still opens the document: every lift's file counts as unreadable, so it is
+      // reported and Save leaves it on disk.
+      const ids = lifts.map(l => l.id);
+      const read = await io
+        .readRagdolls(doc.path, ids)
+        .catch(e => ids.map(id => ({id, contents: null, error: errorText(e)})));
+      ragdoll = applyRagdollFiles(next, read);
       next = ragdoll.workspace;
     }
     adopt(next, {name: doc.name, fresh: !restored, xmlPath: kind === 'xml' ? doc.path : '', stamp: doc.stamp});
@@ -790,11 +771,16 @@ function Editor() {
     setSelectedParameter(id);
     setSelection('parameters');
   };
+  // An event is registered and edited on the registry card alone (11-12): the menu and the project tree add it there
+  // and open its row, as the card's own 「+ 이벤트」 does.
   const addMarker = () => {
-    const name = uid('Event', markerNames(w));
-    edit(w => addCatalogMarker(w, name));
-    setSelectedMarker(name);
-    setSelection('markers');
+    try {
+      const name = newEventName(w);
+      edit(w => addEventRow(w, name));
+      showRegistry(name);
+    } catch (e) {
+      notify(errorText(e), 'error');
+    }
   };
   // The recovery copy holds the last unsaved state. It goes once the document is saved or its changes are
   // discarded, so a later start never offers a document older than the saved one (code review E-13).
@@ -1225,7 +1211,7 @@ function Editor() {
       } else if (ctrl && key === 'y') {
         e.preventDefault();
         redo();
-      } else if (ctrl && key === 'w' && started) {
+      } else if (ctrl && key === 'd' && started) {
         e.preventDefault();
         duplicateSelected();
       } else if (e.key === 'F2' && started) {
@@ -1387,6 +1373,9 @@ function Editor() {
     const l = w.links.find(l => l.id === node);
     if (l) return `${nameOf(l.from)} → ${nameOf(l.to)}`;
     if (w.actions.some(a => a.uid === node)) return nameOf(node);
+    // A card (a condition, a QTE, a start): its title on the canvas, not its id (11-12 audit).
+    const card = flatGraph(w).nodes.find(n => n.id === node || n.id.endsWith(':' + node));
+    if (card) return presentCard(w, card).title;
     const labels: Record<string, string> = {
       project: t('details.project'),
       inputs: t('myProject.inputs'),
@@ -1501,7 +1490,7 @@ function Editor() {
         '-',
         {
           label: t('menu.edit.duplicate'),
-          shortcut: 'Ctrl+W',
+          shortcut: 'Ctrl+D',
           disabled: !action && ui.selection.kind !== 'node',
           run: duplicateSelected,
         },
@@ -1513,7 +1502,7 @@ function Editor() {
             ui.selection.kind !== 'notify' &&
             !action &&
             !link &&
-            !['inputs', 'parameters', 'markers', 'effects'].includes(selection),
+            !['inputs', 'parameters'].includes(selection),
           run: deleteSelection,
         },
         '-',
@@ -1546,26 +1535,6 @@ function Editor() {
         {label: t('node.hkxPlay') + tr(' 추가'), run: () => createAction()},
         {label: t('menu.project.addInput'), run: () => addInput()},
         {label: t('menu.project.addMarker'), run: () => addMarker()},
-        {
-          label: t('detail.addNotify'),
-          disabled: !action?.pair,
-          run: () => {
-            if (!action?.pair) return;
-            const id = uid(
-              'effect',
-              action.pair.effects.map(e => e.id)
-            );
-            changeAction({
-              ...action,
-              pair: {
-                ...action.pair,
-                effects: [...action.pair.effects, {id, values: {op: 'hide', at: '0.2'}}],
-              },
-            });
-            setSelectedEffect({action: action.uid, id});
-            setSelection('effects');
-          },
-        },
         {label: t('myProject.sharedSettings'), run: () => setSelection('parameters')},
       ],
     },
@@ -1644,33 +1613,23 @@ function Editor() {
       ? action.pair
         ? 'pair'
         : 'state'
-      : selection === 'effects'
-        ? 'effects'
-        : selection === 'markers'
-          ? 'markers'
-          : selection === 'inputs'
-            ? 'inputs'
-            : selection === 'parameters'
-              ? 'parameters'
-              : selection === 'preferences'
-                ? 'preferences'
-                : 'project';
+      : selection === 'inputs'
+        ? 'inputs'
+        : selection === 'parameters'
+          ? 'parameters'
+          : selection === 'preferences'
+            ? 'preferences'
+            : 'project';
   const detailsTitle = link
     ? `${nameOf(link.from)} → ${nameOf(link.to)}`
     : (action?.config.name ??
-      (selection === 'effects'
-        ? effect
-          ? functionSummary(effect.values) + ' · ' + (effect.values.at ?? '') + tr('초')
-          : t('detail.notify')
-        : selection === 'markers'
-          ? selectedMarker
-          : selection === 'inputs'
-            ? t('myProject.inputs')
-            : selection === 'parameters'
-              ? t('myProject.sharedSettings')
-              : selection === 'preferences'
-                ? t('menu.edit.preferences')
-                : w.name));
+      (selection === 'inputs'
+        ? t('myProject.inputs')
+        : selection === 'parameters'
+          ? t('myProject.sharedSettings')
+          : selection === 'preferences'
+            ? t('details.preferences')
+            : w.name));
   const closeButton = (key: keyof Panels) => (
     <button
       type="button"
@@ -1804,11 +1763,7 @@ function Editor() {
                         issues={issues}
                         onOpenGraph={stable('tree.openGraph', (action: string) => openGraph({kind: 'anim', action}))}
                         selectedResource={
-                          selection === 'inputs'
-                            ? selectedInput
-                            : selection === 'parameters'
-                              ? selectedParameter
-                              : selectedMarker
+                          selection === 'inputs' ? selectedInput : selection === 'parameters' ? selectedParameter : ''
                         }
                         w={w}
                         selection={selection}
@@ -1831,14 +1786,16 @@ function Editor() {
                           } else addInput();
                         })}
                         onOpenMarker={stable('tree.marker', (name?: string) => {
-                          if (name) {
-                            setSelectedMarker(name);
-                            setSelection('markers');
-                          } else addMarker();
+                          if (name) showRegistry(name);
+                          else addMarker();
                         })}
+                        // A function is edited on its HKX card (11-12): its row there is chosen and brought into view.
                         onOpenEffect={stable('tree.effect', (action: string, id: string) => {
-                          setSelectedEffect({action, id});
-                          setSelection('effects');
+                          const a = w.actions.find(a => a.uid === action);
+                          const row = a && notifyRows(w, a).find(r => r.effect?.id === id);
+                          if (!row) return;
+                          dispatchUI({type: 'select', selection: {kind: 'notify', action, id: row.id}});
+                          setReveal(r => ({action, seq: (r?.seq ?? 0) + 1}));
                         })}
                         onOpenParameters={stable('tree.parameters', (id?: string) => {
                           if (id) {
@@ -2250,6 +2207,15 @@ function Editor() {
                             }
                           />
                         )}
+                        {/* Where the card is reached from and goes on, as lists (11-12): a line goes to its card. */}
+                        {flatSelection && (
+                          <FlowConnections
+                            w={w}
+                            id={flatSelection.id}
+                            kind={flatSelection.kind}
+                            go={id => graphCommand('go:' + id)}
+                          />
+                        )}
                         {flatSelection &&
                           w.sharedRules
                             ?.filter(g => g.members.some(m => ruleNode(g.kind, m, w) === flatSelection.id))
@@ -2334,34 +2300,14 @@ function Editor() {
                           />
                         ) : detailsKind === 'preferences' ? (
                           <Preferences onResetLayout={resetLayout} />
-                        ) : detailsKind === 'effects' && effect && effectAction?.pair ? (
-                          <DetailPanel>
-                            <DetailCategory title={t('detail.notify')} initialOpen>
-                              <EffectDetails
-                                effect={effect}
-                                pair
-                                change={next =>
-                                  changeAction({
-                                    ...effectAction,
-                                    pair: {
-                                      ...effectAction.pair!,
-                                      effects: effectAction.pair!.effects.map(e => (e.id === next.id ? next : e)),
-                                    },
-                                  })
-                                }
-                              />
-                            </DetailCategory>
-                          </DetailPanel>
-                        ) : detailsKind === 'markers' ? (
-                          <MarkerDetails
+                        ) : detailsKind === 'parameters' ? (
+                          <ParameterDetails
                             w={w}
-                            name={selectedMarker}
-                            select={setSelectedMarker}
+                            selected={selectedParameter}
                             edit={edit}
                             status={setStatus}
+                            add={addParameter}
                           />
-                        ) : detailsKind === 'parameters' ? (
-                          <ParameterDetails w={w} selected={selectedParameter} edit={edit} status={setStatus} />
                         ) : detailsKind === 'inputs' ? (
                           <InputDetails
                             w={w}
@@ -2478,7 +2424,7 @@ function Editor() {
                         ['Ctrl+E / Ctrl+Shift+E', t('menu.file.exportXml') + ' / ' + t('menu.file.exportMod')],
                         ['F7', t('menu.project.compile')],
                         ['Ctrl+Z / Ctrl+Y', t('menu.edit.undo') + ' / ' + t('menu.edit.redo')],
-                        ['Ctrl+W / Del', t('menu.edit.duplicate') + ' / ' + t('menu.edit.delete')],
+                        ['Ctrl+D / Del', t('menu.edit.duplicate') + ' / ' + t('menu.edit.delete')],
                         ['Home', t('menu.view.fit')],
                         ['Ctrl+`', t('menu.view.xml')],
                       ].map(([k, v]) => (

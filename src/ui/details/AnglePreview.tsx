@@ -4,8 +4,18 @@ export function AnglePreview({angle}: {angle: number}) {
   const half = (degrees * Math.PI) / 360,
     x = 32 * Math.sin(half),
     y = -32 * Math.cos(half);
+  // Up to a half turn the fan is all above the actor: the empty lower half is left out (it stood as a blank band
+  // under the picture, 11-12 re-check). A wider one needs the whole circle.
+  const height = degrees > 180 ? 82 : 53;
   return (
-    <svg width="82" height="82" viewBox="-41 -41 82 82" role="img" aria-label={t('row.angle') + ' ' + degrees + '°'}>
+    <svg
+      className="angle-preview"
+      width="82"
+      height={height}
+      viewBox={`-41 -41 82 ${height}`}
+      role="img"
+      aria-label={t('row.angle') + ' ' + degrees + '°'}
+    >
       <circle r="32" fill="none" stroke="var(--ue-line2)" />
       {degrees >= 360 ? (
         <circle r="32" fill="var(--ue-select)" opacity=".3" />

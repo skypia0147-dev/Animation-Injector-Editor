@@ -34,7 +34,7 @@ export function PinConnections({
   return (
     <DetailCategory title={tr('연결')} initialOpen>
       {rows.map(r => (
-        <DetailRow key={r.pin} label={r.label + ' →'}>
+        <DetailRow key={r.pin} label={r.label}>
           <PinMenu
             className="pin-menu-field"
             label={(r.currentLabel || (r.clearable ? tr('연결 안 함') : tr('고르세요'))) + ' ▾'}

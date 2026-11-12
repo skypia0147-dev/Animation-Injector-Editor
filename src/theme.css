@@ -751,6 +751,12 @@ button.res:hover {
   width: auto;
   min-width: 160px;
 }
+.prefs-note {
+  margin: 6px 0 0;
+  color: var(--ue-dim);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
 
 /* toasts */
 .toasts {

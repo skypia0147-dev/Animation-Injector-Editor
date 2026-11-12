@@ -14,12 +14,12 @@ const entries: Record<string, [string, string, string, string]> = {
     '個別に視点を決めていないアクションの視点です。ペアと運搬は常に三人称です。',
     '未单独设置视角的动作所用的视角。配对与搬运始终为第三人称。',
   ],
-  'row.firstPerson': ['In first person', '1인칭에서', '一人称では', '第一人称时'],
-  'tip.firstPerson': [
-    'The player uses this third-person action with a first-person camera: do not start it, or switch to third person and return to first person when it ends.',
-    '1인칭 카메라에서 플레이어가 이 3인칭 동작을 쓰면: 시작하지 않거나, 3인칭으로 바꿔 재생하고 끝나면 1인칭으로 돌아갑니다.',
-    'プレイヤーが一人称カメラでこの三人称アクションを使うと: 開始しない、または三人称に切り替えて再生し、終了後に一人称へ戻ります。',
-    '玩家在第一人称镜头下使用此第三人称动作时：不启动，或切换到第三人称播放并在结束后回到第一人称。',
+  'row.otherView': ['View switch', '시점 전환', '視点切り替え', '视角切换'],
+  'tip.otherView': [
+    'The player uses this action while the camera is in the other view. Off: it does not start. On: the camera switches to the action’s view, plays it, and returns when it ends. Needs runtime 1.0.8 or later.',
+    '플레이어가 다른 인칭 카메라에서 이 동작을 쓸 때입니다. 끄면 시작하지 않습니다. 켜면 동작의 인칭으로 카메라를 바꿔 재생하고, 끝나면 원래 인칭으로 돌아갑니다. 런타임 1.0.8 이상이 필요합니다.',
+    'プレイヤーが別の視点のカメラでこのアクションを使うときです。オフ: 開始しません。オン: アクションの視点にカメラを切り替えて再生し、終了後に元の視点へ戻ります。ランタイム 1.0.8 以上が必要です。',
+    '玩家在另一视角的镜头下使用此动作时。关闭：不启动。开启：将镜头切换到动作的视角播放，结束后回到原视角。需要运行时 1.0.8 或更高版本。',
   ],
   'view.third': ['Third person', '3인칭', '三人称', '第三人称'],
   'view.first': ['First person', '1인칭', '一人称', '第一人称'],
@@ -51,7 +51,18 @@ const entries: Record<string, [string, string, string, string]> = {
     '第三人称（搬运放下固定）',
   ],
   'view.block': ['Do not start', '시작 안 함', '開始しない', '不启动'],
-  'view.switch': ['Switch to third person', '3인칭으로 전환', '三人称に切り替え', '切换到第三人称'],
+  'view.switchThird': [
+    'Switch to third person to play',
+    '3인칭으로 바꿔서 재생',
+    '三人称に切り替えて再生',
+    '切换到第三人称播放',
+  ],
+  'view.switchFirst': [
+    'Switch to first person to play',
+    '1인칭으로 바꿔서 재생',
+    '一人称に切り替えて再生',
+    '切换到第一人称播放',
+  ],
   'view.cancelThird': [
     'Switching to first person while it plays cancels it.',
     '재생 중 1인칭으로 바꾸면 취소됩니다.',

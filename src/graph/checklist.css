@@ -200,20 +200,27 @@
 .shell .checklist-body .detail-row .detail-name {
   line-height: 18px;
 }
-/* A checkbox row puts the box and its name in the control column: no long name squeezed into the label one. */
-.checklist-body .detail-row.is-check > .detail-label-help,
-.checklist-body .detail-row.is-check > .detail-value {
+/* A checkbox row: its name on one line from the left, the box at the row's right end (where the rows around it keep
+   their values). The name takes the room, so a long one is not squeezed into the label column. */
+.shell .checklist-body .detail-row.is-check {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.shell .checklist-body .detail-row.is-check > .detail-label-help {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: flex-start;
+  padding-left: 0;
+}
+.shell .checklist-body .detail-row.is-check .detail-name {
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+.shell .checklist-body .detail-row.is-check > .detail-value {
   grid-column: 2;
   grid-row: 1;
-}
-.checklist-body .detail-row.is-check > .detail-label-help {
-  padding-left: 22px;
-}
-.checklist-body .detail-row.is-check .detail-name {
-  cursor: pointer;
-}
-.checklist-body .detail-row.is-check > .detail-value {
-  justify-self: start;
+  justify-self: end;
 }
 /* A row named as its item (이름 · 이름) keeps its column but not the second name. */
 .checklist-body .detail-row.repeats-title .detail-name {

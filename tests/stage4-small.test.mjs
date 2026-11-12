@@ -23,47 +23,6 @@ const sameForRuntime = (name, source, w) => {
 const roundtrip = w => parseWorkspace(JSON.stringify(captureGraph(w)));
 const errors = w => validateWorkspace(w).filter(i => i.level === 'error');
 
-const CANCELS = `<AnimationSet version="6" id="Cancels">
-  <Inputs>
-    <Input id="use" key="E"/>
-  </Inputs>
-  <Start input="use" to="Dodge"/>
-  <Action id="Dodge" clip="Animations\\Test\\Dodge.hkx">
-    <Vanilla id="dodgeOut" to="Attack"/>
-    <Vanilla id="late" to="Block" from="0.2" until="end-0.1" buffer="false"/>
-  </Action>
-</AnimationSet>`;
-
-test('a vanilla cancel keeps its own XML id and an always-open window (G6, G11)', needsChecker, () => {
-  let w = importWorkspaceXml(CANCELS);
-  const [always, timed] = w.actions[0].cancels;
-  assert.equal(always.always, true);
-  assert.equal(timed.always, undefined);
-  sameForRuntime('cancels', CANCELS, w);
-  w = roundtrip(w);
-  // Open for the whole clip: no from, until or buffer (format 6).
-  assert.match(compileWorkspace(w), /<Vanilla id="dodgeOut" to="Attack"\/>/);
-  // The XML id is set apart from the editor's key: the key stays, the file takes the given id.
-  w.actions[0].cancels[1].xmlId = 'blockOut';
-  assert.match(compileWorkspace(w), /<Vanilla id="blockOut" to="Block" /);
-  assert.equal(w.actions[0].cancels[1].id, 'late');
-  assert.equal(roundtrip(w).actions[0].cancels[1].xmlId, 'blockOut');
-  // Two windows may not share an id (the runtime's window ids, case-insensitive), nor take an invalid one.
-  w.actions[0].cancels[1].xmlId = 'DodgeOut';
-  assert.ok(errors(w).some(e => /캔슬 창의 대상·ID/.test(e.message)));
-  w.actions[0].cancels[1].xmlId = '1bad';
-  assert.ok(errors(w).some(e => /캔슬 창의 대상·ID/.test(e.message)));
-});
-
-test('an unnamed vanilla cancel is cancelN', needsChecker, () => {
-  // The runtime names an unnamed cancel by its position; the editor keeps that name and does not write it.
-  const unnamed = CANCELS.replace('<Vanilla id="dodgeOut" ', '<Vanilla ');
-  const w = importWorkspaceXml(unnamed);
-  assert.equal(w.actions[0].cancels[0].id, 'cancel1');
-  assert.match(compileWorkspace(w), /<Vanilla to="Attack"\/>/);
-  sameForRuntime('unnamed-cancel', unnamed, w);
-});
-
 const QTES = `<AnimationSet version="6" id="Qtes">
   <Inputs>
     <Input id="use" key="E"/>

@@ -8,6 +8,7 @@ import type {Action, Workspace} from './workspace.ts';
 import type {Project} from './model.ts';
 import {actionView} from './view.ts';
 import {tr} from './i18n/korean.ts';
+import {t} from './i18n/index.ts';
 
 export const isCreatureRig = (rig?: PairedRig): rig is PairedRig => !!rig && rig !== 'character';
 /** The skeleton an HKX card plays with: an ordinary card's rig, a pair's initiator (runtime 1.1.0 <Pair rig>). */
@@ -72,7 +73,7 @@ export const partnerRigError = (pair: Action, next: Action) =>
 
 /** The settings (＋ 설정 ids) and the items (＋ 기능 and context add kinds) a creature card is not offered: the
  *  runtime refuses them on a creature's action (XmlV2). */
-export const creatureHiddenSettings: readonly string[] = ['view', 'firstPerson', 'air', 'attack'];
+export const creatureHiddenSettings: readonly string[] = ['view', 'otherView', 'air', 'attack'];
 export const creatureHiddenAdds: readonly string[] = [
   'qte',
   'cameraRestore',
@@ -92,7 +93,7 @@ export function creatureLimits(w: Workspace, a: Action): string[] {
   // A creature-started pair carries no one (runtime XmlV2).
   if (a.pair?.carry) out.push(tr('운반'));
   if (actionView(w, a) !== 'third') out.push(tr('인칭'));
-  if (a.firstPerson) out.push(tr('1인칭에서'));
+  if (a.otherView) out.push(t('row.otherView'));
   if (p.air !== 'deny') out.push(tr('공중'));
   if (p.attack || p.steps.some(s => s.attack)) out.push(tr('공격 데이터'));
   if (w.qtes?.some(q => q.owner === a.uid)) out.push('QTE');

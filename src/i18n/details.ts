@@ -7,7 +7,6 @@ const entries: Record<string, [string, string]> = {
     '선택 사항입니다. 이벤트와 시간을 모두 지정하면 각각 실행 조건이 됩니다. 대체 시각이 아닙니다.',
   ],
   'detail.dragNumber': ['Drag to adjust · Escape to cancel', '드래그로 값 조절 · Esc로 취소'],
-  'detail.addNotify': ['Add role feature', '역할 기능 추가'],
   'details.effects': ['FEATURES', '기능'],
   'details.markers': ['EVENTS', '이벤트'],
   'detail.help': ['Description', '설명'],

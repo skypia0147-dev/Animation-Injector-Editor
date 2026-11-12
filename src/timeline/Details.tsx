@@ -1,5 +1,4 @@
 import type {ReactNode} from 'react';
-import {VanillaTargets} from '../graph/vanillaTransition.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {isRecovery, recoveryRule, setRecoveryRule} from '../clipRecovery.ts';
 import type {Workspace, Action} from '../workspace.ts';
@@ -99,10 +98,9 @@ export function NotifyDetails({
   const pp = (v: object) => {
     if (pair && pt) change({...action, pair: {...pair, timeline: {...pair.timeline, [id.slice(5)]: {...pt, ...v}}}});
   };
-  // Windows, recovery, vanilla cancels and the carry release may wait for an event; features, costs,
+  // Windows, recovery and the carry release may wait for an event; features, costs,
   // shots and pair effects run at clip times (format 3: event moments are registry functions).
-  const eventAllowed =
-    !!row.transition || row.kind === 'vanillaCancel' || isRecovery(id) || id === 'runtime:carryRelease';
+  const eventAllowed = !!row.transition || isRecovery(id) || id === 'runtime:carryRelease';
   const bases = (k: 'from' | 'until'): ('seconds' | 'event' | 'end')[] =>
     eventAllowed
       ? k === 'until' && !pair
@@ -137,88 +135,6 @@ export function NotifyDetails({
           <span>{row.label}</span>
         </DetailRow>
       )}
-      {id.startsWith('cancel:') &&
-        (() => {
-          const c = action.cancels.find(c => c.id === id.slice(7))!;
-          const update = (values: object) =>
-            change({...action, cancels: action.cancels.map(x => (x.id === c.id ? {...x, ...values} : x))});
-          return (
-            <>
-              <VanillaTargets to={c.to} change={to => update({to})} />
-              <DetailRow
-                label="ID"
-                hint={tr(
-                  'XML의 Cancel id입니다. 런타임 창 이벤트 이름(AI_<동작>_<ID>Open/Close)에 쓰입니다. 비우면 자동 이름({id})을 씁니다.',
-                  {id: c.id}
-                )}
-              >
-                <input
-                  aria-label="ID"
-                  placeholder={c.id}
-                  value={c.xmlId ?? ''}
-                  onChange={e => {
-                    const xmlId = e.target.value.trim();
-                    const {xmlId: _, ...rest} = c;
-                    change({
-                      ...action,
-                      cancels: action.cancels.map(x => (x.id === c.id ? (xmlId ? {...rest, xmlId} : rest) : x)),
-                    });
-                  }}
-                />
-              </DetailRow>
-              <DetailRow
-                label={tr('항상 열림')}
-                hint={tr(
-                  '클립 전체에서 전환을 허용합니다(시각·선입력 없음). 끄면 열림·닫힘 시각으로 정한 구간에서만 허용합니다.'
-                )}
-              >
-                <input
-                  aria-label={tr('항상 열림')}
-                  type="checkbox"
-                  checked={!!c.always}
-                  onChange={e => {
-                    const {always: _, ...rest} = c;
-                    change({
-                      ...action,
-                      cancels: action.cancels.map(x =>
-                        x.id === c.id ? (e.target.checked ? {...rest, always: true as const} : rest) : x
-                      ),
-                    });
-                  }}
-                />
-              </DetailRow>
-              {!c.always && (
-                <DetailRow label={tr('선입력')}>
-                  <input
-                    aria-label={tr('선입력')}
-                    type="checkbox"
-                    checked={c.buffered}
-                    onChange={e => update({buffered: e.target.checked})}
-                  />
-                </DetailRow>
-              )}
-              <DetailRow label={tr('블렌드 재정의')}>
-                <input
-                  aria-label={tr('블렌드 재정의')}
-                  type="checkbox"
-                  checked={c.blend !== null}
-                  onChange={e => update({blend: e.target.checked ? 0.1 : null})}
-                />
-                {c.blend !== null && (
-                  <NumberInput
-                    aria-label={tr('캔슬 블렌드')}
-
-                    min="0"
-                    max="5"
-                    step="0.05"
-                    value={c.blend}
-                    change={v => update({blend: v})}
-                  />
-                )}
-              </DetailRow>
-            </>
-          );
-        })()}
       {!card && (
         <DetailRow label={t('timeline.trackLabel')}>
           <select
@@ -255,13 +171,7 @@ export function NotifyDetails({
         </DetailRow>
       )}
       {(['from', 'until'] as const)
-        .filter(
-          k =>
-            !timing &&
-            !!row[k] &&
-            !(id === 'rotate' && p.rotationLocked) &&
-            !(id.startsWith('cancel:') && action.cancels.find(c => c.id === id.slice(7))?.always)
-        )
+        .filter(k => !timing && !!row[k] && !(id === 'rotate' && p.rotationLocked))
         .map(k => (
           <DetailRow
             key={k}

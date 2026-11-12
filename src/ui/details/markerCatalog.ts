@@ -41,10 +41,6 @@ function refs(w: Workspace): Ref[] {
         addMark(v.open, where + tr(' · {step} 감지 시작', {step}));
         addMark(v.close, where + tr(' · {step} 감지 종료', {step}));
       }
-      for (const c of s.cancels ?? []) {
-        addMark(c.open, where + tr(' · 바닐라 전환 시작'));
-        addMark(c.close, where + tr(' · 바닐라 전환 종료'));
-      }
       if (s.camera) add(s.camera, 'reset', where + tr(' · 카메라 복구'));
     }
   }

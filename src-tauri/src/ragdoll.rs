@@ -47,11 +47,15 @@ fn folder(xml_path: &str) -> Result<PathBuf, String> {
 #[derive(serde::Serialize)]
 pub struct ReadRagdoll {
     pub id: String,
-    /// None: no file.
+    /// None: no file, or one that could not be read (`error`).
     pub contents: Option<String>,
+    /// Why a file that exists was not read: not UTF-8, too large, or an I/O error. The document still opens; the
+    /// editor leaves such a file alone (ragdoll.ts applyRagdollFiles).
+    pub error: Option<String>,
 }
 
-/// The ragdoll files of these lift actions beside the XML, those that exist.
+/// The ragdoll files of these lift actions beside the XML, those that exist. One unreadable file is reported in its
+/// own entry and never fails the others.
 #[tauri::command]
 pub async fn read_ragdolls(xml_path: String, ids: Vec<String>) -> Result<Vec<ReadRagdoll>, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -62,18 +66,23 @@ pub async fn read_ragdolls(xml_path: String, ids: Vec<String>) -> Result<Vec<Rea
         let mut out = Vec::new();
         for id in ids {
             if !valid_id(&id) {
-                out.push(ReadRagdoll { id, contents: None });
+                out.push(ReadRagdoll {
+                    id,
+                    contents: None,
+                    error: None,
+                });
                 continue;
             }
             let path = folder.join(format!("{id}.xml"));
-            let contents = match fs::metadata(&path) {
-                Ok(m) if m.is_file() && m.len() as usize <= FILE_LIMIT => {
-                    Some(fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?)
-                }
-                Ok(m) if m.is_file() => return Err(format!("{}: 래그돌 파일이 너무 큽니다.", path.display())),
-                _ => None,
+            let (contents, error) = match fs::metadata(&path) {
+                Ok(m) if m.is_file() && m.len() as usize <= FILE_LIMIT => match fs::read_to_string(&path) {
+                    Ok(text) => (Some(text), None),
+                    Err(e) => (None, Some(e.to_string())),
+                },
+                Ok(m) if m.is_file() => (None, Some("래그돌 파일이 너무 큽니다.".to_string())),
+                _ => (None, None),
             };
-            out.push(ReadRagdoll { id, contents });
+            out.push(ReadRagdoll { id, contents, error });
         }
         Ok(out)
     })
@@ -142,7 +151,18 @@ mod tests {
         let read =
             tauri::async_runtime::block_on(read_ragdolls(xml.clone(), vec!["Lift".into(), "Other".into()])).unwrap();
         assert_eq!(read[0].contents.as_deref(), Some(doc));
-        assert!(read[1].contents.is_none());
+        assert!(read[1].contents.is_none() && read[1].error.is_none());
+        // A file that is not UTF-8 (UTF-16 here) or is too large is reported in its own entry; the others still read.
+        fs::write(root.join("Ragdoll/Wide.xml"), [0xFFu8, 0xFE, b'<', 0, b'?', 0]).unwrap();
+        fs::write(root.join("Ragdoll/Big.xml"), vec![b' '; FILE_LIMIT + 1]).unwrap();
+        let mixed = tauri::async_runtime::block_on(read_ragdolls(
+            xml.clone(),
+            vec!["Wide".into(), "Lift".into(), "Big".into()],
+        ))
+        .unwrap();
+        assert!(mixed[0].contents.is_none() && mixed[0].error.is_some());
+        assert_eq!(mixed[1].contents.as_deref(), Some(doc));
+        assert!(mixed[2].contents.is_none() && mixed[2].error.is_some());
         tauri::async_runtime::block_on(write_ragdolls(xml.clone(), vec![], vec!["Lift".into()])).unwrap();
         assert!(!root.join("Ragdoll/Lift.xml").exists());
         let bad = RagdollFile {

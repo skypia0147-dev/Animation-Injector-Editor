@@ -31,7 +31,6 @@ export const timelineEn = {
   'timeline.markerFixed': 'Marker-based timing: edit its basis in Details.',
   'timeline.trackLabel': 'Track',
   'notify.recovery': 'Movement recovery',
-  'notify.vanillaCancel': 'Vanilla action cancel',
 };
 export const timelineKo: Record<keyof typeof timelineEn, string> = {
   'timeline.endEffect': '해제',
@@ -66,5 +65,4 @@ export const timelineKo: Record<keyof typeof timelineEn, string> = {
   'timeline.markerFixed': '이벤트 기준 항목입니다. 디테일에서 시각 기준을 변경하세요.',
   'timeline.trackLabel': '트랙',
   'notify.recovery': '이동키 취소',
-  'notify.vanillaCancel': '바닐라 동작 전환',
 };

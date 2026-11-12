@@ -6,9 +6,9 @@
 // carry's putdown Action play in third person whatever the file says. A pair defaults to third whatever the file says
 // and may be first or both (runtime 1.0.8), with the files of an action of that view: a first-person pair's one file is
 // its first-person copy (the paired HKX holds both roles, so the partner plays it too) and it starts only in first
-// person. A third-person action started by
-// the player in first person either does not start (block, default) or switches to third person and
-// back when it ends (firstPerson="switch"). A change of view while an action plays cancels it.
+// person. An action of one view (third or first) that
+// the player starts in the other view either does not start (block, default) or switches the camera to its view and
+// back when it ends (otherView="switch", runtime 1.0.8). A change of view while an action plays cancels it.
 import type {Action, Workspace} from './workspace.ts';
 import type {Issue, Step} from './model.ts';
 import {assetKey} from './package.ts';
@@ -18,9 +18,9 @@ import {tr} from './i18n/korean.ts';
 import {withRigOf} from './creatureRig.ts';
 
 export type View = 'third' | 'first' | 'both';
-export type FirstPersonStart = 'block' | 'switch';
+export type OtherViewStart = 'block' | 'switch';
 export const views: readonly View[] = ['third', 'first', 'both'];
-export const firstPersonStarts: readonly FirstPersonStart[] = ['block', 'switch'];
+export const otherViewStarts: readonly OtherViewStart[] = ['block', 'switch'];
 
 /** The first-person project reads a clip's relative path under this folder of Actors\Character. */
 export const FIRST_PERSON_FOLDER = '_1stPerson';
@@ -47,9 +47,17 @@ export const defaultView = (w: Workspace, a: Action): View => (a.pair ? 'third' 
 export function actionView(w: Workspace, a: Action): View {
   return fixedThird(w, a) ? 'third' : (a.view ?? defaultView(w, a));
 }
-/** The player's start in first person; only a third-person action has one. */
-export const firstPersonStart = (w: Workspace, a: Action): FirstPersonStart =>
-  actionView(w, a) === 'third' ? (a.firstPerson ?? 'block') : 'block';
+/** Whether the action has a start from the other view, as the runtime takes it: one view of its own (not both),
+ *  and not a first-person pair. */
+export function hasOtherView(w: Workspace, a: Action): boolean {
+  const view = actionView(w, a);
+  return view !== 'both' && !(a.pair && view === 'first');
+}
+/** Whether its card offers the switch: a carry's putdown is started by the carry, never by the player. */
+export const offersOtherView = (w: Workspace, a: Action) => hasOtherView(w, a) && fixedThird(w, a) !== 'putdown';
+/** The player's start in the view the action does not play in. */
+export const otherViewStart = (w: Workspace, a: Action): OtherViewStart =>
+  hasOtherView(w, a) ? (a.otherView ?? 'block') : 'block';
 
 /** Sets the project default; overrides equal to it are dropped (they mean the same). */
 export function setProjectView(w: Workspace, view: View): Workspace {
@@ -70,12 +78,12 @@ export function setActionView(w: Workspace, uid: string, view: View): Workspace 
   else a.view = view;
   return next;
 }
-export function setFirstPersonStart(w: Workspace, uid: string, start: FirstPersonStart): Workspace {
+export function setOtherViewStart(w: Workspace, uid: string, start: OtherViewStart): Workspace {
   const next = clone(w),
     a = next.actions.find(a => a.uid === uid);
   if (!a) throw new Error(tr('동작을 찾지 못했습니다.'));
-  if (start === 'block') delete a.firstPerson;
-  else a.firstPerson = start;
+  if (start === 'block') delete a.otherView;
+  else a.otherView = start;
   return next;
 }
 

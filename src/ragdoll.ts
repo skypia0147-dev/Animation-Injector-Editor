@@ -240,20 +240,25 @@ export function carryLifts(w: Workspace): {action: Action; id: string; rig: stri
 }
 
 /** The files read beside an opened XML put into the lifts: a valid one becomes its values, a missing one the
- *  built-in values (null), a rejected one is reported and kept on disk untouched (`rejected`). */
+ *  built-in values (null), a rejected one is reported and kept on disk untouched (`rejected`). A file that could not
+ *  be read at all (`error`: not UTF-8, too large) is rejected the same way, so the document still opens. */
 export function applyRagdollFiles(
   w: Workspace,
-  read: {id: string; contents: string | null}[]
+  read: {id: string; contents: string | null; error?: string | null}[]
 ): {workspace: Workspace; errors: string[]; rejected: string[]} {
-  const byId = new Map(read.map(r => [r.id.toLowerCase(), r.contents]));
+  const byId = new Map(read.map(r => [r.id.toLowerCase(), r]));
   const errors: string[] = [],
     rejected: string[] = [];
   const actions = w.actions.map(a => {
     const carry = a.pair?.carry;
     if (!carry) return a;
-    const contents = byId.get(a.config.actionId.toLowerCase()) ?? null;
+    const file = byId.get(a.config.actionId.toLowerCase());
+    const contents = file?.contents ?? null;
     let ragdoll: Ragdoll | null = null;
-    if (contents !== null) {
+    if (file?.error) {
+      errors.push(`Ragdoll\\${a.config.actionId}.xml: ${file.error}`);
+      rejected.push(a.config.actionId);
+    } else if (contents !== null) {
       const parsed = parseRagdoll(contents, a.pair!.targetRig ?? 'character');
       if ('ragdoll' in parsed) ragdoll = parsed.ragdoll;
       else {

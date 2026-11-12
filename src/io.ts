@@ -133,8 +133,11 @@ export async function openPath(path: string): Promise<OpenedDocument> {
 }
 
 /** The carry lift actions' ragdoll files beside a saved XML (`<folder>/Ragdoll/<id>.xml`, ragdoll.ts); contents
- *  null where there is none. */
-export async function readRagdolls(xmlPath: string, ids: string[]): Promise<{id: string; contents: string | null}[]> {
+ *  null where there is none, or where the file could not be read (`error` says why). */
+export async function readRagdolls(
+  xmlPath: string,
+  ids: string[]
+): Promise<{id: string; contents: string | null; error?: string | null}[]> {
   if (!isTauri()) return [];
   return invoke('read_ragdolls', {xmlPath, ids});
 }

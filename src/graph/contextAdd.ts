@@ -156,8 +156,8 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
       k !== 'magicRemove' &&
       k !== 'magicCast' &&
       (a?.pair
-        ? k !== 'vanillaCancel' && k !== 'fireArrow'
-        : ['rotate', 'iframe', 'armor', 'time', 'cost', 'recovery', 'vanillaCancel', ...ordinaryEffectOps].includes(k))
+        ? k !== 'fireArrow'
+        : ['rotate', 'iframe', 'armor', 'time', 'cost', 'recovery', ...ordinaryEffectOps].includes(k))
   ))
     options.push({
       label: (kind === 'magicAdd' ? tr('마법 효과') : title(kind)) + tr(' 추가'),

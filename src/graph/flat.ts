@@ -10,7 +10,6 @@ import type {Workspace} from '../workspace.ts';
 import type {GraphRef} from './state.ts';
 import {graphId} from './state.ts';
 import {projectGraph, graphPosition, deleteGraphNode, mutateGraph, moveNodes} from './projection.ts';
-import {vanillaNames} from './vanilla.ts';
 import type {GraphNode, GraphEdge} from './projection.ts';
 import {rows, remove, add} from '../timeline/model.ts';
 import {timingLabel, mark} from '../model.ts';
@@ -24,6 +23,7 @@ import {
   makesLoop,
   newCard,
   newStart,
+  pressName,
   refAction,
   refCard,
   startText,
@@ -144,27 +144,6 @@ export function flatGraph(w: Workspace) {
       .filter(r => !r.transition)
       .entries()) {
       const id = `notify:${a.uid}|${r.id}`;
-      // A vanilla transition is a transition card (11-01, A7): it goes to the game's own action, so no line leaves it.
-      const cancel = r.id.startsWith('cancel:') ? a.cancels.find(c => 'cancel:' + c.id === r.id) : undefined;
-      if (cancel) {
-        const names = vanillaNames(cancel.to);
-        add({
-          id,
-          scope: root,
-          original: id,
-          action: a.uid,
-          // Deleting it removes the action's vanilla transition (remove below).
-          notify: r.id,
-          kind: 'transition',
-          title: tr('전환 · 바닐라 {v0}', {v0: names.join(', ') || tr('대상 없음')}),
-          summary: cancel.always ? tr('클립 전체') : timingLabel(cancel.open) + ' → ' + timingLabel(cancel.close),
-          position: graphPosition(w, root, id, {x: a.position.x + 420, y: a.position.y + 90 + j * 40}),
-          inputs: ['trigger'],
-          outputs: [],
-        });
-        wire(animId(a.uid, 'clip_' + a.config.entry), id);
-        continue;
-      }
       add({
         id,
         scope: root,
@@ -268,15 +247,18 @@ export function flatGraph(w: Workspace) {
                 : key?.control
                   ? gameControlLabel(key.control)
                   : key?.key || (key?.gamepad ? tr('패드') : tr('키 미지정'))) +
+        (l.mode === 'input' && l.press ? ' · ' + pressName(l.press) : '') +
+        (l.end ? ' · ' + tr('끝내기') : '') +
         (l.window ? ' · ' + timingLabel(l.open) + ' → ' + timingLabel(l.close) : ''),
       scope: root,
       original: id,
       action: l.from,
       inputs: ['trigger'],
       // A pair's transition to an ordinary action (or none yet) also names the partner's (victim's) action.
+      // An ending transition keeps its destination row (it says 끝내기 there); the card draws no pin on it.
       outputs: [
         'trigger',
-        ...(from?.pair && !l.card && !w.actions.find(x => x.uid === l.to)?.pair ? ['partner' as const] : []),
+        ...(from?.pair && !l.end && !l.card && !w.actions.find(x => x.uid === l.to)?.pair ? ['partner' as const] : []),
       ],
       position: graphPosition(w, root, id, l.position ?? {x: 4000, y: i * 450}),
     });
@@ -474,6 +456,7 @@ export function setDestination(w: Workspace, source: string, pin: string | undef
       throw Error(tr('같은 출발 HKX에 이미 연결된 이벤트입니다.'));
     l.to = a;
     l.card = c || undefined;
+    delete l.end; // connected: it goes on instead of ending its HKX
     if (c || next.actions.find(x => x.uid === a)?.pair) l.partnerTo = '';
     if (c) delete l.blend;
     return next;
@@ -694,7 +677,6 @@ export function addItem(w: Workspace, action: string, kind: string, before = fal
   return {workspace: mutateGraph(w, {kind: 'anim', action}, kind as never), id: animId(action, kind)};
 }
 export const notifyKinds = [
-  'vanillaCancel',
   'rotate',
   'iframe',
   'armor',

@@ -197,16 +197,15 @@ function ClipEffectFields({w, action, effect, edit}: {w: Workspace; action: Acti
   );
 }
 
-// ── windows, cost, recovery and vanilla cancels (docs/mockup-moment-timing) ───────────────────────
+// ── windows, cost and recovery (docs/mockup-moment-timing) ───────────────────────
 /** Which timing layout a timeline item takes in the card; undefined keeps its own detail fields (transitions, the
- *  carry's moments, a pair's grouped effects, a rotation locked for the whole clip, a cancel open for the whole clip). */
-export function timingKind(action: Action, id: string): 'slot' | 'cost' | 'recovery' | 'cancel' | undefined {
+ *  carry's moments, a pair's grouped effects, a rotation locked for the whole clip). */
+export function timingKind(action: Action, id: string): 'slot' | 'cost' | 'recovery' | undefined {
   const key = id.startsWith('pair:') ? id.slice(5) : id;
   if ((slots as readonly string[]).includes(key))
     return key === 'rotate' && !action.pair && action.config.rotationLocked ? undefined : 'slot';
   if (key === 'cost') return 'cost';
   if (isRecovery(id)) return 'recovery';
-  if (id.startsWith('cancel:') && !action.cancels.find(c => c.id === id.slice(7))?.always) return 'cancel';
   return undefined;
 }
 const toClip = (m: Mark): Mark => ({...m, basis: 'seconds', event: '', fallback: false, fallbackBasis: 'seconds'});
@@ -219,8 +218,8 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
   const [picking, setPicking] = useState(false);
   if (!row) return null;
   const pair = id.startsWith('pair:');
-  // A recovery's and a cancel's event is the action's own; a window's and a cost's is the registry's.
-  const own = kind === 'recovery' || kind === 'cancel';
+  // A recovery's event is the action's own; a window's and a cost's is the registry's.
+  const own = kind === 'recovery';
   const isEvent = own && row.from.basis === 'event';
   const set = (change: {from?: Mark; until?: Mark}) => edit(w => patch(w, action.uid, id, change));
   // 「이벤트」 opens the picker; the item moves to an event only when one is picked (user request 11-02).
@@ -239,7 +238,7 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
         )
       );
   };
-  const ranged = kind === 'slot' || kind === 'cancel';
+  const ranged = kind === 'slot';
   // A pair's track counts from the start only; 「끝」 is the clip's length there.
   const untilMark = (m: Mark, t: BarTime) =>
     pair && typeof t !== 'number' ? {...toClip(m), seconds: barToSeconds(t, length, m.seconds)} : barToMark(m, t);
@@ -276,7 +275,7 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
       ) : isEvent ? (
         <>
           <div className="moment-line">
-            <span className="moment-label">{kind === 'cancel' ? tr('열림 이벤트') : tr('이벤트')}</span>
+            <span className="moment-label">{tr('이벤트')}</span>
             <span className="moment-inline">
               {eventChoice}
               <span
@@ -287,15 +286,6 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
               </span>
             </span>
           </div>
-          {kind === 'cancel' && row.until && row.until.basis !== 'event' && (
-            <ClipBar
-              label={tr('닫힘')}
-              length={length}
-              ticks={ticks}
-              at={markToBar(row.until)}
-              onAt={t => set({until: untilMark(row.until!, t)})}
-            />
-          )}
         </>
       ) : ranged && row.until ? (
         <ClipBar

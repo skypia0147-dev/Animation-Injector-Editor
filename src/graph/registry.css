@@ -1,46 +1,51 @@
 /* The event registry node (graph/RegistryCard.tsx) and the read-only event list of HKX cards. */
-.p3-node.eventRegistry {
-  border-color: #6c5a8a;
+/* Its colours are the other cards' (11-12): what an event does in the event colour, where it is used in that
+   card's colour, an unused one dim. An open row's line is the card's own. */
+.p3-node.card-themed.eventRegistry {
+  --card-edit-line: #c98a4f;
 }
-.p3-node.eventRegistry > .checklist-drag-handle {
-  background: #3a2f4d;
+.p3-node.card-themed.eventRegistry .card-start b {
+  color: var(--card-t1);
+  font-weight: 600;
 }
-.p3-node.eventRegistry > .checklist-drag-handle svg {
-  color: #b48cf2;
+.registry-what > .fn,
+.p3-node.card-themed.eventRegistry .card-start b.fn {
+  color: var(--card-event);
 }
-.registry-body {
-  --registry: #b48cf2;
-  --registry-soft: #2c2638;
-  --registry-use: #9fd7a8;
-  --registry-lasting: #f0d08a;
+.registry-what > .on-qte,
+.registry-uses > li.on-qte {
+  color: var(--card-qte);
 }
-.registry-count {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--ue-dim, #8c8c8c);
-  font-size: var(--fs-xs);
-  margin-bottom: 6px;
+.registry-what > .on-start,
+.registry-uses > li.on-start {
+  color: var(--card-start);
 }
-.registry-no-port {
-  font-size: var(--fs-xs);
-  color: #b9a6d9;
-  border: 1px dashed #6c5a8a;
+.registry-what > .on-hkx,
+.registry-uses > li.on-hkx {
+  color: var(--card-hkx);
+}
+.registry-what > .on-link {
+  color: var(--card-t2);
+}
+.shell .p3-node.card-themed .registry-row.unused > .checklist-row-heading > button > span:first-child {
+  color: var(--card-t3);
+}
+/* The rows have no outline: with thirty-five of them the card was all boxes. Every other one is on a stripe, and
+   an open one sits between two lines. */
+.shell .p3-node.card-themed .registry-row > .checklist-row-heading > .checklist-row-toggle {
+  border-color: transparent;
   border-radius: 3px;
-  padding: 0 5px;
 }
-.registry-intro {
-  color: #b9a6d9;
-  background: var(--registry-soft);
-  border-radius: 5px;
-  padding: 6px 8px;
-  margin: 0 0 8px;
+.shell .p3-node.card-themed .registry-row:nth-child(even):not(.open) > .checklist-row-heading > .checklist-row-toggle {
+  background: var(--card-stripe);
 }
-.registry-intro b {
-  color: #d8c8f4;
+.shell .p3-node.card-themed .registry-row > .checklist-row-heading > .checklist-row-toggle:hover {
+  background: var(--card-hover);
 }
-.registry-intro b.use {
-  color: var(--registry-use);
+.shell .p3-node.card-themed .registry-row.open {
+  border-top: 1px solid var(--card-rule);
+  border-bottom: 1px solid var(--card-rule);
+  border-radius: 0;
 }
 .registry-tools {
   display: flex;
@@ -72,147 +77,115 @@
   background: #4a3d63;
   color: #f0f0f0;
 }
-.registry-row {
-  border-bottom: 1px solid #404040;
-  border-radius: 4px;
-}
 .registry-row.flash {
-  outline: 2px solid var(--registry);
+  outline: 2px solid var(--card-event);
   outline-offset: 1px;
-  background: #3a2f4d;
 }
-/* One line per event under the column heads (docs/mockup-registry-oneline A): name | what it does | HKX count. */
-.registry-colhead,
-.checklist-body .registry-row-head {
-  display: grid;
-  grid-template-columns: 196px minmax(0, 1fr) 40px;
-  gap: 10px;
-  align-items: center;
+/* An event's row is an HKX card's feature row (11-12 audit): its name, what it does at the right. The card is wide,
+   so the summary may take more of the line than a feature's. */
+.p3-node.card-themed .registry-row > .checklist-row-heading > button > small.registry-what {
+  max-width: 62%;
 }
-.registry-colhead {
-  padding: 0 0 2px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid var(--card-rule, #ffffff40);
-  color: var(--card-t3, #868686);
-  font-size: var(--fs-xs);
+.registry-what > span + span::before {
+  content: ' · ';
 }
-.registry-colhead > :last-child {
+.registry-what > .warn {
+  color: var(--card-warn, #e8b64a);
+}
+/* The lists of an open event (its uses, the HKX that send it): a row, its lines at the right. */
+.shell .p3-node.card-themed .checklist-fields .registry-list-row {
+  align-items: start;
+}
+/* (Named as cardTheme.css names an open row's values: its right-justified flex and centred rows are stronger than a
+   plain selector — seen only with real senders, in the installed app.)
+   From the left, so the lines start together; a sender's time at the right end. Nothing to list stays at the right,
+   where the other rows keep their values. */
+.shell .p3-node.card-themed .checklist-fields .registry-list-row > ul.detail-value {
+  display: block;
+  justify-self: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  color: var(--card-t2);
+  font-size: var(--fs-sm);
+  line-height: 20px;
+}
+.shell .p3-node.card-themed .checklist-fields .registry-list-row > ul.detail-value > li.dim {
   text-align: right;
 }
-.checklist-body .registry-row-head {
-  width: 100%;
-  min-height: 24px;
-  padding: 2px 0;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
+.shell .p3-node.card-themed .checklist-fields .registry-usage > li:not(.dim) {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
-.checklist-body .registry-row-head:hover {
-  background: #2d2d2d;
-}
-.registry-name,
-.registry-what {
+.registry-usage > li > span:first-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--card-hkx);
 }
-.registry-name {
-  font-weight: 600;
-  color: #f0f0f0;
-}
-.registry-what > span + span::before {
-  content: ' · ';
-  color: var(--card-t3, #868686);
-}
-.registry-usage-count {
-  font-size: var(--fs-xs);
-  color: var(--ue-dim, #8c8c8c);
-  text-align: right;
+.registry-usage > li > .at {
+  flex: none;
+  color: var(--card-t3);
   font-variant-numeric: tabular-nums;
 }
-.registry-row-body {
-  background: #1e1e1e;
-  border-radius: 5px;
-  margin: 0 0 6px 18px;
-  padding: 8px;
+.shell .p3-node.card-themed .checklist-fields .registry-list-row .detail-name {
+  line-height: 20px;
 }
-.registry-field-line {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.registry-field-line > span,
-.registry-sub-title span,
-.registry-usage-title,
 .registry-body .dim {
-  color: var(--ue-dim, #8c8c8c);
-}
-.registry-sub-title {
-  margin: 10px 0 2px;
-  font-weight: 600;
-  color: #f0f0f0;
-}
-.registry-sub-title span {
-  font-weight: 400;
+  color: var(--card-t3);
   font-size: var(--fs-xs);
-  margin-left: 4px;
+}
+.registry-fields > .checklist-add-actions {
+  margin: 4px 0 6px;
 }
 .registry-empty-line,
 .registry-empty {
   color: var(--ue-dim, #8c8c8c);
   padding: 4px 0;
 }
-.registry-fn {
-  border: 1px solid #3c3c3c;
-  border-radius: 5px;
-  padding: 6px;
-  margin: 6px 0;
-  background: #232323;
-}
-.registry-fn-caption,
+/* A function's row: its choice, × at the row's end. Its own settings follow a row each, set in under a line that
+   says whose they are. */
 .registry-fn-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  gap: 5px;
-  align-items: center;
-}
-.registry-fn-caption {
-  color: var(--ue-dim, #8c8c8c);
-  font-size: var(--fs-xs);
-  margin-bottom: 2px;
-}
-.checklist-body .registry-del {
-  padding: 2px 6px;
-  color: var(--ue-dim, #8c8c8c);
-  text-align: center;
-}
-.registry-fn-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 6px;
-  align-items: center;
-}
-.registry-fn-fields label {
-  display: flex;
+  grid-template-columns: minmax(0, 1fr) 22px;
   gap: 4px;
   align-items: center;
-  color: var(--ue-dim, #8c8c8c);
-  white-space: nowrap;
+  width: 100%;
 }
-.registry-fn-fields input[type='number'] {
-  width: 72px;
+.registry-fn-sub {
+  margin: 2px 0 6px 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--card-edit-line);
 }
-.registry-fn-fields input[type='text'] {
-  width: 80px;
+.shell .p3-node .registry-fn-sub .detail-name {
+  color: var(--card-t2);
 }
-.registry-fn-fields input[type='text'].wide {
-  width: 140px;
+.registry-fn-sub .moment-seg {
+  display: flex;
+  width: 100%;
+}
+.shell .p3-node .registry-fn-sub .moment-seg > button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* One function off its event: × (the event itself goes by its row's trash). */
+.shell .p3-node .checklist-body .registry-del {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--card-t3);
+  font-size: 14px;
+  text-align: center;
+}
+.shell .p3-node .checklist-body .registry-del:hover {
+  color: var(--card-t1);
 }
 .registry-note {
   margin-top: 6px;
@@ -235,39 +208,15 @@
   border-radius: 4px;
   padding: 4px 6px;
 }
-.registry-uses {
-  margin: 2px 0 4px;
-  padding-left: 16px;
-  color: var(--registry-use);
-}
 .checklist-body .registry-link {
   background: transparent;
   border: 0;
-  color: #c8b6ea;
+  color: var(--card-end);
   text-decoration: underline;
   font-size: var(--fs-sm);
   padding: 0 0 0 6px;
   min-height: 0;
   cursor: pointer;
-}
-.registry-usage {
-  margin-top: 8px;
-  border-top: 1px solid #3a3a3a;
-  padding-top: 6px;
-}
-.registry-usage ul {
-  margin: 2px 0 4px;
-  padding-left: 16px;
-  color: #bbb;
-}
-.registry-add {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-.checklist-body .registry-add button {
-  flex: 1;
-  text-align: center;
 }
 .checklist-body button:disabled {
   opacity: 0.55;

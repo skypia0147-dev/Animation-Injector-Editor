@@ -17,7 +17,7 @@
     <Row to="Dodge5"><Check kind="movementDirection" option="left"/></Row>
     <Row to="Dodge6"><Check kind="movementDirection" option="right"/></Row>
   </Start>
-  <Action id="Dodge1" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge1" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
@@ -27,27 +27,27 @@
       </Event>
     </EventValues>
   </Action>
-  <Action id="Dodge2" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge2" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
   </Action>
-  <Action id="Dodge3" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge3" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
   </Action>
-  <Action id="Dodge4" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge4" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
   </Action>
-  <Action id="Dodge5" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge5" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
   </Action>
-  <Action id="Dodge6" clip="animationsEditFuzz${id}_A1.hkx" firstPerson="switch">
+  <Action id="Dodge6" clip="animationsEditFuzz${id}_A1.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>

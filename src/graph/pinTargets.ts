@@ -1,10 +1,11 @@
 // Connecting an output pin by choosing its destination from a list (the card's ▾ and the Details "연결" section),
 // as well as by dragging: a start's, a condition card's rows, True and False, a transition's and a QTE result's. A
 // choice runs the same connection as a drag (connectFlat).
-import type {Workspace, Action} from '../workspace.ts';
+import type {Workspace, Action, Link} from '../workspace.ts';
 import type {FlatNode} from './flat.ts';
 import type {GraphEdge} from './projection.ts';
 import {connectFlat, setDestination} from './flat.ts';
+import {setLinkEnd} from './cardEdits.ts';
 import {parseNodeId} from './nodeRef.ts';
 import {cardNames, cardTitle, makesLoop, refAction, refCard, type CardTest, type Ref} from '../cards.ts';
 import {conditionName} from './conditionExpression.ts';
@@ -13,6 +14,11 @@ import {tr} from '../i18n/korean.ts';
 
 type View = {nodes: FlatNode[]; edges: GraphEdge[]};
 export type PinTarget = {id: string; label: string; group: string; disabled?: string};
+/** The destination that is none: a transition that ends its HKX (runtime 1.0.8, <Transition end="true">). */
+export const END_TARGET = '@end';
+/** Whether a transition may end its HKX: an ordinary HKX's, and not the one that goes at its end already. */
+export const mayEnd = (w: Workspace, link: Link) =>
+  link.mode !== 'end' && !w.actions.find(a => a.uid === link.from)?.pair;
 export type PinRow = {
   pin: string;
   label: string;
@@ -21,6 +27,8 @@ export type PinRow = {
   targets: PinTarget[];
   /** The pin may be left unconnected (its list offers "연결 안 함"). */
   clearable: boolean;
+  /** The list offers 「끝내기」 first (END_TARGET): a transition's destination that may end its HKX. */
+  ending?: boolean;
 };
 
 /** What a card and Details call an output pin. */
@@ -158,14 +166,18 @@ export function pinRows(w: Workspace, view: View, id: string): PinRow[] {
               ),
               true
             )
-          : row(
-              p,
-              [
-                ...actionTargets(a => (a.uid === link.from ? tr('출발 동작 자신입니다.') : undefined)),
-                ...cardTargets(),
-              ],
-              true
-            )
+          : {
+              ...row(
+                p,
+                [
+                  ...actionTargets(a => (a.uid === link.from ? tr('출발 동작 자신입니다.') : undefined)),
+                  ...cardTargets(),
+                ],
+                true
+              ),
+              ...(mayEnd(w, link) ? {ending: true} : {}),
+              ...(link.end ? {current: END_TARGET, currentLabel: tr('끝내기')} : {}),
+            }
       );
   if (ref.kind === 'qte')
     return node.outputs.map(p =>
@@ -186,6 +198,11 @@ export function pinRows(w: Workspace, view: View, id: string): PinRow[] {
 /** Connect (or, with target '', clear) one output pin. */
 export function connectPin(w: Workspace, _view: View, id: string, pin: string, target: string): Workspace {
   const ref = parseNodeId(id);
+  // 「끝내기」: the transition ends its HKX and lets go of where it went.
+  if (target === END_TARGET) {
+    if (ref.kind !== 'transition' || pin !== 'trigger') throw Error(tr('끝내기는 전환의 도착에서만 고릅니다.'));
+    return setLinkEnd(w, ref.link, true);
+  }
   if (!target) {
     if (ref.kind === 'qte') {
       const n = structuredClone(w),
@@ -217,6 +234,7 @@ export function routeDestination(w: Workspace, id: string, pin: string, short = 
           : (c.rows.find(r => 'row:' + r.id === pin)?.to ?? null);
   } else if (ref.kind === 'transition') {
     const l = w.links.find(l => l.id === ref.link);
+    if (l?.end && pin === 'trigger') return tr('끝내기');
     to = !l
       ? null
       : pin === 'partner'

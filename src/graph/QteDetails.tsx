@@ -95,7 +95,7 @@ const typeChoices: {value: string; type: QteType; pressCount?: number; name: str
     type: 'rapidPress',
     pressCount: 1,
     get name() {
-      return tr('E · 한 번 입력');
+      return tr('E · 연타 (1회)');
     },
   },
 ];
@@ -662,7 +662,7 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
       {shown.map(k =>
         row(
           tr('{v0} 소리', {v0: outcomeName(k)}),
-          <div className="qte-pair">
+          <div className="qte-pair qte-sound">
             <input
               aria-label={tr('{v0} 사운드 플러그인', {v0: outcomeName(k)})}
               value={q.results[k].soundPlugin ?? ''}
@@ -877,11 +877,11 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
               })
             }
           >
-            <option value="hkx">{tr('HKX에서 (재생 중 시점)')}</option>
-            <option value="event">{tr('이벤트에서 (HKX 없이)')}</option>
+            <option value="hkx">{tr('HKX 재생 중')}</option>
+            <option value="event">{tr('이벤트로')}</option>
           </select>,
           tr(
-            '이벤트에서: 그 이벤트가 오면 바로 뜨고 래그돌 중에도 취소되지 않습니다(엔진이 보내는 요청 이벤트도 받습니다). 결과는 이벤트 발생 또는 애니메이션 전환(일반 동작). 쓰러져 일어나는 중이면 엔진이 몸을 넘겨받는 순간 그 동작이 엔진 기상 대신 재생됩니다.'
+            'HKX 재생 중: HKX가 재생되는 동안 정한 시점에 뜹니다. 이벤트로: HKX 없이 그 이벤트가 오면 바로 뜨고 래그돌 중에도 취소되지 않습니다(엔진이 보내는 요청 이벤트도 받습니다). 결과는 이벤트 발생 또는 애니메이션 전환(일반 동작). 쓰러져 일어나는 중이면 엔진이 몸을 넘겨받는 순간 그 동작이 엔진 기상 대신 재생됩니다.'
           )
         )}
       {pairSent}
@@ -902,6 +902,7 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
         )
       ) : (
         <TimeField
+          rows
           label={tr('QTE 시작')}
           value={q.at}
           change={at =>
@@ -957,20 +958,18 @@ export function QteDetails({w, id, edit}: {w: Workspace; id: string; edit: (f: (
               })
             }
           >
-            <option value="sender">
-              {q.at.basis === 'event'
-                ? tr('이벤트 발신자를 따름 ({v0})', {v0: ownerName[shownTo({...q, inputOwner: 'sender'}, true)]})
-                : tr('기본 (어느 역할이든)')}
-            </option>
-            <option value="player">{tr('플레이어 (어느 역할이든)')}</option>
-            <option value="self">{tr('가해자가 플레이어일 때')}</option>
-            <option value="partner">{tr('피해자가 플레이어일 때')}</option>
+            <option value="sender">{q.at.basis === 'event' ? tr('발신자와 같음') : tr('기본 (어느 역할이든)')}</option>
+            <option value="player">{tr('플레이어')}</option>
+            <option value="self">{tr('가해자')}</option>
+            <option value="partner">{tr('피해자')}</option>
           </select>,
-          q.at.basis === 'event'
+          // The choices are short (11-12 audit); what each means is here.
+          (q.at.basis === 'event'
             ? tr(
-                '기본값이면 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다. 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.'
-              )
-            : undefined
+                '발신자와 같음: 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다(지금은 {v0}). 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.',
+                {v0: ownerName[shownTo({...q, inputOwner: 'sender'}, true)]}
+              ) + ' '
+            : '') + tr('플레이어: 플레이어가 어느 역할이든. 가해자·피해자: 그 역할이 플레이어일 때만.')
         )}
     </DetailCategory>
   );

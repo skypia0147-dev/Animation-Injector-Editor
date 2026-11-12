@@ -210,12 +210,12 @@ export function addCondition(w: Workspace, uid: string, place: CardPlace) {
   });
   return {workspace: next, id};
 }
-/** Remove a root condition (with its members) from where it sits; a row keeps at least one (remove the row
- *  instead). */
+/** Remove a root condition (with its members) from where it sits; a row's last one removes the row. */
 export function removeCondition(w: Workspace, uid: string, place: CardPlace, id: string): Workspace {
   return edit(w, uid, c => {
+    // A row's last condition takes the row with it (11-12: the card has no other way to delete a row); emptied, the
+    // row goes in tidyCard, which gives the last row's destination back to True (as removeRow).
     const roots = rootsOf(c, place);
-    if (place !== 'guards' && roots.length === 1) throw Error(tr('행에는 조건이 하나 이상 필요합니다. 행을 지우세요.'));
     roots.splice(roots.indexOf(id), 1);
     pruneTests(c);
   });

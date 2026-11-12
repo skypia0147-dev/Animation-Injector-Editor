@@ -1,4 +1,4 @@
-import {createContext, useContext, useState, useEffect, useRef, useMemo} from 'react';
+import {createContext, useContext, useState, useEffect, useRef, useMemo, type ReactNode} from 'react';
 import {useDismiss} from '../ui/useDismiss.ts';
 import {useUpdateNodeInternals} from '@xyflow/react';
 import {createPortal} from 'react-dom';
@@ -12,7 +12,7 @@ import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {GraphDetails} from './GraphDetails.tsx';
 import {BlendDetails} from './BlendDetails.tsx';
 import {StateDetails} from '../ui/details/StateDetails.tsx';
-import {StepFiles, ViewFields, viewName, type ViewRow} from '../ui/details/ViewFields.tsx';
+import {StepFiles, ViewFields, viewName, switchName, type ViewRow} from '../ui/details/ViewFields.tsx';
 import {
   NestedDetailPanel,
   InspectorLayout,
@@ -37,13 +37,13 @@ import {actionClip, sentEvents as hkxSentEvents} from './hkxMoments.ts';
 import {openedBySwitch} from './momentOpen.ts';
 import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
-import {stepSource, actionView, projectView, setActionView, firstPersonStart, setFirstPersonStart} from '../view.ts';
+import {stepSource, actionView, projectView, setActionView, otherViewStart, setOtherViewStart} from '../view.ts';
 import {timingLabel} from '../model.ts';
 import {playbackState, resetAir, resetAttack, resetDetection, resetExit} from './playbackSettings.ts';
 import {exitSummary} from '../ui/details/inspectorModel.ts';
 import {sourceWindow} from './clipWindows.ts';
 import {t} from '../i18n/index.ts';
-import {AddSetting, SettingChips, useSettings, type Setting} from './cardSettings.tsx';
+import {SettingChips, useSettings, type Setting} from './cardSettings.tsx';
 import {useDragToCard} from './dragToCard.tsx';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
@@ -190,7 +190,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
   const eventOption = (kind: string) =>
     kind === 'cameraRestore' ||
     kind === 'carryRelease' ||
-    (kind.startsWith('notify:') && !['rotate', 'iframe', 'armor', 'time', 'vanillaCancel'].includes(kind.slice(7)));
+    (kind.startsWith('notify:') && !['rotate', 'iframe', 'armor', 'time'].includes(kind.slice(7)));
   // The playback settings (docs/mockup unify ⑩, 10-27): a chip for each that differs from its default, opening in
   // place to its fields; the rest from 「＋ 설정」. A category of the Details (StateDetails) opens alone (OnlySection).
   const only =
@@ -256,12 +256,12 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         fields: () => <ViewFields w={w} action={a} edit={edit} row={only('view')} />,
       },
       {
-        id: 'firstPerson',
-        label: t('row.firstPerson'),
-        value: t('view.' + firstPersonStart(w, a)),
-        ...state.firstPerson,
-        reset: () => attempt(() => edit(w => setFirstPersonStart(w, a.uid, 'block'))),
-        fields: () => <ViewFields w={w} action={a} edit={edit} row={only('firstPerson')} />,
+        id: 'otherView',
+        label: t('row.otherView'),
+        value: otherViewStart(w, a) === 'switch' ? switchName(view) : t('view.block'),
+        ...state.otherView,
+        reset: () => attempt(() => edit(w => setOtherViewStart(w, a.uid, 'block'))),
+        fields: () => <ViewFields w={w} action={a} edit={edit} row={only('otherView')} />,
       },
       {
         id: 'air',
@@ -383,6 +383,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
               sent={sent}
               action={action}
               allOpen={allOpen}
+              add={addMenu()}
             />
           }
           {clip && (
@@ -394,10 +395,6 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
               pair={!!action.pair}
             />
           )}
-          <div className="checklist-add-actions two">
-            {addMenu()}
-            <AddSetting settings={playSettings} />
-          </div>
           <section className="checklist-section checklist-info">
             <NestedDetailPanel.Provider value={true}>
               <CategoryRows.Provider value={{}}>{settings('info')}</CategoryRows.Provider>
@@ -423,6 +420,7 @@ function ChecklistSection({
   sent,
   action,
   allOpen,
+  add,
 }: {
   owner: string;
   items: ChecklistItem[];
@@ -430,6 +428,8 @@ function ChecklistSection({
   sent?: ReturnType<typeof useHkxMoments>;
   action?: Action;
   allOpen?: boolean;
+  /** 「＋ 기능」, under the list it adds to (11-11 audit ⑩). */
+  add?: ReactNode;
 }) {
   const {w, selected, edit} = useContext(ChecklistContext)!;
   const extra = (sent?.registry.length ?? 0) + (sent?.commands.length ?? 0);
@@ -480,6 +480,7 @@ function ChecklistSection({
             el: () => <CommandMomentRow key={c.key} item={c} />,
           })),
         ]).map(entry => entry.el(entry.place.group === 1))}
+      {add && <div className="checklist-add-actions">{add}</div>}
     </section>
   );
 }

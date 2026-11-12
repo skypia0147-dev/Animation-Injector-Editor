@@ -35,8 +35,17 @@ import {
   eventKey,
 } from './eventRegistry.ts';
 import type {EventRow} from './eventRegistry.ts';
-import {actionView, fixedThird, projectView, viewIssues, views, firstPersonStarts, defaultView} from './view.ts';
-import type {View, FirstPersonStart} from './view.ts';
+import {
+  actionView,
+  fixedThird,
+  projectView,
+  viewIssues,
+  views,
+  otherViewStarts,
+  otherViewStart,
+  defaultView,
+} from './view.ts';
+import type {View, OtherViewStart} from './view.ts';
 import {tr} from './i18n/korean.ts';
 import {
   actionRig,
@@ -104,21 +113,9 @@ export type Action = {
   /** The camera view it plays in (view.ts); absent = the project default. */
   view?: View;
   /** A third-person action the player uses in first person: 'switch' plays it in third person. */
-  firstPerson?: FirstPersonStart;
+  otherView?: OtherViewStart;
   nodeAuthored?: boolean;
   clipWindows?: Record<string, import('./graph/clipWindows.ts').ClipWindow>;
-  cancels: {
-    id: string;
-    to: string;
-    open: Mark;
-    close: Mark;
-    buffered: boolean;
-    blend: number | null;
-    /** The id written to the XML (it names the runtime's window events); absent = id. id stays the editor's key. */
-    xmlId?: string;
-    /** Open for the whole clip (<Window always="true">): open, close and buffered are not written. */
-    always?: true;
-  }[];
   variants: Partial<Record<ActionKind, ActionVariant>>;
   uid: string;
   config: Project;
@@ -142,6 +139,12 @@ export type Link = {
    *  go (on="release"; `input` empty = the key that started the action), or a movement key's press (on="move",
    *  buffered as a key's; a movement key held as its window opens counts as buffered). */
   mode: 'input' | 'event' | 'end' | 'release' | 'move';
+  /** How a key transition's key is pressed (runtime 1.0.8, XML press): a short press, two quick ones or a held one,
+   *  told apart as a start's. Stored only when set; absent = the moment the key goes down. */
+  press?: Exclude<import('./cards.ts').StartPress, 'down'>;
+  /** It goes nowhere (runtime 1.0.8, XML end="true"): its trigger ends the HKX through its own exit. `to`, `card` and
+   *  `partnerTo` are then empty and it has no blend. Stored only when set. */
+  end?: true;
   input: string;
   event: string;
   window: boolean;
@@ -194,7 +197,6 @@ export const defaultPair = (): Pair => ({
 });
 export function wrap(config: Project, uid = 'a1'): Action {
   return {
-    cancels: [],
     variants: {},
     uid,
     config: clone(config),
@@ -340,7 +342,7 @@ export function addAction(w: Workspace, kind: 'single' | 'pair' = 'single'): Act
   return a;
 }
 /** A copy of an action: everything it holds, under a new uid and Action ID, named `name`, beside the original (10-28
- *  review E-18: a copy made field by field missed what came later — vanilla cancel windows, detection windows,
+ *  review E-18: a copy made field by field missed what came later — detection windows,
  *  camera restore, blends turned off). What points at the action from outside (starts, cards, links, QTEs) stays the
  *  original's. */
 export function duplicateAction(w: Workspace, a: Action, name: string): Action {
@@ -381,8 +383,6 @@ export function addLink(w: Workspace, from: string, to: string): Link {
  *  actions the edit has not touched yet, the other actions stay the document's own records, neither copied nor
  *  compared again, when nothing can change them in place: without shared rules (synchronizeRules copies
  *  settings between members into the edited document). */
-/** A vanilla cancel's id in the XML: the one the author gave, else the editor's own (cancel1, …). */
-export const cancelXmlId = (c: Action['cancels'][number]) => c.xmlId || c.id;
 export function putAction(w: Workspace, a: Action): Workspace {
   const source = draftSource(w),
     untouched = !!Object.getOwnPropertyDescriptor(w, 'actions')?.get;
@@ -595,7 +595,7 @@ function checkShell(w: any) {
 /** Phase 1: one action. Stored variants are checked by parsing them as their own action.
  *  Returns the parsed config, which normalizeWorkspace stores (parsed once). */
 function checkAction(a: any): Project {
-  const {clipWindows, nodeAuthored, view, firstPerson, cameraEnabled, camera: cameraSettings, ...baseAction} = a;
+  const {clipWindows, nodeAuthored, view, otherView, cameraEnabled, camera: cameraSettings, ...baseAction} = a;
   if (cameraEnabled !== undefined && typeof cameraEnabled !== 'boolean') throw Error(tr('카메라 복구 형식 오류'));
   if (cameraSettings !== undefined) {
     const {own, ...camera} = cameraSettings ?? {};
@@ -603,7 +603,7 @@ function checkAction(a: any): Project {
     if (own !== undefined && own !== true) throw Error(tr('카메라: 이 동작만 형식 오류'));
   }
   if (view !== undefined && !views.includes(view)) throw Error(tr('동작 인칭 형식 오류'));
-  if (firstPerson !== undefined && !firstPersonStarts.includes(firstPerson)) throw Error(tr('1인칭 시작 형식 오류'));
+  if (otherView !== undefined && !otherViewStarts.includes(otherView)) throw Error(tr('시점 전환 형식 오류'));
   if (nodeAuthored !== undefined && typeof nodeAuthored !== 'boolean') throw Error(tr('카드 작성 설정 오류'));
   exact(baseAction, wrap(createProject()), tr('동작'));
   if (clipWindows !== undefined) {
@@ -626,16 +626,6 @@ function checkAction(a: any): Project {
   for (const e of a.config.effects ?? []) {
     exact(e, {id: '', values: {}}, tr('연출'));
     checkValues(e.values, effectKeys, tr('알 수 없는 연출 속성'));
-  }
-  if (a.cancels.length > 100) throw Error(tr('캔슬 창은 100개까지 지원합니다.'));
-  for (const c of a.cancels) {
-    const {xmlId, always, ...base} = c;
-    exact(base, {id: '', to: '', open: mark(), close: mark(), buffered: true, blend: null}, tr('캔슬 창'));
-    if (xmlId !== undefined && (typeof xmlId !== 'string' || xmlId.length > 64))
-      throw Error(tr('캔슬 창 ID 형식 오류'));
-    if (always !== undefined && always !== true) throw Error(tr('캔슬 창 항상 열림 형식 오류'));
-    exact(c.open, mark(), tr('캔슬 시작'));
-    exact(c.close, mark(), tr('캔슬 끝'));
   }
   if (
     !a.variants ||
@@ -710,10 +700,12 @@ function checkLink(l: any) {
     buffered: true,
     position: {x: 0, y: 0},
   };
-  const {blend, ownWindow, card, ...baseLink} = l;
+  const {blend, ownWindow, card, press, end, ...baseLink} = l;
   exact(baseLink, sample, tr('연결'));
   if (card !== undefined && (typeof card !== 'string' || !card)) throw Error(tr('전환 조건 카드 형식 오류'));
+  if (press !== undefined && !['tap', 'double', 'hold'].includes(press)) throw Error(tr('전환 누름 방식 오류'));
   if (ownWindow !== undefined && ownWindow !== true) throw Error(tr('전환 감지 구간 설정 오류'));
+  if (end !== undefined && end !== true) throw Error(tr('끝내기 전환 설정 오류'));
   if (blend !== undefined && (typeof blend !== 'number' || !Number.isFinite(blend) || blend < 0 || blend > 5))
     throw Error(tr('연결 블렌드 범위 오류'));
   exact(l.position, sample.position, tr('좌표'));
@@ -875,40 +867,6 @@ export function validateWorkspace(w: Workspace): Issue[] {
           '대상 놓기는 운반의 내려놓기 동작에만 씁니다. 운반 카드에서 이 동작을 내려놓기 동작으로 고르거나 대상 놓기를 지우세요.'
         )
       );
-    // Vanilla cancel ids name the runtime's window events (case-insensitive).
-    const cancelIds = new Set<string>();
-    for (const c of a.cancels ?? []) {
-      const xmlId = cancelXmlId(c);
-      if (
-        a.pair ||
-        !idOk(xmlId) ||
-        cancelIds.has(xmlId.toLowerCase()) ||
-        (!!c.to &&
-          !c.to
-            .split(',')
-            .every(
-              s =>
-                /^vanilla:(Attack|PowerAttack|Block|Bash|Sprint|Jump|Sneak)$/.test(s.trim()) ||
-                (s.trim().startsWith('event:') && eventOk(s.trim().slice(6)))
-            )) ||
-        (c.blend !== null && !number(c.blend, 0, 5))
-      )
-        err(a.uid, tr('캔슬 창의 대상·ID·블렌드를 확인하세요.'));
-      // Added, it names no vanilla action yet (11-02).
-      if (!c.to) err(a.uid, tr('전환할 바닐라 동작을 고르세요.'));
-      cancelIds.add(xmlId.toLowerCase());
-      if (c.always) continue;
-      for (const m of [c.open, c.close])
-        if (
-          !['seconds', 'end', 'event'].includes(m.basis) ||
-          !number(m.seconds) ||
-          !['seconds', 'end'].includes(m.fallbackBasis) ||
-          (m.basis === 'event' && !eventOk(m.event))
-        )
-          err(a.uid, tr('캔슬 창 시각이 올바르지 않습니다.'));
-      if (c.open.basis === 'seconds' && c.close.basis === 'seconds' && c.open.seconds >= c.close.seconds)
-        err(a.uid, tr('캔슬 닫힘은 열림보다 뒤여야 합니다.'));
-    }
     // Camera restore: any action (10-16).
     if (
       a.cameraEnabled &&
@@ -977,7 +935,13 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(l.id, tr('유효한 출발·도착 동작을 지정하세요.'));
       continue;
     }
-    if (!l.card && (!b || a === b)) {
+    if (l.end) {
+      // It ends its HKX (runtime 1.0.8): no destination, an ordinary HKX's, and not the end's own trigger.
+      if (l.to || l.card || l.partnerTo || l.blend !== undefined)
+        err(l.id, tr('끝내기 전환에는 목적지와 블렌드를 두지 않습니다.'));
+      if (a.pair) err(l.id, tr('끝내기 전환은 일반 HKX에서만 씁니다.'));
+      if (l.mode === 'end') err(l.id, tr('끝나면 전환은 끝내기로 둘 수 없습니다(이미 끝나는 시점입니다).'));
+    } else if (!l.card && (!b || a === b)) {
       err(l.id, tr('전환의 목적지(HKX 또는 조건 카드)를 고르세요.'));
       continue;
     }
@@ -990,6 +954,8 @@ export function validateWorkspace(w: Workspace): Issue[] {
     if (b && l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
       err(l.id, tr('양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.'));
     if (!['input', 'event', 'end', 'release', 'move'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
+    if (l.press !== undefined && (l.mode !== 'input' || !['tap', 'double', 'hold'].includes(l.press)))
+      err(l.id, tr('누름 방식은 키를 누르는 전환에만 씁니다.'));
     if (l.mode === 'end' || l.mode === 'release' || l.mode === 'move') {
       // Charge (runtime 10-30): an ordinary HKX's; an end once per HKX, none from a loop (it has no end).
       if (a.pair) err(l.id, tr('끝나면·차지 종료·이동 전환은 일반 HKX에서만 씁니다.'));
@@ -1017,9 +983,21 @@ export function validateWorkspace(w: Workspace): Issue[] {
           input.gamepad ? 'pad:' + input.gamepad : '',
           input.control ? 'control:' + input.control : '',
         ].filter(Boolean)) {
-          const key = a.uid + ':' + s;
-          if (signatures.has(key)) err(l.id, tr('같은 출발 동작에 같은 입력의 전환이 둘 있습니다.'));
-          signatures.add(key);
+          // One transition of each press kind per key (runtime 1.0.8); the moment a key goes down comes before any
+          // other kind could be told apart, so that one stands alone on its key.
+          const key = a.uid + ':' + s,
+            kind = l.press ?? 'down';
+          if (signatures.has(key + '|' + kind))
+            err(l.id, tr('같은 출발 동작에 같은 입력·같은 누름 방식의 전환이 둘 있습니다.'));
+          else if (kind === 'down' ? signatures.has(key + '|pressed') : signatures.has(key + '|down'))
+            err(
+              l.id,
+              tr(
+                '같은 키에 누를 때 전환과 다른 누름 방식을 함께 쓸 수 없습니다. 누르는 순간 먼저 나가므로 짧게를 쓰세요.'
+              )
+            );
+          signatures.add(key + '|' + kind);
+          if (kind !== 'down') signatures.add(key + '|pressed');
         }
       }
     }
@@ -1096,23 +1074,8 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
   // The view when it is not the action's default (the file's; a pair's third); carries and putdowns play in third
   // person whatever it says.
   if (!fixedThird(w, a) && actionView(w, a) !== defaultView(w, a)) out.attrs.view = actionView(w, a);
-  if (actionView(w, a) === 'third' && a.firstPerson === 'switch') out.attrs.firstPerson = 'switch';
+  if (otherViewStart(w, a) === 'switch') out.attrs.otherView = 'switch';
   out.children.push(...qteXml(w, a, x));
-  // A vanilla transition: its id when it is not the one the runtime gives it (cancel1, cancel2, ... by position);
-  // no window when it is open for the whole clip.
-  (a.cancels ?? []).forEach((c, index) =>
-    out.children.push(
-      node('Vanilla', {
-        id: cancelXmlId(c) === 'cancel' + (index + 1) ? undefined : cancelXmlId(c),
-        to: c.to
-          .split(',')
-          .map(t => t.trim().replace(/^vanilla:/, ''))
-          .join(','),
-        ...(c.always ? {} : windowAttrs(c.open, c.close, c.buffered)),
-        blend: c.blend ?? undefined,
-      })
-    )
-  );
   if (pair) {
     out.name = 'Pair';
     const target = omitDefaults(
@@ -1184,13 +1147,14 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
                 ? {on: 'release', ...(l.input ? input(l.input) : {})}
                 : l.mode === 'move'
                   ? {on: 'move'}
-                  : input(l.input)),
+                  : {...input(l.input), press: l.press}),
           // An end has no window; a release reads the key's state, so no buffer.
           ...(l.window && l.mode !== 'end' ? windowAttrs(l.open, l.close, l.buffered || l.mode === 'release') : {}),
-          blend: l.blend,
+          blend: l.end ? undefined : l.blend,
+          end: l.end ? 'true' : undefined,
         }),
-        l.to,
-        l.card
+        l.end ? '' : l.to,
+        l.end ? undefined : l.card
       )
     );
   }

@@ -26,6 +26,8 @@
   --card-event: #f0a868;
   --card-plain: #b0b0b0;
   --card-qte: #b9a6f0;
+  /* A transition that ends its HKX (its destination chip says 끝내기). */
+  --card-end: #e8a838;
   /* Lines, by contrast against the body: box and field 3.5:1 or more, rule (section, dashed add) 2.2:1. Rows have no
      line; a stripe tells them apart. */
   --card-line: #ffffff66;
@@ -272,30 +274,24 @@
 .p3-node.card-themed .checklist-row-heading > button > small {
   margin-left: auto;
 }
-/* A feature's own numbers sit next to its name, not at the right. */
-.p3-node.card-themed
-  .checklist-section:not(.checklist-info)
-  .checklist-row:not(.moment)
-  > .checklist-row-heading
-  > button
-  > small {
-  margin-left: 0;
-  color: var(--card-t2);
-}
-/* When: an event is a chip (it points at the registry), a time is plain text. */
-.p3-node.card-themed .checklist-row.moment > .checklist-row-heading small {
-  padding: 0 6px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--card-event);
-  font-size: var(--fs-xs);
-  line-height: 17px;
-}
-.p3-node.card-themed .checklist-row.moment > .checklist-row-heading small.time {
+/* A feature row's summary: at the right and dim, whatever it says (its numbers, its window, its time). */
+.p3-node.card-themed .checklist-section:not(.checklist-info) .checklist-row > .checklist-row-heading > button > small {
   padding: 0;
   border: 0;
+  background: none;
   color: var(--card-t3);
+  font-size: var(--fs-xs);
+  line-height: 17px;
+  text-align: right;
+}
+/* When, as an event: its name in the event colour (it points at the registry); a time stays dim. */
+.p3-node.card-themed
+  .checklist-section:not(.checklist-info)
+  .checklist-row.moment
+  > .checklist-row-heading
+  > button
+  > small:not(.time) {
+  color: var(--card-event);
 }
 .p3-node.card-themed .checklist-row.moment > .checklist-row-heading > button > span:first-child::before {
   content: none;
@@ -381,6 +377,18 @@
   justify-self: end;
   min-width: 0;
 }
+/* A card's own destination row has the room a condition's line does not: the name in full, cut only at its end. */
+.shell .p3-node.card-themed .route-box > .cond-to-wrap .cond-to {
+  /* A block, not the button's centred flex line: a name too long is cut at its end, with the dots. */
+  display: block;
+  max-width: 100%;
+  text-align: left;
+}
+.p3-node.card-themed .route-box > .cond-to-wrap {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+}
 .p3-node.card-themed .route-label {
   color: var(--card-t2);
   white-space: nowrap;
@@ -458,7 +466,23 @@
 .shell .p3-node .cond-to-wrap .cond-to.event {
   color: var(--card-event);
 }
+/* A QTE's result line: the role keeps its own width, the destination takes what is left and is cut at its end
+   (never under the role). */
+.p3-node.card-themed .qte-routes .route-line .cond-to-wrap {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+.p3-node.card-themed .qte-routes .route-line:has(> .cond-to-wrap:first-child) .cond-to-wrap {
+  justify-content: flex-start;
+}
+.shell .p3-node.card-themed .qte-routes .route-line .cond-to {
+  display: block;
+  max-width: 100%;
+  text-align: left;
+}
 .p3-node.card-themed .qte-routes .qte-role {
+  white-space: nowrap;
   font-style: normal;
   padding: 0;
   background: transparent;
@@ -501,37 +525,13 @@
 .p3-node.card-themed .registry-row:nth-child(even of .registry-row) {
   background: var(--card-stripe);
 }
-.p3-node.card-themed .registry-name {
-  color: var(--card-t1);
-}
-/* A function and a use are what the event does: plain words on the row's line. */
-.p3-node.card-themed .registry-what .fn {
-  color: var(--card-t1);
-}
-.p3-node.card-themed .registry-what .use {
-  color: var(--card-t2);
-}
-.p3-node.card-themed .registry-what .none {
-  color: var(--card-t3);
-}
+/* What an event does is its row's summary: a feature row's dim words (11-12 audit); only a warning stands out. */
 .p3-node.card-themed .registry-what .warn {
   color: var(--card-warn);
 }
 .p3-node.card-themed .registry-row {
   margin: 0 -6px;
   padding: 0 6px;
-}
-.p3-node.card-themed .registry-intro {
-  background: transparent;
-  border: 1px solid var(--card-line);
-  border-radius: 4px;
-  color: var(--card-t2);
-}
-.p3-node.card-themed .registry-intro b {
-  color: var(--card-t1);
-}
-.p3-node.card-themed .registry-intro b.use {
-  color: var(--card-hkx);
 }
 .p3-node.card-themed .registry-seg {
   border-color: var(--card-field-line);
@@ -543,14 +543,6 @@
 .shell .p3-node.card-themed .registry-seg button.on {
   background: var(--card-t1);
   color: var(--card-body);
-}
-.p3-node.card-themed .registry-row-body {
-  background: transparent;
-  border: 1px solid var(--card-line);
-  border-radius: 4px;
-}
-.shell .p3-node.card-themed .registry-row-head:hover {
-  background: var(--card-hover);
 }
 .p3-node.card-themed .registry-row.flash {
   outline-color: var(--card-event);
@@ -836,8 +828,12 @@
   background: var(--card-hover);
   color: var(--card-t1);
 }
-.shell .p3-node.card-themed .checklist-row-icons button.danger:hover {
+/* What deletes is red at rest too (11-12 audit): the trash of a feature row, a setting, a condition, an event. */
+.shell .p3-node.card-themed .checklist-row-icons button.danger {
   color: var(--card-not);
+}
+.shell .p3-node.card-themed .checklist-row-icons button.danger:disabled {
+  color: var(--card-t3);
 }
 .shell .p3-node.card-themed .checklist-fields {
   gap: 0;

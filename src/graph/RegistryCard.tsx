@@ -22,6 +22,8 @@ import {
   renameEvent,
   setFunctions,
   shortUses,
+  shortUseKinds,
+  useKind,
   groupUses,
   settingDefault,
   settingLabels,
@@ -38,6 +40,7 @@ import {
 } from '../eventRegistry.ts';
 import {ChecklistContext} from './ChecklistCard.tsx';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
+import {DetailPanel, DetailRow, NestedDetailPanel} from '../ui/details/DetailRow.tsx';
 import {clipKey, roleLabel, sentEvent, useClipAnnotations} from './annotations.ts';
 import './registry.css';
 import {renderedRegistry} from './renderCache.ts';
@@ -131,103 +134,111 @@ export function RegistryBody() {
       return next;
     });
   return (
-    <div
-      className="checklist-body registry-body nodrag nopan"
-      onDoubleClick={e => e.stopPropagation()}
-      onKeyDown={e => e.stopPropagation()}
-      onContextMenu={e => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <div className="registry-count">
-        <span className="registry-no-port">{tr('연결 없음')}</span>
-        {entries.length}
-        {tr('개 이벤트 · 기능')} {withFunctions} {tr('· 시점')} {usesOnly}
-      </div>
-      <p className="registry-intro">
-        {tr('이 프로젝트에서 쓰는 이벤트를 전부 여기 등록합니다.')} <b>{tr('기능')}</b>
-        {tr('은 전역이라 어느 애니메이션에서 오든 실행되고(다른 모드·바닐라·OAR 포함),')}{' '}
-        <b className="use">{tr('용도')}</b>
-        {tr('는 감지 창·QTE·회복·트리거처럼 이 프로젝트 HKX의 시점에 쓰입니다.')}
-      </p>
-      <div className="registry-tools">
-        <input
-          aria-label={tr('이벤트 검색')}
-          placeholder={tr('이벤트·기능·용도 검색')}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
-        <select aria-label={tr('이벤트 거르기')} value={filter} onChange={e => setFilter(e.target.value as Filter)}>
-          <option value="all">{tr('전체')}</option>
-          <option value="fn">{tr('기능 있는 이벤트')}</option>
-          <option value="use">{tr('시점에만 쓰는 이벤트')}</option>
-          <option value="none">{tr('참조 없음')}</option>
-        </select>
-        <span className="registry-seg" role="group" aria-label={tr('보기')}>
-          <button className={view === 'event' ? 'on' : ''} onClick={() => setView('event')}>
-            {tr('이벤트별')}
-          </button>
-          <button className={view === 'function' ? 'on' : ''} onClick={() => setView('function')}>
-            {tr('기능별')}
-          </button>
+    <>
+      {/* The card's one summary line, where an HKX card says how it starts (11-12 audit: the HKX card's form). */}
+      <div className="card-start nodrag via">
+        <span>
+          {tr('전역')} · {tr('연결 없음')} · {tr('기능')} <b className="fn">{withFunctions}</b> · {tr('시점')}{' '}
+          <b>{usesOnly}</b>
         </span>
       </div>
-      <div className="registry-rows">
-        {view === 'event' && shown.length > 0 && (
-          // The column heads, once: each row is one line under them (docs/mockup-registry-oneline A).
-          <div className="registry-colhead">
-            <span>{tr('이벤트')}</span>
-            <span>{tr('하는 일')}</span>
-            <span>HKX</span>
-          </div>
-        )}
-        {view === 'event' ? (
-          shown.map(e => (
-            <RegistryRow
-              key={eventKey(e.name)}
-              entry={e}
-              open={open.has(eventKey(e.name))}
-              flash={flash === eventKey(e.name)}
-              toggle={() => toggle(eventKey(e.name))}
-              senders={senders.get(eventKey(e.name)) ?? []}
-              attempt={attempt}
-            />
-          ))
-        ) : (
-          <FunctionView
-            entries={shown}
-            senders={senders}
-            jump={key => {
-              setView('event');
-              setOpen(s => new Set(s).add(key));
-              setFlash(key);
-            }}
+      <div
+        className="checklist-body registry-body nodrag nopan"
+        onDoubleClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        onContextMenu={e => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <div className="registry-tools">
+          <input
+            aria-label={tr('이벤트 검색')}
+            placeholder={tr('이벤트·기능·용도 검색')}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
           />
+          <select aria-label={tr('이벤트 거르기')} value={filter} onChange={e => setFilter(e.target.value as Filter)}>
+            <option value="all">{tr('전체')}</option>
+            <option value="fn">{tr('기능 있는 이벤트')}</option>
+            <option value="use">{tr('시점에만 쓰는 이벤트')}</option>
+            <option value="none">{tr('참조 없음')}</option>
+          </select>
+          <span className="registry-seg" role="group" aria-label={tr('보기')}>
+            <button className={view === 'event' ? 'on' : ''} onClick={() => setView('event')}>
+              {tr('이벤트별')}
+            </button>
+            <button className={view === 'function' ? 'on' : ''} onClick={() => setView('function')}>
+              {tr('기능별')}
+            </button>
+          </span>
+        </div>
+        <section className="checklist-section">
+          <div className="checklist-section-title">
+            {/* What the registry is, on its title (it was a paragraph on every card). */}
+            <span
+              className="help-tip-target"
+              title={[
+                tr('이 프로젝트에서 쓰는 이벤트를 전부 여기 등록합니다.'),
+                tr('기능') + tr('은 전역이라 어느 애니메이션에서 오든 실행되고(다른 모드·바닐라·OAR 포함),'),
+                tr('용도') + tr('는 감지 창·QTE·회복·트리거처럼 이 프로젝트 HKX의 시점에 쓰입니다.'),
+              ].join(' ')}
+            >
+              <span className="help-tip-label">{tr('이벤트')}</span>
+            </span>{' '}
+            <span className="section-count">{entries.length}</span>
+          </div>
+          <div className="registry-rows">
+            {view === 'event' ? (
+              shown.map(e => (
+                <RegistryRow
+                  key={eventKey(e.name)}
+                  entry={e}
+                  open={open.has(eventKey(e.name))}
+                  flash={flash === eventKey(e.name)}
+                  toggle={() => toggle(eventKey(e.name))}
+                  senders={senders.get(eventKey(e.name)) ?? []}
+                  attempt={attempt}
+                />
+              ))
+            ) : (
+              <FunctionView
+                entries={shown}
+                senders={senders}
+                jump={key => {
+                  setView('event');
+                  setOpen(s => new Set(s).add(key));
+                  setFlash(key);
+                }}
+              />
+            )}
+            {!shown.length && <p className="registry-empty">{tr('조건에 맞는 이벤트가 없습니다.')}</p>}
+          </div>
+          <div className="checklist-add-actions">
+            <div className="checklist-add-menu">
+              <button
+                onClick={() =>
+                  attempt(() => {
+                    const name = newEventName(w);
+                    edit(w => addEventRow(w, name));
+                    // Only the new row is open: rows left open before showed several name fields at once (10-28 rebuild).
+                    setOpen(new Set([eventKey(name)]));
+                    setFlash(eventKey(name));
+                  })
+                }
+              >
+                {tr('+ 이벤트')}
+              </button>
+            </div>
+          </div>
+        </section>
+        {error && (
+          <p role="alert" className="checklist-error">
+            {error}
+          </p>
         )}
-        {!shown.length && <p className="registry-empty">{tr('조건에 맞는 이벤트가 없습니다.')}</p>}
       </div>
-      <div className="registry-add">
-        <button
-          onClick={() =>
-            attempt(() => {
-              const name = newEventName(w);
-              edit(w => addEventRow(w, name));
-              // Only the new row is open: rows left open before showed several name fields at once (10-28 rebuild).
-              setOpen(new Set([eventKey(name)]));
-              setFlash(eventKey(name));
-            })
-          }
-        >
-          {tr('＋ 이벤트 추가')}
-        </button>
-      </div>
-      {error && (
-        <p role="alert" className="checklist-error">
-          {error}
-        </p>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -237,24 +248,25 @@ function whatOf(e: RegistryEntry, senders: Sender[]) {
   const fns = (e.row?.functions ?? []).map(
     f => functionSummary(f.values) + (opInfo[f.values.op as EventOp]?.lasting ? tr(' · 켜 둠') : '')
   );
-  const uses = shortUses(e.name, e.uses);
+  const uses = shortUses(e.name, e.uses),
+    kinds = shortUseKinds(e.uses);
   const none = !fns.length && !uses.length ? (senders.length ? tr('그래프 등록만') : tr('참조 없음')) : '';
   const warn = fns.length && vanillaName(e.name) ? tr('⚠ 게임 전체 적용') : '';
   return (
-    <span className="registry-what" title={[...fns, ...uses, none, warn].filter(Boolean).join(' · ')}>
+    <small className="time registry-what" title={[...fns, ...uses, none, warn].filter(Boolean).join(' · ')}>
       {fns.map((t, i) => (
         <span key={'f' + i} className="fn">
           {t}
         </span>
       ))}
       {uses.map((t, i) => (
-        <span key={'u' + i} className="use">
+        <span key={'u' + i} className={'use on-' + kinds[i]}>
           {t}
         </span>
       ))}
       {none && <span className="none">{none}</span>}
       {warn && <span className="warn">{warn}</span>}
-    </span>
+    </small>
   );
 }
 
@@ -289,6 +301,8 @@ function RegistryRow({
     });
   }, [flash]);
   const fns = entry.row?.functions ?? [];
+  // Nothing does anything with it: its name steps back.
+  const unused = !fns.length && !entry.uses.length;
   const change = (next: Effect[]) => attempt(() => edit(w => setFunctions(w, entry.name, next)));
   const rename = () => {
     if (name !== entry.name) attempt(() => edit(w => renameEvent(w, entry.name, name.trim())));
@@ -296,41 +310,66 @@ function RegistryRow({
   return (
     <div
       ref={ref}
-      className={'registry-row' + (open ? ' open' : '') + (flash ? ' flash' : '')}
+      className={
+        'checklist-row registry-row' + (open ? ' open' : '') + (flash ? ' flash' : '') + (unused ? ' unused' : '')
+      }
       data-registry-row={eventKey(entry.name)}
     >
-      <button className="registry-row-head" aria-expanded={open} onClick={toggle}>
-        <span className="registry-name">{entry.name}</span>
-        {whatOf(entry, senders)}
-        <span className="registry-usage-count" title={tr('이 프로젝트에서 이 이벤트를 보내는 HKX 주석 수')}>
-          {senders.length}
-        </span>
-      </button>
+      <div className="checklist-row-heading">
+        <button className="checklist-row-toggle" aria-expanded={open} onClick={toggle}>
+          <span>{entry.name}</span>
+          {whatOf(entry, senders)}
+        </button>
+        {open && entry.row && (
+          <span className="checklist-row-icons">
+            <button
+              type="button"
+              className="danger"
+              aria-label={tr('이벤트 삭제')}
+              disabled={!!entry.uses.length}
+              title={entry.uses.length ? tr('용도에서 쓰는 중 — 참조를 먼저 바꾸세요') : tr('이벤트 삭제')}
+              onClick={() => attempt(() => edit(w => removeEventRow(w, entry.row!.id)))}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                aria-hidden="true"
+              >
+                <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" />
+              </svg>
+            </button>
+          </span>
+        )}
+      </div>
       {open && (
-        <div className="registry-row-body">
-          <label className="registry-field-line">
-            <span>{tr('이름')}</span>
-            <input
-              aria-label={tr('이벤트 이름')}
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onBlur={rename}
-              onKeyDown={e => {
-                if (e.key === 'Enter') rename();
-              }}
-            />
-          </label>
-          <div className="registry-sub-title">
-            {tr('기능')} <span>{tr('전역 — 어느 애니메이션에서 오든 실행 · 수치는 보내는 HKX 카드에서')}</span>
-          </div>
-          {fns.map((f, i) => (
-            <FunctionEditor
-              key={f.id}
-              fn={f}
-              change={next => change(fns.map((x, j) => (j === i ? next : x)))}
-              remove={() => change(fns.filter((_, j) => j !== i))}
-            />
-          ))}
+        <div className="checklist-fields registry-fields">
+          <NestedDetailPanel.Provider value={true}>
+            <DetailPanel>
+              <DetailRow label={tr('이름')}>
+                <input
+                  aria-label={tr('이벤트 이름')}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onBlur={rename}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') rename();
+                  }}
+                />
+              </DetailRow>
+              {fns.map((f, i) => (
+                <FunctionEditor
+                  key={f.id}
+                  fn={f}
+                  change={next => change(fns.map((x, j) => (j === i ? next : x)))}
+                  remove={() => change(fns.filter((_, j) => j !== i))}
+                />
+              ))}
+            </DetailPanel>
+          </NestedDetailPanel.Provider>
           {!fns.length && (
             <div className="registry-empty-line">
               {tr('기능 없음 — 그래프에 이름만 등록합니다(아래 용도나 다른 플러그인이 이 이벤트를 받음).')}
@@ -343,62 +382,65 @@ function RegistryRow({
               )}
             </div>
           )}
-          <div className="registry-add">
-            <button onClick={() => attempt(() => edit(w => addFunction(w, entry.name)))}>{tr('＋ 기능 추가')}</button>
+          <div className="checklist-add-actions">
+            <div className="checklist-add-menu">
+              <button onClick={() => attempt(() => edit(w => addFunction(w, entry.name)))}>{tr('+ 기능')}</button>
+            </div>
           </div>
           {/* Uses are set where they are (QTE, Start, HKX and link cards); here they are only listed. */}
-          <div className="registry-sub-title">{tr('용도')}</div>
-          <ul className="registry-uses copyable nodrag nopan">
-            {groupUses(entry.uses).map(g => (
-              <li key={g.label}>
-                {g.text}
-                {/* Kept from the registry card's own click, which would choose the registry again. */}
-                <button
-                  className="registry-link"
-                  onClick={e => {
-                    e.stopPropagation();
-                    show(g.uses[0].node);
-                  }}
-                >
-                  {tr('보기')}
-                </button>
-              </li>
-            ))}
-            {!entry.uses.length && <li className="dim">{tr('없음')}</li>}
-          </ul>
-          <div className="registry-usage copyable nodrag nopan">
-            <div className="registry-usage-title">{tr('이 프로젝트에서 이 이벤트를 보내는 HKX')}</div>
-            <ul>
+          <div className="detail-row registry-list-row">
+            <div className="detail-label-help">
+              <span className="detail-name">{tr('용도')}</span>
+            </div>
+            <ul className="detail-value registry-uses copyable nodrag nopan">
+              {groupUses(entry.uses).map(g => (
+                <li key={g.label} className={'on-' + useKind(g.uses[0].node)}>
+                  {g.text}
+                  {/* Kept from the registry card's own click, which would choose the registry again. */}
+                  <button
+                    className="registry-link"
+                    onClick={e => {
+                      e.stopPropagation();
+                      show(g.uses[0].node);
+                    }}
+                  >
+                    {tr('보기')}
+                  </button>
+                </li>
+              ))}
+              {!entry.uses.length && <li className="dim">{tr('없음')}</li>}
+            </ul>
+          </div>
+          <div className="detail-row registry-list-row">
+            <div className="detail-label-help">
+              <span className="detail-name" title={tr('이 프로젝트에서 이 이벤트를 보내는 HKX')}>
+                {tr('보내는 HKX')}
+              </span>
+            </div>
+            <ul className="detail-value registry-usage copyable nodrag nopan">
               {senders.map((s, i) => (
                 <li key={i}>
-                  {s.label} · {s.time.toFixed(2)}
-                  {tr('초')}
+                  <span>{s.label}</span>
+                  <span className="at">
+                    {s.time.toFixed(2)}
+                    {tr('초')}
+                  </span>
                 </li>
               ))}
               {!senders.length && (
-                <li className="dim">{tr('없음 — 다른 프로젝트·모드의 애니메이션에서만 올 수 있습니다')}</li>
+                <li className="dim" title={tr('없음 — 다른 프로젝트·모드의 애니메이션에서만 올 수 있습니다')}>
+                  {tr('없음')}
+                </li>
               )}
             </ul>
           </div>
-          {entry.row && (
-            <div className="registry-add">
-              <button
-                disabled={!!entry.uses.length}
-                title={entry.uses.length ? tr('용도에서 쓰는 중 — 참조를 먼저 바꾸세요') : undefined}
-                onClick={() => attempt(() => edit(w => removeEventRow(w, entry.row!.id)))}
-              >
-                {tr('이벤트 삭제')}
-                {entry.uses.length ? tr(' (용도에서 쓰는 중)') : ''}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-/** One registered function: op, target and trigger on one line, the op's settings below. */
+/** One registered function: its row (the choice and ×), then its own settings a row each under it. */
 export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: Effect) => void; remove: () => void}) {
   const v = fn.values;
   const set = (key: string, value: string | undefined) => {
@@ -412,36 +454,30 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
     // What a strike's hit brings along (runtime 0.12.294): each on unless `without` names it.
     if (key === 'without') {
       const off = new Set((v.without ?? '').split(',').filter(Boolean));
-      return (
-        <span key={key} className="strike-extras">
-          {strikeExtras().map(([name, text]) => (
-            <label key={name}>
-              <input
-                type="checkbox"
-                checked={!off.has(name)}
-                onChange={e => {
-                  if (e.target.checked) off.delete(name);
-                  else off.add(name);
-                  const list = strikeExtras()
-                    .map(([k]) => k)
-                    .filter(k => off.has(k))
-                    .join(',');
-                  set(key, list || undefined);
-                }}
-              />
-              {text}
-            </label>
-          ))}
-        </span>
-      );
+      return strikeExtras().map(([name, text]) => (
+        <DetailRow key={key + ':' + name} label={text}>
+          <input
+            type="checkbox"
+            checked={!off.has(name)}
+            onChange={e => {
+              if (e.target.checked) off.delete(name);
+              else off.add(name);
+              const list = strikeExtras()
+                .map(([k]) => k)
+                .filter(k => off.has(k))
+                .join(',');
+              set(key, list || undefined);
+            }}
+          />
+        </DetailRow>
+      ));
     }
     // A strike's whom and how (runtime 0.12.293); the hit choice is an area's only.
     if (strikeChoices[key]) {
       if (key === 'hit' && v.pick !== 'area') return null;
       const choices = strikeChoices[key]();
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <select
             value={v[key] ?? choices[0][0]}
             onChange={e => {
@@ -459,25 +495,23 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
               </option>
             ))}
           </select>
-        </label>
+        </DetailRow>
       );
     }
     if (isBooleanSetting(key))
       return (
-        <label key={key}>
+        <DetailRow key={key} label={label}>
           <input
             type="checkbox"
             checked={(v[key] ?? settingDefault[key] ?? 'false') === 'true'}
             onChange={e => set(key, String(e.target.checked))}
           />
-          {label}
-        </label>
+        </DetailRow>
       );
     // A ragdoll's direction, and its force defaulting by direction (runtime 0.12.278).
     if (key === 'direction')
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <select
             value={v.direction ?? 'down'}
             onChange={e => set(key, e.target.value === 'down' ? undefined : e.target.value)}
@@ -489,13 +523,12 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
               </option>
             ))}
           </select>
-        </label>
+        </DetailRow>
       );
     if (key === 'force') {
       const def = ragdollForce[v.direction ?? 'down'] ?? 1;
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <NumberInput
             aria-label={label}
             min={0}
@@ -504,7 +537,7 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             value={v.force === undefined ? def : Number(v.force)}
             change={value => set(key, value === def ? undefined : String(value))}
           />
-        </label>
+        </DetailRow>
       );
     }
     // A sound's source (mockup ②): 출처 파일 | 등록 사운드.
@@ -522,30 +555,27 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             change({...fn, values});
           }}
           row={(text, control, k) => (
-            <label key={k} className="sound-source-row">
-              {text}
+            <DetailRow key={k} label={text}>
               {control}
-            </label>
+            </DetailRow>
           )}
         />
       );
     if (key === 'plugin' || key === 'form' || textSettings.includes(key))
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <input
             type="text"
             className={key === 'plugin' || key === 'text' ? 'wide' : ''}
             value={v[key] ?? ''}
             onChange={e => set(key, e.target.value)}
           />
-        </label>
+        </DetailRow>
       );
     // A sound's bone and a global's restore (runtime 0.12.296).
     if (key === 'bone')
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <select
             value={v.bone ?? 'spine'}
             onChange={e => set(key, e.target.value === 'spine' ? undefined : e.target.value)}
@@ -557,13 +587,12 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
               </option>
             ))}
           </select>
-        </label>
+        </DetailRow>
       );
     // A cost's unit (runtime 10-31): the values as written, or percent of each maximum.
     if (key === 'measure')
       return (
-        <label key={key}>
-          {label}
+        <DetailRow key={key} label={label}>
           <select
             value={v.measure === '' ? '' : v.measure === 'percent' ? 'percent' : 'value'}
             onChange={e => set(key, e.target.value === 'percent' ? 'percent' : undefined)}
@@ -572,24 +601,22 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             <option value="value">{tr('수치')}</option>
             <option value="percent">{tr('최대치의 %')}</option>
           </select>
-        </label>
+        </DetailRow>
       );
     if (key === 'restore')
       return (
-        <label key={key}>
+        <DetailRow key={key} label={label}>
           <input
             type="checkbox"
             checked={v.restore === 'end'}
             onChange={e => set(key, e.target.checked ? 'end' : undefined)}
           />
-          {label}
-        </label>
+        </DetailRow>
       );
     // A window's span (runtime 11-02): 0 is none.
     if (isSpan(v.op, key))
       return (
-        <label key={key}>
-          {tr('지속 시간(초)')}
+        <DetailRow key={key} label={tr('지속 시간(초)')}>
           <NumberInput
             aria-label={tr('지속 시간(초)')}
             min={spanRange[0]}
@@ -598,12 +625,11 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
             value={Number(v[key] ?? 0)}
             change={value => set(key, value ? String(value) : undefined)}
           />
-        </label>
+        </DetailRow>
       );
     const [min, max] = settingRange(key) ?? [0, 600];
     return (
-      <label key={key}>
-        {label}
+      <DetailRow key={key} label={label}>
         <NumberInput
           aria-label={label}
           min={min}
@@ -612,60 +638,67 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
           value={Number(v[key] ?? settingDefault[key] ?? 0)}
           change={value => set(key, String(value))}
         />
-      </label>
+      </DetailRow>
     );
   };
+  // Its own settings, a row each under it (11-12 re-check: on one wrapping line they scattered, and with many the
+  // row's name was squeezed away).
+  const rows = [
+    isMagic(v.op) && (
+      <DetailRow key="action" label={tr('동작')}>
+        <span className="moment-seg" role="group" aria-label={tr('동작')}>
+          {magicActions().map(([op, label]) => (
+            <button
+              key={op}
+              type="button"
+              aria-pressed={v.op === op}
+              onClick={() => v.op !== op && change({...fn, values: {...v, op}})}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
+      </DetailRow>
+    ),
+    // What it acts with only: the numbers are each HKX node's (runtime 0.12.281, docs/mockup-event-node-values).
+    ...registryFields(v.op).flatMap(setting),
+  ].filter(Boolean);
   return (
-    <div className="registry-fn">
-      <div className="registry-fn-caption">
-        {/* It changes the actor that sent the event (runtime 0.12.273): no target or sender filter to choose. */}
-        <span>{tr('기능 · 이벤트를 보낸 액터에게')}</span>
-        <span />
-      </div>
-      <div className="registry-fn-top">
-        {/* A player-only function says so in its help (a tag looked like a setting, 10-27). */}
-        <select
-          aria-label={tr('기능')}
-          title={playerOnlyHint(v.op) || undefined}
-          value={v.op}
-          onChange={e => change({...fn, values: {op: e.target.value, ...unchosen(e.target.value)}})}
-        >
-          <Unchosen />
-          {eventOps
-            // The magic function is one choice; its action is below (11-01).
-            .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))
-            .map(op => (
-              <option key={op} value={op}>
-                {isMagic(op) ? tr('마법 효과') : opInfo[op].label}
-              </option>
-            ))}
-        </select>
-        <button className="registry-del" title={tr('기능 삭제')} aria-label={tr('기능 삭제')} onClick={remove}>
-          ✕
-        </button>
-      </div>
-      {isMagic(v.op) && (
-        <div className="registry-fn-fields">
-          <label>
-            {tr('동작')}
-            <span className="moment-seg" role="group" aria-label={tr('동작')}>
-              {magicActions().map(([op, label]) => (
-                <button
-                  key={op}
-                  type="button"
-                  aria-pressed={v.op === op}
-                  onClick={() => v.op !== op && change({...fn, values: {...v, op}})}
-                >
-                  {label}
-                </button>
+    <>
+      {/* It changes the actor that sent the event (runtime 0.12.273): no target or sender filter to choose. */}
+      <DetailRow
+        label={tr('기능')}
+        hint={
+          tr('전역 — 어느 애니메이션에서 오든 실행 · 수치는 보내는 HKX 카드에서') +
+          ' · ' +
+          tr('기능 · 이벤트를 보낸 액터에게')
+        }
+      >
+        <div className="registry-fn-top">
+          {/* A player-only function says so in its help (a tag looked like a setting, 10-27). */}
+          <select
+            aria-label={tr('기능')}
+            title={playerOnlyHint(v.op) || undefined}
+            value={v.op}
+            onChange={e => change({...fn, values: {op: e.target.value, ...unchosen(e.target.value)}})}
+          >
+            <Unchosen />
+            {eventOps
+              // The magic function is one choice; its action is below (11-01).
+              .filter(op => !isMagic(op) || op === (isMagic(v.op) ? v.op : magicOps[0]))
+              .map(op => (
+                <option key={op} value={op}>
+                  {isMagic(op) ? tr('마법 효과') : opInfo[op].label}
+                </option>
               ))}
-            </span>
-          </label>
+          </select>
+          <button className="registry-del" title={tr('기능 삭제')} aria-label={tr('기능 삭제')} onClick={remove}>
+            ×
+          </button>
         </div>
-      )}
-      {/* What it acts with only: the numbers are each HKX node's (runtime 0.12.281, docs/mockup-event-node-values). */}
-      {!!registryFields(v.op).length && <div className="registry-fn-fields">{registryFields(v.op).map(setting)}</div>}
-    </div>
+      </DetailRow>
+      {!!rows.length && <div className="registry-fn-sub">{rows}</div>}
+    </>
   );
 }
 
@@ -698,11 +731,17 @@ function FunctionView({
             {label} <span>{list.length}</span>
           </div>
           {list.map(e => (
-            <button key={e.name} className="registry-row-head" onClick={() => jump(eventKey(e.name))}>
-              <span className="registry-name">{e.name}</span>
-              {whatOf(e, senders.get(eventKey(e.name)) ?? [])}
-              <span className="registry-usage-count">{senders.get(eventKey(e.name))?.length ?? 0}</span>
-            </button>
+            <div
+              key={e.name}
+              className={'checklist-row registry-row' + (!e.row?.functions.length && !e.uses.length ? ' unused' : '')}
+            >
+              <div className="checklist-row-heading">
+                <button className="checklist-row-toggle" onClick={() => jump(eventKey(e.name))}>
+                  <span>{e.name}</span>
+                  {whatOf(e, senders.get(eventKey(e.name)) ?? [])}
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       ))}

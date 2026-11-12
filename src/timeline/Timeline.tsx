@@ -342,6 +342,13 @@ export function Timeline({
     );
   };
   const ruler = rulerTicks(start, limit, rulerWidth);
+  // No action: nothing here works, so only what to do (11-12 audit).
+  if (!action)
+    return (
+      <div className="notify-timeline" data-testid="notify-timeline">
+        <p className="notify-none">{t('timeline.selectState')}</p>
+      </div>
+    );
   return (
     <div
       className="notify-timeline"
@@ -390,9 +397,7 @@ export function Timeline({
       <div className="notify-meta">
         {!externalMeta && state.loading ? t('timeline.reading') : externalMeta ? '' : (state.error ?? '')}
       </div>
-      {!action ? (
-        <p>{t('timeline.selectState')}</p>
-      ) : (
+      {
         <div
           className="notify-scroll"
           style={{'--playhead': ((cursor - start) / limit) * 100 + '%', '--tick': ruler.step + '%'} as CSSProperties}
@@ -485,7 +490,7 @@ export function Timeline({
             {t('timeline.empty')} · Ctrl+{t('timeline.wheelZoom')}
           </HelpNote>
         </div>
-      )}
+      }
     </div>
   );
 }

@@ -20,7 +20,9 @@ export const cardWidth = (n: Pick<FlatNode, 'kind'>) =>
         ? 380
         : n.kind === 'conditionCard'
           ? 340
-          : 260;
+          : n.kind === 'qte'
+            ? 300
+            : 260;
 export const pinTop = (n: Pick<FlatNode, 'kind'>) => (n.kind === 'entry' ? 34 : 54);
 export const cardHeight = (n: Pick<FlatNode, 'kind' | 'inputs' | 'outputs'> & {measured?: {height?: number}}) =>
   n.measured?.height ??
@@ -88,7 +90,7 @@ function qteFace(w: Workspace, n: FlatNode): QteFace | undefined {
       (q.type === ''
         ? tr('유형 선택')
         : (q.type ?? 'splitArc') === 'rapidPress' && (q.pressCount ?? 10) === 1
-          ? tr('E · 한 번 입력')
+          ? tr('E · 연타 (1회)')
           : qteTypes[q.type ?? 'splitArc'] + (q.design === 'converge' ? tr(' · 수렴선') : '')) +
       (q.hidden ? tr(' · 화면 표시 없음') : ''),
     input:
@@ -240,7 +242,7 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
             : link.mode === 'release' && !link.input
               ? {label: tr('차지 종료'), value: tr('시작한 키')}
               : {
-                  label: link.mode === 'release' ? tr('차지 종료') : tr('누를 때'),
+                  label: link.mode === 'release' ? tr('차지 종료') : pressTrigger(link.press ?? 'down'),
                   value: input?.control
                     ? gameControlLabel(input.control)
                     : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||

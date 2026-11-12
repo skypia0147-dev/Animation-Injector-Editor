@@ -41,7 +41,7 @@
       </False>
     </True>
   </Start>
-  <Action id="BowDodge_B1" clip="Animations\DynamicDodgeShot\BowDodgeBack.hkx" firstPerson="switch">
+  <Action id="BowDodge_B1" clip="Animations\DynamicDodgeShot\BowDodgeBack.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
@@ -51,27 +51,27 @@
       </Event>
     </EventValues>
   </Action>
-  <Action id="BowDodge_L1" clip="Animations\DynamicDodgeShot\BowDodgeLeft.hkx" firstPerson="switch">
+  <Action id="BowDodge_L1" clip="Animations\DynamicDodgeShot\BowDodgeLeft.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
   </Action>
-  <Action id="BowDodge_R1" clip="Animations\DynamicDodgeShot\BowDodgeRight.hkx" firstPerson="switch">
+  <Action id="BowDodge_R1" clip="Animations\DynamicDodgeShot\BowDodgeRight.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
   </Action>
-  <Action id="SneakBowDodge_B1" clip="Animations\DynamicDodgeShot\SneakBowDodgeBack.hkx" firstPerson="switch">
+  <Action id="SneakBowDodge_B1" clip="Animations\DynamicDodgeShot\SneakBowDodgeBack.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>
   </Action>
-  <Action id="SneakBowDodge_L1" clip="Animations\DynamicDodgeShot\SneakBowDodgeLeft.hkx" firstPerson="switch">
+  <Action id="SneakBowDodge_L1" clip="Animations\DynamicDodgeShot\SneakBowDodgeLeft.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.397" blend="0.35"/>
   </Action>
-  <Action id="SneakBowDodge_R1" clip="Animations\DynamicDodgeShot\SneakBowDodgeRight.hkx" firstPerson="switch">
+  <Action id="SneakBowDodge_R1" clip="Animations\DynamicDodgeShot\SneakBowDodgeRight.hkx" otherView="switch">
     <Exit blend="0.3"/>
     <IFrame until="0.8"/>
     <MoveCancel at="1.647" blend="0.35"/>

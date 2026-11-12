@@ -21,21 +21,13 @@ test('events can be added without actions, saved as graph source, renamed and de
     parseWorkspace(JSON.stringify({...emptyWorkspace(), eventRegistry: [{id: 'e', name: 'A', functions: [], x: 1}]}))
   );
 });
-test('rename includes start cards going nowhere, cancel windows and saved action variants', () => {
+test('rename includes start cards going nowhere, detection windows and saved action variants', () => {
   let w = emptyWorkspace();
   const a = addAction(w);
   a.config.steps[0].clip = 'Animations/Test.hkx';
   w.actions.push(a);
   const event = {...mark(), basis: 'event', event: 'ComboOpen', fallback: false};
   a.clipWindows = {[a.config.steps[0].id]: {open: structuredClone(event), close: mark(0, 'end'), buffered: true}};
-  a.cancels.push({
-    id: 'cancel',
-    to: 'vanilla:Attack',
-    open: structuredClone(event),
-    close: mark(0, 'end'),
-    buffered: true,
-    blend: null,
-  });
   a.variants.single = structuredClone(a);
   delete a.variants.single.variants;
   // A start card that goes nowhere yet.
@@ -45,15 +37,15 @@ test('rename includes start cards going nowhere, cancel windows and saved action
   w = renameMarker(w, 'ComboOpen', 'WindowOpen');
   assert.ok(!markerNames(w).includes('ComboOpen'));
   assert.equal(w.starts[0].event, 'WindowOpen');
-  assert.equal(w.actions[0].cancels[0].open.event, 'WindowOpen');
-  assert.equal(w.actions[0].variants.single.cancels[0].open.event, 'WindowOpen');
+  const step = a.config.steps[0].id;
+  assert.equal(w.actions[0].clipWindows[step].open.event, 'WindowOpen');
+  assert.equal(w.actions[0].variants.single.clipWindows[step].open.event, 'WindowOpen');
   // The renamed event is used by actual XML, rather than only by the catalog.
   w.starts[0].to = {action: a.uid};
   w.actions[0].variants = {};
   const xml = compileWorkspace(w);
   assert.match(xml, /<Start to="[^"]+" event="WindowOpen"/);
-  assert.ok(xml.includes('event:WindowOpen'));
   assert.ok(!xml.includes('ComboOpen'));
   const restored = parseWorkspace(JSON.stringify(captureGraph(w)));
-  assert.equal(restored.actions[0].cancels[0].open.event, 'WindowOpen');
+  assert.equal(restored.actions[0].clipWindows[step].open.event, 'WindowOpen');
 });

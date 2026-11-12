@@ -9,7 +9,7 @@ export const labels = {
   file: ['row.file', 'tip.file'],
   view: ['row.view', 'tip.view'],
   projectView: ['row.projectView', 'tip.projectView'],
-  firstPerson: ['row.firstPerson', 'tip.firstPerson'],
+  otherView: ['row.otherView', 'tip.otherView'],
   firstFile: ['view.firstFile', 'tip.firstFile'],
   attackData: ['row.attackData', 'tip.attack'],
   input: ['row.input', 'tip.input'],
