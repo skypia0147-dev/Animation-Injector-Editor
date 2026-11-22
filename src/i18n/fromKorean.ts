@@ -3133,6 +3133,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'MOD フォルダーの確定に失敗しました: {e}。出力フォルダーを使用しているプログラムを閉じてから、再出力してください。',
     '确定模组文件夹失败：{e}。请关闭占用输出文件夹的程序并重新导出。',
   ],
+  '모드 폴더의 소리 파일이 너무 많아 {n}개만 목록에 넣었습니다. 나머지는 찾아보기로 고르세요.': [
+    'The mod folder holds too many sound files; only {n} are listed. Choose the others with Browse.',
+    'MOD フォルダのサウンドファイルが多すぎるため、{n} 件だけ一覧に入れました。残りは参照で選んでください。',
+    '模组文件夹中的声音文件过多，仅列出 {n} 个。其余请通过浏览选择。',
+  ],
   '모드나 Data 폴더의 sound 폴더 아래 소리 파일을 고르세요.': [
     'Choose a sound file below the sound folder of a mod or of Data.',
     'MOD または Data フォルダーの sound フォルダー以下のサウンドファイルを選んでください。',
@@ -6392,6 +6397,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'プロジェクトは 2 MB 以下である必要があります。',
     '项目大小必须在 2 MB 以下。',
   ],
+  '프로젝트에 기억한 소리 파일이 {n}개를 넘습니다. 브라우저의 「소리」에서 쓰지 않는 소리를 빼세요.': [
+    'The project remembers more than {n} sound files. Remove unused ones under Sound in the Browser.',
+    'プロジェクトが記憶しているサウンドファイルが {n} 件を超えています。ブラウザの「サウンド」から使わないサウンドを外してください。',
+    '项目记住的声音文件超过 {n} 个。请在浏览器的「声音」中移除未使用的声音。',
+  ],
   '프리뷰 {kind} 경로 형식 오류': [
     'Invalid preview {kind} path format',
     'プレビュー {kind} パス形式エラー',
@@ -6483,6 +6493,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Up to 200 are checked at a time.',
     '一度に確認できるのは 200 個までです。',
     '一次最多检查 200 个。',
+  ],
+  '한 패키지의 소리 파일은 {n}개까지입니다.': [
+    'A package holds at most {n} sound files.',
+    '1 パッケージのサウンドファイルは最大 {n} 件です。',
+    '每个包最多包含 {n} 个声音文件。',
   ],
   한손: ['One-handed', '片手武器', '单手'],
   '한손·맨손': ['One-handed, fists', '片手・素手', '单手·徒手'],

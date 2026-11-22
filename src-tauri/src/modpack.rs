@@ -218,7 +218,7 @@ fn validate(r: &Request) -> Result<(), String> {
             return Err("자산 중복 또는 외부 공급 모드 설정 오류".into());
         }
     }
-    if r.sounds.len() > 500 || r.ragdolls.len() > 256 {
+    if r.sounds.len() > MAX_SOUNDS || r.ragdolls.len() > 256 {
         return Err("패키지 설정/크기 제한을 확인하세요.".into());
     }
     let mut ragdolls = BTreeSet::new();
@@ -570,21 +570,31 @@ pub struct PickedSound {
     pub path: String,
     pub file: String,
 }
+/// The most sound files a mod folder lists, and a package holds (the editor's package.ts MAX_SOUNDS).
+pub const MAX_SOUNDS: usize = 5000;
+#[derive(serde::Serialize)]
+pub struct ModSounds {
+    pub sounds: Vec<PickedSound>,
+    /// The walk stopped at its bound: the folder holds more than `sounds`.
+    pub truncated: bool,
+}
 /// The sound files a mod folder holds (`<root>\sound\…`, .wav·.xwm): a mod's sounds may be played by its plugin's
 /// sound descriptors from HKX SoundPlay annotations, which the XML never names. Bounded walk; names the game cannot
-/// find (not ASCII) are left out.
-pub fn sounds_in(root: &str) -> Result<Vec<PickedSound>, String> {
+/// find (not ASCII) are left out. Sorted by path under Data, also when the walk stopped at its bound.
+pub fn sounds_in(root: &str) -> Result<ModSounds, String> {
     let mut dirs = vec![local(root)?.join("sound")];
     let mut found = Vec::new();
     let mut seen = 0;
-    while let Some(dir) = dirs.pop() {
+    let mut truncated = false;
+    'walk: while let Some(dir) = dirs.pop() {
         let Ok(children) = fs::read_dir(&dir) else {
             continue;
         };
         for child in children.flatten() {
             seen += 1;
-            if seen > 20_000 || found.len() >= 500 {
-                return Ok(found);
+            if seen > 50_000 || found.len() >= MAX_SOUNDS {
+                truncated = true;
+                break 'walk;
             }
             let path = child.path();
             match child.file_type() {
@@ -600,7 +610,10 @@ pub fn sounds_in(root: &str) -> Result<Vec<PickedSound>, String> {
         }
     }
     found.sort_by(|a, b| a.file.to_lowercase().cmp(&b.file.to_lowercase()));
-    Ok(found)
+    Ok(ModSounds {
+        sounds: found,
+        truncated,
+    })
 }
 /// A sound file's bytes for the editor's preview. Only .wav: the webview cannot decode xWMA.
 #[tauri::command]
@@ -616,7 +629,7 @@ pub async fn sound_bytes(path: String) -> Result<tauri::ipc::Response, String> {
     .map_err(|e| e.to_string())?
 }
 #[tauri::command]
-pub async fn mod_sounds(root: String) -> Result<Vec<PickedSound>, String> {
+pub async fn mod_sounds(root: String) -> Result<ModSounds, String> {
     tauri::async_runtime::spawn_blocking(move || sounds_in(&root))
         .await
         .map_err(|e| e.to_string())?
@@ -888,15 +901,34 @@ mod tests {
             fs::create_dir_all(p.parent().unwrap()).unwrap();
             fs::write(&p, b"x").unwrap();
         }
-        let found = sounds_in(&m.to_string_lossy()).unwrap();
+        let listed = sounds_in(&m.to_string_lossy()).unwrap();
+        assert!(!listed.truncated);
+        let found = listed.sounds;
         let files: Vec<_> = found.iter().map(|s| s.file.replace('/', "\\")).collect();
         assert_eq!(files, ["sound\\FX\\b.xwm", "sound\\FX\\FST\\a.wav"]);
         assert!(found.iter().all(|s| Path::new(&s.path).is_file()));
-        assert!(sounds_in(&t.0.join("none").to_string_lossy()).unwrap().is_empty());
+        assert!(sounds_in(&t.0.join("none").to_string_lossy())
+            .unwrap()
+            .sounds
+            .is_empty());
         // The mod that reported the problem (10-26), when AIE_SOUND_MOD names its folder on this computer.
         if let Some(real) = std::env::var_os("AIE_SOUND_MOD").filter(|p| Path::new(p).is_dir()) {
-            assert!(!sounds_in(&real.to_string_lossy()).unwrap().is_empty());
+            assert!(!sounds_in(&real.to_string_lossy()).unwrap().sounds.is_empty());
         }
+        // A folder holding more than the bound (11-23: a Data folder listed 500 and stopped unsorted): the listing
+        // says so and is still sorted.
+        let big = t.0.join("big").join("sound").join("fx");
+        fs::create_dir_all(&big).unwrap();
+        for i in (0..=MAX_SOUNDS).rev() {
+            fs::write(big.join(format!("s{i:05}.wav")), b"x").unwrap();
+        }
+        let listed = sounds_in(&t.0.join("big").to_string_lossy()).unwrap();
+        assert!(listed.truncated);
+        assert_eq!(listed.sounds.len(), MAX_SOUNDS);
+        assert!(listed
+            .sounds
+            .windows(2)
+            .all(|p| p[0].file.to_lowercase() < p[1].file.to_lowercase()));
     }
     #[test]
     fn sound_paths_are_data_relative_ascii_sound_files() {

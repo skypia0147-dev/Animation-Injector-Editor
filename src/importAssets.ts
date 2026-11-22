@@ -1,6 +1,6 @@
 import type {Workspace} from './workspace.ts';
 import {assetLibrary} from './assets.ts';
-import {assetKey, selectAsset, selectSound, soundLibrary} from './package.ts';
+import {assetKey, selectAsset, selectSound, soundLibrary, unregisterSound} from './package.ts';
 import {clipRoot} from './creatureRig.ts';
 import {allTreeFiles} from './locomotion.ts';
 
@@ -13,19 +13,23 @@ export async function connectXmlAssets(
   workspace: Workspace,
   xmlPath: string,
   resolve: (paths: string[]) => Promise<Resolved[]>,
-  exists?: (paths: string[]) => Promise<boolean[]>,
-  modSounds?: (root: string) => Promise<{path: string; file: string}[]>
+  exists?: (paths: string[]) => Promise<boolean[]>
 ): Promise<{
   workspace: Workspace;
   connected: number;
   missing: number;
   stale: number;
-  sounds: {connected: number; missing: number; stale: number};
+  sounds: {connected: number; missing: number; stale: number; folded: number};
 }> {
-  const normalized = xmlPath.replaceAll('\\', '/');
-  const root = /^([a-z]:\/.*?)\/SKSE\/Plugins\/AnimationInjector\/(?:[^/]+\/)*[^/]+\.xml$/i.exec(normalized)?.[1];
-  const result = {workspace, connected: 0, missing: 0, stale: 0, sounds: {connected: 0, missing: 0, stale: 0}};
-  if (!root || normalized.split('/').some(part => part === '..' || part === '.')) return result;
+  const root = modRoot(xmlPath);
+  const result = {
+    workspace,
+    connected: 0,
+    missing: 0,
+    stale: 0,
+    sounds: {connected: 0, missing: 0, stale: 0, folded: 0},
+  };
+  if (!root) return result;
   const remembered = exists ? assetLibrary(workspace).filter(asset => asset.localPath) : [];
   for (let offset = 0; offset < remembered.length; offset += 200) {
     const batch = remembered.slice(offset, offset + 200);
@@ -101,27 +105,53 @@ export async function connectXmlAssets(
     }
   }
   if (exists) {
-    const sounds = await connectXmlSounds(result.workspace, root, exists, modSounds);
+    const sounds = await connectXmlSounds(result.workspace, root, exists);
     result.workspace = sounds.workspace;
-    result.sounds = {connected: sounds.connected, missing: sounds.missing, stale: sounds.stale};
+    result.sounds = {
+      connected: sounds.connected,
+      missing: sounds.missing,
+      stale: sounds.stale,
+      folded: sounds.folded,
+    };
   }
   return result;
 }
 
+/** The mod folder an XML in it belongs to (`<mod>\SKSE\Plugins\AnimationInjector\…\<name>.xml`, forward slashes),
+ *  or '' when the path is not one. */
+export function modRoot(xmlPath: string): string {
+  const normalized = xmlPath.replaceAll('\\', '/');
+  if (normalized.split('/').some(part => part === '..' || part === '.')) return '';
+  return /^([a-z]:\/.*?)\/SKSE\/Plugins\/AnimationInjector\/(?:[^/]+\/)*[^/]+\.xml$/i.exec(normalized)?.[1] ?? '';
+}
+/** The folder whose sound files the app lists beside the project (package.ts FolderSound), or '' for none. An XML in
+ *  the game's Data folder (a mod manager that installs there) has every installed mod's sounds beside it, which are
+ *  not this mod's to list or package. */
+export function soundFolder(xmlPath: string): string {
+  const root = modRoot(xmlPath);
+  return root && root.split('/').pop()!.toLowerCase() !== 'data' ? root : '';
+}
+
 /** The sound files the functions play, found beside the XML as the mod holds them (`<mod>\<file>`, the path the
- *  package writes): a remembered source whose file is gone is looked for there too. */
-async function connectXmlSounds(
-  workspace: Workspace,
-  root: string,
-  exists: (paths: string[]) => Promise<boolean[]>,
-  modSounds?: (root: string) => Promise<{path: string; file: string}[]>
-) {
-  const result = {workspace, connected: 0, missing: 0, stale: 0};
+ *  package writes): a remembered source whose file is gone is looked for there too. The mod folder's other sounds are
+ *  listed by the app instead of saved (package.ts FolderSound); an unused one an earlier editor saved in the library
+ *  is taken out of it (`folded`). */
+async function connectXmlSounds(workspace: Workspace, root: string, exists: (paths: string[]) => Promise<boolean[]>) {
+  const result = {workspace, connected: 0, missing: 0, stale: 0, folded: 0};
   const ask = async (paths: string[]) => {
     const out: boolean[] = [];
     for (let offset = 0; offset < paths.length; offset += 200)
       out.push(...(await exists(paths.slice(offset, offset + 200))));
     return out;
+  };
+  // `<mod>\<file>`, or '' for a file name that cannot be one.
+  const beside = (name: string) => {
+    const file = name.replaceAll('\\', '/');
+    const safe =
+      /\.(wav|xwm)$/i.test(file) &&
+      !/[<>:"|?*\x00-\x1f]/.test(file) &&
+      file.split('/').every(part => part && part !== '.' && part !== '..' && !/[. ]$/.test(part));
+    return safe ? `${root}/${file}`.replaceAll('/', '\\') : '';
   };
   const remembered = soundLibrary(workspace).filter(s => s.localPath);
   if (remembered.length) {
@@ -136,33 +166,26 @@ async function connectXmlSounds(
       /* Without the check a remembered path is left alone. */
     }
   }
-  // Every sound the mod folder holds joins the library (10-26): its plugin may play it from an HKX SoundPlay
-  // annotation, which the XML never names, and the package must keep it.
-  if (modSounds) {
-    let held: {path: string; file: string}[] = [];
+  // From 10-26 every sound of the mod folder was saved in the library: one no function plays that the folder holds is
+  // the folder's, listed again by the app. In a Data folder that was up to 500 of every installed mod's sounds.
+  const unused = soundLibrary(result.workspace)
+    .filter(s => s.registered && !s.actions.length && !s.events.length)
+    .map(s => ({file: s.file, path: beside(s.file)}))
+    .filter(s => s.path);
+  if (unused.length)
     try {
-      held = await modSounds(root);
+      const there = await ask(unused.map(s => s.path));
+      unused.forEach((s, i) => {
+        if (!there[i]) return;
+        result.workspace = unregisterSound(result.workspace, s.file);
+        result.folded++;
+      });
     } catch {
-      /* Without the listing only the sounds the functions play are looked for. */
+      /* Without the check the library is left as it was. */
     }
-    const library = new Map(soundLibrary(result.workspace).map(s => [assetKey(s.file), s]));
-    for (const h of held) {
-      const known = library.get(assetKey(h.file));
-      if (known?.localPath) continue;
-      result.workspace = selectSound(result.workspace, known?.file ?? h.file, h.path);
-      result.connected++;
-    }
-  }
   const candidates = soundLibrary(result.workspace)
     .filter(s => !s.localPath)
-    .map(s => {
-      const file = s.file.replaceAll('\\', '/');
-      const safe =
-        /\.(wav|xwm)$/i.test(file) &&
-        !/[<>:"|?*\x00-\x1f]/.test(file) &&
-        file.split('/').every(part => part && part !== '.' && part !== '..' && !/[. ]$/.test(part));
-      return {file: s.file, path: safe ? `${root}/${file}`.replaceAll('/', '\\') : ''};
-    });
+    .map(s => ({file: s.file, path: beside(s.file)}));
   result.missing = candidates.length;
   const safe = candidates.filter(c => c.path);
   if (!safe.length) return result;

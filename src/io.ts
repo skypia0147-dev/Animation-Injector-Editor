@@ -61,8 +61,9 @@ export async function pickSound(): Promise<{path: string; file: string} | null> 
   if (!isTauri()) throw new Error(t('export.desktop'));
   return invoke('pick_sound');
 }
-/** The sound files a mod folder holds (`<root>\sound\…`): their local paths and paths under Data. */
-export async function modSounds(root: string): Promise<{path: string; file: string}[]> {
+/** The sound files a mod folder holds (`<root>\sound\…`): their local paths and paths under Data, sorted, and
+ *  whether the folder holds more than the listing's bound (modpack.rs MAX_SOUNDS). */
+export async function modSounds(root: string): Promise<{sounds: {path: string; file: string}[]; truncated: boolean}> {
   if (!isTauri()) throw new Error(t('export.desktop'));
   return invoke('mod_sounds', {root});
 }

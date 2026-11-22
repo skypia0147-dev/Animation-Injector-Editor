@@ -1,12 +1,14 @@
 import {HelpNote} from './HelpTip.tsx';
 import {t} from '../i18n/index.ts';
 import type {Workspace} from '../workspace.ts';
+import type {FolderSound} from '../package.ts';
 import {PackagePanel} from '../PackagePanel.tsx';
 
 export function ExportSheet({
   mode,
   setMode,
   w,
+  folderSounds,
   xml,
   edit,
   status,
@@ -18,6 +20,7 @@ export function ExportSheet({
   mode: 'xml' | 'mod';
   setMode: (mode: 'xml' | 'mod') => void;
   w: Workspace;
+  folderSounds: FolderSound[];
   xml: string;
   edit: (fn: (w: Workspace) => Workspace) => void;
   status: (text: string) => void;
@@ -45,7 +48,7 @@ export function ExportSheet({
       </div>
       {mode === 'mod' ? (
         <div role="tabpanel" id="export-mod" aria-labelledby="export-tab-mod" className="export-mod-body">
-          <PackagePanel w={w} edit={edit} status={status} busy={busy} setBusy={setBusy} />
+          <PackagePanel w={w} folderSounds={folderSounds} edit={edit} status={status} busy={busy} setBusy={setBusy} />
         </div>
       ) : (
         <div role="tabpanel" id="export-xml" aria-labelledby="export-tab-xml" className="export-xml-body">

@@ -60,11 +60,16 @@ export function authoringShape(w: Workspace) {
     p.roots.length > 12 ||
     p.roots.some(r => !text(r)) ||
     !Array.isArray(p.policies) ||
-    p.policies.length > 500 ||
-    !Array.isArray(p.sounds) ||
-    p.sounds.length > 500
+    p.policies.length > 5500 ||
+    !Array.isArray(p.sounds)
   )
     throw new Error(tr('패키지 설정 형식 오류'));
+  // The sounds the project remembers: those chosen (찾아보기, ＋) and those the functions play with a source. The mod
+  // folder's own are listed by the app, not saved (package.ts FolderSound).
+  if (p.sounds.length > 500)
+    throw new Error(
+      tr('프로젝트에 기억한 소리 파일이 {n}개를 넘습니다. 브라우저의 「소리」에서 쓰지 않는 소리를 빼세요.', {n: 500})
+    );
   const clips = new Set<string>();
   for (const s of p.policies) {
     const key = typeof s.clip === 'string' ? s.clip.replaceAll('\\', '/').toLowerCase() : '';

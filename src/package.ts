@@ -3,6 +3,7 @@ import type {Workspace} from './workspace.ts';
 import {compileWorkspace} from './workspace.ts';
 import {clipEffects} from './clipEffects.ts';
 import {t} from './i18n/index.ts';
+import {tr} from './i18n/korean.ts';
 import {isFirstPersonClip, stepFiles} from './view.ts';
 import {ragdollWrites} from './ragdoll.ts';
 import {actionRig, clipRoot, rigRoot} from './creatureRig.ts';
@@ -133,9 +134,16 @@ export function selectAsset(w: Workspace, clip: string, path: string): Workspace
     })),
   };
 }
+/** The most sound files a package holds (modpack.rs MAX_SOUNDS), and the most a mod folder lists. */
+export const MAX_SOUNDS = 5000;
+/** A sound file the opened XML's mod folder holds (`<mod>\sound\…`, io.modSounds). The app lists them again each
+ *  time the document's folder is known; they are never saved in the project (11-23: a Data folder's 500 sounds filled
+ *  the project's library, and one more chosen with 찾아보기 broke the project check). */
+export type FolderSound = {path: string; file: string};
 /** A sound file of the project, its source, and who plays it: actions (uids) and registered events. `registered`:
- *  in the library (found in the opened XML's mod folder, or added), which the mod package copies even when no
- *  function names it, since the mod's plugin may play it from an HKX SoundPlay annotation. */
+ *  added to the project's library (packaging.sounds), which the mod package copies even when no function names it.
+ *  `inFolder`: held by the opened XML's mod folder, which the package copies too, since the mod's plugin may play it
+ *  from an HKX SoundPlay annotation. */
 export type SoundEntry = {
   file: string;
   name: string;
@@ -143,9 +151,11 @@ export type SoundEntry = {
   actions: string[];
   events: string[];
   registered: boolean;
+  inFolder: boolean;
 };
-/** Every sound file of the project, once each: the library's, then those the functions play. */
-export function soundLibrary(w: Workspace): SoundEntry[] {
+/** Every sound file of the project, once each: the library's, those the functions play, then the mod folder's. A
+ *  source chosen in the project comes before the folder's file. */
+export function soundLibrary(w: Workspace, folder: readonly FolderSound[] = []): SoundEntry[] {
   const found = new Map<string, SoundEntry>();
   const entry = (file: string) => {
     let e = found.get(assetKey(file));
@@ -157,6 +167,7 @@ export function soundLibrary(w: Workspace): SoundEntry[] {
         actions: [],
         events: [],
         registered: w.packaging.sounds.some(s => assetKey(s.file) === assetKey(file)),
+        inFolder: false,
       };
       found.set(assetKey(file), e);
     }
@@ -175,17 +186,21 @@ export function soundLibrary(w: Workspace): SoundEntry[] {
         const s = entry(f.values.file);
         if (!s.events.includes(row.name)) s.events.push(row.name);
       }
+  for (const f of folder) {
+    const e = entry(f.file);
+    e.inFolder = true;
+    if (!e.localPath) e.localPath = f.path;
+  }
   return [...found.values()];
 }
-export const soundFiles = (w: Workspace): string[] => soundLibrary(w).map(e => e.file);
-export function sounds(w: Workspace): SoundAsset[] {
-  return soundFiles(w).map(file => {
-    const key = assetKey(file),
-      policy = w.packaging.policies.find(p => assetKey(p.clip) === key),
-      source = w.packaging.sounds.find(s => assetKey(s.file) === key)?.localPath;
+export const soundFiles = (w: Workspace, folder: readonly FolderSound[] = []): string[] =>
+  soundLibrary(w, folder).map(e => e.file);
+export function sounds(w: Workspace, folder: readonly FolderSound[] = []): SoundAsset[] {
+  return soundLibrary(w, folder).map(e => {
+    const policy = w.packaging.policies.find(p => assetKey(p.clip) === assetKey(e.file));
     return {
-      file,
-      paths: source ? [source] : [],
+      file: e.file,
+      paths: e.localPath ? [e.localPath] : [],
       mode: policy?.mode ?? 'copy',
       dependency: policy?.dependency ?? '',
       expectedSha256: '',
@@ -261,27 +276,27 @@ export function packageNotices(w: Workspace): string[] {
   // Read since runtime 0.12.229: an older one ended the game on such a folder.
   return /[^\x20-\x7e]/.test(w.packaging.folder) ? [t('export.folderAscii')] : [];
 }
-export function packageProblems(w: Workspace): string[] {
+export function packageProblems(w: Workspace, folder: readonly FolderSound[] = []): string[] {
   const errors: string[] = [];
   if (!folderValid(w.packaging.folder)) errors.push(t('export.folderInvalid'));
   if (assets(w).length > 500) errors.push(t('export.tooMany'));
   for (const a of assets(w))
     if (a.mode === 'external' && !a.dependency.trim()) errors.push(a.clip + ': ' + t('export.providerMissing'));
-  const played = sounds(w);
-  if (played.length > 500) errors.push(t('export.tooMany'));
+  const played = sounds(w, folder);
+  if (played.length > MAX_SOUNDS) errors.push(tr('한 패키지의 소리 파일은 {n}개까지입니다.', {n: MAX_SOUNDS}));
   for (const s of played)
     if (s.mode === 'external' && !s.dependency.trim()) errors.push(s.file + ': ' + t('export.providerMissing'));
   for (const p of plugins(w))
     if (!/\.(esp|esm|esl)$/i.test(p) || !folderValid(p)) errors.push(t('export.pluginInvalid') + ': ' + p);
   return errors;
 }
-export function request(w: Workspace, report?: PackageReport): PackageRequest {
-  const errors = packageProblems(w);
+export function request(w: Workspace, report?: PackageReport, folder: readonly FolderSound[] = []): PackageRequest {
+  const errors = packageProblems(w, folder);
   if (errors.length) throw new Error(errors.join('\n'));
   const files = assets(w);
   for (const f of files)
     f.expectedSha256 = report?.assets.find(a => assetKey(a.clip) === assetKey(f.clip))?.sha256 ?? '';
-  const played = sounds(w);
+  const played = sounds(w, folder);
   for (const s of played)
     s.expectedSha256 = report?.sounds.find(a => assetKey(a.clip) === assetKey(s.file))?.sha256 ?? '';
   return {

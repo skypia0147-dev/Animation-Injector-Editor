@@ -7,7 +7,7 @@ import {executeGraphCommand} from './graph/commands.ts';
 import {pairChanges, pairSources, withPairChanges} from './graph/pairFacing.ts';
 import {dropGrid, freePlayPosition} from './graph/placement.ts';
 import {SUMMARY_HEIGHT, presentCard} from './graph/cardPresentation.ts';
-import {connectXmlAssets} from './importAssets.ts';
+import {connectXmlAssets, soundFolder} from './importAssets.ts';
 import {draftBody, isDraftBody, readEditorBlock, savedProject, withEditorBlock} from './editorBlock.ts';
 import {captureGraph, lowerGraph, authorReducer, type AuthorGraph} from './graph/document.ts';
 import {StateDetails} from './ui/details/StateDetails.tsx';
@@ -67,6 +67,7 @@ import type {Workspace, Action} from './workspace';
 import {importWorkspaceXml} from './importXml';
 import * as io from './io';
 import {runtimeSummary, selectSound, soundLibrary, unregisterSound, xmlName, xmlSavePath} from './package';
+import type {FolderSound} from './package';
 import {SoundSourceContext} from './ui/details/SoundFile.tsx';
 import {t, useLanguage, languageNames, supportedLanguages, setLanguage} from './i18n/index.ts';
 import {MenuBar} from './ui/MenuBar.tsx';
@@ -383,7 +384,10 @@ function Editor() {
   const action = w.actions.find(a => a.uid === selection),
     link = w.links.find(l => l.id === selection);
   const library = renderedLibrary(w);
-  const soundEntries = useMemo(() => soundLibrary(w), [w]);
+  // The sound files the document's mod folder holds (package.ts FolderSound): listed again whenever that folder
+  // changes, never saved in the project.
+  const [folderSounds, setFolderSounds] = useState<FolderSound[]>([]);
+  const soundEntries = useMemo(() => soundLibrary(w, folderSounds), [w, folderSounds]);
   useEffect(() => {
     try {
       localStorage.setItem(LAYOUT_KEY, JSON.stringify(panels));
@@ -400,6 +404,30 @@ function Editor() {
     setLog(list => [...list.slice(-50), n]);
   }, []);
   const dismiss = useCallback((id: number) => setNotices(list => list.filter(n => n.id !== id)), []);
+  useEffect(() => {
+    setFolderSounds([]);
+    const root = isTauri() ? soundFolder(xmlExportPath) : '';
+    if (!root) return;
+    let cancelled = false;
+    io.modSounds(root)
+      .then(listed => {
+        if (cancelled) return;
+        setFolderSounds(listed.sounds);
+        if (listed.truncated)
+          notify(
+            tr('모드 폴더의 소리 파일이 너무 많아 {n}개만 목록에 넣었습니다. 나머지는 찾아보기로 고르세요.', {
+              n: listed.sounds.length,
+            }),
+            'warn'
+          );
+      })
+      .catch(() => {
+        /* Without the listing only the project's own sounds are listed. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [xmlExportPath, notify]);
   /** Legacy components report plain strings; failures are recognised by their wording. */
   const setStatus = useCallback(
     (text: string) => notify(text, /실패|없습니다|오류|error|failed/i.test(text) ? 'error' : 'info'),
@@ -647,9 +675,7 @@ function Editor() {
     // XML are found from its mod folder, as for an XML without a block. A remembered path whose file is gone (the
     // mod folder renamed) is found there again; one still there is left alone.
     const sources =
-      kind === 'xml' && isTauri()
-        ? await connectXmlAssets(next, doc.path, io.resolveHkx, io.filesExist, io.modSounds)
-        : null;
+      kind === 'xml' && isTauri() ? await connectXmlAssets(next, doc.path, io.resolveHkx, io.filesExist) : null;
     if (sources) next = sources.workspace;
     // The carry lifts' ragdoll values are their files beside the XML (ragdoll.ts), not the editor block.
     let ragdoll: ReturnType<typeof applyRagdollFiles> | null = null;
@@ -2427,6 +2453,7 @@ function Editor() {
                     mode={exportMode}
                     setMode={setExportMode}
                     w={w}
+                    folderSounds={folderSounds}
                     xml={xml}
                     edit={edit}
                     status={setStatus}

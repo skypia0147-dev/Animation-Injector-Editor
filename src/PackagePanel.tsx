@@ -16,7 +16,7 @@ import {
   runtimeSummary,
 } from './package';
 import {MINIMUM_RUNTIME_VERSION} from './xmlFormat.ts';
-import type {PackageReport, ReportRow, RuntimeVerdict} from './package';
+import type {FolderSound, PackageReport, ReportRow, RuntimeVerdict} from './package';
 import {t} from './i18n/index.ts';
 import * as io from './io';
 import {tr} from './i18n/korean.ts';
@@ -129,12 +129,15 @@ function AssetRow({
 
 export function PackagePanel({
   w,
+  folderSounds,
   edit,
   status,
   busy,
   setBusy,
 }: {
   w: Workspace;
+  /** The sound files the mod folder holds, which the package copies too (package.ts FolderSound). */
+  folderSounds: FolderSound[];
   edit: (fn: (w: Workspace) => Workspace) => void;
   status: (s: string) => void;
   busy: boolean;
@@ -150,8 +153,8 @@ export function PackagePanel({
     setMessage('');
   }, [signature]);
   const files = assets(w),
-    played = sounds(w),
-    problems = packageProblems(w),
+    played = sounds(w, folderSounds),
+    problems = packageProblems(w, folderSounds),
     notices = packageNotices(w);
   const patch = (values: Partial<typeof w.packaging>) =>
     edit(w => {
@@ -195,7 +198,7 @@ export function PackagePanel({
   const probe = () =>
     run(async () => {
       const before = w,
-        result = await io.probePackage(request(w));
+        result = await io.probePackage(request(w, undefined, folderSounds));
       unchanged(before);
       setReport(result);
       setMessage('');
@@ -203,7 +206,7 @@ export function PackagePanel({
   const output = () =>
     run(async () => {
       if (!report?.ready) throw new Error(t('export.initial'));
-      const result = await io.exportMod(request(w, report));
+      const result = await io.exportMod(request(w, report, folderSounds));
       if (result) {
         const text = t('export.done', {
           path: result.path,
