@@ -16,6 +16,11 @@ export type Setting = {
   set: boolean;
   /** Always shown (the card's trigger, its file): never in the add menu, no way back to a default. */
   fixed?: boolean;
+  /** Always a chip, at its default too (an HKX card's kind, view and body part, user request 11-20): opens in place,
+   *  never in the add menu, no trash. */
+  always?: boolean;
+  /** It cannot change on this card (why, shown on hover): its chip shows the value and a lock, and does not open. */
+  locked?: string;
   /** Whether the setting applies to this card at all (a pair's partner, a blend between ordinary actions). */
   applies?: boolean;
   fields: () => ReactNode;
@@ -33,7 +38,7 @@ export function useSettings(all: Setting[], fold = false) {
   const items = all.filter(s => s.applies !== false);
   const [open, setOpen] = useState(''),
     [added, setAdded] = useState<string[]>([]);
-  const shown = items.filter(s => s.fixed || s.set || added.includes(s.id) || open === s.id);
+  const shown = items.filter(s => s.fixed || s.always || s.set || added.includes(s.id) || open === s.id);
   const close = () => {
     // A setting added and left at its default goes again when it closes.
     setAdded(list => list.filter(id => id !== open || !!items.find(s => s.id === id)?.set));
@@ -47,7 +52,8 @@ export function useSettings(all: Setting[], fold = false) {
     shown,
     hidden: items.filter(s => !shown.includes(s)),
     open,
-    toggle: (id: string) => (open === id ? close() : (close(), setOpen(id))),
+    toggle: (id: string) =>
+      items.find(s => s.id === id)?.locked ? undefined : open === id ? close() : (close(), setOpen(id)),
     add: (s: Setting) => {
       s.add?.();
       setAdded(list => [...list, s.id]);
@@ -62,7 +68,7 @@ export function useSettings(all: Setting[], fold = false) {
 }
 /** An open setting's fields, with the way back to its default (its trash). */
 function Fields({s, settings}: {s: Setting; settings: Settings}) {
-  const removable = !!s.reset && !s.fixed;
+  const removable = !!s.reset && !s.fixed && !s.always;
   return (
     <div className={'set-edit nodrag nopan' + (removable ? ' removable' : '')} onClick={e => e.stopPropagation()}>
       {/* A card's panel: no search line of its own (as an HKX card's rows). */}
@@ -141,12 +147,25 @@ function SettingChip({s, settings, owner}: {s: Setting; settings: Settings; owne
       {drag.ghostView(s.label)}
       <button
         type="button"
-        className={'cond-chip set-chip nodrag' + (s.id === settings.open ? ' on' : '')}
+        className={
+          'cond-chip set-chip nodrag' +
+          (s.id === settings.open ? ' on' : '') +
+          // An always-shown chip at its default is drawn quieter than one set (docs/mockup-body-part B).
+          (s.always && !s.set ? ' default' : '') +
+          (s.locked ? ' locked' : '')
+        }
+        title={s.locked}
+        aria-disabled={s.locked ? true : undefined}
         onClick={() => settings.toggle(s.id)}
-        onPointerDown={s.drag ? drag.begin : undefined}
+        onPointerDown={s.drag && !s.locked ? drag.begin : undefined}
       >
         {s.label}
         {s.value !== '' && <em>{s.value}</em>}
+        {s.locked && (
+          <span className="set-chip-lock" aria-hidden="true">
+            🔒
+          </span>
+        )}
       </button>
     </>
   );

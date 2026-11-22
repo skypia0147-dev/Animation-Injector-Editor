@@ -22,6 +22,10 @@ const cases = {
     '<Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',
   playsNothing:
     '<AnimationSet version="6" id="A"><Start key="G"><True/></Start><Action id="S" clip="Animations\\b.hkx"/></AnimationSet>',
+  // <Locomotion> (runtime 1.0.9): a set the runtime does not know, and the locomotion file holding an action too.
+  locomotionSet: '<AnimationSet version="6" id="A"><Locomotion><Except set="Nope"/></Locomotion></AnimationSet>',
+  locomotionMixed:
+    '<AnimationSet version="6" id="A"><Locomotion/><Action id="X" clip="Animations\\a.hkx"/></AnimationSet>',
 };
 
 test('runtime checker findings show without Korean in the English UI', needsChecker, () => {

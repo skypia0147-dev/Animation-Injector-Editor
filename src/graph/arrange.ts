@@ -34,7 +34,7 @@ const GAP_X = 64,
   // With a shared stage: the start units stacked in columns, the hub right of them.
   UNIT_GAP = 80,
   HUB_GAP = 240;
-const SPECIAL = new Set(['entry', 'eventRegistry']);
+const SPECIAL = new Set(['entry', 'eventRegistry', 'locomotion']);
 // Drawn after a card's own route: QTE cards last. A QTE started by an event (runtime 0.12.248, its 'qte-event:'
 // card before it) is no side card: its event, the QTE and the events it sends are one lane.
 const eventQte = (n: FlatNode) => n.kind === 'qte' && n.inputs.length > 0 && eventStarted.has(n.id);
@@ -629,10 +629,10 @@ export function arrangeLayout(g: ArrangeGraph, options: ArrangeOptions = {}): Ar
       h: Math.max(...items.map(i => i.y + height(byId.get(i.id)!))),
     };
   }
-  // The entry and the event registry: a column at the far left, the entry above.
+  // The entry, the event registry and the locomotion ladders: a column at the far left, the entry above.
   const left: Item[] = [];
   let leftY = 0;
-  for (const kind of ['entry', 'eventRegistry'])
+  for (const kind of ['entry', 'eventRegistry', 'locomotion'])
     for (const n of g.nodes.filter(n => n.kind === kind).sort(compare)) {
       left.push({id: n.id, x: 0, y: leftY});
       leftY += height(n) + GAP_Y;

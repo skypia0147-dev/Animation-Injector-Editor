@@ -28,7 +28,9 @@ export function setNodeClipboard(value: NodeClipboard) {
 }
 export function copyNodes(w: Workspace, g: ViewGraph, ids: string[]): NodeClipboard {
   const selected = new Set(ids),
-    nodes = g.nodes.filter(n => selected.has(n.id) && n.kind !== 'entry' && n.kind !== 'eventRegistry');
+    nodes = g.nodes.filter(
+      n => selected.has(n.id) && n.kind !== 'entry' && n.kind !== 'eventRegistry' && n.kind !== 'locomotion'
+    );
   if (!nodes.length) throw Error(tr('복사할 카드를 선택하세요.'));
   return structuredClone({
     format: 'ai-nodes-1',

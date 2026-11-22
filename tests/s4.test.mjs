@@ -134,6 +134,9 @@ const settingValue = {
   name: 'MyMod_Hit',
   text: 'heavy',
   number: '3',
+  // A strike's and a grip's hand, a grip's view (runtime 1.0.9).
+  hand: 'left',
+  view: 'both',
 };
 const withSettings = (op, i) => {
   const values = {

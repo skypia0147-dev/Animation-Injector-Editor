@@ -10,6 +10,7 @@ export type Mark = {
 };
 import {tr} from './i18n/korean.ts';
 import type {PairedRig} from './pairedRigs.ts';
+import type {BodyPart} from './body.ts';
 import {errorText} from './errorText.ts';
 /** A key and button, or a game control (control, runtime 0.12.292) instead of both. */
 export type Input = {id: string; label: string; key: string; gamepad: number; control?: GameControl};
@@ -42,6 +43,9 @@ export type Project = {
   /** Whose skeleton plays it (runtime 1.1.0 <Action rig>): found from the HKX (rigDetect.ts), absent = the character.
    *  A creature's clip is relative to its actor folder and its whole skeleton family plays it. Never on a pair. */
   rig?: PairedRig;
+  /** The part it plays on (runtime 1.0.9 <Action body>, body.ts): the upper body or one arm while the legs keep the
+   *  locomotion. Absent = the whole body. Never on a pair. A part loop's maxHold 0 = until it is ended. */
+  body?: BodyPart;
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;

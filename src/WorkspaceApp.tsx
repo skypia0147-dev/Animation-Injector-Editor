@@ -20,6 +20,8 @@ import {ProjectDetails} from './ui/details/ProjectDetails.tsx';
 import {InputDetails, ParameterDetails} from './ui/details/ResourceDetails.tsx';
 import {addEventRow, newEventName} from './eventRegistry.ts';
 import {showRegistry} from './graph/RegistryCard.tsx';
+import {showLocomotion} from './graph/LocomotionCard.tsx';
+import {LOCOMOTION_NODE, locomotionEmpty} from './locomotion.ts';
 import {deleteSharedInput, inputReferences} from './sharedSettings.ts';
 import {uid, putAction} from './workspace.ts';
 import {parameterDefault} from './authoring.ts';
@@ -64,7 +66,7 @@ import {
 import type {Workspace, Action} from './workspace';
 import {importWorkspaceXml} from './importXml';
 import * as io from './io';
-import {runtimeSummary, selectSound, soundLibrary, unregisterSound, xmlSavePath} from './package';
+import {runtimeSummary, selectSound, soundLibrary, unregisterSound, xmlName, xmlSavePath} from './package';
 import {SoundSourceContext} from './ui/details/SoundFile.tsx';
 import {t, useLanguage, languageNames, supportedLanguages, setLanguage} from './i18n/index.ts';
 import {MenuBar} from './ui/MenuBar.tsx';
@@ -240,6 +242,8 @@ function Editor() {
   const [line, setLine] = useState<LinePick>();
   const graphCommand = (command: string) => window.dispatchEvent(new CustomEvent(SELECTION_COMMAND, {detail: command}));
   const selectAndReveal = (id: string) => {
+    // An own tree's locomotion file is used by the ladder card.
+    if (id === LOCOMOTION_NODE) return showLocomotion();
     setSelection(id);
     if (current.current.actions.some(a => a.uid === id)) setReveal(r => ({action: id, seq: (r?.seq ?? 0) + 1}));
   };
@@ -587,7 +591,8 @@ function Editor() {
     setCompiled({at: Date.now(), serialized});
     setBottomTab('results');
     setPanels(p => (p.bottom ? p : {...p, bottom: true}));
-    if (!w.actions.length) notify(tr('아직 동작이 없습니다. ＋ HKX 재생으로 첫 카드를 만드세요.'), 'info');
+    if (!w.actions.length && locomotionEmpty(w.locomotion))
+      notify(tr('아직 동작이 없습니다. ＋ HKX 재생으로 첫 카드를 만드세요.'), 'info');
     else
       notify(
         t('compile.passed', {errors: errorCount, warnings: issues.length - errors.length}),
@@ -849,10 +854,10 @@ function Editor() {
         const suggested =
           mode === 'xml'
             ? xmlExportPath
-              ? xmlSavePath(w.packaging.folder, xmlExportPath)
-              : (modXmlPath(w) ?? xmlSavePath(w.packaging.folder))
+              ? xmlSavePath(xmlName(w), xmlExportPath)
+              : (modXmlPath(w) ?? xmlSavePath(xmlName(w)))
             : // Saved the first time: where the game reads it in the HKX's own mod folder (11-02).
-              xmlExportPath || modXmlPath(w) || xmlSavePath(w.packaging.folder);
+              xmlExportPath || modXmlPath(w) || xmlSavePath(xmlName(w));
         let written: io.SavedDocument | null;
         try {
           written = target
@@ -1368,7 +1373,8 @@ function Editor() {
         notify(errorText(error), 'error');
       }
     });
-  const nameOf = (uid: string) => w.actions.find(a => a.uid === uid)?.config.name ?? uid;
+  const nameOf = (uid: string) =>
+    uid === LOCOMOTION_NODE ? tr('이동') : (w.actions.find(a => a.uid === uid)?.config.name ?? uid);
   const where = (node: string) => {
     const l = w.links.find(l => l.id === node);
     if (l) return `${nameOf(l.from)} → ${nameOf(l.to)}`;
@@ -1788,6 +1794,25 @@ function Editor() {
                         onOpenMarker={stable('tree.marker', (name?: string) => {
                           if (name) showRegistry(name);
                           else addMarker();
+                        })}
+                        // The locomotion ladder card: made (empty) when the project has none, then shown. A project
+                        // with actions or registered events cannot hold it (the game reads the locomotion from a file
+                        // of its own, workspace.ts): there + starts a new locomotion project instead of turning this
+                        // one invalid and its first save path into Locomotion/Locomotion.xml (review E1, 11-20).
+                        onOpenLocomotion={stable('tree.locomotion', (set?: string) => {
+                          if (!w.locomotion && (w.actions.length || w.eventRegistry?.length)) {
+                            guarded(() => {
+                              adopt({...emptyWorkspace(), locomotion: {}}, {});
+                              notify(
+                                tr('이동 선언은 따로 된 프로젝트에 둡니다. 새 이동 프로젝트를 만들었습니다.'),
+                                'ok'
+                              );
+                              setTimeout(() => showLocomotion(''), 0);
+                            });
+                            return;
+                          }
+                          if (!w.locomotion) edit(w => ({...w, locomotion: {}}));
+                          setTimeout(() => showLocomotion(set ?? ''), 0);
                         })}
                         // A function is edited on its HKX card (11-12): its row there is chosen and brought into view.
                         onOpenEffect={stable('tree.effect', (action: string, id: string) => {

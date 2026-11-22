@@ -37,7 +37,16 @@ import {actionClip, sentEvents as hkxSentEvents} from './hkxMoments.ts';
 import {openedBySwitch} from './momentOpen.ts';
 import {showRegistry} from './RegistryCard.tsx';
 import {HelpTip} from '../ui/HelpTip.tsx';
-import {stepSource, actionView, projectView, setActionView, otherViewStart, setOtherViewStart} from '../view.ts';
+import {
+  stepSource,
+  actionView,
+  projectView,
+  setActionView,
+  otherViewStart,
+  setOtherViewStart,
+  fixedThird,
+  fixedThirdReason,
+} from '../view.ts';
 import {timingLabel} from '../model.ts';
 import {playbackState, resetAir, resetAttack, resetDetection, resetExit} from './playbackSettings.ts';
 import {exitSummary} from '../ui/details/inspectorModel.ts';
@@ -49,6 +58,8 @@ import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {actionRig, creatureHiddenSettings, isCreatureRig, withRigOf} from '../creatureRig.ts';
 import {errorText} from '../errorText.ts';
+import {bodyLabel, bodyParts, fixedWhole, fixedWholeReason, partHiddenSettings, setActionBody} from '../body.ts';
+import type {BodyPart} from '../body.ts';
 
 type Context = {
   w: Workspace;
@@ -170,9 +181,9 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       )
         return false;
     }
-    // The blends are playback settings (「＋ 설정」, unify ⑩), not features; a condition card in front changes the graph,
-    // not this HKX (the card's right-click menu has it).
-    if (o.kind === 'blend' || (o.kind === 'conditionCard' && o.entry)) return false;
+    // The blends and the loop are playback settings (「＋ 설정」, unify ⑩; the loop 11-22), not features; a condition
+    // card in front changes the graph, not this HKX (the card's right-click menu has it).
+    if (o.kind === 'blend' || o.kind === 'loopRule' || (o.kind === 'conditionCard' && o.entry)) return false;
     return true;
   });
   // 「모두 펼치기 · 모두 접기」 from the card's right-click menu (FlatGraph): every list and item of this card.
@@ -206,7 +217,9 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       step = node.step ?? p.entry,
       state = playbackState(w, a, step),
       window = sourceWindow(a, step).value,
-      attack = p.steps.length === 1 ? p.steps[0].attack || p.attack : p.attack || p.steps.find(s => s.attack)?.attack;
+      attack = p.steps.length === 1 ? p.steps[0].attack || p.attack : p.attack || p.steps.find(s => s.attack)?.attack,
+      loopItem = items.find(i => i.node.kind === 'loopRule'),
+      loopOption = options.find(o => o.kind === 'loopRule');
     const blend = (role: 'enter' | 'exit'): Setting => {
       const item = blends.find(i => i.blend === role),
         option = options.find(o => o.kind === 'blend' && !!o.before === (role === 'enter'));
@@ -229,6 +242,8 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         label: tr('유형'),
         value: actionKindLabels[playbackKind(a)],
         ...state.kind,
+        // The kind, view and part are always chips, at their defaults too (user request 11-20).
+        always: true,
         fields: () => (
           <DetailRow label={tr('유형')}>
             <select
@@ -252,8 +267,19 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         label: t('row.view'),
         value: viewName(view),
         ...state.view,
+        always: true,
+        locked: fixedThirdReason(fixedThird(w, a)),
         reset: () => attempt(() => edit(w => setActionView(w, a.uid, projectView(w)))),
         fields: () => <ViewFields w={w} action={a} edit={edit} row={only('view')} />,
+      },
+      {
+        id: 'body',
+        label: tr('부위'),
+        value: bodyLabel(p.body),
+        ...state.body,
+        always: true,
+        locked: fixedWholeReason(fixedWhole(w, a)) || undefined,
+        fields: () => <BodyFields w={w} action={a} edit={fn => attempt(() => edit(fn))} />,
       },
       {
         id: 'otherView',
@@ -270,6 +296,19 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         ...state.air,
         reset: () => edit(w => resetAir(w, a.uid)),
         fields: () => <AirRule action={a} edit={edit} />,
+      },
+      {
+        // Played over and over (charge): its chip shows the time it is held at most, none until it is ended.
+        id: 'loop',
+        label: tr('반복 재생'),
+        value: p.loop?.maxHold ? tr('{v0}초', {v0: p.loop.maxHold}) : '',
+        set: !!p.loop,
+        applies: !!p.loop || !!loopOption,
+        add: () =>
+          loopOption && attempt(() => edit(w => addConnected(w, settingsTarget, loopOption, node.position).workspace)),
+        reset: () =>
+          loopItem && attempt(() => edit(w => deleteFlat(detachInspectorNode(w, loopItem.node.id), loopItem.node.id))),
+        fields: () => <LoopRule action={a} edit={edit} />,
       },
       {
         id: 'detection',
@@ -301,8 +340,15 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
   };
   // A creature card is not offered what the runtime refuses on it; one already set stays, shown as the card's problem.
   const creature = !!action && isCreatureRig(actionRig(action));
+  const part = !!action?.config.body;
   const playSettings = useSettings(
-    playback().map(s => (creature && creatureHiddenSettings.includes(s.id) && !s.set ? {...s, applies: false} : s)),
+    playback().map(s =>
+      // A part action (body.ts) is not offered what the runtime refuses on one either.
+      (creature && creatureHiddenSettings.includes(s.id) && !s.set) ||
+      (part && partHiddenSettings.includes(s.id) && !s.set)
+        ? {...s, applies: false}
+        : s
+    ),
     fold
   );
   // One "+ 기능" (10-16, docs/mockup-feature-merge): what applies to the whole play, then what happens at a moment.
@@ -378,7 +424,9 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
           {
             <ChecklistSection
               owner={node.id}
-              items={items.filter(i => i.category === 'feature' && i.node.kind !== 'blend')}
+              items={items.filter(
+                i => i.category === 'feature' && i.node.kind !== 'blend' && i.node.kind !== 'loopRule'
+              )}
               moments={items.filter(i => i.category === 'event')}
               sent={sent}
               action={action}
@@ -615,9 +663,7 @@ function ChecklistRow({
         <div className="checklist-fields">
           <NestedDetailPanel.Provider value={true}>
             <ItemTitle.Provider value={title}>
-              {n.kind === 'loopRule' && a ? (
-                <LoopRule action={a} edit={edit} />
-              ) : item.category === 'event' || n.notify ? (
+              {item.category === 'event' || n.notify ? (
                 // Moments and timed features alike: 시점 [클립 | 이벤트] first (docs/mockup-moment-timing).
                 <MomentFields
                   w={w}
@@ -681,21 +727,71 @@ function AirRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => W
   );
 }
 
+/** The 「부위」 playback setting (runtime 1.0.9, body.ts): the whole body, or the upper body or one arm while the legs
+ *  keep the locomotion. */
+function BodyFields({
+  w,
+  action,
+  edit,
+}: {
+  w: Workspace;
+  action: Action;
+  edit: (fn: (w: Workspace) => Workspace) => void;
+}) {
+  return (
+    <>
+      <DetailRow label={tr('부위')}>
+        <select
+          aria-label={tr('부위')}
+          value={action.config.body ?? ''}
+          onChange={e => edit(w => setActionBody(w, action.uid, (e.target.value || undefined) as BodyPart | undefined))}
+        >
+          <option value="">{tr('전신 (기본)')}</option>
+          {bodyParts.map(b => (
+            <option key={b} value={b}>
+              {b === 'upper' ? tr('상체 — 척추부터 위') : bodyLabel(b)}
+            </option>
+          ))}
+        </select>
+      </DetailRow>
+      <p className="set-help">
+        {action.config.body
+          ? tr(
+              '다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 상체는 다리가 어떻게 움직여도 이 HKX의 회전 그대로입니다(골반을 따라 위아래로만). 3인칭에서만 재생합니다.'
+            )
+          : tr('상체나 한쪽 팔을 고르면 재생하는 동안 걷고 달릴 수 있습니다(3인칭).')}
+      </p>
+      {w.links.some(l => (l.from === action.uid || l.to === action.uid) && l.blend !== undefined) &&
+        action.config.body && (
+          <p className="set-help">{tr('부위 동작의 전환은 블렌드 대신 도착 동작의 시작 블렌드로 이어집니다.')}</p>
+        )}
+    </>
+  );
+}
+
 /** The 「반복 재생」 item (charge, runtime 10-30): the clip plays over and over; at maxHold seconds its key counts as
  *  let go (an on="release" transition goes), else the HKX ends. Deleting the item plays the clip once. */
 function LoopRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => Workspace) => void}) {
   const loop = action.config.loop;
   if (!loop) return null;
+  // A part loop (body.ts) may play until it is ended: 0.
+  const part = !!action.config.body;
   return (
     <DetailRow
       label={tr('최대 유지(초)')}
-      hint={tr(
-        '이 시간이 지나면 키를 뗀 것으로 봅니다(차지 종료가 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.'
-      )}
+      hint={
+        part
+          ? tr(
+              '0이면 끝낼 때까지(끝내기 전환·다른 전환·중단) 반복합니다. 차지 종료가 있으면 시간을 정하세요: 지나면 키를 뗀 것으로 봅니다.'
+            )
+          : tr(
+              '이 시간이 지나면 키를 뗀 것으로 봅니다(차지 종료가 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.'
+            )
+      }
     >
       <NumberInput
         value={loop.maxHold}
-        min={0.1}
+        min={part ? 0 : 0.1}
         max={600}
         step={0.5}
         change={maxHold => edit(w => putAction(w, {...action, config: {...action.config, loop: {maxHold}}}))}

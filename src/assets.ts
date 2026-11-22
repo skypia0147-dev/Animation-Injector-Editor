@@ -5,6 +5,7 @@ import {assetKey, folderValid} from './package.ts';
 import {stepFiles} from './view.ts';
 import {tr} from './i18n/korean.ts';
 import {withRigOf} from './creatureRig.ts';
+import {LOCOMOTION_FILE, LOCOMOTION_NODE, allTreeFiles, locomotionEmpty} from './locomotion.ts';
 
 export type LibraryEntry = {
   clip: string;
@@ -19,9 +20,10 @@ export type LibraryEntry = {
 
 /** Where the game reads this project's XML in the mod folder its HKX came from (11-02): the files picked or dropped
  *  all under one `<mod>/meshes/actors/…`, it is `<mod>/SKSE/Plugins/AnimationInjector/<id>/<id>.xml` (the internal ID, as
- *  installed mods name it), the first save's suggestion. None when they come from several places. */
+ *  installed mods name it), the first save's suggestion; a locomotion project's is the game's one locomotion file,
+ *  Locomotion/Locomotion.xml. None when they come from several places. */
 export function modXmlPath(w: Workspace): string | undefined {
-  const folder = w.id;
+  const folder = locomotionEmpty(w.locomotion) ? w.id : LOCOMOTION_FILE;
   if (!folderValid(folder)) return;
   let root: string | undefined;
   for (const a of assetLibrary(w)) {
@@ -68,6 +70,11 @@ export function assetLibrary(w: Workspace): LibraryEntry[] {
     e.registered = true;
     if (a.localPath) e.localPath = a.localPath;
     e.preview = clone(a.preview);
+  }
+  // The own trees' files that are in the library: the locomotion ladder card uses them.
+  for (const file of allTreeFiles(w)) {
+    const e = map.get(assetKey(file.clip));
+    if (e && !e.users.includes(LOCOMOTION_NODE)) e.users.push(LOCOMOTION_NODE);
   }
   return [...map.values()].sort((x, y) => x.name.localeCompare(y.name));
 }

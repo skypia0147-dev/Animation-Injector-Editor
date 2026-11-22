@@ -19,6 +19,9 @@ const form: Field = {key: 'form', check: t => /^(?:0x)?[\da-f]{1,8}$/i.test(t)};
 const file: Field = {key: 'file', check: t => !!t && !/:|^[\\/]|\.\./.test(t)};
 const bone: Field = {key: 'bone', check: t => ['spine', 'head', 'rightHand', 'leftHand', 'root'].includes(t)};
 const direction: Field = {key: 'direction', check: t => (ragdollDirections as readonly string[]).includes(t)};
+// A grip's hand and view (runtime 1.0.9): both written, as the runtime's AI.GripHold|hand|view.
+const hand: Field = {key: 'hand', check: t => ['right', 'left', 'both'].includes(t)};
+const view: Field = {key: 'view', check: t => ['third', 'first', 'both'].includes(t)};
 const costs = (most: number) => [num('stamina', 0, most), num('magicka', 0, most), num('health', 0, most)];
 /** Each command: its function, its values in order, and whether a window's on may add a span last. */
 const commands: {name: string; op: EventOp; fields: Field[]; span?: true; extra?: Record<string, string>}[] = [
@@ -50,6 +53,8 @@ const commands: {name: string; op: EventOp; fields: Field[]; span?: true; extra?
     fields: [{key: 'name', check: t => !!t}, {key: 'text', check: () => true}, any('number')],
   },
   {name: 'CancelPair', op: 'cancel', fields: []},
+  {name: 'GripHold', op: 'gripHold', fields: [hand, view]},
+  {name: 'GripRelease', op: 'gripRelease', fields: [hand, view]},
 ];
 const byName = (payload: string) => commands.find(c => c.name.toLowerCase() === payload.split('|')[0].toLowerCase());
 

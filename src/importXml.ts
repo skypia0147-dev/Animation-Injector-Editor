@@ -10,11 +10,13 @@ import type {Mark, Input} from './model.ts';
 import {gamepadFromXml, gameControlFromXml, type GameControl} from './keys.ts';
 import {emptyWorkspace, wrap, defaultPair, arrange, validateWorkspace, uid} from './workspace.ts';
 import {readDo, readEventValues, readRegistry} from './eventRegistry.ts';
+import {readLocomotion} from './locomotion.ts';
 import type {EventRow} from './eventRegistry.ts';
 import type {Workspace, Link} from './workspace.ts';
 import {parseXml, shapeXml, one} from './xml.ts';
 import type {Xml} from './xml.ts';
 import {views, otherViewStarts, actionView, hasOtherView, defaultView, fixedThird} from './view.ts';
+import {bodyParts} from './body.ts';
 import {readQtes, readEventQtes} from './qte.ts';
 import {checkKinds} from './cardChecks.ts';
 import {
@@ -136,7 +138,11 @@ export function importWorkspaceXml(text: string): Workspace {
     throw new Error(tr('지원하지 않는 XML 형식입니다. 현재 AnimationSet XML을 사용하세요.'));
   if (get(root, 'version') !== String(XML_FORMAT_VERSION))
     throw new Error(tr('형식 {version} XML만 엽니다.', {version: XML_FORMAT_VERSION}));
-  shapeXml(root, ['id', 'version', 'view'], ['Inputs', 'EventRegistry', 'Start', 'Condition', 'Action', 'Pair']);
+  shapeXml(
+    root,
+    ['id', 'version', 'view'],
+    ['Inputs', 'EventRegistry', 'Start', 'Condition', 'Action', 'Pair', 'Locomotion']
+  );
   const w = emptyWorkspace();
   w.id = required(root, 'id');
   w.name = w.id;
@@ -162,6 +168,8 @@ export function importWorkspaceXml(text: string): Workspace {
   const rows: EventRow[] = [];
   const registryNode = one(root, 'EventRegistry');
   if (registryNode) readRegistry(registryNode, rows);
+  const locomotionNode = one(root, 'Locomotion');
+  if (locomotionNode) w.locomotion = readLocomotion(locomotionNode);
   const source = new Map<string, Xml>();
   // HKX cards.
   for (const n of root.children.filter(n => n.name === 'Action' || n.name === 'Pair')) {
@@ -181,7 +189,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'loop',
         'maxHold',
         'rig',
-        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : []),
+        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body']),
       ],
       [
         'Exit',
@@ -236,10 +244,14 @@ export function importWorkspaceXml(text: string): Workspace {
       );
       if (rig !== 'character') p.rig = rig;
     }
+    // A part action (runtime 1.0.9): the upper body or one arm while moving.
+    if (!pair && n.attrs.body !== undefined) p.body = choice(n, 'body', bodyParts, 'upper');
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
-    // Charge (runtime 10-30): a clip that plays on until its key is let go or maxHold.
-    if (bool(n, 'loop', false)) p.loop = {maxHold: num(n, 'maxHold', 3)};
+    // Charge (runtime 10-30): a clip that plays on until its key is let go or maxHold. A part loop with no maxHold
+    // plays until it is ended (0), or 3 s when a charge release goes from it (runtime XmlV2).
+    const partLoop = p.body ? (n.children.some(c => c.name === 'Transition' && c.attrs.on === 'release') ? 3 : 0) : 3;
+    if (bool(n, 'loop', false)) p.loop = {maxHold: num(n, 'maxHold', partLoop)};
     else if (n.attrs.maxHold !== undefined)
       throw new Error(tr('{v0}: maxHold는 loop="true"와 함께 씁니다.', {v0: p.actionId || n.attrs.id}));
     if (n.attrs.block !== undefined) p.suppress = {events: readEvents(required(n, 'block')), when: 'active'};
@@ -657,9 +669,11 @@ export function importWorkspaceXml(text: string): Workspace {
     if (fixedThird(w, a)) {
       if (view !== 'third')
         throw new Error(
-          tr('{actionId}: 운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.', {
-            actionId: a.config.actionId,
-          })
+          fixedThird(w, a) === 'part'
+            ? tr('{actionId}: 부위 동작(body)은 3인칭(view="third")으로만 재생됩니다.', {actionId: a.config.actionId})
+            : tr('{actionId}: 운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.', {
+                actionId: a.config.actionId,
+              })
         );
     } else if (view !== defaultView(w, a)) a.view = view;
     const start = choice(n, 'otherView', otherViewStarts, 'block');

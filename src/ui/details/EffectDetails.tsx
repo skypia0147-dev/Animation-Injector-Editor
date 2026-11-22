@@ -20,6 +20,7 @@ import {
   soundBones,
   textSettings,
   isMagic,
+  isGrip,
   magicActions,
   magicOps,
   unchosen,
@@ -33,6 +34,7 @@ import {Unchosen} from './Unchosen.tsx';
 import {tr} from '../../i18n/korean.ts';
 import {StrikeFields} from './StrikeFields.tsx';
 import {SoundSourceFields} from './SoundFile.tsx';
+import {GripField} from './GripFields.tsx';
 
 const advanced = ['delay'];
 /**
@@ -101,6 +103,9 @@ export function EffectDetails({
           )}
         />
       );
+    // A grip's hands and views (runtime 1.0.9, docs/mockup-grip-hold).
+    if (isGrip(v.op) && (key === 'hand' || key === 'view'))
+      return <GripField key={key} name={key} values={v} set={set} />;
     if (key === 'plugin' || key === 'form')
       return <Prop key={key} id={id} value={v[key] ?? ''} change={value => set(key, value || undefined)} />;
     // A mod event's name and text (runtime 0.12.296): text, not numbers.

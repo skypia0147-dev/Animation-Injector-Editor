@@ -10,7 +10,17 @@ import {t} from '../src/i18n/index.ts';
 // or project, and no author or version, which only fed the README.
 test('the request carries the XML, assets and carry ragdoll files only', () => {
   const r = request(s4sample());
-  assert.deepEqual(Object.keys(r).sort(), ['assets', 'folder', 'id', 'plugins', 'ragdolls', 'roots', 'sounds', 'xml']);
+  assert.deepEqual(Object.keys(r).sort(), [
+    'assets',
+    'folder',
+    'id',
+    'locomotion',
+    'plugins',
+    'ragdolls',
+    'roots',
+    'sounds',
+    'xml',
+  ]);
 });
 
 test('a mod folder named outside ASCII is a notice (runtime 0.12.229 reads it), not an error', () => {

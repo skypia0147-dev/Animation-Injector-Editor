@@ -18,6 +18,7 @@ import {addAction, uid, type Link} from '../workspace.ts';
 import {tr} from '../i18n/korean.ts';
 import {crossRigError, partnerRigError} from '../creatureRig.ts';
 import {functionParts} from '../eventRegistry.ts';
+import {LOCOMOTION_NODE} from '../locomotion.ts';
 import {
   cardTitle,
   makesLoop,
@@ -32,6 +33,7 @@ import {
 } from '../cards.ts';
 import {conditionName} from './conditionExpression.ts';
 import {cardSummary} from './cardCommands.ts';
+import {partLoopDefault} from '../body.ts';
 
 // The canvas of an XML format 6 document (docs/설계-형식6-에디터.md 3): start cards, condition cards, HKX cards (each
 // with its items: features and moments), transition cards and QTE cards, joined by the destinations the document
@@ -130,7 +132,8 @@ export function flatGraph(w: Workspace) {
         id,
         kind: 'loopRule',
         title: tr('반복 재생'),
-        summary: tr('최대 {v0}초', {v0: a.config.loop.maxHold}),
+        // A part loop's 0 plays until it is ended (body.ts): no time to show (user decision 11-22).
+        summary: a.config.loop.maxHold ? tr('{v0}초', {v0: a.config.loop.maxHold}) : '',
         scope: start,
         original: 'loopRule',
         action: a.uid,
@@ -290,6 +293,19 @@ export function flatGraph(w: Workspace) {
     outputs: [],
     position: graphPosition(w, root, REGISTRY_NODE, {x: -700, y: 0}),
   });
+  // The locomotion ladders (locomotion.ts): one node, without ports, while the project has them.
+  if (w.locomotion)
+    add({
+      id: LOCOMOTION_NODE,
+      kind: 'locomotion',
+      title: tr('이동'),
+      summary: '',
+      scope: root,
+      original: LOCOMOTION_NODE,
+      inputs: [],
+      outputs: [],
+      position: graphPosition(w, root, LOCOMOTION_NODE, {x: -1300, y: 0}),
+    });
   // One edge per id: the first one's place, the last one's value.
   const unique = new Map<string, GraphEdge>();
   for (const e of edges) unique.set(e.id, e);
@@ -667,7 +683,9 @@ export function addItem(w: Workspace, action: string, kind: string, before = fal
   }
   if (kind === 'loopRule') {
     const next = structuredClone(w);
-    next.actions.find(x => x.uid === action)!.config.loop = {maxHold: 3};
+    const x = next.actions.find(x => x.uid === action)!;
+    // A part loop plays until it is ended unless a charge release goes from it (body.ts).
+    x.config.loop = {maxHold: x.config.body ? partLoopDefault(next, x) : 3};
     return {workspace: next, id: flatId({kind: 'start', action}, 'loopRule')};
   }
   if (kind.startsWith('notify:')) {
@@ -697,4 +715,6 @@ export const notifyKinds = [
   'globalSet',
   'modEvent',
   'fireArrow',
+  'gripHold',
+  'gripRelease',
 ];

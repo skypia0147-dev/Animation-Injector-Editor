@@ -18,6 +18,7 @@
   --card-start-head: #54481f;
   --card-qte-head: #433669;
   --card-reg-head: #5a3c22;
+  --card-loco-head: #2e4560;
   --card-plain-head: #3d434a;
   /* What a chip points at (and the handles of that kind). */
   --card-hkx: #6fd3b8;
@@ -139,6 +140,56 @@
 .react-flow__viewport .p3-node.card-themed.eventRegistry > strong {
   background: var(--card-reg-head);
 }
+/* The locomotion card (LocomotionCard.tsx): the registry's form, its own head. */
+.react-flow__viewport .p3-node.card-themed.locomotion {
+  border-color: var(--card-border);
+}
+.react-flow__viewport .p3-node.card-themed.locomotion > strong {
+  background: var(--card-loco-head);
+}
+/* The own tree's 2HW files: the file name keeps its width, its state takes the rest at the row's end (the card's
+   value cells are a flex row that starts at the left). */
+.shell .p3-node.card-themed .checklist-fields.locomotion-files .detail-row {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.shell .p3-node.card-themed .checklist-fields.locomotion-files .detail-name {
+  white-space: nowrap;
+}
+.shell .p3-node.card-themed .checklist-fields.locomotion-files .detail-value {
+  justify-content: flex-end;
+  min-width: 0;
+}
+.shell .p3-node.card-themed .checklist-fields.locomotion-files .detail-value > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A weapon's own files sit inside its set. */
+.locomotion-tree-files {
+  border-top: 1px solid var(--card-border);
+  margin: 6px 8px 4px;
+  padding-top: 6px;
+}
+/* A set's line: its check, then the name and what it is. A set with nothing to open is not a button to press; an
+   excepted set is struck through. */
+.locomotion-apply {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+}
+.checklist-row-toggle.locomotion-plain {
+  cursor: default;
+}
+.registry-row.is-except .checklist-row-toggle > span:first-child {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.locomotion-file-warn {
+  color: var(--card-event);
+}
+.locomotion-file-none {
+  opacity: 0.55;
+}
 .react-flow__viewport .p3-node.card-themed.comment {
   border-style: dashed;
 }
@@ -186,6 +237,11 @@
 }
 .p3-node.card-themed .hkx-summary .node-field > :last-child {
   color: var(--card-t1);
+}
+/* A part action's part in the folded summary (docs/mockup-body-part G): it moves while it plays. */
+.p3-node.card-themed .hkx-summary .hkx-part {
+  color: var(--card-hkx);
+  font-weight: 600;
 }
 .p3-node.card-themed .checklist-body {
   color: var(--card-t1);

@@ -99,6 +99,11 @@ export function stripExtensions(value: any): unknown {
     if (typeof p.rig !== 'string' || p.rig === 'character' || !pairedRigs.some(r => r.id === p.rig)) fail();
     delete p.rig;
   }
+  // A part action (runtime 1.0.9): the upper body or one arm.
+  if (p?.body !== undefined) {
+    if (!['upper', 'rightArm', 'leftArm'].includes(p.body)) fail();
+    delete p.body;
+  }
   // Charge (runtime 10-30): an optional loop {maxHold}.
   if (p?.loop !== undefined) {
     const l = p.loop;

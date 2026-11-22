@@ -42,6 +42,8 @@ import {
   opInfo,
   ragdollLabels,
   strikeChoices,
+  gripChoices,
+  isGrip,
   registryFields,
   windowOns,
   runValues,
@@ -402,18 +404,23 @@ function RegistryPart({event, values}: {event: string; values: Record<string, st
           ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
           : values.op === 'modEvent'
             ? [values.name, values.text].filter(Boolean).join(' · ')
-            : values.op === 'strike'
+            : isGrip(values.op)
               ? [
-                  choice('pick'),
-                  values.pick === 'area' && choice('hit'),
-                  choice('hand'),
-                  choice('block'),
-                  values.reaction && values.reaction !== 'none' && choice('reaction'),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : [values.plugin, values.form].filter(Boolean).join(' · ') ||
-                (values.op === 'globalSet' ? tr('등록에 전역 값이 없습니다') : tr('등록에 마법이 없습니다'));
+                  gripChoices.hand().find(([x]) => x === values.hand)?.[1] ?? tr('손 미정'),
+                  gripChoices.view().find(([x]) => x === (values.view ?? 'third'))?.[1],
+                ].join(' · ')
+              : values.op === 'strike'
+                ? [
+                    choice('pick'),
+                    values.pick === 'area' && choice('hit'),
+                    choice('hand'),
+                    choice('block'),
+                    values.reaction && values.reaction !== 'none' && choice('reaction'),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : [values.plugin, values.form].filter(Boolean).join(' · ') ||
+                  (values.op === 'globalSet' ? tr('등록에 전역 값이 없습니다') : tr('등록에 마법이 없습니다'));
   // A window's span and a cost's unit are the registry's too (runtime 11-02, 10-31).
   const label = windowOns.includes(values.op)
     ? tr('지속 시간')
@@ -429,7 +436,9 @@ function RegistryPart({event, values}: {event: string; values: Record<string, st
               ? tr('전역 값')
               : values.op === 'modEvent'
                 ? tr('이벤트')
-                : tr('마법');
+                : isGrip(values.op)
+                  ? tr('손·인칭')
+                  : tr('마법');
   return (
     <div className="moment-line">
       <span className="moment-label">{label}</span>

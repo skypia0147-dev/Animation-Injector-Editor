@@ -1,5 +1,6 @@
 import {t, useLanguage} from '../i18n/index.ts';
 import {functionSummary} from '../eventRegistry.ts';
+import {ladderSets, setLabel, type Locomotion} from '../locomotion.ts';
 const effectTitle = (e: {id: string; values: Record<string, string>}) =>
   functionSummary(e.values) + (e.values.at !== undefined ? ' · ' + e.values.at + tr('초') : '');
 import {inputLabel, type Issue} from '../model.ts';
@@ -293,6 +294,50 @@ const MarkerFolder = memo(function MarkerFolder({
   );
 });
 
+// The locomotion ladders (locomotion.ts): one entry per set; + makes the card (empty) and shows it. `separate`: the
+// project has actions or registered events, which the locomotion file cannot hold, so + starts a new project for it.
+const LocomotionFolder = memo(function LocomotionFolder({
+  locomotion,
+  separate,
+  q,
+  onOpenLocomotion,
+}: {
+  locomotion: Locomotion | undefined;
+  separate: boolean;
+  q: string;
+  onOpenLocomotion: (set?: string) => void;
+}) {
+  useLanguage();
+  const match = matcher(q);
+  const sets = ladderSets(locomotion);
+  return (
+    <TreeFolder
+      folderKey="locomotion"
+      label={tr('이동')}
+      count={sets.length}
+      forceOpen={!!q}
+      onAdd={() => onOpenLocomotion()}
+      addLabel={separate ? tr('새 이동 프로젝트') : tr('이동')}
+    >
+      {locomotion && !sets.length && (
+        <button type="button" className="tree-entry" onClick={() => onOpenLocomotion()}>
+          <Icon name="ladder" size={14} />
+          <span>{tr('세트 없음')}</span>
+        </button>
+      )}
+      {sets
+        .filter(s => match(s + ' ' + setLabel(s)))
+        .map(s => (
+          <button type="button" key={s} className="tree-entry" onClick={() => onOpenLocomotion(s)} title={setLabel(s)}>
+            <Icon name="ladder" size={14} />
+            <span>{s}</span>
+            <small>{setLabel(s)}</small>
+          </button>
+        ))}
+    </TreeFolder>
+  );
+});
+
 const ParameterFolder = memo(function ParameterFolder({
   parameters,
   q,
@@ -347,6 +392,7 @@ function MyProjectPanel({
   onOpenParameters,
   onOpenProject,
   onOpenMarker,
+  onOpenLocomotion,
   onOpenEffect,
   onOpenGraph,
   searchRef,
@@ -365,6 +411,7 @@ function MyProjectPanel({
   onOpenParameters: (id?: string) => void;
   onOpenProject: () => void;
   onOpenMarker: (name?: string) => void;
+  onOpenLocomotion: (set?: string) => void;
   onOpenEffect: (action: string, effect: string) => void;
   onOpenGraph: (action: string) => void;
   searchRef: React.RefObject<HTMLInputElement | null>;
@@ -514,6 +561,12 @@ function MyProjectPanel({
             q={q}
             selected={selection === 'markers' ? selectedResource : ''}
             onOpenMarker={onOpenMarker}
+          />
+          <LocomotionFolder
+            locomotion={w.locomotion}
+            separate={!w.locomotion && !!(w.actions.length || w.eventRegistry?.length)}
+            q={q}
+            onOpenLocomotion={onOpenLocomotion}
           />
           <ParameterFolder
             parameters={w.parameters}

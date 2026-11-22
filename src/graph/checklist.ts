@@ -117,7 +117,7 @@ export function checklistProjection(w: Workspace, model = checklistModel(w)) {
 }
 export function copyChecklistNodes(w: Workspace, ids: string[]): NodeClipboard {
   const model = checklistModel(w),
-    selected = new Set(ids.filter(id => id !== 'eventRegistry'));
+    selected = new Set(ids.filter(id => id !== 'eventRegistry' && id !== 'locomotion'));
   const carried = new Set<string>();
   for (const id of ids)
     for (const item of model.items.get(id) ?? []) {

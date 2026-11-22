@@ -8,6 +8,7 @@ import {
   ragdollForce,
   ragdollLabels,
   strikeChoices,
+  isGrip,
   strikeExtras,
   soundBones,
   textSettings,
@@ -46,6 +47,7 @@ import './registry.css';
 import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {SoundSourceFields} from '../ui/details/SoundFile.tsx';
+import {GripField} from '../ui/details/GripFields.tsx';
 import {errorText} from '../errorText.ts';
 import {Unchosen} from '../ui/details/Unchosen.tsx';
 
@@ -472,6 +474,9 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
         </DetailRow>
       ));
     }
+    // A grip's hands and views (runtime 1.0.9, docs/mockup-grip-hold).
+    if (isGrip(v.op) && (key === 'hand' || key === 'view'))
+      return <GripField key={key} name={key} values={v} set={set} />;
     // A strike's whom and how (runtime 0.12.293); the hit choice is an area's only.
     if (strikeChoices[key]) {
       if (key === 'hit' && v.pick !== 'area') return null;

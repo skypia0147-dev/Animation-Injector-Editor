@@ -14,7 +14,7 @@ import {choosesOrdinary, frontAngle, frontRange, pressTrigger} from '../cards.ts
 export const cardWidth = (n: Pick<FlatNode, 'kind'>) =>
   n.kind === 'entry'
     ? 112
-    : n.kind === 'eventRegistry'
+    : n.kind === 'eventRegistry' || n.kind === 'locomotion'
       ? 540
       : n.kind === 'hkxPlay'
         ? 380
@@ -117,6 +117,7 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   const a = w.actions.find(a => a.uid === n.action),
     s = a?.config.steps.find(s => s.id === n.step);
   if (n.kind === 'eventRegistry') return {title: tr('이벤트 등록 · 전역'), icon: 'event', rows: []};
+  if (n.kind === 'locomotion') return {title: tr('이동 · 전역'), icon: 'ladder', rows: []};
   // A start or a transition is a key's or an event's by its mode (its title names what starts it).
   const start = n.kind === 'startCard' ? w.starts.find(s => 'startCard:' + s.uid === n.id) : undefined,
     link = n.kind === 'transition' ? w.links.find(l => 'transition:' + l.id === n.id) : undefined,

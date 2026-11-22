@@ -1,3 +1,4 @@
+import {setActionBody} from './body.ts';
 import {clone, createProject} from './model.ts';
 import type {Project} from './model.ts';
 import {defaultPair} from './workspace.ts';
@@ -24,6 +25,8 @@ export function switchPlaybackKind(w: Workspace, id: string, kind: ActionKind): 
   const a = w.actions.find(a => a.uid === id);
   if (!a) throw new Error(tr('동작을 찾을 수 없습니다.'));
   if (kind === playbackKind(a)) return w;
+  // A pair plays on the whole body (body.ts): a part action becomes one first.
+  if (kind === 'pair' && a.config.body) w = setActionBody(w, id, undefined);
   const restore =
     kind === 'single' && a.pair
       ? (Object.keys(a.variants)

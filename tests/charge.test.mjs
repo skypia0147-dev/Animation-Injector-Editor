@@ -55,7 +55,7 @@ test('a charge reads in, writes back unchanged and is what the runtime loads', n
   assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
   // The canvas: the loop is an item of its HKX card, the transitions are named by what moves them on.
   const g = flatGraph(w);
-  assert.ok(g.nodes.some(n => n.kind === 'loopRule' && n.summary === '최대 2.5초'));
+  assert.ok(g.nodes.some(n => n.kind === 'loopRule' && n.summary === '2.5초'));
   assert.ok(g.nodes.some(n => n.kind === 'transition' && n.title === '전환 · 끝나면'));
   mkdirSync('tests/generated/charge', {recursive: true});
   writeFileSync('tests/generated/charge/Charge.xml', xml);

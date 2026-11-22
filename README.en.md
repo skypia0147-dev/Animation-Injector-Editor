@@ -1,11 +1,11 @@
-# Animation Injector Editor · 1.0.4
+# Animation Injector Editor · 1.0.5
 
 A Windows program for making action mods for [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector). Place HKX files as cards and connect them to build actions (done alone or as pairs), then export the XML the game reads or a mod folder.
 
 ## Requirements
 
 - Windows 10/11 x64 and the Microsoft Edge WebView2 Runtime (included in Windows 11)
-- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later, a pair in first person (view First or Both) and a transition's press kind (Tap, Double, Hold), the view switch and an ending transition 1.0.8 or later)
+- In game: **Animation Injector 1.0.0 or later** and its requirements (creature actions need 1.0.3 or later, the recent event and attacking conditions 1.0.4 or later, a pair in first person (view First or Both) and a transition's press kind (Tap, Double, Hold), the view switch and an ending transition 1.0.8 or later, the locomotion ladder card, part actions and grip hold 1.0.9 or later)
 - Keep the included `AnimationInjectorXmlCheck.exe` in the same folder as `AnimationInjectorEditor.exe`. When you save, it checks that the game can read the XML. Without it the editor saves unchecked and shows a warning.
 
 ## Getting started
@@ -30,7 +30,7 @@ A Windows program for making action mods for [Animation Injector](https://github
 - An HKX card's event list shows the events its annotations send and the features registered on them. An annotation `AI.Command|values` (e.g. `AI.IFrameOn|0.3`) runs at its time with no registration.
 - A key input is a key and pad button set directly, or a game control (Jump, Sprint, Sneak, ...). A game control follows the player's key bindings.
 - A start card's **Press** picks On press, Tap, Double or Hold. A game control press no start takes goes back to the game (e.g. tap Jump to dodge, hold it to jump).
-- Charge: a transition's input can be **On end** (when the HKX ends) or **On release** (while the held key is up) or **On move change** (to go between directional dash loops), an HKX card can **Loop** (with a max hold), and the **Held time** condition picks a weak or strong release.
+- Charge: a transition's input can be **On end** (when the HKX ends) or **On release** (while the held key is up) or **On move change** (to go between directional dash loops), an HKX card can **Loop** (with a max hold, from its **+ Setting**), and the **Held time** condition picks a weak or strong release.
 
 ## Saving and exporting
 

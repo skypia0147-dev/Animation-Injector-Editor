@@ -43,6 +43,10 @@ pub struct Request {
     /// The carry lift actions' ragdoll files, written beside the XML (ragdoll.rs).
     #[serde(default)]
     pub ragdolls: Vec<crate::ragdoll::RagdollFile>,
+    /// A locomotion project: its XML is the game's one locomotion file, Locomotion/Locomotion.xml (two mods' files
+    /// meet at that path and the mod manager's priority picks one), not <folder>/<folder>.xml.
+    #[serde(default)]
+    pub locomotion: bool,
 }
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -489,8 +493,9 @@ pub fn export_to(r: &Request, parent: &Path) -> Result<Exported, String> {
             });
             Ok(())
         };
+        let xml_name = if r.locomotion { "Locomotion" } else { r.folder.as_str() };
         add(
-            format!("SKSE/Plugins/AnimationInjector/{0}/{0}.xml", r.folder),
+            format!("SKSE/Plugins/AnimationInjector/{0}/{0}.xml", xml_name),
             r.xml.as_bytes(),
         )?;
         for f in &r.ragdolls {
@@ -808,6 +813,7 @@ mod tests {
             plugins: vec![],
             xml: "<?xml version=\"1.0\"?><AnimationSet/>".into(),
             ragdolls: vec![],
+            locomotion: false,
         }
     }
     fn ready(r: &mut Request) {
@@ -957,6 +963,24 @@ mod tests {
         assert_eq!(fs::read_to_string(file).unwrap(), doc);
         r.ragdolls[0].id = "../Lift".into();
         assert!(validate(&r).is_err());
+    }
+    #[test]
+    fn a_locomotion_project_exports_the_one_locomotion_file() {
+        let t = Temp::new();
+        let source = t.asset("Source");
+        let mut r = request();
+        r.assets[0].paths.push(source.to_string_lossy().into_owned());
+        r.locomotion = true;
+        ready(&mut r);
+        let output = export_to(&r, &t.0).unwrap();
+        let root = Path::new(&output.path);
+        assert_eq!(
+            fs::read_to_string(root.join("SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml")).unwrap(),
+            r.xml
+        );
+        assert!(!root
+            .join(format!("SKSE/Plugins/AnimationInjector/{0}/{0}.xml", r.folder))
+            .exists());
     }
     #[test]
     fn exports_unicode_assets_and_rejects_existing_directory() {

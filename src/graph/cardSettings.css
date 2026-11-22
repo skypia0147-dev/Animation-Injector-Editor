@@ -194,6 +194,19 @@
 .shell .p3-node .cond-chip.set-chip.on {
   border-color: var(--card-hkx);
 }
+/* An always-shown chip (kind, view, body part) at its default: quieter than one set. */
+.shell .p3-node .cond-chip.set-chip.default:not(.on) {
+  opacity: 0.8;
+}
+/* One that cannot change on this card: its value and a lock, the reason on hover. */
+.shell .p3-node .cond-chip.set-chip.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.set-chip-lock {
+  margin-left: 4px;
+  font-size: 10px;
+}
 .set-chips-box > .set-edit {
   border: 1px solid var(--card-line);
   border-radius: 4px;
@@ -221,4 +234,13 @@
 }
 .checklist-body > .set-chips-box {
   margin: 6px 0 2px;
+}
+/* A line of help under an open setting's fields (the body part's, docs/mockup-body-part C). */
+.set-help {
+  margin: 4px 0 2px;
+  padding: 0 2px;
+  max-width: 340px;
+  color: var(--card-t2);
+  font-size: 11.5px;
+  line-height: 1.5;
 }

@@ -8,6 +8,7 @@ import type {Ref} from '../cards.ts';
 import {tr} from '../i18n/korean.ts';
 import {actionRig, creatureHiddenAdds, isCreatureRig} from '../creatureRig.ts';
 import {ordinaryEffectOps} from '../clipEffects.ts';
+import {partHiddenAdds} from '../body.ts';
 export type AddOption = {
   label: string;
   kind: string;
@@ -173,6 +174,8 @@ export function contextualAdds(w: Workspace, id: string, graph = flatGraph(w)): 
     .filter(o => {
       // A creature card: only what the runtime plays on a creature (creatureRig.ts).
       if (creature && creatureHiddenAdds.includes(o.kind)) return false;
+      // A part action (runtime 1.0.9): only what the runtime plays on one (body.ts).
+      if (a?.config.body && partHiddenAdds.includes(o.kind)) return false;
       // Charge (runtime 10-30): an ordinary HKX's; an end once and not from a loop, which has none.
       if (o.kind === 'loopRule') return !!a && !a.pair && !a.config.loop;
       // A charge end and a move transition read the charge's held key (runtime 10-31): an HKX in a charge only.

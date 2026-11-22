@@ -15,6 +15,8 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   event: <path d="m14 2-9 12h6l-1 8 9-12h-6z" />,
+  // The locomotion ladders: steps from walk up to run.
+  ladder: <path d="M3 20h5v-5h5v-5h5V5h3M3 20v-2" />,
   blend: (
     <>
       <circle cx="9" cy="12" r="7" />

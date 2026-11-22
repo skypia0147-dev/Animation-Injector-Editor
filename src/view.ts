@@ -34,12 +34,23 @@ export const firstPersonClip = (clip: string) => FIRST_PERSON_FOLDER + '\\' + st
 export const inThird = (v: View) => v !== 'first';
 export const inFirst = (v: View) => v !== 'third';
 export const projectView = (w: Workspace): View => w.view ?? 'third';
-/** Why an action plays in third person whatever its view: a carry (a pair with one) or a carry's putdown. */
-export function fixedThird(w: Workspace, a: Action): 'carry' | 'putdown' | '' {
+/** Why an action plays in third person whatever its view: a carry (a pair with one), a carry's putdown or a part
+ *  action (body.ts, runtime 1.0.9). */
+export function fixedThird(w: Workspace, a: Action): 'carry' | 'putdown' | 'part' | '' {
   if (a.pair?.carry) return 'carry';
-  return w.actions.some(x => x.pair?.carry?.putdownAction === a.uid) ? 'putdown' : '';
+  if (w.actions.some(x => x.pair?.carry?.putdownAction === a.uid)) return 'putdown';
+  return a.config.body ? 'part' : '';
 }
-/** The views an action may take: third only for a carry and its putdown. */
+/** Why its view cannot change, for its locked chip; undefined when it can. */
+export const fixedThirdReason = (why: ReturnType<typeof fixedThird>) =>
+  why === 'part'
+    ? tr('부위 동작은 3인칭에서만 재생합니다.')
+    : why === 'carry'
+      ? tr('운반은 3인칭에서만 재생합니다.')
+      : why === 'putdown'
+        ? tr('운반의 내려놓기 동작은 3인칭에서만 재생합니다.')
+        : undefined;
+/** The views an action may take: third only for a carry, its putdown and a part action. */
 export const actionViews = (w: Workspace, a: Action): readonly View[] => (fixedThird(w, a) ? ['third'] : views);
 /** The view an action takes when it names none: the file's, a pair's third whatever the file says. */
 export const defaultView = (w: Workspace, a: Action): View => (a.pair ? 'third' : projectView(w));
@@ -73,7 +84,12 @@ export function setActionView(w: Workspace, uid: string, view: View): Workspace 
   const next = clone(w),
     a = next.actions.find(a => a.uid === uid);
   if (!a) throw new Error(tr('동작을 찾지 못했습니다.'));
-  if (fixedThird(next, a) && view !== 'third') throw new Error(tr('운반(내려놓기 포함)은 3인칭으로만 재생됩니다.'));
+  if (fixedThird(next, a) && view !== 'third')
+    throw new Error(
+      fixedThird(next, a) === 'part'
+        ? tr('부위 동작은 3인칭으로만 재생됩니다.')
+        : tr('운반(내려놓기 포함)은 3인칭으로만 재생됩니다.')
+    );
   if (view === defaultView(next, a)) delete a.view;
   else a.view = view;
   return next;

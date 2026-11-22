@@ -11,6 +11,7 @@ import type {AssetFolder} from './assetFolders.ts';
 import {Icon} from '../EditorChrome.tsx';
 import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
+import {LOCOMOTION_NODE} from '../locomotion.ts';
 
 function HkxBrowserPanel({
   entries,
@@ -71,7 +72,8 @@ function HkxBrowserPanel({
       >
         {e.localPath ? '✓' : '⚠'}
       </span>
-      {e.registered && !e.users.length && (
+      {/* An own tree's locomotion file is only in the library: it can be taken out like an unused one. */}
+      {e.registered && e.users.every(u => u === LOCOMOTION_NODE) && (
         <button
           type="button"
           className="asset-remove"

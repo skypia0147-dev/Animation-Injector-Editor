@@ -2,6 +2,7 @@ import type {Action, Workspace} from './workspace.ts';
 import type {Mark} from './model.ts';
 import {mark} from './model.ts';
 import {tr} from './i18n/korean.ts';
+import {t} from './i18n/index.ts';
 import {reaches} from './cards.ts';
 import {rigBones} from './rigBones.ts';
 import type {Ragdoll} from './ragdoll.ts';
@@ -109,7 +110,8 @@ export function setCarryHand(c: Carry, hand: Exclude<CarryHand, 'custom'>): Carr
 export const carryHands = (): [Exclude<CarryHand, 'custom'>, string][] => [
   ['right', tr('오른손')],
   ['left', tr('왼손')],
-  ['both', tr('양손')],
+  // Both hands (its own key: 「양손」 is also the two-handed weapon condition, "Two-handed"; user 11-21).
+  ['both', t('hands.both')],
 ];
 export type BoneOption = {name: string; label?: string};
 // Names for the bones a carry picks most: the character's attach bones and ragdoll bodies, and the chicken's bodies.

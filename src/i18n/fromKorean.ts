@@ -6,17 +6,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     ' (A B X Y LB RB LT RT LS RS Start Back Up Down Left Right または code:数値)',
     ' (A B X Y LB RB LT RT LS RS Start Back Up Down Left Right 或 code:数字)',
   ],
-  ' (Attack PowerAttack Block Bash Sprint Jump Sneak 또는 event:검색어)': [
-    ' (Attack PowerAttack Block Bash Sprint Jump Sneak or event:search)',
-    ' (Attack PowerAttack Block Bash Sprint Jump Sneak または event:検索語)',
-    ' (Attack PowerAttack Block Bash Sprint Jump Sneak 或 event:搜索词)',
-  ],
   ' (무적·슈퍼아머·회전·비용·시간 배율은 IFrame·HyperArmor·Rotate·Cost·TimeScale, cancel은 페어 전용)': [
     ' (invulnerability, hyper armor, rotation, cost and time scale are IFrame, HyperArmor, Rotate, Cost and TimeScale; cancel is pair-only)',
     ' (無敵・スーパーアーマー・回転・消費・時間スケールは IFrame・HyperArmor・Rotate・Cost・TimeScale、cancel はペア専用)',
     ' (无敌、霸体、旋转、消耗、时间倍率为 IFrame、HyperArmor、Rotate、Cost、TimeScale，cancel 仅限配对)',
   ],
-  ' (용도에서 쓰는 중)': [' (In use by usages)', ' (用途で使用中)', ' (正在用途中使用)'],
   ' (이 동작만)': [' (this action only)', ' （このアクションのみ）', ' （仅限此动作）'],
   ' : 클립 ': [' : clips ', ' : クリップ ', ' : 片段 '],
   ' {kept}개는 지울 수 없어 남겼습니다.': [
@@ -44,7 +38,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ' · 상대': [' · partner', ' · 相手', ' · 搭档'],
   ' · 새 이벤트 이름': [' · New event name', ' · 新規イベント名', ' · 新事件名称'],
   ' · 수렴선': [' · Converging lines', ' · 収束線', ' · 汇聚线'],
+  ' · 쓰이지 않음': [' · not used', ' · 使われません', ' · 未使用'],
+  ' · 이 카드로 이동': [' · go to this card', ' · このカードへ移動', ' · 转到此卡片'],
+  ' · 이동 거리 주석 {n}': [' · movement annotations {n}', ' · 移動距離の注釈 {n}', ' · 移动距离注释 {n}'],
   ' · 이전 동작에서 전환': [' · transition from previous action', ' · 前のアクションから遷移', ' · 从前一动作过渡'],
+  ' · 주석 확인 {n}': [' · check annotations {n}', ' · 注釈を確認 {n}', ' · 检查注释 {n}'],
   ' · 카메라 복구': [' · Camera restore', ' · カメラ復帰', ' · 恢复相机'],
   ' · 켜 둠': [' · Kept on', ' · 有効維持', ' · 保持启用'],
   ' · 피해자': [' · victim', ' · 被害者', ' · 受害者'],
@@ -72,6 +70,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     ' Form のローカル 16 進数 ID です。ロードオーダーの接頭辞は除外してください。',
     ' 表单的本地十六进制 ID。请排除加载顺序前缀。',
   ],
+  '"는 사람(character) 동작에만 씁니다': [
+    '" is only for human (character) actions',
+    '" は人間(character)の動作にのみ使います',
+    '" 仅用于人类(character)动作',
+  ],
   "' 블렌드 enter ": ["' blend enter ", "' ブレンド enter ", "' 混合 enter "],
   "'): 액션 ": ["'): actions ", "'): アクション ", "'): 动作 "],
   "'{name}'은 런타임 공용 이벤트 이름입니다(대소문자 무시). 런타임이 동작·페어를 시작할 때 직접 보내는 이벤트라, 같은 이름을 쓰면 의도치 않게 반응하거나 잘못된 상태로 들어갈 수 있습니다. 다른 이름을 쓰세요.":
@@ -95,12 +98,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   "'를 쓰는 파일이 ": ["' is used by the file ", "' を使うファイルが ", "' 被文件 "],
   '(HKX 없음)': ['(No HKX)', '(HKX なし)', '(无 HKX)'],
   '(이름 없음)': ['(Unnamed)', '(名前なし)', '(无名称)'],
+  '+ 공유 설정 추가': ['+ Add shared setting', '+ 共有設定を追加', '+ 添加共享设置'],
   '+ 규칙 추가 (같은 설정으로 다른 시점·결과)': [
     '+ Add rule (different timing/result with same settings)',
     '+ ルールを追加 (同じ設定で異なるタイミング·結果)',
     '+ 添加规则 (相同设置下不同的时机·结果)',
   ],
+  '+ 기능': ['+ Feature', '+ 機能', '+ 功能'],
+  '+ 이벤트': ['+ Event', '+ イベント', '+ 事件'],
   '+ 입력 추가': ['+ Add input', '+ 入力を追加', '+ 添加输入'],
+  '+ 파일 고르기': ['+ Choose a file', '+ ファイルを選ぶ', '+ 选择文件'],
+  '+ 폴더에서 찾기': ['+ Find in a folder', '+ フォルダーから探す', '+ 在文件夹中查找'],
   '0 (기본)': ['0 (Default)', '0 (既定)', '0 (默认)'],
   '0.05~5. 1이 평소 속도, 0.5면 절반 속도입니다. 플레이어가 재생할 때만 바뀝니다.': [
     '0.05 to 5. 1 is normal speed, 0.5 half speed. It changes only when the player plays it.',
@@ -112,6 +120,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '0 は小さなよろめき、1 は大きなよろめきです。減衰が掛かります。',
     '0 为小硬直，1 为大硬直。会乘以衰减。',
   ],
+  '0이면 끝낼 때까지(끝내기 전환·다른 전환·중단) 반복합니다. 차지 종료가 있으면 시간을 정하세요: 지나면 키를 뗀 것으로 봅니다.':
+    [
+      '0 repeats until it is ended (an end transition, another transition or an interruption). With a charge release, set a time: past it the key counts as released.',
+      '0なら終わるまで(終了遷移・他の遷移・中断)繰り返します。チャージ終了があるときは時間を決めてください: 過ぎるとキーを離したとみなします。',
+      '为0时重复直到结束(结束转换·其他转换·中断)。有蓄力结束时请设置时间：超过后视为松开按键。',
+    ],
   '0이면 완벽 판정을 끕니다. 성공 허용보다 넓을 수 없습니다.': [
     '0 disables the Perfect rating. Cannot be wider than the success tolerance.',
     '0 に設定するとパーフェクト判定を無効にします。成功許容値より広げることはできません。',
@@ -134,10 +148,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '16 進数 Form ID を入力してください。',
     '请输入十六进制 Form ID。',
   ],
-  '1~256개 액션 또는 이벤트 등록이 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)': [
-    '1-256 actions or event registrations are needed (each start or transition choosing by conditions counts as one)',
-    '1〜256 個のアクションまたはイベント登録が必要です（条件で選ぶ開始・遷移も一つずつ数えます）',
-    '需要 1~256 个动作或事件注册（通过条件选择的开始和转换也各算一个）',
+  '1HM과 같게': ['Same as 1HM', '1HM と同じ', '与 1HM 相同'],
+  '1~256개 액션, 이벤트 등록 또는 이동 사다리(Locomotion)가 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)': [
+    'It needs 1–256 actions, an event registry or locomotion ladders (Locomotion) (a start or transition that chooses by conditions counts as one each)',
+    '1~256 個のアクション、イベント登録、または移動ラダー(Locomotion)が必要です(条件で選ぶ開始・遷移も1つずつ数えます)',
+    '需要 1~256 个动作、事件注册或移动梯级(Locomotion)(按条件选择的开始·转换也各算一个)',
   ],
   '1·3인칭': ['First·third person', '一人称·三人称', '第一·第三人称'],
   '1인칭': ['First person', '一人称', '第一人称'],
@@ -146,64 +161,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '一人称 HKX は meshes\\actors\\character\\{FIRST_PERSON_FOLDER} 配下のファイルを選択してください。',
     '请选择 meshes\\actors\\character\\{FIRST_PERSON_FOLDER} 下的第一人称 HKX。',
   ],
-  '시점 전환 형식 오류': ['Invalid view switch format', '視点切り替え形式エラー', '视角切换格式错误'],
-  '끝내기 전환 설정 오류': ['Invalid ending transition setting', '終了遷移の設定エラー', '结束转换设置错误'],
-  끝내기: ['End', '終了', '结束'],
-  '끝내기는 전환의 도착에서만 고릅니다.': [
-    'Ending is chosen only as a transition’s destination.',
-    '終了は遷移の行き先でのみ選びます。',
-    '“结束”只能在转换的目的地中选择。',
-  ],
-  '다른 HKX로 넘어가지 않고 이 HKX를 바로 끝냅니다(이 HKX의 끝 블렌드로). 런타임 1.0.8 이상.': [
-    'Ends this HKX at once instead of going to another (with this HKX’s exit blend). Runtime 1.0.8 or later.',
-    '別の HKX に移らず、この HKX をすぐに終了します（この HKX の終了ブレンドで）。ランタイム 1.0.8 以上。',
-    '不转到其他 HKX，而是立即结束此 HKX（以此 HKX 的结束混合）。运行时 1.0.8 或更高版本。',
-  ],
-  '끝내기 전환에는 목적지와 블렌드를 두지 않습니다.': [
-    'An ending transition has no destination and no blend.',
-    '終了遷移には行き先とブレンドを置きません。',
-    '结束转换没有目的地和混合。',
-  ],
-  '끝내기 전환은 일반 HKX에서만 씁니다.': [
-    'An ending transition is used only on an ordinary HKX.',
-    '終了遷移は通常の HKX でのみ使います。',
-    '结束转换仅用于普通 HKX。',
-  ],
-  '끝나면 전환은 끝내기로 둘 수 없습니다(이미 끝나는 시점입니다).': [
-    'An on-end transition cannot be an ending one (the HKX already ends there).',
-    '「終了時」遷移は終了遷移にできません（すでに終了する時点です）。',
-    '“结束时”转换不能设为结束转换（此时已经结束）。',
-  ],
-  'Transition: end는 true 또는 false입니다.': [
-    'Transition: end is true or false.',
-    'Transition: end は true または false です。',
-    'Transition：end 为 true 或 false。',
-  ],
-  'Transition: 끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다.': [
-    'Transition: an ending transition (end="true") takes no to and no condition card.',
-    'Transition: 終了遷移（end="true"）には to と条件カードを使いません。',
-    'Transition：结束转换（end="true"）不使用 to 和条件卡。',
-  ],
-  'Transition: 끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다.': [
-    'Transition: an ending transition (end="true") takes no blend and no partnerTo.',
-    'Transition: 終了遷移（end="true"）には blend と partnerTo を使いません。',
-    'Transition：结束转换（end="true"）不使用 blend 和 partnerTo。',
-  ],
-  'Transition: 끝내기 전환(end="true")은 일반 동작에만 씁니다.': [
-    'Transition: an ending transition (end="true") is used only on an ordinary action.',
-    'Transition: 終了遷移（end="true"）は通常のアクションでのみ使います。',
-    'Transition：结束转换（end="true"）仅用于普通动作。',
-  ],
-  'Transition: 끝내기 전환(end="true")에는 on="end"를 쓰지 않습니다.': [
-    'Transition: an ending transition (end="true") does not take on="end".',
-    'Transition: 終了遷移（end="true"）には on="end" を使いません。',
-    'Transition：结束转换（end="true"）不使用 on="end"。',
-  ],
   '1인칭 파일은 3인칭과 같은 상대 경로여야 합니다: {v0}': [
     'First-person files must share the same relative path as third-person: {v0}',
     '一人称ファイルは三人称と同じ相対パスである必要があります: {v0}',
     '第一人称文件必须与第三人称具有相同的相对路径：{v0}',
   ],
+  '2HM과 같게': ['Same as 2HM', '2HMと同じ', '与2HM相同'],
+  '2HW 이동': ['2HW movement', '2HWの移動', '2HW移动'],
+  '2HW 전용 트리': ["2HW's own tree", '2HW専用ツリー', '2HW专用树'],
   '3440 × 1440 · 울트라와이드': ['3440 × 1440 · Ultrawide', '3440 × 1440 · ウルトラワイド', '3440 × 1440 · 超宽屏'],
   '3D 보기에서 이 운반의 래그돌을 움직여 봅니다. 값을 바꾸면 바로 따라 움직입니다.': [
     "Moves this carry's ragdoll in the 3D view. It follows the values as you change them.",
@@ -260,6 +225,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     ': 種類を切り替える前に、このオーサリングパラメータの接続を解除してください。',
     '：在切换类型前，请先断开此制作参数的连接。',
   ],
+  ': 이동 사다리 파일(Locomotion\\Locomotion.xml)에는 <Locomotion>만 둡니다 — entire file skipped': [
+    ': the locomotion file (Locomotion\\Locomotion.xml) holds <Locomotion> alone — entire file skipped',
+    ': 移動ファイル (Locomotion\\Locomotion.xml) には <Locomotion> だけを置きます — entire file skipped',
+    ': 移动文件 (Locomotion\\Locomotion.xml) 中只放 <Locomotion> — entire file skipped',
+  ],
+  ': 이동 사다리는 Locomotion\\Locomotion.xml 한 파일에서만 읽습니다 — 이 파일의 <Locomotion>은 쓰지 않습니다': [
+    ": the locomotion is read from Locomotion\\Locomotion.xml alone — this file's <Locomotion> is not used",
+    ': 移動は Locomotion\\Locomotion.xml の 1 ファイルからだけ読みます — このファイルの <Locomotion> は使いません',
+    ': 移动只从 Locomotion\\Locomotion.xml 一个文件读取 — 不使用此文件的 <Locomotion>',
+  ],
   ': 이벤트 시점은 EventRegistry의 이벤트 기능으로 지정합니다': [
     ': event timing is set with an event feature in EventRegistry',
     ': イベントのタイミングは EventRegistry のイベント機能で指定します',
@@ -305,6 +280,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '<Ragdoll version> は 1 でなければなりません。',
     '<Ragdoll version> 必须为 1。',
   ],
+  '>를 쓰지 않습니다': ['> is not used', '>は使いません', '>不使用'],
   'A · 수축 원형': ['A · Shrinking Circle', 'A · 収縮サークル', 'A · 汇聚圆形'],
   'AI는 주석 명령 전용 이벤트 이름입니다(0.12.274): AI.CamShake|세기|시간': [
     'AI is the event name reserved for annotation commands (0.12.274): AI.CamShake|strength|duration',
@@ -683,7 +659,24 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'HKX 移动取消设置无效。',
   ],
   'HKX 재생': ['Play HKX', 'HKX 再生', '播放 HKX'],
+  'HKX 재생 ({family}) · {v0}': [
+    'HKX play ({family}) · {v0}',
+    'HKX 再生 ({family}) · {v0}',
+    'HKX 播放 ({family}) · {v0}',
+  ],
+  'HKX 재생 ({from} → {to}) · {v0}': [
+    'HKX play ({from} → {to}) · {v0}',
+    'HKX 再生 ({from} → {to}) · {v0}',
+    'HKX 播放 ({from} → {to}) · {v0}',
+  ],
   'HKX 재생 · {v0}': ['Play HKX · {v0}', 'HKX 再生 · {v0}', '播放 HKX · {v0}'],
+  'HKX 재생 중': ['While an HKX plays', 'HKX 再生中', 'HKX 播放中'],
+  'HKX 재생 중: HKX가 재생되는 동안 정한 시점에 뜹니다. 이벤트로: HKX 없이 그 이벤트가 오면 바로 뜨고 래그돌 중에도 취소되지 않습니다(엔진이 보내는 요청 이벤트도 받습니다). 결과는 이벤트 발생 또는 애니메이션 전환(일반 동작). 쓰러져 일어나는 중이면 엔진이 몸을 넘겨받는 순간 그 동작이 엔진 기상 대신 재생됩니다.':
+    [
+      'While an HKX plays: appears at the set moment of its playback. On an event: with no HKX, triggers immediately when that event arrives and is not cancelled even during ragdoll (also receives request events sent by the engine). The result is firing an event or animation transition (ordinary action). If getting up from knocked down, that action plays instead of engine get-up the moment the engine takes control of the body.',
+      'HKX 再生中: HKX の再生中、指定したタイミングで出現します。イベントで: HKX なしで、そのイベントを受信すると即座に出現し、ラグドール中もキャンセルされません（エンジンが送信するリクエストイベントも受け取ります）。結果はイベント発生またはアニメーション遷移（通常アクション）。倒れて起き上がる途中の場合、エンジンが身体の制御を引き継ぐ瞬間にエンジン標準の起き上がりの代わりにそのアクションが再生されます。',
+      'HKX 播放中：在 HKX 播放期间的指定时机弹出。通过事件：无需 HKX，收到该事件时立即弹出，布娃娃状态下也不会被取消（亦接收引擎发送的请求事件）。结果为触发事件或动画过渡（普通动作）。若正从倒地中起身，引擎接管身体的瞬间将播放该动作以替代引擎默认的起身动作。',
+    ],
   'HKX 재생 추가': ['Add HKX playback', 'HKX 再生を追加', '添加 HKX 播放'],
   'HKX 재생 카드를 추가하고 연결하세요.': [
     'Add a Play HKX card and connect it.',
@@ -815,6 +808,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '放置 HKX 并将其与输入相连。播放卡片之间相连可创建转换。右键单击空白处可添加卡片。',
     ],
   'HKX를 찾지 못했습니다.': ['HKX not found.', 'HKX が見つかりませんでした。', '未找到 HKX。'],
+  'HKX에서 찾음': ['Found in the HKX', 'HKX から検出', '从 HKX 识别'],
   'ID 중복: ': ['Duplicate ID: ', 'ID の重複: ', 'ID 重复：'],
   'ID/이름을 확인하세요.': ['Check ID/name.', 'ID/名前を確認してください。', '请检查 ID/名称。'],
   'ID는 영문으로 시작하는 영문/숫자/밑줄 64자 이내여야 합니다: ': [
@@ -890,6 +884,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Connected so that the QTE result sends this event, and the QTE action awaits this event.',
     'QTE 結果がこのイベントを送信し、QTE のアクションがこのイベントを待機するように接続しました。',
     '已连接：使 QTE 结果发送此事件，且 QTE 的动作等待此事件。',
+  ],
+  'QTE 결과로는 부위 동작(body)으로 갈 수 없습니다: ': [
+    'A QTE result cannot go to a part action (body): ',
+    'QTE結果から部位動作(body)へは行けません: ',
+    'QTE结果不能转到部位动作(body): ',
   ],
   "QTE 결과를 '계속'으로 바꾸고 그 동작의 {via} 대기를 지웠습니다. Ctrl+Z로 되돌릴 수 있습니다.": [
     "Changed QTE result to 'Continue' and cleared the {via} wait for that action. You can undo with Ctrl+Z.",
@@ -997,10 +996,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Transition の blend は通常の単一 HKX の行き先にだけ対応します',
     'Transition blend 仅支持普通单个 HKX 目标',
   ],
-  'Transition: press는 키를 누르는 전환에만 씁니다(event·on 전환에는 쓰지 않습니다).': [
-    'Transition: press is for transitions on a key press only (not for event or on transitions).',
-    'Transition: press はキーを押す遷移でのみ使います(event・on の遷移には使いません)。',
-    'Transition: press 仅用于按键触发的转换(不用于 event·on 转换)。',
+  'Transition: end는 true 또는 false입니다.': [
+    'Transition: end is true or false.',
+    'Transition: end は true または false です。',
+    'Transition：end 为 true 或 false。',
   ],
   'Transition: on은 end, release, move 중 하나입니다.': [
     'Transition: on is end, release or move.',
@@ -1012,10 +1011,35 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Transition: on を使う遷移には event を使いません。',
     'Transition: 使用 on 的转换不使用 event。',
   ],
+  'Transition: press는 키를 누르는 전환에만 씁니다(event·on 전환에는 쓰지 않습니다).': [
+    'Transition: press is for transitions on a key press only (not for event or on transitions).',
+    'Transition: press はキーを押す遷移でのみ使います(event・on の遷移には使いません)。',
+    'Transition: press 仅用于按键触发的转换(不用于 event·on 转换)。',
+  ],
   'Transition: 끝나면(on="end") 전환에는 키·이벤트·구간을 쓰지 않습니다.': [
     'Transition: an on="end" transition takes no key, event or window.',
     'Transition: on="end" の遷移にはキー・イベント・区間を使いません。',
     'Transition: on="end" 转换不使用按键、事件或区间。',
+  ],
+  'Transition: 끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다.': [
+    'Transition: an ending transition (end="true") takes no blend and no partnerTo.',
+    'Transition: 終了遷移（end="true"）には blend と partnerTo を使いません。',
+    'Transition：结束转换（end="true"）不使用 blend 和 partnerTo。',
+  ],
+  'Transition: 끝내기 전환(end="true")에는 on="end"를 쓰지 않습니다.': [
+    'Transition: an ending transition (end="true") does not take on="end".',
+    'Transition: 終了遷移（end="true"）には on="end" を使いません。',
+    'Transition：结束转换（end="true"）不使用 on="end"。',
+  ],
+  'Transition: 끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다.': [
+    'Transition: an ending transition (end="true") takes no to and no condition card.',
+    'Transition: 終了遷移（end="true"）には to と条件カードを使いません。',
+    'Transition：结束转换（end="true"）不使用 to 和条件卡。',
+  ],
+  'Transition: 끝내기 전환(end="true")은 일반 동작에만 씁니다.': [
+    'Transition: an ending transition (end="true") is used only on an ordinary action.',
+    'Transition: 終了遷移（end="true"）は通常のアクションでのみ使います。',
+    'Transition：结束转换（end="true"）仅用于普通动作。',
   ],
   'Transition: 이동 전환(on="move")에는 키·이벤트를 쓰지 않습니다.': [
     'Transition: a move transition (on="move") takes no key or event.',
@@ -1108,12 +1132,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   'XML 폴더가 없습니다.': ['The XML has no folder.', 'XML のフォルダーがありません。', 'XML 没有所在文件夹。'],
   'XML을 복사했습니다.': ['Copied XML.', 'XML をコピーしました。', '已复制 XML。'],
-  'XML의 Cancel id입니다. 런타임 창 이벤트 이름(AI_<동작>_<ID>Open/Close)에 쓰입니다. 비우면 자동 이름({id})을 씁니다.':
-    [
-      'Cancel id in XML. Used for runtime window event names (AI_<Action>_<ID>Open/Close). If left blank, uses automatic name ({id}).',
-      'XML の Cancel id です。ランタイムウィンドウイベント名（AI_<アクション>_<ID>Open/Close）に使用されます。空欄にすると自動名（{id}）を使用します。',
-      'XML 中的 Cancel id。用于运行时窗口事件名称（AI_<动作>_<ID>Open/Close）。留空则使用自动名称（{id}）。',
-    ],
   'XML의 QTE id입니다. 결과 이벤트 이름(AI_<동작>_QTE_<ID>_Success 등)에 쓰입니다. 비우면 자동 이름({id})을 씁니다. "이름"은 에디터 표시용입니다.':
     [
       'The QTE id in XML. Used for result event names (such as AI_<Action>_QTE_<ID>_Success). If empty, uses the automatic name ({id}). "Name" is for editor display only.',
@@ -1132,6 +1150,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '[Decl] アクションフォルダなし: ',
     '[Decl] 没有动作文件夹：',
   ],
+  '[Decl] 이동 사다리: ': ['[Decl] locomotion: ', '[Decl] 移動: ', '[Decl] 移动: '],
   '[Settings] 프레임워크: inject=': [
     '[Settings] framework: inject=',
     '[Settings] フレームワーク: inject=',
@@ -1152,6 +1171,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'blockWhen goes together with block',
     'blockWhen は block と一緒に書きます',
     'blockWhen 需与 block 一起写',
+  ],
+  'body는 upper, rightArm, leftArm 중 하나입니다: ': [
+    'body is one of upper, rightArm, leftArm: ',
+    'bodyはupper、rightArm、leftArmのいずれかです: ',
+    'body为upper、rightArm、leftArm之一: ',
+  ],
+  'body는 사람(character) 동작에만 씁니다': [
+    'body is for character actions only',
+    'bodyは人(character)の動作にのみ使います',
+    'body只用于人物(character)动作',
+  ],
+  'body는 일반 동작(Action)에만 씁니다': [
+    'body is for ordinary actions (Action) only',
+    'bodyは通常動作(Action)にのみ使います',
+    'body只用于普通动作(Action)',
   ],
   'combatTarget은 페어 이벤트 시작이나 일반 동작을 고르는 조건 카드 시작에만 사용할 수 있습니다': [
     "combatTarget can be used only on a pair's event start or a condition-card start that chooses among ordinary actions",
@@ -1193,41 +1227,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'fireArrow takes no delay (it fires right at its event or clip time)',
     'fireArrow は delay を使いません(イベント・時点ですぐに発射)',
     'fireArrow 不使用 delay（在事件或时间点立即发射）',
-  ],
-  'otherView는 한 인칭 액션(view="third" 또는 "first")에만 씁니다': [
-    'otherView is used only on actions of one view (view="third" or "first")',
-    'otherView は単一視点のアクション（view="third" または "first"）でのみ使います',
-    'otherView 仅用于单一视角的动作（view="third" 或 "first"）',
-  ],
-  'otherView는 1인칭 페어에 쓰지 않습니다': [
-    'otherView is not used on a first-person pair',
-    'otherView は一人称ペアには使いません',
-    'otherView 不用于第一人称配对',
-  ],
-  '끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다': [
-    'an ending transition (end="true") takes no to and no condition card',
-    '終了遷移（end="true"）には to と条件カードを使いません',
-    '结束转换（end="true"）不使用 to 和条件卡',
-  ],
-  '끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다(끝 블렌드는 <Exit blend>)': [
-    'an ending transition (end="true") takes no blend and no partnerTo (the exit blend is <Exit blend>)',
-    '終了遷移（end="true"）には blend と partnerTo を使いません（終了ブレンドは <Exit blend>）',
-    '结束转换（end="true"）不使用 blend 和 partnerTo（结束混合为 <Exit blend>）',
-  ],
-  '끝내기 전환(end="true")은 일반 동작에만 씁니다': [
-    'an ending transition (end="true") is used only on an ordinary action',
-    '終了遷移（end="true"）は通常のアクションでのみ使います',
-    '结束转换（end="true"）仅用于普通动作',
-  ],
-  '끝내기 전환(end="true")에는 on="end"를 쓰지 않습니다': [
-    'an ending transition (end="true") does not take on="end"',
-    '終了遷移（end="true"）には on="end" を使いません',
-    '结束转换（end="true"）不使用 on="end"',
-  ],
-  'otherView는 block 또는 switch입니다': [
-    'otherView is block or switch',
-    'otherView は block または switch です',
-    'otherView 为 block 或 switch',
   ],
   'float 트랙 오프셋이 넘쳤습니다.': [
     'Float track offset overflowed.',
@@ -1291,10 +1290,30 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'on を使う遷移には event を使いません',
     '使用 on 的转换不使用 event',
   ],
+  'otherView는 1인칭 페어에 쓰지 않습니다': [
+    'otherView is not used on a first-person pair',
+    'otherView は一人称ペアには使いません',
+    'otherView 不用于第一人称配对',
+  ],
+  'otherView는 block 또는 switch입니다': [
+    'otherView is block or switch',
+    'otherView は block または switch です',
+    'otherView 为 block 或 switch',
+  ],
+  'otherView는 한 인칭 액션(view="third" 또는 "first")에만 씁니다': [
+    'otherView is used only on actions of one view (view="third" or "first")',
+    'otherView は単一視点のアクション（view="third" または "first"）でのみ使います',
+    'otherView 仅用于单一视角的动作（view="third" 或 "first"）',
+  ],
   'partnerTo는 to(동작)와 함께만 씁니다': [
     'partnerTo is written only with to (an action)',
     'partnerTo は to（動作）と一緒にだけ書きます',
     'partnerTo 只能与 to（动作）一起写',
+  ],
+  'partnerTo는 상대 스켈레톤(FindPartner rig)의 동작이어야 합니다: ': [
+    "partnerTo must be an action of the partner's skeleton (FindPartner rig): ",
+    'partnerTo は相手のスケルトン(FindPartner rig)の動作である必要があります: ',
+    'partnerTo 必须是对方骨架(FindPartner rig)的动作: ',
   ],
   'partnerTo에는 페어에서 양쪽 일반 액션으로 가는 연결만 지정합니다': [
     'partnerTo is set only on a link from a pair to ordinary actions on both sides',
@@ -1321,6 +1340,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'press はキー・パッドボタン・ゲーム操作の開始でのみ使います',
     'press 仅用于按键·手柄按钮·游戏操作的开始',
   ],
+  'press는 키·패드 버튼·게임 동작을 누르는 전환에만 씁니다(event·on 전환에는 쓰지 않습니다)': [
+    'press is only for transitions that press a key, pad button or game control (not for event or on transitions)',
+    'press はキー・パッドボタン・ゲーム操作を押す遷移にのみ使います(event・on 遷移には使いません)',
+    'press 仅用于按键·手柄按钮·游戏操作的转换(不用于 event·on 转换)',
+  ],
   'putdown Action에 대상 놓기 시점 <CarryRelease at="..."/>가 필요합니다': [
     'The putdown Action needs a release moment <CarryRelease at="..."/>',
     'putdown Action には対象を放す時点 <CarryRelease at="..."/> が必要です',
@@ -1341,6 +1365,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'range・angleは、通常の動作を選ぶ条件カード開始の前方の対象にだけ使います',
     'range和angle只用于在普通动作之间选择的条件卡开始的前方目标',
   ],
+  'set은 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak 중 하나입니다: ':
+    [
+      'set is one of 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak: ',
+      'set は 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak のいずれかです: ',
+      'set 为 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak 之一: ',
+    ],
+  'set은 {sets} 중 하나입니다: ': ['set is one of {sets}: ', 'set は {sets} のいずれかです: ', 'set 为 {sets} 之一: '],
   'sound에는 file(소리 파일) 또는 plugin·form(등록 사운드) 중 하나만 씁니다': [
     'sound takes either file (a sound file) or plugin and form (a registered sound), not both',
     'sound には file（サウンドファイル）か plugin・form（登録サウンド）のどちらか一方だけを書きます',
@@ -1402,6 +1433,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'to と condition のどちらか一方だけを書きます',
     'to 与 condition 只能写其一',
   ],
+  'use="2HM"은 weapon="2HW"에만 씁니다': [
+    'use="2HM" is for weapon="2HW" only',
+    'use="2HM" は weapon="2HW" だけに使います',
+    'use="2HM" 只用于 weapon="2HW"',
+  ],
+  'use는 own 또는 2HM입니다: ': ['use is own or 2HM: ', 'use は own か 2HM です: ', 'use 为 own 或 2HM: '],
   'value·restore는 globalSet에서만 씁니다': [
     'value and restore are used by globalSet only',
     'value・restore は globalSet でのみ使います',
@@ -1412,6 +1449,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'view は third・first・both のいずれかです',
     'view 为 third、first、both 之一',
   ],
+  'weapon은 2HW 또는 H2H입니다: ': ['weapon is 2HW or H2H: ', 'weapon は 2HW か H2H です: ', 'weapon 为 2HW 或 H2H: '],
   'without에 쓸 수 있는 것은 enchantment·poison·perks·impact·hitEvent입니다: ': [
     'without takes enchantment, poison, perks, impact and hitEvent: ',
     'without に書けるのは enchantment・poison・perks・impact・hitEvent です: ',
@@ -1442,20 +1480,30 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{CHECKER} が見つかりませんでした。',
     '未找到 {CHECKER}。',
   ],
-  '{actionId}: otherView는 한 인칭 동작(view="third" 또는 "first")에만 씁니다.': [
-    '{actionId}: otherView is only used on actions of one view (view="third" or "first").',
-    '{actionId}: otherView は単一視点のアクション（view="third" または "first"）にのみ使用します。',
-    '{actionId}：otherView 仅用于单一视角的动作（view="third" 或 "first"）。',
-  ],
   '{actionId}: otherView는 1인칭 페어에 쓰지 않습니다.': [
     '{actionId}: otherView is not used on a first-person pair.',
     '{actionId}: otherView は一人称ペアには使用しません。',
     '{actionId}：otherView 不用于第一人称配对。',
   ],
+  '{actionId}: otherView는 한 인칭 동작(view="third" 또는 "first")에만 씁니다.': [
+    '{actionId}: otherView is only used on actions of one view (view="third" or "first").',
+    '{actionId}: otherView は単一視点のアクション（view="third" または "first"）にのみ使用します。',
+    '{actionId}：otherView 仅用于单一视角的动作（view="third" 或 "first"）。',
+  ],
+  '{actionId}: 부위 동작(body)은 3인칭(view="third")으로만 재생됩니다.': [
+    '{actionId}: a part action (body) plays in third person (view="third") only.',
+    '{actionId}: 部位動作(body)は三人称(view="third")でのみ再生されます。',
+    '{actionId}: 部位动作(body)只能在第三人称(view="third")播放。',
+  ],
   '{actionId}: 운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다.': [
     '{actionId}: carries (including putdown) only play in third person (view="third").',
     '{actionId}: 運搬（下ろしを含む）は三人称（view="third"）でのみ再生されます。',
     '{actionId}：搬运（含放下）仅以第三人称（view="third"）播放。',
+  ],
+  '{family} 동작에는 쓸 수 없습니다: {items}': [
+    'Not available on a {family} action: {items}',
+    '{family} の動作には使えません: {items}',
+    '{family} 动作不能使用: {items}',
   ],
   '{first}와 {second}가 같은 순간에 같은 채널 {channel}에서 시작합니다. 게임은 먼저 온 하나만 띄우고 다른 하나는 건너뜁니다. 둘 중 하나의 채널을 바꾸세요.':
     [
@@ -1488,6 +1536,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{label}: 不是打击的选项。',
   ],
   '{length}개 시점': ['{length} timings', '{length} 件のタイミング', '{length} 个时机'],
+  '{names} 주석 없음': ['No {names} annotation', '{names} 注釈なし', '没有 {names} 注释'],
   '{names}도 이 이벤트를 보내 이 기능을 씁니다. 클립으로 옮기면 그 HKX에서 빠지므로 등록에서 정리하세요.': [
     '{names} also send this event and use this function. Moving it to the clip would take it from those HKX, so sort it out in the registry.',
     '{names}もこのイベントを送り、この機能を使います。クリップに移すとそのHKXから外れるため、登録で整理してください。',
@@ -1536,7 +1585,9 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{name}: キーまたはゲームパッドボタンが必要です。',
     '{name}：需要按键或手柄按钮。',
   ],
+  '{n}개 중 {m}개': ['{m} of {n}', '{n} 個中 {m} 個', '{n} 个中 {m} 个'],
   '{n}곳': ['{n} places', '{n}か所', '{n}处'],
+  '{n}번 행': ['Row {n}', '行 {n}', '第 {n} 行'],
   '{path}: 값 형식 오류': ['{path}: value format error', '{path}: 値の形式エラー', '{path}: 值格式错误'],
   '{path}: 목록 형식 또는 크기 오류': [
     '{path}: list format or size error',
@@ -1551,6 +1602,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '{seconds}초': ['{seconds}s', '{seconds}秒', '{seconds}秒'],
   '{seconds}초 동안': ['for {seconds} s', '{seconds}秒間', '持续 {seconds} 秒'],
   '{seconds}초 안': ['within {seconds} s', '{seconds}秒以内', '{seconds} 秒内'],
+  '{set} 적용': ['Apply to {set}', '{set} に適用', '应用于 {set}'],
   '{size}개 동작 · {length}개 규칙 · {v2} · {speed}×': [
     '{size} actions · {length} rules · {v2} · {speed}×',
     '{size} 個のアクション · {length} 件のルール · {v2} · {speed}×',
@@ -1610,12 +1662,47 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{v0}: コピー中に原本の変更を検出しました',
     '{v0}：复制过程中检测到源文件已更改',
   ],
+  '{v0}: 부위 동작에 들어가거나 나오는 전환에는 블렌드를 쓰지 않습니다(도착 동작의 시작 블렌드로 이어집니다).': [
+    "{v0}: a transition into or out of a part action takes no blend (the destination's start blend carries it).",
+    '{v0}: 部位動作に入る・出る遷移にはブレンドを使いません(到着動作の開始ブレンドでつながります)。',
+    '{v0}: 进入或离开部位动作的转换不使用混合(由目标动作的开始混合衔接)。',
+  ],
+  '{v0}: 부위 동작에는 쓸 수 없습니다: {items}': [
+    '{v0}: not allowed on a part action: {items}',
+    '{v0}: 部位動作には使えません: {items}',
+    '{v0}: 部位动作不能使用: {items}',
+  ],
+  '{v0}: 부위 동작에서 페어로는 전환할 수 없습니다.': [
+    '{v0}: a part action cannot transition to a pair.',
+    '{v0}: 部位動作からペアへは遷移できません。',
+    '{v0}: 部位动作不能转换到配对。',
+  ],
+  '{v0}: 부위 동작은 이동하면서 재생되므로 이동 전환을 쓰지 않습니다.': [
+    '{v0}: a part action plays while moving, so it takes no movement transition.',
+    '{v0}: 部位動作は移動しながら再生されるため移動遷移を使いません。',
+    '{v0}: 部位动作在移动中播放，因此不使用移动转换。',
+  ],
   '{v0}: 운반의 내려놓기 동작은 3인칭으로 재생됩니다. 인칭 설정({v1})은 쓰이지 않습니다.': [
     '{v0}: Carry put down actions play in third person. View setting ({v1}) is ignored.',
     '{v0}: 運搬の下ろしアクションは三人称で再生されます。視点設定（{v1}）は使用されません。',
     '{v0}：搬运的放下动作将以第三人称播放。视角设置（{v1}）未生效。',
   ],
+  '{v0}: 차지 종료 전환이 있으면 최대 유지 시간을 정하세요(0.1~600초).': [
+    '{v0}: with a charge release, set the maximum hold (0.1–600 s).',
+    '{v0}: チャージ終了の遷移があるときは最大保持時間を決めてください(0.1~600秒)。',
+    '{v0}: 有蓄力结束转换时请设置最长保持时间(0.1~600秒)。',
+  ],
   '{v0}: 켬/끔 값 오류': ['{v0}: On/off value error', '{v0}: 有効/無効値のエラー', '{v0}：开关值错误'],
+  '{v0}: 페어 상대의 다음 동작으로 부위 동작은 쓰지 않습니다.': [
+    "{v0}: a part action cannot be the partner's next action.",
+    '{v0}: ペア相手の次の動作に部位動作は使いません。',
+    '{v0}: 部位动作不能作为配对对象的下一个动作。',
+  ],
+  '{v0}: 페어에서 부위 동작으로는 전환할 수 없습니다.': [
+    '{v0}: a pair cannot transition to a part action.',
+    '{v0}: ペアから部位動作へは遷移できません。',
+    '{v0}: 配对不能转换到部位动作。',
+  ],
   '{v0}을(를) 다른 설정으로 두 번 실행합니다.': [
     'Runs {v0} twice with different settings.',
     '{v0} を異なる設定で 2 回実行します。',
@@ -1623,6 +1710,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '{v0}초': ['{v0} s', '{v0} 秒', '{v0} 秒'],
   '{v} 빼기': ['Remove {v}', '{v}を外す', '移除 {v}'],
+  '{weapon} 전용 트리가 쓰는 파일이 아닙니다: {clip}': [
+    'Not a file the {weapon} tree uses: {clip}',
+    '{weapon} 専用ツリーが使うファイルではありません: {clip}',
+    '不是 {weapon} 专用树使用的文件: {clip}',
+  ],
+  '{weapon} 파일': ['{weapon} files', '{weapon} ファイル', '{weapon} 文件'],
+  '{weapon} 파일 {n}개를 등록했습니다.': [
+    'Registered {n} {weapon} files.',
+    '{weapon} ファイルを {n} 個登録しました。',
+    '已登记 {n} 个 {weapon} 文件。',
+  ],
   '{where} simulate: true 또는 false여야 합니다.': [
     '{where} simulate: must be true or false.',
     '{where} simulate: true か false でなければなりません。',
@@ -1665,7 +1763,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '{where}: 없는 HKX {id}': ['{where}: no HKX {id}', '{where}: 存在しない HKX {id}', '{where}：不存在的 HKX {id}'],
   '· 값': ['· Values', '· 値', '· 值'],
-  '· 시점': ['· Timing', '· タイミング', '· 时机'],
   '→ 전환': ['→ Transition', '→ 遷移', '→ 过渡'],
   '● 시뮬레이션 보는 중': ['● Showing simulation', '● シミュレーション表示中', '● 正在查看模拟'],
   '⚠ 게임 전체 적용': ['⚠ Applies game-wide', '⚠ ゲーム全体に適用', '⚠ 全游戏生效'],
@@ -1699,21 +1796,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '没有可复制的其他节点数值',
   ],
   가해자: ['Attacker', '加害者', '加害者'],
-  'HKX 재생 중': ['While an HKX plays', 'HKX 再生中', 'HKX 播放中'],
-  이벤트로: ['On an event', 'イベントで', '通过事件'],
-  '발신자와 같음': ['Same as sender', '送信元と同じ', '与发送者相同'],
-  '창 배치': ['Window layout', 'ウィンドウ配置', '窗口布局'],
-  '발신자와 같음: 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다(지금은 {v0}). 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.':
-    [
-      "Same as sender: the QTE appears only when the role sending the event is the player (now: {v0}). If the sender is 'Either side', it appears regardless of role.",
-      '送信元と同じ: イベントを送信する役割がプレイヤーの時のみ QTE が表示されます（現在: {v0}）。送信元が「どちらでも」の場合は役割に関係なく表示されます。',
-      '与发送者相同：仅当发送事件的角色为玩家时才会弹出 QTE（当前：{v0}）。若发送者为“任意一方”，则无论何种角色都会弹出。',
-    ],
-  '플레이어: 플레이어가 어느 역할이든. 가해자·피해자: 그 역할이 플레이어일 때만.': [
-    'Player: whichever role the player has. Attacker / Victim: only when that role is the player.',
-    'プレイヤー: プレイヤーがどの役割でも。加害者・被害者: その役割がプレイヤーの時のみ。',
-    '玩家：无论玩家是何种角色。加害者·受害者：仅当该角色为玩家时。',
-  ],
   '가해자 동작': ['Attacker action', '加害者アクション', '加害者动作'],
   '가해자 동작과 같습니다.': ['Same as attacker action.', '加害者アクションと同じです。', '与攻击者动作相同。'],
   '가해자가 플레이어일 때': ['When attacker is player', '加害者がプレイヤーの時', '加害者为玩家时'],
@@ -1779,6 +1861,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '강공격 · 제자리': ['Power attack · standing', 'パワーアタック · 静止', '强力攻击 · 原地'],
   '강공격 · 후진': ['Power attack · backward', 'パワーアタック · 後退', '强力攻击 · 后退'],
   '강한 배시': ['Power bash', 'パワーバッシュ', '强力格挡重击'],
+  '같은 set을 두 번 뺐습니다: ': [
+    'The same set is left out twice: ',
+    '同じ set を 2 回除外しました: ',
+    '同一 set 被排除了两次: ',
+  ],
+  '같은 weapon을 두 번 지정했습니다: ': [
+    'The same weapon is named twice: ',
+    '同じ weapon を二度指定しました: ',
+    '同一 weapon 指定了两次: ',
+  ],
   '같은 {v0}에 같은 QTE ID가 있습니다: ': [
     'Same QTE ID already exists in the same {v0}: ',
     '同じ {v0} に同一の QTE ID が存在します: ',
@@ -1864,11 +1956,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '同じ始点アクションに、同一入力・同じ押し方の遷移が 2 つあります。',
     '同一源动作存在两个输入和按法都相同的转换。',
   ],
-  '같은 키에 누를 때 전환과 다른 누름 방식을 함께 쓸 수 없습니다. 누르는 순간 먼저 나가므로 짧게를 쓰세요.': [
-    'An On press transition cannot share its key with another press kind: it goes the moment the key goes down. Use Tap instead.',
-    '同じキーに「押したとき」の遷移とほかの押し方を一緒には使えません。押した瞬間に先に出るため、「短く」を使ってください。',
-    '同一按键上不能同时使用"按下时"转换和其他按法：按下瞬间它会先触发，请改用短按。',
-  ],
   '같은 출발 이벤트의 연결이 중복됩니다.': [
     'Duplicate links found for the same source event.',
     '同じ始点イベントの接続が重複しています。',
@@ -1879,6 +1966,17 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '同じカード同士はつなげません。',
     '卡不能与自身连接。',
   ],
+  '같은 키에 누를 때 전환과 다른 누름 방식을 함께 쓸 수 없습니다. 누르는 순간 먼저 나가므로 짧게를 쓰세요.': [
+    'An On press transition cannot share its key with another press kind: it goes the moment the key goes down. Use Tap instead.',
+    '同じキーに「押したとき」の遷移とほかの押し方を一緒には使えません。押した瞬間に先に出るため、「短く」を使ってください。',
+    '同一按键上不能同时使用"按下时"转换和其他按法：按下瞬间它会先触发，请改用短按。',
+  ],
+  '같은 키에 누를 때(press="down") 전환과 다른 누르는 방식을 함께 쓸 수 없습니다: 누르는 순간 먼저 나가므로 tap(짧게)을 쓰세요':
+    [
+      'A key\'s on-press (press="down") transition cannot be used with another press kind on that key: it fires first, the moment the key goes down; use tap',
+      '同じキーで押したとき(press="down")の遷移と別の押し方を一緒に使うことはできません:押した瞬間に先に出るので tap(短く)を使ってください',
+      '同一按键的按下(press="down")转换不能与其他按法同时使用:按下的瞬间会先触发,请使用 tap(短按)',
+    ],
   '같은 키의 연결이 중복되어 모호합니다': [
     'Duplicate links on the same key are ambiguous',
     '同じキーの接続が重複していて曖昧です',
@@ -1896,13 +1994,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '개 동작 ·': [' actions ·', '件のアクション ·', '个动作 ·'],
   '개 동작에 적용': [' actions applied', '個のアクションに適用', '个动作已应用'],
   '개 선택': [' selected', '個選択', '个已选'],
-  '개 이벤트 · 기능': [' events · Features', '件のイベント · 機能', '个事件 · 功能'],
+  '개, 이동 선언 ': [', locomotion ', '個、移動の宣言 ', '个，移动声明 '],
   '개, 이벤트 등록 ': [', event registrations ', '個、イベント登録 ', '个，事件注册 '],
   '개, 키 ': [', key ', '個、キー ', '个，按键 '],
   '개별 편집으로 분리': ['Separate into individual edits', '個別編集に分離', '分离为单独编辑'],
   거리: ['Distance', '距離', '距离'],
   거인: ['Giant', '巨人', '巨人'],
   거짓: ['False', '偽', '为假'],
+  걷기: ['Walk', '歩行', '行走'],
   '걷기 → 정지': ['Walk → stop', '歩き → 停止', '行走 → 停止'],
   '걷기·뛰기': ['Walk / run', '歩く・走る', '行走·奔跑'],
   검: ['Sword', '剣', '剑'],
@@ -1958,6 +2057,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '判定対象がいるセルが屋内かを判定します。屋外の条件にするには NOT を設定してください。',
     '检查目标所在单元是否为室内。室外条件请设置为 NOT。',
   ],
+  '검사 대상이 정한 시간 안에 고른 애니메이션 이벤트 중 하나를 받았는지 봅니다(그래프로 보낸 이벤트와 그래프가 보낸 주석 모두). 질주 공격 직후의 sprintStop을 거르려면 attackStop을 0.5초 이내로 두고 NOT을 켭니다. 이 조건을 쓸 때만 기록합니다.':
+    [
+      'Checks whether the subject received one of the chosen animation events within the set time (events sent to the graph and annotations the graph sends). To skip the sprintStop right after a sprint attack, set attackStop within 0.5 seconds and turn on NOT. Recorded only while this condition is used.',
+      '検査対象が設定した時間内に選んだアニメーションイベントのいずれかを受け取ったかを調べます（グラフへ送られたイベントとグラフが送る注釈の両方）。スプリント攻撃直後の sprintStop を除くには attackStop を 0.5 秒以内にして NOT をオンにします。この条件を使うときだけ記録します。',
+      '检查检测对象是否在设定时间内收到所选动画事件之一（发送给图的事件和图发出的注释都算）。要排除冲刺攻击后紧接的 sprintStop，请将 attackStop 设为 0.5 秒以内并打开 NOT。仅在使用此条件时记录。',
+    ],
   '검사 반경': ['Check radius', '検査半径', '检查半径'],
   '검사 방향과 거리(지면 0 이상, 공간 0 초과, 최대 2000)를 확인하세요.': [
     'Check test direction and distance (ground >= 0, space > 0, max 2000).',
@@ -2024,7 +2129,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ゲーム内の時刻（0〜24 時）です。範囲は深夜 0 時をまたげます（20 時〜5 時）。',
     '游戏内时刻（0~24 时）。范围可跨越午夜（20 时~5 时）。',
   ],
-  '게임 원래 동작': ["The game's own action", 'ゲーム本来の動作', '游戏原本的动作'],
   '게임 원래 래그돌 값(바닐라)으로 움직입니다. 래그돌 파일을 쓰지 않습니다.': [
     "Moves with the game's own ragdoll values (vanilla). No ragdoll file is written.",
     'ゲーム本来のラグドール値(バニラ)で動きます。ラグドールファイルは書きません。',
@@ -2042,6 +2146,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ゲーム内では画面に表示されません。プレビューでは入力確認用に薄く表示されます。',
     '游戏中不会在屏幕上显示。预览中以淡化形式显示以供确认输入。',
   ],
+  '게임은 이동 선언을 SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml 한 파일에서만 읽습니다. 여러 모드가 이 파일을 넣으면 모드 관리자에서 우선순위가 높은 모드의 파일 하나가 통째로 쓰입니다. 재생 빠르기는 캐릭터의 실제 속도를 따라가고, 걷기와 달리기는 서로 바꿀 때와 멈출 때만 섞입니다. 적을 숫자는 없습니다.':
+    [
+      "The game reads the locomotion from one file only: SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml. When several mods ship it, the file of the mod with the highest priority in the mod manager is used whole. Playback follows the character's actual speed, and walk and run mix only while changing between them and while stopping. There are no numbers to write.",
+      'ゲームは移動の宣言を SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml の 1 ファイルからだけ読みます。複数の Mod がこのファイルを入れると、Mod マネージャーで優先度が高い Mod のファイル 1 つが丸ごと使われます。再生の速さはキャラクターの実際の速度に追従し、歩きと走りは切り替えるときと止まるときだけ混ざります。書く数値はありません。',
+      '游戏只从 SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml 这一个文件读取移动声明。多个模组都带有此文件时，模组管理器中优先级最高的模组的文件会被整个采用。播放速度跟随角色的实际速度，行走与奔跑只在相互切换和停下时混合。没有需要填写的数值。',
+    ],
   게임패드: ['Gamepad', 'ゲームパッド', '手柄'],
   '게임패드 버튼은 정수입니다.': [
     'Gamepad button must be an integer.',
@@ -2076,6 +2186,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   경갑: ['Light Armor', '軽装', '轻甲'],
   '경고 있음': ['Has warnings', '警告あり', '有警告'],
+  '경로 기준: {root}\\': ['Relative to: {root}\\', '基準フォルダー: {root}\\', '相对于: {root}\\'],
   '경로 직접 입력…': ['Type a path…', 'パスを直接入力…', '直接输入路径…'],
   '경로별 블렌드는 단일 일반 HKX 사이에서만 지원합니다.': [
     'Per-path blends are only supported between single ordinary HKX files.',
@@ -2119,7 +2230,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '公開設定範囲内の数値が必要です。',
     '需要一个在导出设置范围内的数字。',
   ],
-  공격: ['Attack', '攻撃', '攻击'],
   '공격 데이터': ['Attack data', '攻撃データ', '攻击数据'],
   '공격 데이터 이름 (예: attackStart_MySwing)': [
     'Attack data name',
@@ -2134,6 +2244,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '攻击状态仅可在攻击状态检查中使用。',
   ],
   '공격 설정': ['Attack settings', '攻撃設定', '攻击设置'],
+  '공격 중': ['Attacking', '攻撃中', '攻击中'],
   '공격자의 발 높이를 0으로, 대상의 발 높이로 잽니다.': [
     "Measured at the target's feet, with the attacker's feet as 0.",
     '攻撃者の足元を 0 として、対象の足元の高さで測ります。',
@@ -2144,6 +2255,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '공유 규칙 ·': ['Shared rules ·', '共有ルール ·', '共享规则 ·'],
   '공유 규칙 전체 제거': ['Remove entire shared rule', '共有ルールをすべて削除', '移除全部共享规则'],
   '공유 규칙 형식 오류': ['Invalid sharing rule format', '共有ルール形式エラー', '共用规则格式错误'],
+  '공유 설정이 없습니다. 여러 동작이 같이 쓸 값을 하나 만들어 두면 각 동작에서 골라 씁니다.': [
+    'No shared settings yet. Make one value for several actions to use, and each action picks it.',
+    '共有設定がありません。複数のアクションが共通で使う値を一つ作っておくと、各アクションで選んで使えます。',
+    '还没有共享设置。创建一个供多个动作共用的值后，各动作即可选用。',
+  ],
   '공유 전환 {mark}(으)로 가는 선입니다. 누르면 그 선을 고르고, Delete로 끊습니다.': [
     'The line to shared transition {mark}. Click to choose the line; Delete cuts it.',
     '共有遷移{mark}への線です。押すとその線を選択し、Deleteで切断します。',
@@ -2233,7 +2349,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'その HKX の再生中の遮断（block）と開始の遮断を一緒に使うには同じイベントでなければなりません',
     '要同时使用该 HKX 播放中的阻止（block）与开始的阻止，必须是相同的事件',
   ],
+  '그 앞': ['Before that', 'その前', '更前'],
   '그 외 종족 · 기본 게임': ['Other races · base game', 'その他の種族 · ベースゲーム', '其他种族 · 基础游戏'],
+  '그 폴더에서 {weapon} 파일을 찾지 못했습니다. 모드 폴더나 meshes/actors/character/animations 폴더를 고르세요.': [
+    'No {weapon} file was found in that folder. Choose a mod folder or a meshes/actors/character/animations folder.',
+    'そのフォルダーに {weapon} ファイルが見つかりませんでした。MOD フォルダーか meshes/actors/character/animations フォルダーを選んでください。',
+    '在该文件夹中没有找到 {weapon} 文件。请选择模组文件夹或 meshes/actors/character/animations 文件夹。',
+  ],
   그대로: ['As is', 'そのまま', '保持原样'],
   '그대로 (하던 페어 계속)': [
     'Keep as is (continue current pair)',
@@ -2294,7 +2416,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   기본값: ['Defaults', '既定値', '默认值'],
   '기본값: {v}': ['Default: {v}', '既定値: {v}', '默认值:{v}'],
   '기본값에서 시작해 고치기': ['Start from the defaults and edit', '既定値から始めて編集', '从默认值开始编辑'],
-  기본값으로: ['Back to default', '既定値に戻す', '恢复默认'],
   '기본값으로 되돌리기': ['Reset to defaults', '既定値に戻す', '恢复默认值'],
   '기술 수치·레벨 등을 비교합니다. 현재 값은 버프·디버프를 포함하고, 기본 값은 포함하지 않습니다.': [
     'Compares a skill, the level and the like. The current value includes buffs and debuffs; the base value does not.',
@@ -2342,6 +2463,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '終わったときの遷移はHKXごとに1つです。',
     '每个 HKX 只能有一个结束时转换。',
   ],
+  '끝나면 전환은 끝내기로 둘 수 없습니다(이미 끝나는 시점입니다).': [
+    'An on-end transition cannot be an ending one (the HKX already ends there).',
+    '「終了時」遷移は終了遷移にできません（すでに終了する時点です）。',
+    '“结束时”转换不能设为结束转换（此时已经结束）。',
+  ],
   '끝나면 전환은 시각으로 끝나는 HKX에서만 씁니다.': [
     'An On end transition needs an HKX that ends at a time.',
     '終わったときの遷移は時刻で終わるHKXでのみ使います。',
@@ -2386,6 +2512,45 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '終了からの時間は 0〜600 秒です。',
     '结束后的时间为 0~600 秒。',
   ],
+  끝내기: ['End', '終了', '结束'],
+  '끝내기 전환 설정 오류': ['Invalid ending transition setting', '終了遷移の設定エラー', '结束转换设置错误'],
+  '끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다(끝 블렌드는 <Exit blend>)': [
+    'an ending transition (end="true") takes no blend and no partnerTo (the exit blend is <Exit blend>)',
+    '終了遷移（end="true"）には blend と partnerTo を使いません（終了ブレンドは <Exit blend>）',
+    '结束转换（end="true"）不使用 blend 和 partnerTo（结束混合为 <Exit blend>）',
+  ],
+  '끝내기 전환(end="true")에는 on="end"를 쓰지 않습니다': [
+    'an ending transition (end="true") does not take on="end"',
+    '終了遷移（end="true"）には on="end" を使いません',
+    '结束转换（end="true"）不使用 on="end"',
+  ],
+  '끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다': [
+    'an ending transition (end="true") takes no to and no condition card',
+    '終了遷移（end="true"）には to と条件カードを使いません',
+    '结束转换（end="true"）不使用 to 和条件卡',
+  ],
+  '끝내기 전환(end="true")은 일반 동작에만 씁니다': [
+    'an ending transition (end="true") is used only on an ordinary action',
+    '終了遷移（end="true"）は通常のアクションでのみ使います',
+    '结束转换（end="true"）仅用于普通动作',
+  ],
+  '끝내기 전환에는 목적지와 블렌드를 두지 않습니다.': [
+    'An ending transition has no destination and no blend.',
+    '終了遷移には行き先とブレンドを置きません。',
+    '结束转换没有目的地和混合。',
+  ],
+  '끝내기 전환은 일반 HKX에서만 씁니다.': [
+    'An ending transition is used only on an ordinary HKX.',
+    '終了遷移は通常の HKX でのみ使います。',
+    '结束转换仅用于普通 HKX。',
+  ],
+  '끝내기는 전환의 도착에서만 고릅니다.': [
+    'Ending is chosen only as a transition’s destination.',
+    '終了は遷移の行き先でのみ選びます。',
+    '“结束”只能在转换的目的地中选择。',
+  ],
+  '끝낼 때까지': ['Until ended', '終わるまで', '直到结束'],
+  '나가는 곳': ['Goes to', 'ここから行く先', '去向'],
   '낙하 거리': ['Fall distance', '落下距離', '下落距离'],
   '낙하 거리는 떨어지는 중·오르는 중에서만 비교합니다.': [
     'The fall distance is compared only when falling or rising.',
@@ -2479,6 +2644,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'は入力受付区間・QTE・復帰・トリガーのように、このプロジェクトの HKX タイミングに使用されます。',
     '用于此项目 HKX 的时机，如检测窗口、QTE、恢复和触发器等。',
   ],
+  '는 사람(character) 동작에만 씁니다': [
+    ' is only for human (character) actions',
+    'は人間(character)の動作にのみ使います',
+    '仅用于人类(character)动作',
+  ],
   '는 페어 전용 속성입니다': [' is a pair-only attribute', 'はペア専用の属性です', '是配对专用属性'],
   '능력치 비교': ['Actor value', '能力値の比較', '能力值比较'],
   '능력치 비교 기준을 선택하세요.': [
@@ -2487,8 +2657,24 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请选择能力值的比较基准。',
   ],
   '다른 HKX': ['Other HKX', '他のHKX', '其他 HKX'],
+  '다른 HKX로 넘어가지 않고 이 HKX를 바로 끝냅니다(이 HKX의 끝 블렌드로). 런타임 1.0.8 이상.': [
+    'Ends this HKX at once instead of going to another (with this HKX’s exit blend). Runtime 1.0.8 or later.',
+    '別の HKX に移らず、この HKX をすぐに終了します（この HKX の終了ブレンドで）。ランタイム 1.0.8 以上。',
+    '不转到其他 HKX，而是立即结束此 HKX（以此 HKX 的结束混合）。运行时 1.0.8 或更高版本。',
+  ],
   '다른 노드 값 가져오기': ["Copy another node's values", '他のノードの値を取り込む', '复制其他节点的数值'],
   '다른 노드 값 가져오기…': ["Copy another node's values…", '他のノードの値を取り込む…', '复制其他节点的数值…'],
+  '다른 스켈레톤(rig)의 동작으로는 전환할 수 없습니다: ': [
+    'Cannot transition to an action of another skeleton (rig): ',
+    '別のスケルトン(rig)の動作には遷移できません: ',
+    '不能转换到其他骨架(rig)的动作: ',
+  ],
+  '다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 상체는 다리가 어떻게 움직여도 이 HKX의 회전 그대로입니다(골반을 따라 위아래로만). 3인칭에서만 재생합니다.':
+    [
+      "The legs keep the locomotion animation, so the player can walk and run while it plays. The upper body keeps this HKX's rotation however the legs move (it only rides up and down with the hips). Third person only.",
+      '脚は移動アニメーションのままなので、再生中に歩いたり走ったりできます。上半身は脚がどう動いてもこのHKXの回転のままです(骨盤に合わせて上下するだけ)。三人称でのみ再生します。',
+      '腿部保持移动动画，因此播放期间可以行走和奔跑。无论腿如何移动，上半身都保持此HKX的旋转(只随骨盆上下)。仅在第三人称播放。',
+    ],
   다음: ['Next', '次', '下一个'],
   '다음 동작': ['Next action', '次のアクション', '下一个动作'],
   '다음 동작 추가': ['Add next action', '次のアクションを追加', '添加下一动作'],
@@ -2514,6 +2700,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '关闭时刻必须在开启之后。',
   ],
   '닫힘 이벤트': ['Close event', '閉じるイベント', '关闭事件'],
+  달리기: ['Run', '走行', '奔跑'],
   '달리기 → 급정지': ['Run → sudden stop', '走り → 急停止', '奔跑 → 急停'],
   닭: ['Chicken', 'ニワトリ', '鸡'],
   대검: ['Greatsword', '大剣', '巨剑'],
@@ -2551,7 +2738,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '対象スケルトンのアニメーションパスが無効です。',
     '目标骨架的动画路径无效。',
   ],
-  '대상 없음': ['No target', '対象なし', '无目标'],
   '대상·방식': ['Target and method', '対象・方式', '目标与方式'],
   '대상과의 거리': ['Distance to target', '対象との距離', '与目标的距离'],
   '대상과의 높이 차이': ['Height difference to target', '対象との高低差', '与目标的高度差'],
@@ -2666,6 +2852,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '持ち上げた対象が物理で揺れる方式です。バニラはゲーム本来のラグドール値そのまま(ファイルなし)で、この動作の値は動作 XML の横の Ragdoll\\<動作 ID>.xml にすべての値を保存します。ゲームは持ち上げるたびにそのファイルを読み直します。',
       '被抬起目标受物理摇晃的方式。原版即游戏原本的布娃娃值（无文件）；此动作的值会把所有值保存到动作 XML 旁的 Ragdoll\\<动作 ID>.xml。游戏每次抬起时都会重新读取该文件。',
     ],
+  '들어오는 곳': ['Reached from', 'ここへ来る元', '来源'],
   등록: ['Registry', '登録', '注册'],
   '등록 기능': ['Registered feature', '登録機能', '已注册功能'],
   '등록 기능 ID 오류': ['Invalid registered feature ID', '登録機能 ID エラー', '已注册功能 ID 错误'],
@@ -2794,6 +2981,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ルート要素は 1 つである必要があります',
     '根元素必须只有一个',
   ],
+  '를 쓰지 않습니다': [' is not used', 'は使いません', '不使用'],
   '리그 종류': ['Rig type', 'リグの種類', 'Rig 类型'],
   '리커버리 블렌드 또는 자원 소모 범위를 확인하세요.': [
     'Check recovery blend or resource cost range.',
@@ -2802,6 +2990,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   리클링: ['Riekling', 'リークリング', '里客灵'],
   마법: ['Spell', '魔法', '法术'],
+  '마법 준비': ['Magic readied', '魔法を構えた状態', '魔法准备'],
   '마법 효과': ['Magic effect', '魔法効果', '魔法效果'],
   '마법 효과 · 시전': ['Magic effect · Cast', '魔法効果 · 詠唱', '魔法效果 · 施放'],
   '마법 효과 · 제거': ['Magic effect · Remove', '魔法効果 · 除去', '魔法效果 · 移除'],
@@ -2814,6 +3003,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   마법부여: ['Enchantment', 'エンチャント', '附魔'],
   막기: ['Block', 'ブロック', '格挡'],
+  '막기 · 맨손': ['Block · unarmed', '防御 · 素手', '格挡 · 徒手'],
+  '막기 · 양손': ['Blocking · two-handed', 'ブロック · 両手', '格挡 · 双手'],
+  '막기 · 양손 도끼·망치': ['Blocking · battleaxe, warhammer', 'ブロック · 両手斧・ハンマー', '格挡 · 双手斧·锤'],
+  '막기 · 잠행': ['Blocking · sneaking', 'ブロック · 隠密', '格挡 · 潜行'],
+  '막기 · 한손·맨손·마법': [
+    'Blocking · one-handed, fists, magic',
+    'ブロック · 片手・素手・魔法',
+    '格挡 · 单手·徒手·魔法',
+  ],
+  '막기 · 활·석궁': ['Blocking · bow, crossbow', 'ブロック · 弓・クロスボウ', '格挡 · 弓·弩'],
   막음: ['Blocked', 'ブロック', '格挡'],
   '만나는 순간 앞뒤로 이만큼 안에 누르면 성공입니다. 이 시간이 지나면 바로 실패합니다.': [
     'Pressing within this window before or after the meeting moment counts as success. Exceeding this time results in immediate failure.',
@@ -2828,40 +3027,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '맞는 행 없음': ['No row holds', '一致する行なし', '无匹配行'],
   '맞은 뒤': ['After the hit', '当たった後', '命中后'],
   '맞은 지': ['Since the hit', '被弾から', '受击后'],
-  '받은 지': ['Since received', '受信から', '收到后'],
-  '이 시간 안에 받았으면 통과합니다.': [
-    'Passes when it arrived within this time.',
-    'この時間内に受け取っていれば通過します。',
-    '在此时间内收到即通过。',
-  ],
-  '공격 중': ['Attacking', '攻撃中', '攻击中'],
-  '최근 이벤트': ['Recent event', '最近のイベント', '最近事件'],
-  '검사 대상이 정한 시간 안에 고른 애니메이션 이벤트 중 하나를 받았는지 봅니다(그래프로 보낸 이벤트와 그래프가 보낸 주석 모두). 질주 공격 직후의 sprintStop을 거르려면 attackStop을 0.5초 이내로 두고 NOT을 켭니다. 이 조건을 쓸 때만 기록합니다.':
-    [
-      'Checks whether the subject received one of the chosen animation events within the set time (events sent to the graph and annotations the graph sends). To skip the sprintStop right after a sprint attack, set attackStop within 0.5 seconds and turn on NOT. Recorded only while this condition is used.',
-      '検査対象が設定した時間内に選んだアニメーションイベントのいずれかを受け取ったかを調べます（グラフへ送られたイベントとグラフが送る注釈の両方）。スプリント攻撃直後の sprintStop を除くには attackStop を 0.5 秒以内にして NOT をオンにします。この条件を使うときだけ記録します。',
-      '检查检测对象是否在设定时间内收到所选动画事件之一（发送给图的事件和图发出的注释都算）。要排除冲刺攻击后紧接的 sprintStop，请将 attackStop 设为 0.5 秒以内并打开 NOT。仅在使用此条件时记录。',
-    ],
-  '이벤트를 하나 이상 입력하세요.': [
-    'Enter at least one event.',
-    'イベントを 1 つ以上入力してください。',
-    '请至少输入一个事件。',
-  ],
-  '이벤트 이름은 공백 없는 영문·숫자·기호로 32개까지 씁니다.': [
-    'Event names use letters, digits and symbols without spaces, up to 32 of them.',
-    'イベント名は空白なしの英数字・記号で、32 個までです。',
-    '事件名称使用不含空格的英文、数字和符号，最多 32 个。',
-  ],
-  '받은 지 시간은 0~600초입니다.': [
-    'The time since it arrived is 0 to 600 seconds.',
-    '受信からの時間は 0〜600 秒です。',
-    '收到后的时间为 0~600 秒。',
-  ],
-  '이벤트 목록은 최근 이벤트 조건에서만 사용하세요.': [
-    'Use an event list only in a recent event condition.',
-    'イベント一覧は最近のイベント条件でのみ使用してください。',
-    '事件列表仅用于最近事件条件。',
-  ],
   '맞은 지 시간은 0~600초입니다.': [
     'The time since the hit is 0 to 600 seconds.',
     '被弾からの時間は 0〜600 秒です。',
@@ -2875,6 +3040,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   맨손: ['Unarmed', '素手', '空手'],
   '맨손 공격 · 오른손': ['Unarmed attack · right hand', '素手攻撃 · 右手', '徒手攻击 · 右手'],
   '맨손 공격 · 왼손': ['Unarmed attack · left hand', '素手攻撃 · 左手', '徒手攻击 · 左手'],
+  '맨손 이동': ['Unarmed movement', '素手の移動', '徒手移动'],
+  '맨손 전용 트리': ['Unarmed tree of its own', '素手専用ツリー', '徒手专用树'],
   '맨손 전진 강공격 · 오른손': [
     'Unarmed forward power attack · right hand',
     '素手前進パワーアタック · 右手',
@@ -2885,6 +3052,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '素手前進パワーアタック · 左手',
     '徒手前进强力攻击 · 左手',
   ],
+  '맨손의 이동입니다. 1HM과 같게: 바닐라처럼 한손 무기와 같은 이동을 씁니다. 맨손 전용 트리: 그 이동을 복사해 맨손만 따로 쓰게 하고, H2H_*.hkx 파일이 있으면 그 파일을 재생합니다(막기 이동 포함). 전용 트리에서는 움직이는 동안 팔도 이동 애니메이션을 따릅니다(바닐라는 팔이 고정 자세입니다). 파일이 없는 방향은 한손 무기 애니메이션이 팔까지 재생됩니다.':
+    [
+      'How unarmed moves. Same as 1HM: the one-handed movement, as in vanilla. Unarmed tree of its own: a copy of that movement for unarmed alone, playing H2H_*.hkx files where they exist (moving while blocking too). With the tree of its own the arms follow the movement animation while moving (in vanilla they hold one fixed pose). A direction without a file plays the one-handed animation, arms included.',
+      '素手の移動です。1HM と同じ: バニラどおり片手武器と同じ移動を使います。素手専用ツリー: その移動をコピーして素手だけが使い、H2H_*.hkx ファイルがあればそれを再生します(防御中の移動を含む)。専用ツリーでは移動中の腕も移動アニメーションに従います(バニラでは腕は固定ポーズです)。ファイルのない方向は片手武器のアニメーションが腕まで再生されます。',
+      '徒手的移动。与 1HM 相同:和原版一样使用单手武器的移动。徒手专用树:复制该移动供徒手单独使用,有 H2H_*.hkx 文件时播放这些文件(包括格挡中的移动)。使用专用树时,移动中手臂也跟随移动动画(原版中手臂保持一个固定姿势)。没有文件的方向会连同手臂一起播放单手武器的动画。',
+    ],
   머리: ['Head', '頭', '头部'],
   메뉴: ['Menu', 'メニュー', '菜单'],
   '메뉴를 여는 게임 동작(wait·favorites·tweenMenu)은 누르는 순간 메뉴가 열려 press="down"만 씁니다': [
@@ -2946,11 +3119,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '목 아래': ['Lower neck', '首の下', '颈部下段'],
   '목 위': ['Upper neck', '首の上', '颈部上段'],
   목록: ['List', '一覧', '列表'],
-  '목록에 없는 그래프 이벤트 이름의 일부(고급). 쉼표로 여럿을 씁니다.': [
-    'Part of a graph event name not in the list (advanced). Separate several with commas.',
-    '一覧にないグラフイベント名の一部(上級)。複数はカンマで区切ります。',
-    '列表中没有的图表事件名的一部分（高级）。多个用逗号分隔。',
-  ],
   '목적지를 비웠습니다. Ctrl+Z로 되돌릴 수 있습니다.': [
     'The destination was cleared. Ctrl+Z undoes it.',
     '行き先を空にしました。Ctrl+Z で元に戻せます。',
@@ -2988,6 +3156,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   무기: ['Weapon', '武器', '武器'],
   '무기 {percent}%': ['Weapon {percent}%', '武器 {percent}%', '武器 {percent}%'],
   '무기 꺼내기·넣기': ['Ready weapon', '武器を構える・しまう', '拔出·收起武器'],
+  '무기 넣음': ['Weapon sheathed', '武器を納めた状態', '收起武器'],
   '무기 데미지': ['Weapon damage', '武器ダメージ', '武器伤害'],
   '무기 데미지 %': ['Weapon damage %', '武器ダメージ %', '武器伤害 %'],
   '무기 데미지는 엔진이 그 무기로 때릴 때의 피해(기술·특성·대상 방어구 포함)에 곱합니다.': [
@@ -3068,26 +3237,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '미리보기 입력 표시': ['Preview input display', 'プレビュー入力表示', '预览输入显示'],
   '미리보기 표시 설정': ['Preview display settings', 'プレビュー表示設定', '预览显示设置'],
   미만: ['Less than', '未満', '小于'],
-  미사용: ['Unused', '未使用', '未使用'],
-  '미사용 이벤트 삭제': ['Delete unused events', '未使用イベントを削除', '删除未使用的事件'],
   미설정: ['Not set', '未設定', '未设置'],
   미지정: ['Not assigned', '未指定', '未指定'],
   밀쳐내기: ['Push', '押し飛ばし', '推开'],
   '밀쳐내는 힘': ['Push force', '押し飛ばす力', '推开的力'],
-  밀치기: ['Bash', 'バッシュ', '盾击'],
   바닐라: ['Vanilla', 'バニラ', '原版'],
   '바닐라 (위 몸체와의 관절)': [
     'Vanilla (the joint to the body above)',
     'バニラ (上のボディとの関節)',
     '原版（与上方身体的关节）',
   ],
-  '바닐라 동작': ['Vanilla action', 'バニラ動作', '原版动作'],
-  '바닐라 동작: 감지 구간 안에서 플레이어가 그 바닐라 동작(공격 버튼 등)을 하면, 이 클립을 끝내고 게임 원래 동작으로 넘어갑니다. 키 설정·패드와 상관없이 게임 입력을 그대로 씁니다.':
-    [
-      "Vanilla action: when the player does that vanilla action (the attack button and so on) inside the detection window, this clip ends and the game's own action follows. It reads the game's input, whatever the key settings or gamepad.",
-      'バニラ動作: 検出区間内でプレイヤーがそのバニラ動作(攻撃ボタンなど)をすると、このクリップを終えてゲーム本来の動作に移ります。キー設定・パッドに関係なくゲームの入力をそのまま使います。',
-      '原版动作：在检测区间内玩家做出该原版动作（攻击键等）时，结束此片段并转到游戏原本的动作。与按键设置·手柄无关，直接使用游戏输入。',
-    ],
   '바닐라 차단': ['Vanilla block', 'バニラ遮断', '原版阻止'],
   '바닐라·흔한 이벤트 이름입니다. 등록한 기능이 게임 전체 애니메이션에서 실행됩니다. 모드 고유 접두어를 권장합니다.': [
     'This is a native or common event name. Registered features will run across all game animations. A mod-specific prefix is recommended.',
@@ -3168,7 +3327,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   반응: ['Reaction', '反応', '反应'],
   '받는 쪽': ['Receiver', '受信者', '接收者'],
   '받은 공격': ['Hit taken', '受けた攻撃', '受到的攻击'],
+  '받은 지': ['Since received', '受信から', '收到后'],
+  '받은 지 시간은 0~600초입니다.': [
+    'The time since it arrived is 0 to 600 seconds.',
+    '受信からの時間は 0〜600 秒です。',
+    '收到后的时间为 0~600 秒。',
+  ],
   '받을 때': ['On receive', '受け取ったとき', '收到时'],
+  '발 주석 ✓': ['Foot annotations ✓', '足の注釈 ✓', '脚步注释 ✓'],
   발밑: ['Feet', '足元', '脚下'],
   '발밑 바닥이 수평에서 기운 각도(°)입니다. 공중이면 검사 불능입니다. 바라보는 방향이 내리막인지 오르막인지도 고를 수 있습니다.':
     [
@@ -3177,6 +3343,13 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '脚下地面相对水平的倾斜角度（°）。在空中时无法检查。也可选择面向下坡还是上坡。',
     ],
   발신자를: ['Set sender to', '送信元を', '将发送者设为'],
+  '발신자와 같음': ['Same as sender', '送信元と同じ', '与发送者相同'],
+  '발신자와 같음: 이벤트를 보내는 역할이 플레이어일 때만 QTE가 뜹니다(지금은 {v0}). 발신자가 「어느 쪽이든」이면 역할과 상관없이 뜹니다.':
+    [
+      "Same as sender: the QTE appears only when the role sending the event is the player (now: {v0}). If the sender is 'Either side', it appears regardless of role.",
+      '送信元と同じ: イベントを送信する役割がプレイヤーの時のみ QTE が表示されます（現在: {v0}）。送信元が「どちらでも」の場合は役割に関係なく表示されます。',
+      '与发送者相同：仅当发送事件的角色为玩家时才会弹出 QTE（当前：{v0}）。若发送者为“任意一方”，则无论何种角色都会弹出。',
+    ],
   방어: ['Block', '防御', '格挡'],
   '방어 중': ['Blocking', '防御中', '格挡中'],
   방패: ['Shield', '盾', '盾牌'],
@@ -3210,6 +3383,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '보관 설정': ['Archived settings', '保管設定', '归档设置'],
   '보관 설정 유형 불일치': ['Archived settings type mismatch', '保管設定の種類不一致', '归档设置类型不匹配'],
   보기: ['View', '表示', '视图'],
+  '보내는 HKX': ['Sent by', '送信する HKX', '发送的 HKX'],
   '보내는 이벤트 없음': ['Sends no events', '送るイベントなし', '不发送事件'],
   '보내는 쪽': ['Sent by', '送る側', '发送方'],
   '보낸 쪽': ['Sender', '送信側', '发送方'],
@@ -3261,6 +3435,49 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '自身与对方基准位置之间的三维距离。若处于不同单元或缺少对方则无法检查。',
   ],
   '볼 동작 선택…': ['Select action to view…', '表示するアクションを選択…', '选择要查看的动作…'],
+  부위: ['Body part', '部位', '部位'],
+  '부위 동작(body)에는 ': ['A part action (body) takes no ', '部位動作(body)には ', '部位动作(body)不使用 '],
+  '부위 동작(body)에는 <': ['A part action (body) takes no <', '部位動作(body)には <', '部位动作(body)不使用 <'],
+  '부위 동작(body)에서 페어로는 전환할 수 없습니다: ': [
+    'A part action (body) cannot transition to a pair: ',
+    '部位動作(body)からペアへは遷移できません: ',
+    '部位动作(body)不能转换到配对: ',
+  ],
+  '부위 동작(body)으로 가는 전환에는 blend를 쓰지 않습니다(그 동작의 들어가기 블렌드로 이어집니다)': [
+    'A transition to a part action (body) takes no blend (its enter blend carries it)',
+    '部位動作(body)へ行く遷移にはblendを使いません(その動作の開始ブレンドでつながります)',
+    '转到部位动作(body)的转换不使用blend(由该动作的进入混合衔接)',
+  ],
+  '부위 동작(body)은 3인칭(view="third")으로만 재생됩니다': [
+    'A part action (body) plays in third person (view="third") only',
+    '部位動作(body)は三人称(view="third")でのみ再生されます',
+    '部位动作(body)只能在第三人称(view="third")播放',
+  ],
+  '부위 동작(body)은 이동하면서 재생되므로 이동 전환(on="move")을 쓰지 않습니다': [
+    'A part action (body) plays while moving, so it takes no movement transition (on="move")',
+    '部位動作(body)は移動しながら再生されるため移動遷移(on="move")を使いません',
+    '部位动作(body)在移动中播放，因此不使用移动转换(on="move")',
+  ],
+  '부위 동작(body)의 전환에는 blend를 쓰지 않습니다(도착 동작의 들어가기 블렌드로 이어집니다)': [
+    "A part action's (body) transition takes no blend (the destination's enter blend carries it)",
+    '部位動作(body)の遷移にはblendを使いません(到着動作の開始ブレンドでつながります)',
+    '部位动作(body)的转换不使用blend(由目标动作的进入混合衔接)',
+  ],
+  '부위 동작은 3인칭에서만 재생합니다.': [
+    'A part action plays in third person only.',
+    '部位動作は三人称でのみ再生します。',
+    '部位动作只在第三人称播放。',
+  ],
+  '부위 동작은 3인칭으로만 재생됩니다.': [
+    'A part action plays in third person only.',
+    '部位動作は三人称でのみ再生されます。',
+    '部位动作只能在第三人称播放。',
+  ],
+  '부위 동작의 전환은 블렌드 대신 도착 동작의 시작 블렌드로 이어집니다.': [
+    "A part action's transitions use the destination's start blend instead of a blend.",
+    '部位動作の遷移はブレンドの代わりに到着動作の開始ブレンドでつながります。',
+    '部位动作的转换由目标动作的开始混合衔接，而不是混合。',
+  ],
   '부착 본': ['Attach bone', 'アタッチボーン', '附着骨骼'],
   붙여넣기: ['Paste', '貼り付け', '粘贴'],
   "붙여넣었습니다. 공통 설정 {unassigned}개는 '미배정 설정'에서 적용할 HKX를 선택하세요.": [
@@ -3330,7 +3547,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   사슴: ['Deer', 'シカ', '鹿'],
   '사용 안 함': ['Disabled', '使用しない', '不使用'],
-  '사용 위치 {n}개': ['Used in {n} places', '使用箇所 {n} 件', '使用位置 {n} 处'],
   '사용 중인 이벤트입니다. 먼저 사용 위치의 이벤트를 변경하세요: ': [
     'Event is in use. Change the event at the locations in use first: ',
     '使用中のイベントです。先に使用箇所のイベントを変更してください: ',
@@ -3340,11 +3556,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   삭제: ['Delete', '削除', '删除'],
   '삭제 · 기본값으로': ['Delete · back to default', '削除 · 既定値に戻す', '删除 · 恢复默认值'],
   '삭제 · 엔진 기본값으로': ['Delete · engine default', '削除 · エンジン既定値へ', '删除 · 改用引擎默认值'],
-  '삭제하거나 그래프로 드래그해 이벤트 수신 카드를 만들 수 있습니다.': [
-    'Can be deleted or dragged into the graph to create a Marker Received card.',
-    '削除するか、グラフへドラッグしてマーカー受信カードを作成できます。',
-    '可删除，或拖入图表中创建接收标记卡片。',
-  ],
   '살아 있음': ['Alive', '生存', '存活'],
   상관없음: ['Any', '問わない', '不限'],
   상대: ['Partner', '相手', '搭档'],
@@ -3398,15 +3609,28 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '相手も一般アクションにのみ遷移します。',
     '搭档也仅能过渡到普通动作。',
   ],
+  '상대의 다음 동작은 상대 스켈레톤({rig})의 동작이어야 합니다.': [
+    "The partner's next action must be one of the partner's skeleton ({rig}).",
+    '相手の次の動作は相手のスケルトン（{rig}）の動作でなければなりません。',
+    '对方的下一个动作必须是对方骨架（{rig}）的动作。',
+  ],
   '상위/빈 경로는 사용할 수 없습니다': [
     'Parent or empty path parts cannot be used',
     '上位・空のパスは使えません',
     '不能使用上级或空路径',
   ],
+  상체: ['Upper body', '上半身', '上半身'],
+  '상체 — 척추부터 위': ['Upper body — the spine and up', '上半身 — 背骨から上', '上半身 — 脊柱以上'],
+  '상체나 한쪽 팔을 고르면 재생하는 동안 걷고 달릴 수 있습니다(3인칭).': [
+    'With the upper body or one arm, the player can walk and run while it plays (third person).',
+    '上半身か片腕を選ぶと、再生中に歩いたり走ったりできます(三人称)。',
+    '选择上半身或一只手臂时，播放期间可以行走和奔跑(第三人称)。',
+  ],
   상태: ['State', '状態', '状态'],
   상호작용: ['Activate', 'アクティベート', '激活'],
   '새 HKX': ['New HKX', '新規 HKX', '新建 HKX'],
   '새 애니메이션 묶음': ['New animation group', '新規アニメーショングループ', '新动画组'],
+  '새 이동 프로젝트': ['New locomotion project', '新しい移動プロジェクト', '新建移动项目'],
   '새 이벤트 이름': ['New event name', '新規イベント名', '新事件名称'],
   '새 일반 동작': ['New ordinary action', '新規一般アクション', '新普通动作'],
   '새 키…': ['New key…', '新規キー…', '新按键…'],
@@ -3504,6 +3728,9 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '縦線: 正確な入力タイミング',
     '垂直线：准确输入时机',
   ],
+  '세트 거르기': ['Filter sets', 'セットを絞り込む', '筛选组'],
+  '세트 검색': ['Search sets', 'セットを検索', '搜索组'],
+  '세트 없음': ['No sets', 'セットなし', '无组'],
   소: ['Cow', 'ウシ', '牛'],
   소리: ['Sound', 'サウンド', '声音'],
   '소리 원본': ['Sound source', 'サウンドの元ファイル', '声音源文件'],
@@ -3552,6 +3779,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   소매치기: ['Pickpocket', 'スリ', '偷窃'],
   소환: ['Conjuration', '召喚', '召唤'],
   손: ['Hand', '手', '手'],
+  '손 미정': ['Hand not chosen', '手が未選択', '未选择手'],
+  '손·인칭': ['Hand · view', '手・視点', '手·视角'],
   '손·장비 종류는 장착 종류 검사에서만 사용하세요.': [
     'Use hand/equipment type only in equipment type checks.',
     '手・装備種類は装備種類判定でのみ使用してください。',
@@ -3563,6 +3792,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '手に固定する対象のラグドールボディです。一覧は持ち上げ HKX の相手のボーンのうちラグドールボディを持つものです。HKX を読み取れない場合は対象スケルトンの skeleton.nif から取得します。自動は持ち上げが終わるときにアタッチ骨に最も近いボディを選びます。',
       '固定在手上的目标布娃娃刚体。列表为抬起 HKX 中对方骨骼里带布娃娃刚体的骨骼；无法读取 HKX 时取自目标骨架的 skeleton.nif。自动会在抬起结束时选择离附着骨骼最近的刚体。',
     ],
+  '손은 오른손·왼손·양손입니다.': [
+    'The hand is right, left or both.',
+    '手は右手・左手・両手です。',
+    '手为右手、左手或双手。',
+  ],
   수렴선: ['Converging lines', '収束線', '汇聚线'],
   '수렴선: 화면 양 끝에서 두 선이 모여 가운데서 만나는 순간에 누릅니다. 성공 허용이 지나면 바로 실패합니다. 결과 때 화면이 흔들리고, 실패하면 잠깐 흑백이 됩니다.':
     [
@@ -3640,6 +3874,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Skeleton bone, parent, and referencePose counts do not match.',
     'スケルトンのボーン・親・referencePose の数が一致しません。',
     '骨架的骨骼、父级和 referencePose 数量不匹配。',
+  ],
+  '스켈레톤이 다른 동작으로는 전환할 수 없습니다({from} → {to}).': [
+    'A transition cannot go to an action of another skeleton ({from} → {to}).',
+    'スケルトンが異なる動作には遷移できません（{from} → {to}）。',
+    '不能转换到骨架不同的动作（{from} → {to}）。',
   ],
   '스켈레톤이 애니메이션 binding과 맞지 않습니다.': [
     'Skeleton does not match animation binding.',
@@ -3786,6 +4025,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '시작 · 이벤트': ['Start · event', '開始 · イベント', '开始 · 事件'],
   '시작 · 키': ['Start · key', '開始 · キー', '开始 · 按键'],
   '시작 방법 없음': ['No way to start', '開始方法なし', '无开始方式'],
+  '시작 스켈레톤': ['Initiator skeleton', '開始側スケルトン', '发起方骨架'],
   '시작 시점 오류': ['Invalid start time', '開始時点エラー', '起始时刻错误'],
   '시작 위치': ['Starts on', '開始位置', '开始位置'],
   '시작 이벤트': ['Start event', '開始イベント', '开始事件'],
@@ -3850,8 +4090,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '시작할 수 있을 때': ['While it can start', '開始できるとき', '可以开始时'],
   시전: ['Cast', '詠唱', '施放'],
+  '시전하며 이동': ['Moving while casting', '詠唱しながら移動', '施法时移动'],
   시점: ['When', 'タイミング', '时机'],
   '시점 전환': ['Toggle POV', '視点切り替え', '切换视角'],
+  '시점 전환 형식 오류': ['Invalid view switch format', '視点切り替え形式エラー', '视角切换格式错误'],
   '시점에만 쓰는 이벤트': ['Timing-only events', 'タイミング専用イベント', '仅用于时机的事件'],
   시커: ['Seeker', 'シーカー', '搜寻者'],
   '식별 정보': ['Identifiers', '識別情報', '识别信息'],
@@ -3870,11 +4112,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '십자선 대상': ['Crosshair target', '照準の対象', '准星目标'],
   아래: ['Down', '下', '下'],
-  '아래 사용 위치를 변경한 뒤 삭제하세요.': [
-    'Change the locations in use below before deleting.',
-    '下の使用箇所を変更してから削除してください。',
-    '请先更改下方的使用位置再行删除。',
-  ],
   아무거나: ['Any', 'どれでも', '任意'],
   '아직 동작이 없습니다. ＋ HKX 재생으로 첫 카드를 만드세요.': [
     'No action yet. Make the first card with ＋ Play HKX.',
@@ -3890,6 +4127,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '未知的查看器资产类型。',
   ],
   "알 수 없는 속성 '": ["Unknown attribute '", "不明な属性 '", "未知属性 '"],
+  '알 수 없는 스켈레톤: ': ['Unknown skeleton: ', '不明なスケルトン: ', '未知骨架: '],
   '알 수 없는 연출 속성': ['Unknown effect attribute', '不明な演出属性', '未知的演出属性'],
   '알 수 없는 요소 <{name}>': ['Unknown element <{name}>', '不明な要素 <{name}>', '未知元素 <{name}>'],
   '알 수 없는 저장 형식입니다.': ['Unknown save format.', '不明な保存形式です。', '未知的保存格式。'],
@@ -3924,7 +4162,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '检查角色缩放。默认缩放为 1。若要比较不同种族的实际身高，请使用身高比例。',
   ],
   양손: ['Two-handed', '両手武器', '双手'],
+  '양손 도끼·망치': ['Battleaxe, warhammer', '両手斧・ハンマー', '双手斧·锤'],
+  '양손 도끼·망치의 이동입니다. 2HM과 같게: 대검 이동을 그대로 씁니다. 2HW 전용 트리: 2HW_*.hkx 파일로 만든 2HM 구조의 트리를 씁니다(막기 이동 포함).':
+    [
+      "How battleaxes and warhammers move. Same as 2HM: they use the greatsword's locomotion. 2HW's own tree: a tree laid out like 2HM's that plays the 2HW_*.hkx files (moving while blocking too).",
+      '両手斧・ハンマーの移動です。2HMと同じ:大剣の移動をそのまま使います。2HW専用ツリー:2HW_*.hkx ファイルで作った2HM構造のツリーを使います(ブロック中の移動を含む)。',
+      '双手斧·锤的移动。与2HM相同:直接使用大剑的移动。2HW专用树:使用由 2HW_*.hkx 文件组成的2HM结构树(包括格挡时的移动)。',
+    ],
   '양손 합': ['Both hands', '両手の合計', '双手合计'],
+  양손검: ['Greatsword', '両手剣', '双手剑'],
   양쪽: ['Both', '両方', '双方'],
   '양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.': [
     'Both-way ordinary transitions require a pair source and ordinary/combo destinations.',
@@ -3959,6 +4205,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   얼마나: ['How much', 'どれだけ', '多少'],
   '얼음 망령': ['Ice Wraith', 'アイス・レイス', '冰怨灵'],
   없음: ['None', 'なし', '无'],
+  '없음 · {from} 파일 재생': ['None · plays the {from} file', 'なし · {from} ファイルを再生', '无 · 播放 {from} 文件'],
   '없음 — 다른 프로젝트·모드의 애니메이션에서만 올 수 있습니다': [
     'None — can only arrive from animations in other projects or mods',
     'なし — 他のプロジェクトや MOD のアニメーションからのみ送信されます',
@@ -4068,6 +4315,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '开启必须早于关闭',
   ],
   염소: ['Goat', 'ヤギ', '山羊'],
+  '옆 달리기(strafe)': ['Strafe run', '横走り(strafe)', '侧向奔跑(strafe)'],
   '예: FH_Grapple.esp. 설치되지 않았거나 폼 종류가 다르면 검사 불능입니다.': [
     'e.g. FH_Grapple.esp. Inconclusive if not installed or form type differs.',
     '例: FH_Grapple.esp。未導入または Form 種類が異なる場合は判定不能となります。',
@@ -4086,6 +4334,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   오른손: ['Right hand', '右手', '右手'],
   '오른손 공격': ['Right attack', '右手攻撃', '右手攻击'],
   '오른손@손 칩': ['Right', '右手', '右手'],
+  '오른손은 Weapon 뼈, 왼손은 Shield 뼈입니다. 왼손은 Left Hand Equipment Overhaul 2.0 이상이 필요합니다.': [
+    'The right hand is the Weapon bone, the left hand the Shield bone. The left hand needs Left Hand Equipment Overhaul 2.0 or later.',
+    '右手はWeaponボーン、左手はShieldボーンです。左手にはLeft Hand Equipment Overhaul 2.0以上が必要です。',
+    '右手为Weapon骨骼，左手为Shield骨骼。左手需要Left Hand Equipment Overhaul 2.0或更高版本。',
+  ],
   오른쪽: ['Right', '右', '右'],
   '오른쪽 아래': ['Bottom-right', '右下', '右下'],
   '오른쪽 아래팔': ['Right forearm', '右前腕', '右前臂'],
@@ -4129,11 +4382,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '왼쪽 어깨': ['Left shoulder', '左肩', '左肩'],
   '왼쪽 위': ['Top-left', '左上', '左上'],
   '왼쪽 위팔': ['Left upper arm', '左上腕', '左上臂'],
-  '왼쪽 이벤트 목록에서 선택하거나 ＋ 버튼으로 추가하세요.': [
-    'Select from the event list on the left or add with the ＋ button.',
-    '左のイベント一覧から選択するか、＋ ボタンで追加してください。',
-    '请从左侧事件列表中选择，或点击 ＋ 按钮添加。',
-  ],
   '왼쪽 종아리': ['Left calf', '左ふくらはぎ', '左小腿'],
   '왼쪽 허벅지': ['Left thigh', '左太もも', '左大腿'],
   왼팔: ['Left arm', '左腕', '左臂'],
@@ -4177,6 +4425,26 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'Change the put down action of the carry card first.',
     '運搬カードの下ろしアクションを先に変更してください。',
     '请先更改搬运卡片的放下动作。',
+  ],
+  '운반(Carry)은 사람이 시작하는 페어에만 씁니다': [
+    'Carry is only for pairs a human starts',
+    '運搬(Carry)は人間が始めるペアにのみ使います',
+    '搬运(Carry)仅用于人类发起的配对',
+  ],
+  '운반(내려놓기 포함)은 3인칭 HKX만 씁니다.': [
+    'Carries (including put down) only use third-person HKX.',
+    '運搬（下ろしを含む）は三人称 HKX のみを使用します。',
+    '搬运（含放下）仅使用第三人称 HKX。',
+  ],
+  '운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다': [
+    'Carries (put-downs included) play in third person only (view="third")',
+    '運搬（下ろす動作を含む）は三人称（view="third"）でのみ再生されます',
+    '搬运（含放下）只以第三人称（view="third"）播放',
+  ],
+  '운반(내려놓기 포함)은 3인칭으로만 재생됩니다.': [
+    'Carries (including put down) only play in third person.',
+    '運搬（下ろしを含む）は三人称でのみ再生されます。',
+    '搬运（含放下）仅以第三人称播放。',
   ],
   '운반: 고정 몸체는 래그돌 고정에서만 쓰며 본 이름을 정확히 입력하세요.': [
     'Carry: Fixed body is only used for ragdoll attachment; enter bone name accurately.',
@@ -4258,15 +4526,41 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '運搬には下ろすキー（input、key・gamepad または control）が必要です',
     '搬运需要放下键（input、key·gamepad 或 control）',
   ],
+  '운반은 3인칭에서만 재생합니다.': [
+    'A carry plays in third person only.',
+    '運搬は三人称でのみ再生します。',
+    '搬运只在第三人称播放。',
+  ],
   '운반을 시작할 때 이동 애니메이션에서 들기 자세로 섞는 시간입니다.': [
     'Duration to blend from locomotion into the lift pose when starting carry.',
     '運搬開始時に移動アニメーションから持ち上げ姿勢へブレンドする時間です。',
     '开始搬运时从移动动画混合到抬起姿势的时长。',
   ],
+  '운반의 내려놓기 동작': ["A carry's putdown action", '運搬の下ろす動作', '搬运的放下动作'],
   '운반의 내려놓기 동작(putdown)은 시작으로 시작하지 않습니다: ': [
     "A carry's putdown action is not started by a start: ",
     '運搬の下ろす動作（putdown）は開始で始まりません: ',
     '搬运的放下动作（putdown）不能由启动开始：',
+  ],
+  '운반의 내려놓기 동작에는 body를 쓰지 않습니다': [
+    "A carry's putdown action takes no body",
+    '運搬の下ろし動作にはbodyを使いません',
+    '搬运的放下动作不使用body',
+  ],
+  '운반의 내려놓기 동작은 3인칭에서만 재생합니다.': [
+    "A carry's putdown action plays in third person only.",
+    '運搬の下ろし動作は三人称でのみ再生します。',
+    '搬运的放下动作只在第三人称播放。',
+  ],
+  '운반의 내려놓기 동작은 사람(character) 동작이어야 합니다': [
+    "A carry's putdown action must be a human (character) action",
+    '運搬の降ろす動作は人間(character)の動作である必要があります',
+    '搬运的放下动作必须是人类(character)动作',
+  ],
+  '운반의 내려놓기 동작은 전신으로만 재생됩니다.': [
+    "A carry's putdown action plays on the whole body only.",
+    '運搬の下ろし動作は全身でのみ再生されます。',
+    '搬运的放下动作只能以全身播放。',
   ],
   운반자: ['Carrier', '運搬者', '搬运者'],
   '운반자 스켈레톤의 본과 가중치(0~1)입니다. 이 가중치를 아래 뼈가 모두 물려받고, 아래 뼈에 따로 적으면 그 값이 우선합니다.':
@@ -4320,6 +4614,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   위치: ['Position', '位置', '位置'],
   '위치 가로·세로 (%)': ['Position H·V (%)', '位置 水平·垂直 (%)', '位置 水平·垂直 (%)'],
+  '유지할 시점입니다. 동작이 재생된 시점에서 잡은 값을 다른 시점에 옮겨 쓰므로 1인칭 HKX가 없어도 됩니다.': [
+    'The views to hold in. The value taken in the view the action played in is carried over to the other view, so no first-person HKX is needed.',
+    '保持する視点です。動作を再生した視点で取った値を他の視点に移して使うので、一人称HKXがなくても構いません。',
+    '要保持的视角。在动作播放的视角中取得的值会移用到另一视角，因此无需第一人称HKX。',
+  ],
   유형: ['Kind', '種類', '类型'],
   '유형 선택': ['Choose a type', '種類を選択', '选择类型'],
   '유형별 보관 설정 오류': ['Invalid archived settings by type', '種類別保管設定エラー', '各类型归档设置错误'],
@@ -4424,11 +4723,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このアクションを参照している接続を先に削除してください。',
     '请先删除引用此动作的连接。',
   ],
-  '이 동작을 하면 넘어갑니다. 「공격」은 강공격도 포함합니다.': [
-    'Doing this action moves on. Attack includes the power attack.',
-    'この動作をすると遷移します。「攻撃」は強攻撃も含みます。',
-    '做出此动作即转换。“攻击”也包括重击。',
-  ],
   '이 동작의 값': ["This action's values", 'この動作の値', '此动作的值'],
   '이 동작의 제작 매개변수를 먼저 삭제하세요.': [
     'Delete the authoring parameters of this action first.',
@@ -4452,6 +4746,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'このボディと上のボディの間にあるボディのないボーンです。関節軸をそのボーンに移し、そのボーンも一緒に回します。空ならバニラの関節です。',
       '此身体与上方身体之间无身体的骨骼。关节轴移到该骨骼上并一起转动。留空则为原版关节。',
     ],
+  '이 무기의 전용 트리가 재생하는 파일입니다. 게임은 meshes/actors/character/animations의 이 이름들을 찾고, 없는 파일은 같은 자리의 {from} 파일을 재생합니다. 발 박자와 발소리는 파일 안의 FootLeft·FootRight 주석을 씁니다. 파일에 이동 거리 주석(animmotion)이 있으면 그 거리와 시각으로 게임 속도에 맞춰 재생하고(괄호 안은 이 파일의 걸음이 1초에 가는 거리), 없으면 {from} 파일과 같은 걸음으로 보고 재생합니다. 등록한 파일은 모드 폴더로 내보낼 때 함께 복사됩니다.':
+    [
+      "The files this weapon's own tree plays. The game looks for these names in meshes/actors/character/animations and plays the {from} file of the same place for one that is missing. Foot timing and footsteps come from the file's own FootLeft and FootRight annotations. A file with movement annotations (animmotion) is played to match the game's speed from their distance and time (in brackets: the distance this file's step covers in a second); one without is played as if its step were the {from} file's. Registered files are copied when the mod folder is exported.",
+      'この武器の専用ツリーが再生するファイルです。ゲームは meshes/actors/character/animations でこれらの名前を探し、ないファイルは同じ位置の {from} ファイルを再生します。足の拍子と足音はファイル内の FootLeft・FootRight 注釈を使います。ファイルに移動距離の注釈 (animmotion) があればその距離と時刻からゲームの速度に合わせて再生し（括弧内はこのファイルの歩みが 1 秒に進む距離）、なければ {from} ファイルと同じ歩みとみなして再生します。登録したファイルは Mod フォルダーへの書き出しで一緒にコピーされます。',
+      '此武器的专用树播放的文件。游戏在 meshes/actors/character/animations 中查找这些名称，缺少的文件播放同一位置的 {from} 文件。脚步节拍和脚步声使用文件内的 FootLeft、FootRight 注释。文件带有移动距离注释 (animmotion) 时，按其距离和时刻配合游戏速度播放（括号内是此文件的步伐每秒行进的距离）；没有时按与 {from} 文件相同的步伐播放。已登记的文件会在导出到模组文件夹时一并复制。',
+    ],
   '이 선은 끊을 수 없습니다. 카드를 지우세요.': [
     'This line cannot be cut. Delete the card.',
     'この線は切れません。カードを削除してください。',
@@ -4463,6 +4763,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'この時刻から、プレイヤーが移動キーを押すとアクションを中断して歩き・走りに戻ります。戦闘中のNPCはこの時刻からAIに移動を返し、AIが動くか攻撃しようとすると中断します。',
       '从此时起，玩家按下移动键会中断动作并回到行走或奔跑。战斗中的 NPC 从此时起将移动交还给 AI，AI 一旦移动或攻击就中断。',
     ],
+  '이 시간 안에 받았으면 통과합니다.': [
+    'Passes when it arrived within this time.',
+    'この時間内に受け取っていれば通過します。',
+    '在此时间内收到即通过。',
+  ],
   '이 시간이 지나면 키를 뗀 것으로 봅니다(차지 종료가 없으면 끝냅니다). NPC는 누르는 키가 없어 이 시간까지 유지합니다. 반복 HKX에는 끝 기준 시각(end-…)을 쓸 수 없습니다.':
     [
       'After this time the key counts as let go (with no charge end, the action ends). An NPC holds no key and keeps going until then. A looping HKX cannot use end-based times (end-…).',
@@ -4497,11 +4802,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '发送此事件的角色为玩家时、为 NPC 时，或两者皆可。',
   ],
   '이 전환만': ['This transition only', 'この遷移のみ', '仅此过渡'],
-  '이 전환으로 나갈 때의 블렌드 길이(초). 없으면 HKX의 종료 블렌드.': [
-    "The blend length (seconds) when leaving through this transition. None: the HKX's end blend.",
-    'この遷移で抜けるときのブレンド長(秒)。なければ HKX の終了ブレンド。',
-    '通过此转换离开时的混合时长（秒）。无则使用 HKX 的结束混合。',
-  ],
   '이 전환으로 들어갈 때의 블렌드(초). 없으면 도착 HKX의 시작 블렌드.': [
     "The blend (seconds) when entering through this transition. Without it, the destination HKX's start blend.",
     'この遷移で入るときのブレンド(秒)。なければ到着HKXの開始ブレンド。',
@@ -4523,11 +4823,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '此条件不使用检查目标。',
   ],
   '이 카드로 이동': ['Go to this card', 'このカードへ移動', '转到此卡片'],
-  ' · 이 카드로 이동': [' · go to this card', ' · このカードへ移動', ' · 转到此卡片'],
-  '들어오는 곳': ['Reached from', 'ここへ来る元', '来源'],
-  '나가는 곳': ['Goes to', 'ここから行く先', '去向'],
-  '그 앞': ['Before that', 'その前', '更前'],
-  '{n}번 행': ['Row {n}', '行 {n}', '第 {n} 行'],
   '이 카드로 이으면 순환합니다.': [
     'Connecting to this card makes a loop.',
     'このカードにつなぐと循環します。',
@@ -4554,11 +4849,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このプロジェクトでこのイベントを送信する HKX',
     '在此项目中发送此事件的 HKX',
   ],
-  '이 프로젝트에서 이 이벤트를 보내는 HKX 주석 수': [
-    'Number of HKX annotations sending this event in this project',
-    'このプロジェクトでこのイベントを送信する HKX 注釈の数',
-    '此项目中发送此事件的 HKX 注释数',
-  ],
   '이 핀 조합은 연결할 수 없습니다. 시작·조건·전환 카드의 핀에서 HKX나 조건 카드로 이으세요.': [
     "These pins cannot be connected. Connect from a start, condition or transition card's pin to an HKX or a condition card.",
     'このピンの組み合わせはつなげません。開始・条件・遷移カードのピンからHKXか条件カードへつないでください。',
@@ -4568,6 +4858,31 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     "This row's destination leads back to this card: a loop.",
     'この行の行き先がこのカードに戻り、循環します。',
     '该行的目标会回到此卡片,形成循环。',
+  ],
+  이동: ['Moving', '移動', '移动'],
+  '이동 · 전역': ['Locomotion · global', '移動 · 全体', '移动 · 全局'],
+  '이동 거리 주석 ✓ (초당 {speed})': [
+    'movement annotation ✓ ({speed} a second)',
+    '移動距離の注釈 ✓ (毎秒 {speed})',
+    '移动距离注释 ✓（每秒 {speed}）',
+  ],
+  '이동 거리 주석 없음 · {from} 걸음으로 재생': [
+    'no movement annotation · played as the {from} step',
+    '移動距離の注釈なし · {from} の歩みで再生',
+    '无移动距离注释 · 按 {from} 的步伐播放',
+  ],
+  '이동 선언 지우기': ['Remove the locomotion', '移動の宣言を削除', '删除移动声明'],
+  '이동 선언 형식 오류': ['The locomotion is not in the expected form', '移動の宣言の形式エラー', '移动声明格式错误'],
+  '이동 선언은 Locomotion.xml 한 파일에만 둡니다. 동작·이벤트 등록과 같은 프로젝트에 둘 수 없으니, 이동 선언만 있는 프로젝트로 따로 만드세요.':
+    [
+      'The locomotion lives in the one file Locomotion.xml. It cannot share a project with actions or event registrations: make a project that holds the locomotion alone.',
+      '移動の宣言は Locomotion.xml の 1 ファイルだけに置きます。動作・イベント登録と同じプロジェクトには置けないので、移動の宣言だけのプロジェクトを別に作ってください。',
+      '移动声明只放在 Locomotion.xml 一个文件中。不能与动作、事件登记放在同一项目里，请另建一个只含移动声明的项目。',
+    ],
+  '이동 선언은 따로 된 프로젝트에 둡니다. 새 이동 프로젝트를 만들었습니다.': [
+    'The locomotion goes in a project of its own. A new locomotion project was created.',
+    '移動の宣言は別のプロジェクトに置きます。新しい移動プロジェクトを作成しました。',
+    '移动声明放在单独的项目中。已新建移动项目。',
   ],
   '이동 입력 방향': ['Movement input direction', '移動入力方向', '移动输入方向'],
   '이동 전환': ['Move transition', '移動遷移', '移动转换'],
@@ -4595,7 +4910,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '未找到应用移动恢复的 HKX。',
   ],
   이름: ['Name', '名前', '名称'],
-  '이름 변경 적용': ['Apply rename', '名前変更を適用', '应用重命名'],
   '이름·문자열은 모드 이벤트에서만 씁니다.': [
     'Name and text are used by mod events only.',
     '名前・文字列は MOD イベントでのみ使います。',
@@ -4657,15 +4971,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'イベント一覧に無効または重複した名前があります。',
     '事件列表中包含无效或重复的名称。',
   ],
+  '이벤트 목록은 최근 이벤트 조건에서만 사용하세요.': [
+    'Use an event list only in a recent event condition.',
+    'イベント一覧は最近のイベント条件でのみ使用してください。',
+    '事件列表仅用于最近事件条件。',
+  ],
   '이벤트 미지정': ['No event', 'イベント未指定', '未指定事件'],
   '이벤트 발생': ['Fire Event', 'イベント発火', '触发事件'],
   '이벤트 발신자': ['Event sender', 'イベント送信元', '事件发送者'],
   '이벤트 보내기': ['Send event', 'イベント送信', '发送事件'],
-  '이벤트 사용 방법': ['How to use events', 'イベントの使い方', '事件使用方法'],
   '이벤트 삭제': ['Delete event', 'イベントを削除', '删除事件'],
   '이벤트 선택': ['Select event', 'イベントを選択', '选择事件'],
   '이벤트 선택…': ['Select event…', 'イベントを選択…', '选择事件…'],
-  '이벤트 설정': ['Event settings', 'イベント設定', '事件设置'],
   '이벤트 수신 카드를 만들지 못했습니다.': [
     'Could not create event receive card.',
     'イベント受信カードを作成できませんでした。',
@@ -4682,6 +4999,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'イベント名は 1〜64 バイトで、カンマ・制御文字・空の項目は使用できません。',
     '事件名称须为 1~64 字节，且不能包含逗号、控制字符或空项。',
   ],
+  '이벤트 이름은 공백 없는 영문·숫자·기호로 32개까지 씁니다.': [
+    'Event names use letters, digits and symbols without spaces, up to 32 of them.',
+    'イベント名は空白なしの英数字・記号で、32 個までです。',
+    '事件名称使用不含空格的英文、数字和符号，最多 32 个。',
+  ],
   '이벤트 이름을 지정하세요': ['Specify event name', 'イベント名を指定してください', '请指定事件名称'],
   '이벤트 이름이 잘못되었거나 이미 사용 중입니다.': [
     'Event name is invalid or already in use.',
@@ -4695,6 +5017,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '이벤트 이름이 잘못되었습니다.': ['Invalid event name.', 'イベント名が無効です。', '事件名称无效。'],
   '이벤트 이름이 잘못되었습니다: ': ['Invalid event name: ', 'イベント名が不正です: ', '事件名称无效：'],
+  '이벤트 차단': ['Event block', 'イベント遮断', '事件阻止'],
   '이벤트 차단 시점을 선택하세요.': [
     'Select when to suppress events.',
     'イベント遮断のタイミングを選択してください。',
@@ -4727,6 +5050,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '此线通过事件 ({via}) 连接。请在 QTE 结果设置中更改事件或更改为“继续”。',
   ],
   '이벤트·기능·용도 검색': ['Search events·features·usages', 'イベント·機能·用途を検索', '搜索事件·功能·用途'],
+  이벤트로: ['On an event', 'イベントで', '通过事件'],
   '이벤트로 시작하는 QTE는 HKX에 붙지 않습니다.': [
     'Event-triggered QTE does not attach to HKX.',
     'イベントで開始する QTE は HKX にアタッチされません。',
@@ -4767,24 +5091,32 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'イベントを受信すると進行中の QTE と結果待機をキャンセルします。失敗結果は実行されません。',
     '接收到事件时将取消进行中的 QTE 及结果等待。不会执行失败结果。',
   ],
-  '이벤트를 삭제했습니다.': ['Event deleted.', 'イベントを削除しました。', '已删除事件。'],
   '이벤트를 지정하세요': ['Specify an event', 'イベントを指定してください', '请指定事件'],
+  '이벤트를 하나 이상 입력하세요.': [
+    'Enter at least one event.',
+    'イベントを 1 つ以上入力してください。',
+    '请至少输入一个事件。',
+  ],
   이벤트별: ['By event', 'イベント別', '按事件'],
   '이벤트부터 등록하려면': ['To register events first,', 'イベントから登録するには', '如需先注册事件，'],
-  'HKX 재생 중: HKX가 재생되는 동안 정한 시점에 뜹니다. 이벤트로: HKX 없이 그 이벤트가 오면 바로 뜨고 래그돌 중에도 취소되지 않습니다(엔진이 보내는 요청 이벤트도 받습니다). 결과는 이벤트 발생 또는 애니메이션 전환(일반 동작). 쓰러져 일어나는 중이면 엔진이 몸을 넘겨받는 순간 그 동작이 엔진 기상 대신 재생됩니다.':
-    [
-      'While an HKX plays: appears at the set moment of its playback. On an event: with no HKX, triggers immediately when that event arrives and is not cancelled even during ragdoll (also receives request events sent by the engine). The result is firing an event or animation transition (ordinary action). If getting up from knocked down, that action plays instead of engine get-up the moment the engine takes control of the body.',
-      'HKX 再生中: HKX の再生中、指定したタイミングで出現します。イベントで: HKX なしで、そのイベントを受信すると即座に出現し、ラグドール中もキャンセルされません（エンジンが送信するリクエストイベントも受け取ります）。結果はイベント発生またはアニメーション遷移（通常アクション）。倒れて起き上がる途中の場合、エンジンが身体の制御を引き継ぐ瞬間にエンジン標準の起き上がりの代わりにそのアクションが再生されます。',
-      'HKX 播放中：在 HKX 播放期间的指定时机弹出。通过事件：无需 HKX，收到该事件时立即弹出，布娃娃状态下也不会被取消（亦接收引擎发送的请求事件）。结果为触发事件或动画过渡（普通动作）。若正从倒地中起身，引擎接管身体的瞬间将播放该动作以替代引擎默认的起身动作。',
-    ],
   이상: ['Greater than or equal', '以上', '大于等于'],
   이하: ['Less than or equal', '以下', '小于等于'],
   인간: ['Human', '人間', '人类'],
   '인간 · 기본 게임': ['Humanoid · base game', '人間 · ベースゲーム', '人类 · 基础游戏'],
   인간형: ['Humanoid', '人型', '人形'],
+  인칭: ['View', '視点', '视角'],
+  '인칭은 3인칭·1인칭·둘 다입니다.': [
+    'The view is third person, first person or both.',
+    '視点は三人称・一人称・両方です。',
+    '视角为第三人称、第一人称或两者。',
+  ],
+  '인칭은 잡기 유지·잡기 풀기에서만 씁니다.': [
+    'The view is used by grip hold and grip release only.',
+    '視点はグリップ保持・グリップ解除でのみ使います。',
+    '视角仅用于保持握法和解除握法。',
+  ],
   일반: ['Ordinary', '通常', '常规'],
   '일반 공격': ['Normal attack', '通常攻撃', '普通攻击'],
-  '일반 공격 · LMB / RT': ['Normal attack · LMB / RT', '通常攻撃 · LMB / RT', '普通攻击 · LMB / RT'],
   '일반 공격 · 쌍수': ['Normal attack · dual wield', '通常攻撃 · 二刀流', '普通攻击 · 双持'],
   '일반 공격 · 왼손': ['Normal attack · left hand', '通常攻撃 · 左手', '普通攻击 · 左手'],
   '일반 동작': ['Ordinary action', '一般アクション', '普通动作'],
@@ -4824,7 +5156,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '一致するスケルトンが見つかりません。ビューポートのプレビュー資産でスケルトン HKX を指定してください。',
     '未找到匹配的骨架。请在视口的预览资源中指定骨架 HKX。',
   ],
-  '이벤트 이름 일부': ['Part of an event name', 'イベント名の一部', '事件名的一部分'],
   입력: ['Input', '入力', '输入'],
   '입력 ID 중복': ['Duplicate input ID', '入力 ID の重複', '输入 ID 重复'],
   '입력 ID/표시명이 잘못되었거나 중복입니다.': [
@@ -4853,6 +5184,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '将输入、条件、HKX 和过渡连接成一条线，未连接的分组按图性格网比例排列。事件注册位于最左侧。可使用 Ctrl+Z 撤销。',
     ],
   '입력을 찾지 못했습니다.': ['Could not find input.', '入力が見つかりませんでした。', '未找到输入。'],
+  있음: ['yes', 'あり', '有'],
   '자기 자신이나 자식 그룹으로 이동할 수 없습니다.': [
     'Cannot move to itself or its child groups.',
     '自分自身や子グループへ移動することはできません。',
@@ -4903,6 +5235,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '无效的声音文件路径（.wav、.xwm）：{s}',
   ],
   '잘못된 조건 수치: ': ['Invalid condition number: ', '無効な条件数値: ', '无效的条件数值: '],
+  잠행: ['Sneaking', '隠密', '潜行'],
+  '잡기 유지': ['Grip hold', 'グリップ保持', '保持握法'],
+  '잡기 풀기': ['Grip release', 'グリップ解除', '解除握法'],
+  '잡기의 손을 선택하세요.': ["Choose the grip's hand.", 'グリップの手を選んでください。', '请选择握法的手。'],
   '잡는 손': ['Gripping hand', 'つかむ手', '抓握的手'],
   '잡는 손을 따름': ['Follow gripping hand', 'つかむ手に合わせる', '跟随抓握的手'],
   '장비 키워드': ['Equipment keyword', '装備キーワード', '装备关键词'],
@@ -4918,6 +5254,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   적대만: ['Hostile only', '敵対のみ', '仅敌对'],
   적용: ['Apply', '適用', '应用'],
   '적용 값이 잘못되었습니다.': ['Invalid applies-to value.', '適用の値が正しくありません。', '适用值无效。'],
+  '적용할 무기 상태': ['Weapon states it applies to', '適用する武器状態', '适用的武器状态'],
   '전 구간 금지': ['Full lock', '全区間禁止', '全程锁定'],
   '전방 대상': ['Actor ahead', '前方の対象', '前方目标'],
   '전방 대상 · {range} · {angle}°': [
@@ -4926,6 +5263,9 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '前方目标 · {range} · {angle}°',
   ],
   전부: ['Everyone', 'すべて', '全部'],
+  전신: ['Whole body', '全身', '全身'],
+  '전신 (기본)': ['Whole body (default)', '全身 (既定)', '全身 (默认)'],
+  전역: ['Global', 'グローバル', '全局'],
   '전역 — 어느 애니메이션에서 오든 실행 · 수치는 보내는 HKX 카드에서': [
     'Global — runs from any animation · values on the sending HKX cards',
     'グローバル — どのアニメーションから来ても実行 · 数値は送る HKX カードで',
@@ -4955,6 +5295,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '全局变量的值完全一致时通过。',
   ],
   '전역 카메라 복구': ['Global camera restore', '全体カメラ復帰', '全局相机恢复'],
+  '전용 파일': ['Own files', '専用ファイル', '专用文件'],
+  '전용 파일 {m}/{n}': ['own files {m}/{n}', '専用ファイル {m}/{n}', '专用文件 {m}/{n}'],
   전쟁망치: ['Warhammer', 'ウォーハンマー', '战锤'],
   전체: ['All', 'すべて', '全部'],
   '전체 {n}': ['All {n}', 'すべて {n}', '全部 {n}'],
@@ -4985,15 +5327,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   전환: ['Transition', '遷移', '转换'],
   '전환 · {v0}': ['Transition · {v0}', '遷移 · {v0}', '转换 · {v0}'],
   '전환 · 끝나면': ['Transition · On end', '遷移 · 終わったとき', '转换 · 结束时'],
-  '전환 · 바닐라 {v0}': ['Transition · vanilla {v0}', '遷移 · バニラ {v0}', '转换 · 原版 {v0}'],
   '전환 · 이동 전환': ['Transition · Move', '遷移 · 移動遷移', '转换 · 移动转换'],
   '전환 · 차지 종료': ['Transition · Charge end', '遷移 · チャージ終了', '转换 · 蓄力结束'],
-  '전환 누름 방식 오류': ['Transition press kind error', '遷移の押し方の設定エラー', '转换按法设置错误'],
   '전환 감지 구간 설정 오류': [
     'Invalid transition detection window setting',
     '遷移入力受付区間の設定エラー',
     '转换检测区间设置错误',
   ],
+  '전환 누름 방식 오류': ['Transition press kind error', '遷移の押し方の設定エラー', '转换按法设置错误'],
   '전환 수신 · {from} → {to}': [
     'Transition received · {from} → {to}',
     '遷移受信 · {from} → {to}',
@@ -5029,6 +5370,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   정지: ['Stop', '停止', '停止'],
   제거: ['Remove', '除去', '移除'],
   제련: ['Smithing', '鍛冶', '锻造'],
+  '제외 · 바닐라 그대로': ['left out · vanilla', '除外 · バニラのまま', '排除 · 保持原版'],
   '제자리 회전': ['Turn in place', 'その場で回転', '原地转身'],
   '제작 매개변수': ['Authoring parameter', 'オーサリングパラメータ', '制作参数'],
   '제작 매개변수 개수 제한': ['Authoring parameter count limit', 'オーサリングパラメータ数の上限', '制作参数数量限制'],
@@ -5189,7 +5531,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '종료 시점 · {name}': ['End timing · {name}', '終了タイミング · {name}', '结束时机 · {name}'],
   '종료 이벤트': ['Exit event', '終了イベント', '结束事件'],
   '종료 후 운반': ['Carry after exit', '終了後に運搬', '结束后搬运'],
-  '종류 · 인칭': ['Kind · View', '種類 · 視点', '类型 · 视角'],
+  '종류 · 인칭 · 부위': ['Kind · View · Part', '種類 · 視点 · 部位', '类型 · 视角 · 部位'],
   종족: ['Race', '種族', '种族'],
   '종족에 등록된 공격 데이터를 선택합니다. 목록은 Skyrim.esm 기준이며 설치 모드·종족에 따라 달라집니다. 이름만 선택하며 피해나 타격 이벤트를 생성하지 않습니다. 기본값보다 이 HKX 설정이 우선합니다.':
     [
@@ -5392,7 +5734,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '上一个动作指向不存在的动作: ',
   ],
   '직접 (고급)': ['Custom (Advanced)', '直接(詳細設定)', '自定义（高级）'],
-  '직접 입력': ['Custom', '直接入力', '手动输入'],
   '직접 입력…': ['Type a name…', '直接入力…', '手动输入…'],
   '직접 지정': ['Custom', '個別指定', '手动指定'],
   '진영 소속': ['Faction membership', '所属派閥', '阵营归属'],
@@ -5450,6 +5791,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '参照するアクション・入力・アクティブな機能がありません。',
     '引用的动作、输入或活动功能不存在。',
   ],
+  '창 배치': ['Window layout', 'ウィンドウ配置', '窗口布局'],
   '찾는 규칙이 없습니다.': ['No rules found.', '一致するルールがありません。', '未找到规则。'],
   찾아보기: ['Browse', '参照', '浏览'],
   '찾아보기…': ['Browse…', '参照…', '浏览…'],
@@ -5476,6 +5818,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'チェックするとこの条件の真偽結果を反転します。対象やデータを確認できない判定不能時は反転せず失敗として処理します。',
       '勾选后反转此条件的真假结果。无法确认目标或数据的不可判定情况不会反转，均按失败处理。',
     ],
+  '체크한 무기 상태에 적용합니다. 체크를 끄면 그 상태는 바닐라 그대로 움직입니다. 2HW·H2H와 그 막기 세트는 그 무기가 전용 트리일 때만 있습니다.':
+    [
+      'Applies to the checked weapon states. An unchecked state moves as in vanilla. 2HW, H2H and their blocking sets exist only while that weapon has its own tree.',
+      'チェックした武器状態に適用します。チェックを外した状態はバニラのまま動きます。2HW・H2H とそのガードのセットは、その武器が専用ツリーのときだけあります。',
+      '应用于勾选的武器状态。取消勾选的状态按原版移动。2HW、H2H 及其格挡集合只在该武器使用专用树时存在。',
+    ],
   초: ['s', '秒', '秒'],
   '초 이내': ['s or less', '秒以内', '秒以内'],
   초과: ['Greater than', '超過', '大于'],
@@ -5485,6 +5833,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '仅当游戏读取的正文为空集合时才能保存草稿。',
   ],
   최근: ['Recent', '最近', '最近'],
+  '최근 이벤트': ['Recent event', '最近のイベント', '最近事件'],
   최대: ['maximum', '最大', '最大'],
   '최대 {v0}초': ['Max {v0} s', '最大{v0}秒', '最长 {v0} 秒'],
   '최대 경사각': ['Max slope angle', '最大傾斜角', '最大倾斜角'],
@@ -5622,6 +5971,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   쿨다운: ['Cooldown', 'クールダウン', '冷却时间'],
   크기: ['Scale', '大きさ', '大小'],
   '크기 배율': ['Size scale', 'サイズ倍率', '大小倍率'],
+  '크리처 동작은 전신으로만 재생됩니다.': [
+    "A creature's action plays on the whole body only.",
+    'クリーチャーの動作は全身でのみ再生されます。',
+    '生物动作只能以全身播放。',
+  ],
+  '크리처가 시작하는 페어의 상대는 사람(character)만 됩니다': [
+    'The partner of a pair a creature starts can only be a human (character)',
+    'クリーチャーが始めるペアの相手は人間(character)のみです',
+    '生物发起的配对的对象只能是人类(character)',
+  ],
+  '크리처가 시작하는 페어의 상대는 인간만 됩니다.': [
+    'A pair a creature starts can only partner a human.',
+    'クリーチャーが開始するペアの相手は人間のみです。',
+    '生物发起的配对只能以人类为对象。',
+  ],
   크리쳐: ['Creature', 'クリーチャー', '生物'],
   '크리쳐 전체': ['All creatures', 'クリーチャー全体', '全部生物'],
   클립: ['Clip', 'クリップ', '片段'],
@@ -5751,7 +6115,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '통과 확률 (%)': ['Pass chance (%)', '通過確率 (%)', '通过概率 (%)'],
   '트랙 개수가 너무 큽니다.': ['Track count is too large.', 'トラック数が大きすぎます。', '轨道数量过大。'],
   트롤: ['Troll', 'トロール', '巨魔'],
-  트리거: ['Trigger', 'トリガー', '触发'],
   '특성 보유': ['Has perk', 'パーク所持', '拥有专长'],
   '특성 효과': ['Perk effects', 'パーク効果', '天赋效果'],
   '특정 구간': ['Over a span', '特定区間', '特定区间'],
@@ -5829,6 +6192,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   '페어 동기화 경로': ['Synchronized pair', 'ペア同期パス', '配对同步路径'],
   '페어 상대': ['Pair partner', 'ペアの相手', '配对对象'],
+  '페어 상대(partnerTo)의 동작으로 부위 동작(body)은 쓰지 않습니다: ': [
+    "A part action (body) cannot be the partner's (partnerTo) action: ",
+    'ペア相手(partnerTo)の動作に部位動作(body)は使いません: ',
+    '部位动作(body)不能作为配对对象(partnerTo)的动作: ',
+  ],
   '페어 시작': ['Pair start', 'ペア開始', '配对开始'],
   '페어 역할 기능은 <Do at>으로 선언해야 합니다': [
     'A pair role function must be declared as <Do at>',
@@ -5852,25 +6220,15 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'ペアトラックはクリップ時刻でのみ決めます。',
     '配对轨道只能按片段时间设置。',
   ],
-  '운반(내려놓기 포함)은 3인칭 HKX만 씁니다.': [
-    'Carries (including put down) only use third-person HKX.',
-    '運搬（下ろしを含む）は三人称 HKX のみを使用します。',
-    '搬运（含放下）仅使用第三人称 HKX。',
-  ],
-  '운반(내려놓기 포함)은 3인칭(view="third")으로만 재생됩니다': [
-    'Carries (put-downs included) play in third person only (view="third")',
-    '運搬（下ろす動作を含む）は三人称（view="third"）でのみ再生されます',
-    '搬运（含放下）只以第三人称（view="third"）播放',
-  ],
-  '운반(내려놓기 포함)은 3인칭으로만 재생됩니다.': [
-    'Carries (including put down) only play in third person.',
-    '運搬（下ろしを含む）は三人称でのみ再生されます。',
-    '搬运（含放下）仅以第三人称播放。',
-  ],
   '페어는 RootBehaviorGraph의 단일 HKX와 역할별 연출을 사용합니다.': [
     'Pairs use a single HKX in RootBehaviorGraph and role-based effects.',
     'ペアは RootBehaviorGraph の単一 HKX と役割別の演出を使用します。',
     '配对使用 RootBehaviorGraph 中的单个 HKX 以及分角色演出。',
+  ],
+  '페어는 전신으로만 재생됩니다.': [
+    'A pair plays on the whole body only.',
+    'ペアは全身でのみ再生されます。',
+    '配对只能以全身播放。',
   ],
   '페어는 피해자 동작이 될 수 없습니다.': [
     'Pair cannot be a victim action.',
@@ -5878,10 +6236,21 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '配对动作不能作为受害者动作。',
   ],
   '페어를 그대로 재생합니다.': ['Plays the pair as is.', 'ペアをそのまま再生します。', '原样播放配对。'],
+  '페어를 시작하는 쪽(가해자)의 스켈레톤입니다. 페어 HKX의 트랙 이름으로 찾으며, 크리처면 그 크리처가 이 페어를 시작합니다.':
+    [
+      "The skeleton of the side that starts the pair (the attacker). Found from the paired HKX's track names; a creature here starts this pair itself.",
+      'ペアを開始する側（攻撃側）のスケルトンです。ペア HKX のトラック名から見つけ、クリーチャーならそのクリーチャーがこのペアを開始します。',
+      '发起配对一方（攻击方）的骨架。根据配对 HKX 的轨道名称识别；若为生物，则由该生物发起此配对。',
+    ],
   '페어를 시작할 때 상대: 가장 가까운 액터 또는 보낸 쪽의 전투 대상.': [
     "The partner when the pair starts: the nearest actor or the sender's combat target.",
     'ペアを始めるときの相手: 最も近いアクターまたは送信側の戦闘対象。',
     '开始配对时的对象：最近的角色或发送方的战斗目标。',
+  ],
+  '페어에서 부위 동작(body)으로는 전환할 수 없습니다: ': [
+    'A pair cannot transition to a part action (body): ',
+    'ペアから部位動作(body)へは遷移できません: ',
+    '配对不能转换到部位动作(body): ',
   ],
   '페어에서 양쪽 일반 동작으로 가는 전환만 상대(피해자) 동작을 가질 수 있습니다.': [
     'Only transitions from pair to separate ordinary actions can have a partner (victim) action.',
@@ -5897,11 +6266,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     "A pair's time scale is a track on the pair timeline.",
     'ペアの時間スケールはペアタイムラインのトラックで指定します。',
     '配对的时间倍率写在配对时间轴的轨道中。',
-  ],
-  '페어의 종료/전환 기능을 사용하세요.': [
-    "Use the pair's exit/transition feature.",
-    'ペアの終了/遷移機能を使用してください。',
-    '请使用配对的结束/转换功能。',
   ],
   '페어의 클립 시각 기능이 아닙니다.': [
     'Not a clip-time function of a pair.',
@@ -5945,12 +6309,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'プロジェクトは 2 MB 以下である必要があります。',
     '项目大小必须在 2 MB 以下。',
   ],
-  '프로젝트의 연결·감지 설정에 사용하는 이름입니다. 변경하면 참조에도 반영됩니다. HKX 안의 주석은 수정하지 않으므로 같은 이름으로 따로 작성해야 합니다. 감지 구간에서 ‘HKX 주석 이벤트’를 선택해 지정하세요. 비활성·보관 설정도 참조에 포함됩니다.':
-    [
-      "Name used in project link and detection settings. Changes are reflected in references. Annotations inside the HKX are not modified, so they must be authored separately with the same name. Choose 'HKX annotation marker' in detection windows to assign it. Disabled and archived settings are also included in references.",
-      'プロジェクトの接続・検出設定に使用する名前です。変更すると参照にも反映されます。HKX 内の注釈は変更されないため、同じ名前で別途作成する必要があります。入力受付区間で「HKX 注釈マーカー」を選択して指定してください。無効・保管設定も参照に含まれます。',
-      '在项目的连接与检测设置中使用的名称。修改后会同步反映到引用中。由于不会修改 HKX 内部的注释，因此需在文件中使用相同名称另行编写。在检测区间中选择“HKX 注释标记”进行指定。未启用和归档的设置也会包含在引用中。',
-    ],
   '프리뷰 {kind} 경로 형식 오류': [
     'Invalid preview {kind} path format',
     'プレビュー {kind} パス形式エラー',
@@ -5982,6 +6340,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   플레이어: ['Player', 'プレイヤー', '玩家'],
   '플레이어 동료': ['Player teammate', 'プレイヤーの仲間', '玩家同伴'],
   '플레이어 동작': ['Player action', 'プレイヤーアクション', '玩家动作'],
+  '플레이어: 플레이어가 어느 역할이든. 가해자·피해자: 그 역할이 플레이어일 때만.': [
+    'Player: whichever role the player has. Attacker / Victim: only when that role is the player.',
+    'プレイヤー: プレイヤーがどの役割でも。加害者・被害者: その役割がプレイヤーの時のみ。',
+    '玩家：无论玩家是何种角色。加害者·受害者：仅当该角色为玩家时。',
+  ],
   '플레이어는 플레이어 캐릭터인지(런타임 0.12.267), 나머지는 ActorType 키워드로 검사합니다. 여러 분류에 동시에 해당할 수 있으며(플레이어도 NPC 분류에 해당), 모션의 리그 호환 여부와는 별개입니다.':
     [
       "Player checks for the player character (runtime 0.12.267); the others check ActorType keywords. An actor can match several (the player also matches NPC), and this is separate from whether a motion's rig fits.",
@@ -6022,7 +6385,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '하나 이상 충족 OR': ['Any met OR', '1つ以上満たす OR', '满足任一 OR'],
   '하나라도 거짓': ['Any false', 'どれかが偽', '任一为假'],
   '하나라도 맞으면': ['When any holds', 'どれか1つでも満たすと', '任一满足时'],
-  '하는 일': ['What it does', '動作', '作用'],
   '한 번 입력·연타를 화면 안내 없이 애니메이션 연출로 쓸 때 켭니다.': [
     'Turn on when using single press or rapid press as animation staging without on-screen prompts.',
     '単押しや連打を画面ガイドなしのアニメーション演出として使用する場合に有効にします。',
@@ -6039,6 +6401,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '一次最多检查 200 个。',
   ],
   한손: ['One-handed', '片手武器', '单手'],
+  '한손·맨손': ['One-handed, fists', '片手・素手', '单手·徒手'],
   항상: ['Always', '常に', '始终'],
   '항상 달리기 전환': ['Toggle always run', '常に走るの切り替え', '切换始终奔跑'],
   해골: ['Skeleton', 'スケルトン', '骷髅'],
@@ -6226,58 +6589,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '＋ 새 이벤트 등록…': ['＋ Register new event…', '＋ 新規イベントを登録…', '＋ 注册新事件…'],
   '＋ 설정': ['＋ Setting', '＋ 設定', '＋ 设置'],
   '＋ 이벤트': ['＋ Event', '＋ イベント', '＋ 事件'],
-  '+ 이벤트': ['+ Event', '+ イベント', '+ 事件'],
-  '+ 공유 설정 추가': ['+ Add shared setting', '+ 共有設定を追加', '+ 添加共享设置'],
-  '공유 설정이 없습니다. 여러 동작이 같이 쓸 값을 하나 만들어 두면 각 동작에서 골라 씁니다.': [
-    'No shared settings yet. Make one value for several actions to use, and each action picks it.',
-    '共有設定がありません。複数のアクションが共通で使う値を一つ作っておくと、各アクションで選んで使えます。',
-    '还没有共享设置。创建一个供多个动作共用的值后，各动作即可选用。',
-  ],
-  '+ 기능': ['+ Feature', '+ 機能', '+ 功能'],
-  전역: ['Global', 'グローバル', '全局'],
-  '보내는 HKX': ['Sent by', '送信する HKX', '发送的 HKX'],
   '＋ 조건': ['＋ Condition', '＋ 条件', '＋ 条件'],
   '＋ 조건 추가': ['＋ Add condition', '＋ 条件を追加', '＋ 添加条件'],
   '＋ 키': ['＋ Key', '＋ キー', '＋ 按键'],
-  인칭: ['View', '視点', '视角'],
-  '운반의 내려놓기 동작': ["A carry's putdown action", '運搬の下ろす動作', '搬运的放下动作'],
-  'HKX 재생 ({family}) · {v0}': [
-    'HKX play ({family}) · {v0}',
-    'HKX 再生 ({family}) · {v0}',
-    'HKX 播放 ({family}) · {v0}',
-  ],
-  '스켈레톤이 다른 동작으로는 전환할 수 없습니다({from} → {to}).': [
-    'A transition cannot go to an action of another skeleton ({from} → {to}).',
-    'スケルトンが異なる動作には遷移できません（{from} → {to}）。',
-    '不能转换到骨架不同的动作（{from} → {to}）。',
-  ],
-  '경로 기준: {root}\\': ['Relative to: {root}\\', '基準フォルダー: {root}\\', '相对于: {root}\\'],
-  '{family} 동작에는 쓸 수 없습니다: {items}': [
-    'Not available on a {family} action: {items}',
-    '{family} の動作には使えません: {items}',
-    '{family} 动作不能使用: {items}',
-  ],
-  'HKX 재생 ({from} → {to}) · {v0}': [
-    'HKX play ({from} → {to}) · {v0}',
-    'HKX 再生 ({from} → {to}) · {v0}',
-    'HKX 播放 ({from} → {to}) · {v0}',
-  ],
-  '상대의 다음 동작은 상대 스켈레톤({rig})의 동작이어야 합니다.': [
-    "The partner's next action must be one of the partner's skeleton ({rig}).",
-    '相手の次の動作は相手のスケルトン（{rig}）の動作でなければなりません。',
-    '对方的下一个动作必须是对方骨架（{rig}）的动作。',
-  ],
-  '시작 스켈레톤': ['Initiator skeleton', '開始側スケルトン', '发起方骨架'],
-  '페어를 시작하는 쪽(가해자)의 스켈레톤입니다. 페어 HKX의 트랙 이름으로 찾으며, 크리처면 그 크리처가 이 페어를 시작합니다.':
-    [
-      "The skeleton of the side that starts the pair (the attacker). Found from the paired HKX's track names; a creature here starts this pair itself.",
-      'ペアを開始する側（攻撃側）のスケルトンです。ペア HKX のトラック名から見つけ、クリーチャーならそのクリーチャーがこのペアを開始します。',
-      '发起配对一方（攻击方）的骨架。根据配对 HKX 的轨道名称识别；若为生物，则由该生物发起此配对。',
-    ],
-  'HKX에서 찾음': ['Found in the HKX', 'HKX から検出', '从 HKX 识别'],
-  '크리처가 시작하는 페어의 상대는 인간만 됩니다.': [
-    'A pair a creature starts can only partner a human.',
-    'クリーチャーが開始するペアの相手は人間のみです。',
-    '生物发起的配对只能以人类为对象。',
-  ],
 };

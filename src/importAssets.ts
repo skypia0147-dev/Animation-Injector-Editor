@@ -2,6 +2,7 @@ import type {Workspace} from './workspace.ts';
 import {assetLibrary} from './assets.ts';
 import {assetKey, selectAsset, selectSound, soundLibrary} from './package.ts';
 import {clipRoot} from './creatureRig.ts';
+import {allTreeFiles} from './locomotion.ts';
 
 type Resolved = {path: string; clip: string; error: string};
 
@@ -76,6 +77,27 @@ export async function connectXmlAssets(
       result.workspace = selectAsset(result.workspace, candidate.clip, found.path);
       result.connected++;
       result.missing--;
+    }
+  }
+  // <Tree use="own">: the own trees' files the mod holds join the library. One that is not there is not missing: the
+  // runtime plays the source kind's file in its place.
+  const axes = allTreeFiles(result.workspace)
+    .filter(file => !file.localPath)
+    .map(file => ({clip: file.clip, path: `${root}/meshes/actors/character/${file.clip}`.replaceAll('/', '\\')}));
+  if (axes.length) {
+    try {
+      const resolved = await resolve(axes.map(file => file.path));
+      for (const file of axes) {
+        const found = resolved.find(
+          item =>
+            !item.error && assetKey(item.path) === assetKey(file.path) && assetKey(item.clip) === assetKey(file.clip)
+        );
+        if (!found) continue;
+        result.workspace = selectAsset(result.workspace, file.clip, found.path);
+        result.connected++;
+      }
+    } catch {
+      /* Without the lookup the files are registered from the card. */
     }
   }
   if (exists) {

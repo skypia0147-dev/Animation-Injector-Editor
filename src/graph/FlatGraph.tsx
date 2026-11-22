@@ -16,6 +16,8 @@ import {
 } from './pinTargets.ts';
 import {parseNodeId} from './nodeRef.ts';
 import {RegistryBody} from './RegistryCard.tsx';
+import {LocomotionBody} from './LocomotionCard.tsx';
+import {LOCOMOTION_NODE} from '../locomotion.ts';
 import {ConditionCardFace} from './ConditionCardFace.tsx';
 import {checklistModel, checklistProjection, copyChecklistNodes, deleteChecklistNode} from './checklist.ts';
 import {actionView, placeStepFile} from '../view.ts';
@@ -66,6 +68,7 @@ import {menuGroups, useEditorMenu} from '../ContextMenu.tsx';
 import {t, useLanguage} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
+import {bodyLabel} from '../body.ts';
 /** routeTo: where each route row's pin goes now, by name (routePins); routeKinds: what it reaches (the colour of its
  *  destination chip, as a condition card's). */
 type RouteKind = 'hkx' | 'card' | 'qte' | 'event' | 'end';
@@ -172,14 +175,22 @@ function HkxSummary({node}: {node: Visual['data']}) {
           .map(r => r.id)
       : []
   );
+  const items = gate.model.items.get(node.id) ?? [];
+  // The blends and the loop show as chips here too but are playback settings: 「기능 N」 counts as the open card does.
+  const fromClip = momentChips(moments),
+    features =
+      items.filter(
+        i =>
+          i.category === 'event' || (i.category === 'feature' && i.node.kind !== 'blend' && i.node.kind !== 'loopRule')
+      ).length + fromClip.length;
   const used: Chip[] = [
-      ...(gate.model.items.get(node.id) ?? []).map(i => ({
+      ...items.map(i => ({
         key: i.node.id,
         title: i.node.title,
         summary: i.node.notify && ranges.has(i.node.notify) ? tr('구간') : i.node.summary,
         tip: i.node.title + (i.node.summary ? ' · ' + i.node.summary : ''),
       })),
-      ...momentChips(moments),
+      ...fromClip,
     ],
     shown = used.slice(0, 6);
   return (
@@ -192,9 +203,10 @@ function HkxSummary({node}: {node: Visual['data']}) {
         </span>
       </div>
       <div className="node-field">
-        <span>{tr('종류 · 인칭')}</span>
+        <span>{tr('종류 · 인칭 · 부위')}</span>
         <span className="node-value">
-          {a?.pair ? tr('페어') : tr('일반')} · {a ? viewNames[actionView(gate.w, a)] : ''}
+          {a?.pair ? tr('페어') : tr('일반')} · {a ? viewNames[actionView(gate.w, a)] : ''} ·{' '}
+          {a?.config.body ? <b className="hkx-part">{bodyLabel(a.config.body)}</b> : bodyLabel(undefined)}
         </span>
       </div>
       <div className="hkx-chips">
@@ -209,7 +221,7 @@ function HkxSummary({node}: {node: Visual['data']}) {
       </div>
       <div className="hkx-summary-foot">
         <span>
-          {tr('기능')} {used.length}
+          {tr('기능')} {features}
         </span>
         <button
           type="button"
@@ -356,6 +368,13 @@ const RegistryCardBody = memo(function RegistryCardBody(_: {w: Workspace}) {
 });
 function GatedRegistry() {
   return <RegistryCardBody w={useContext(CardGate)!.w} />;
+}
+// The locomotion ladders draw only when they change.
+const LocomotionCardBody = memo(function LocomotionCardBody(_: {locomotion: Workspace['locomotion']}) {
+  return <LocomotionBody />;
+});
+function GatedLocomotion() {
+  return <LocomotionCardBody locomotion={useContext(CardGate)!.w.locomotion} />;
 }
 /** The "시작" row under an HKX card's title (mockup A, 10-20): how the action starts. A key or event picks its start
  *  card; nothing yet offers a start key or event (as the card's right-click menu does). */
@@ -582,6 +601,8 @@ function Card({id, data, selected}: NodeProps<Visual>) {
       {data.start && <StartLine node={data} start={data.start} />}
       {data.kind === 'eventRegistry' ? (
         <GatedRegistry />
+      ) : data.kind === 'locomotion' ? (
+        <GatedLocomotion />
       ) : data.collapsed ? (
         <HkxSummary node={data} />
       ) : data.kind === 'conditionCard' && ctx ? (
@@ -1235,7 +1256,12 @@ function FlatGraphPanel({
   // "이벤트 등록 카드 보기" shows the registry for a project that starts with its events (kept per document).
   const [registryShown, setRegistryShown] = useState('');
   const bare =
-    !w.actions.length && !w.starts.length && !w.cards.length && !w.eventRegistry?.length && registryShown !== w.id;
+    !w.actions.length &&
+    !w.starts.length &&
+    !w.cards.length &&
+    !w.eventRegistry?.length &&
+    !w.locomotion &&
+    registryShown !== w.id;
   // A new HKX card goes where nothing is (a fresh project shows the event registry in the middle).
   const addPlay = () => {
     const r = addFlat(w, '', 'playNode', freePlayPosition(screenToFlowPosition));
@@ -1457,6 +1483,21 @@ function FlatGraphPanel({
     const listener = () => revealRegistry.current();
     window.addEventListener('ai-registry-flash', listener);
     return () => window.removeEventListener('ai-registry-flash', listener);
+  }, []);
+  // The tree's locomotion entries ask for the ladder card (showLocomotion), as the registry's.
+  const revealLocomotion = useRef(() => {});
+  revealLocomotion.current = () => {
+    select(LOCOMOTION_NODE);
+    if (focusAction) {
+      setFocusAction('');
+      setFocusSession(undefined);
+    }
+    setTimeout(() => void fitView({nodes: [{id: LOCOMOTION_NODE}], padding: 0.08, maxZoom: 1, duration: 200}), 120);
+  };
+  useEffect(() => {
+    const listener = () => revealLocomotion.current();
+    window.addEventListener('ai-locomotion-flash', listener);
+    return () => window.removeEventListener('ai-locomotion-flash', listener);
   }, []);
   useEffect(() => {
     const escape = (e: KeyboardEvent) => {

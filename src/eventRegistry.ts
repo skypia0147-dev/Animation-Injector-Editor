@@ -9,6 +9,7 @@ import {node, shapeXml, type Xml} from './xml.ts';
 import {vanillaEvents} from './vanillaEvents.ts';
 import {animId} from './graph/blends.ts';
 import {tr} from './i18n/korean.ts';
+import {t} from './i18n/index.ts';
 
 /** A function is an Effect: `values` holds op and the op's settings (strings, like XML). A registered event's
  *  function changes the actor that sent the event (runtime 0.12.273); only a pair's clip-time effect also holds
@@ -39,6 +40,8 @@ export const eventOps = [
   'sound',
   'globalSet',
   'modEvent',
+  'gripHold',
+  'gripRelease',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
 /** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
@@ -235,6 +238,21 @@ export const opInfo: Record<EventOp, OpInfo> = {
     },
     fields: ['name', 'text', 'number'],
   },
+  // A hand's weapon bone kept at its value at this moment past the clip, until its release or an automatic one
+  // (sheathing, that hand's equipment change, death, ragdoll, load); the release lets go at once (runtime 1.0.9,
+  // docs/mockup-grip-hold). Which hands and views are what it acts with: the registry's.
+  gripHold: {
+    get label() {
+      return tr('잡기 유지');
+    },
+    fields: ['hand', 'view'],
+  },
+  gripRelease: {
+    get label() {
+      return tr('잡기 풀기');
+    },
+    fields: ['hand', 'view'],
+  },
 };
 export const settingKeys = [
   'plugin',
@@ -272,6 +290,7 @@ export const settingKeys = [
   'name',
   'text',
   'number',
+  'view',
 ] as const;
 /** Every key a registered event's function may hold; a pair's clip-time effect adds `at`, `target` and `from`. */
 export const functionKeys = ['op', ...settingKeys];
@@ -388,6 +407,9 @@ export const settingLabels: Record<string, string> = {
   get number() {
     return tr('숫자');
   },
+  get view() {
+    return tr('인칭');
+  },
 };
 /** A sound's bones (runtime 0.12.296): the first is the default and is not written. */
 export const soundBones = (): [string, string][] => [
@@ -397,6 +419,25 @@ export const soundBones = (): [string, string][] => [
   ['leftHand', tr('왼손')],
   ['root', tr('발밑')],
 ];
+/** A grip hold or release (runtime 1.0.9). */
+export const isGrip = (op: string | undefined) => op === 'gripHold' || op === 'gripRelease';
+/** A grip's hands and views: the value written and what it says. A hand is always written; the view's first
+ *  (third person) is the runtime's default and is not. */
+export const gripChoices: Record<'hand' | 'view', () => [string, string][]> = {
+  hand: () => [
+    ['right', tr('오른손')],
+    ['left', tr('왼손')],
+    // Its own key: 「양손」 is also the two-handed weapon condition ("Two-handed"), here both hands (user 11-21).
+    ['both', t('hands.both')],
+  ],
+  view: () => [
+    ['third', tr('3인칭')],
+    ['first', tr('1인칭')],
+    ['both', tr('둘 다')],
+  ],
+};
+const gripLabel = (key: 'hand' | 'view', value: string | undefined) =>
+  gripChoices[key]().find(([x]) => x === value)?.[1] ?? value ?? '';
 /** Settings written as text, not numbers (a sound's file, a mod event's name and text). */
 export const textSettings = ['file', 'name', 'text'];
 /** A strike's choices (runtime 0.12.293): the value written and what it says; the first is the runtime's default
@@ -470,7 +511,7 @@ const booleanKeys = new Set<string>();
 export const isBooleanSetting = (key: string) => booleanKeys.has(key);
 const commonFields = ['delay'];
 /** Functions that run the moment their event or clip time comes, with no delay (runtime 0.12.303). */
-const undelayed = new Set(['fireArrow']);
+const undelayed = new Set(['fireArrow', 'gripHold', 'gripRelease']);
 export const fieldsOf = (op: string) => [
   ...(opInfo[op as EventOp]?.fields ?? []),
   ...(undelayed.has(op) ? [] : commonFields),
@@ -563,9 +604,11 @@ export const registryFields = (op: string): string[] =>
               ? ['measure']
               : op === 'modEvent'
                 ? ['name', 'text']
-                : windowOns.includes(op)
-                  ? ['duration']
-                  : [];
+                : isGrip(op)
+                  ? ['hand', 'view']
+                  : windowOns.includes(op)
+                    ? ['duration']
+                    : [];
 /** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
 export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
 /** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
@@ -716,6 +759,7 @@ export function doAttrs(values: Record<string, string>, timed = false): Record<s
     }
   }
   if (values.op === 'modEvent' && out.number !== undefined && Number(out.number) === 0) delete out.number;
+  if (isGrip(values.op) && out.view === 'third') delete out.view;
   // A window without a span (runtime 11-02).
   if (windowOns.includes(values.op) && !Number(out.duration)) delete out.duration;
   if (values.op === 'strike') {
@@ -756,6 +800,11 @@ export function functionParts(values: Record<string, string>): string[] {
   if (values.op === 'globalSet' && values.value !== undefined) parts.push('= ' + values.value);
   if (values.op === 'globalSet' && values.restore === 'end') parts.push(tr('끝나면 되돌림'));
   if (values.op === 'modEvent' && values.name) parts.push(values.name);
+  // A grip's hands, and its views when not third person only (docs/mockup-grip-hold).
+  if (isGrip(values.op)) {
+    if (values.hand) parts.push(gripLabel('hand', values.hand));
+    if (values.view && values.view !== 'third') parts.push(gripLabel('view', values.view));
+  }
   if (values.op === 'cost')
     parts.push(
       [
@@ -849,8 +898,21 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   if (v.force !== undefined && v.force !== '' && v.op !== 'ragdoll' && v.op !== 'strike')
     out.push(tr('힘은 래그돌·타격에서만 씁니다.'));
   for (const [k, choices] of Object.entries(strikeChoices))
-    if (v[k] !== undefined && v[k] !== '' && !(v.op === 'strike' && choices().some(([x]) => x === v[k])))
+    if (
+      v[k] !== undefined &&
+      v[k] !== '' &&
+      !(v.op === 'strike' && choices().some(([x]) => x === v[k])) &&
+      !(isGrip(v.op) && k === 'hand')
+    )
       out.push(tr('{label}: 타격의 선택지가 아닙니다.', {label: settingLabels[k]}));
+  // A grip names its hands (runtime 1.0.9), and its views when not third person.
+  if (isGrip(v.op)) {
+    if (v.hand === undefined) out.push(tr('잡기의 손을 선택하세요.'));
+    else if (v.hand !== '' && !gripChoices.hand().some(([x]) => x === v.hand))
+      out.push(tr('손은 오른손·왼손·양손입니다.'));
+    if (v.view !== undefined && !gripChoices.view().some(([x]) => x === v.view))
+      out.push(tr('인칭은 3인칭·1인칭·둘 다입니다.'));
+  } else if (v.view !== undefined && v.view !== '') out.push(tr('인칭은 잡기 유지·잡기 풀기에서만 씁니다.'));
   for (const k of strikeNumberKeys)
     if (v[k] !== undefined && v[k] !== '' && v.op !== 'strike')
       out.push(tr('{label}: 타격에서만 씁니다.', {label: settingLabels[k]}));
@@ -1374,6 +1436,7 @@ export function unchosen(op: string, pair = false): Record<string, string> {
   const fields = fieldsOf(op);
   return {
     ...(op === 'strike' ? {pick: '', hand: '', block: '', reaction: ''} : {}),
+    ...(isGrip(op) ? {hand: ''} : {}),
     ...Object.fromEntries(['direction', 'bone', 'measure'].filter(k => fields.includes(k)).map(k => [k, ''])),
     ...(pair && op && !opInfo[op as EventOp]?.player ? {target: ''} : {}),
   };

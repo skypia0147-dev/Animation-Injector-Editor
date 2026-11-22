@@ -37,6 +37,8 @@ export const names: Record<string, string> = {
   sound: 'notify.sound',
   globalSet: 'notify.globalSet',
   modEvent: 'notify.modEvent',
+  gripHold: 'notify.gripHold',
+  gripRelease: 'notify.gripRelease',
   shake: 'notify.cameraShake',
   cancel: 'notify.pairCancel',
   timeOn: 'notify.timeScale',

@@ -36,6 +36,14 @@ import {
 } from './eventRegistry.ts';
 import type {EventRow} from './eventRegistry.ts';
 import {
+  LOCOMOTION_NODE,
+  checkLocomotionShape,
+  locomotionEmpty,
+  locomotionIssues,
+  locomotionXml,
+  type Locomotion,
+} from './locomotion.ts';
+import {
   actionView,
   fixedThird,
   projectView,
@@ -57,6 +65,7 @@ import {
   partnerRigError,
 } from './creatureRig.ts';
 import {ordinaryEffectOps} from './clipEffects.ts';
+import {bodyIssues, partLoopDefault} from './body.ts';
 import {errorText} from './errorText.ts';
 export const operations = [
   'hide',
@@ -81,6 +90,8 @@ export const operations = [
   'sound',
   'globalSet',
   'modEvent',
+  'gripHold',
+  'gripRelease',
 ] as const;
 /** Keys of a pair's clip-time effect: `at` and a function's (eventRegistry.ts). */
 export const effectKeys = timedKeys;
@@ -165,6 +176,8 @@ export type Workspace = {
   sharedRules?: import('./graph/sharing.ts').SharedRule[];
   /** The global event registry: every event name the project registers, with its functions. */
   eventRegistry?: EventRow[];
+  /** The locomotion ladders (<Locomotion>, locomotion.ts); absent = the project has none. */
+  locomotion?: Locomotion;
   schema: 9;
   /** Start cards (XML format 6 <Start>), in the document's order among themselves. */
   starts: StartCard[];
@@ -543,8 +556,9 @@ function checkCollections(w: any) {
 
 /** Phase 1: the workspace shell (everything but actions and links). */
 function checkShell(w: any) {
-  const {qtes, eventRegistry, sharedRules, view, ...baseWorkspace} = w;
+  const {qtes, eventRegistry, sharedRules, view, locomotion, ...baseWorkspace} = w;
   exact(baseWorkspace, emptyWorkspace(), tr('프로젝트'));
+  checkLocomotionShape(locomotion);
   if (!Array.isArray(w.assets) || w.assets.length > 500) throw new Error(tr('에셋 개수 제한'));
   for (const a of w.assets) {
     exact(a, {clip: '', localPath: '', preview: {skeletons: [], skins: []}}, tr('에셋'));
@@ -754,10 +768,12 @@ export function validateWorkspace(w: Workspace): Issue[] {
   out.push(...cardIssues(w));
   for (const i of runtimeNameUses(w)) out.push({level: 'warning', ...i});
   out.push(...registryIssues(w));
+  out.push(...locomotionIssues(w.locomotion));
   // The numbers an HKX node runs registered functions with (<EventValues>, runtime 0.12.281).
   for (const a of w.actions)
     for (const v of Object.values(a.config.eventValues ?? {})) for (const m of valueErrors(v)) err(a.uid, m);
   out.push(...viewIssues(w));
+  out.push(...bodyIssues(w));
   // A creature's own action (runtime 1.1.0): what the runtime refuses on it, and transitions across skeletons.
   for (const a of w.actions) {
     const limits = creatureLimits(w, a);
@@ -815,7 +831,16 @@ export function validateWorkspace(w: Workspace): Issue[] {
   }
   out.push(...validateParameters(w));
   if (!idOk(w.id) || !w.name.trim()) err('project', tr('묶음 이름과 영문 ID가 필요합니다.'));
-  if (!w.actions.length) err('project', tr('동작을 하나 이상 추가하세요.'));
+  // The runtime also loads a file with locomotion ladders alone (runtime 1.0.9).
+  if (!w.actions.length && locomotionEmpty(w.locomotion)) err('project', tr('동작을 하나 이상 추가하세요.'));
+  // The game reads its locomotion from one file that holds nothing else (locomotion.ts LOCOMOTION_FILE).
+  if (!locomotionEmpty(w.locomotion) && (w.actions.length || w.eventRegistry?.length))
+    err(
+      LOCOMOTION_NODE,
+      tr(
+        '이동 선언은 Locomotion.xml 한 파일에만 둡니다. 동작·이벤트 등록과 같은 프로젝트에 둘 수 없으니, 이동 선언만 있는 프로젝트로 따로 만드세요.'
+      )
+    );
 
   const ids = new Set<string>(),
     uids = new Set<string>();
@@ -837,7 +862,9 @@ export function validateWorkspace(w: Workspace): Issue[] {
       const c = a.config,
         fromEnd = (m: Mark) => m.basis === 'end' && m.seconds > 0;
       if (a.pair) err(a.uid, tr('반복 재생은 일반 HKX에서만 씁니다.'));
-      if (!number(c.loop!.maxHold, 0.1, 600)) err(a.uid, tr('최대 유지 시간은 0.1~600초입니다.'));
+      // A part loop's 0 is 「until it is ended」 (body.ts).
+      if (!number(c.loop!.maxHold, 0.1, 600) && !(c.body && c.loop!.maxHold === 0))
+        err(a.uid, tr('최대 유지 시간은 0.1~600초입니다.'));
       if (!(c.exit.basis === 'end' && c.exit.seconds === 0.05))
         err(a.uid, tr('반복 재생 HKX에는 끝이 없어 종료 시각을 정할 수 없습니다.'));
       if (Object.values(c.slots).some(s => s.enabled && fromEnd(s.until)))
@@ -1048,6 +1075,9 @@ export function compileWorkspace(w: Workspace): string {
     e.children.push(xml);
   }
   if (registry) root.children.push(registry);
+  // The locomotion ladders: the project's, apart from any action (runtime 1.0.9).
+  const locomotion = locomotionXml(w.locomotion);
+  if (locomotion) root.children.push(locomotion);
   for (const e of rootOrder(w, x)) {
     if (e.kind === 'card') root.children.push(sharedXml(x, e.uid));
     else if (e.kind === 'start') {
@@ -1075,6 +1105,12 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
   // person whatever it says.
   if (!fixedThird(w, a) && actionView(w, a) !== defaultView(w, a)) out.attrs.view = actionView(w, a);
   if (otherViewStart(w, a) === 'switch') out.attrs.otherView = 'switch';
+  // A part loop's maxHold when the runtime's default is not it (body.ts partLoopDefault: 0 until ended, 3 s with a
+  // charge release).
+  if (config.body && config.loop) {
+    if (config.loop.maxHold === partLoopDefault(w, a)) delete out.attrs.maxHold;
+    else out.attrs.maxHold = String(config.loop.maxHold);
+  }
   out.children.push(...qteXml(w, a, x));
   if (pair) {
     out.name = 'Pair';

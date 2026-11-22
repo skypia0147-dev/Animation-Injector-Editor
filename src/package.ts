@@ -6,6 +6,7 @@ import {t} from './i18n/index.ts';
 import {isFirstPersonClip, stepFiles} from './view.ts';
 import {ragdollWrites} from './ragdoll.ts';
 import {actionRig, clipRoot, rigRoot} from './creatureRig.ts';
+import {LOCOMOTION_FILE, allTreeFiles, isTreeFile, locomotionEmpty} from './locomotion.ts';
 export type Asset = {
   actorRoots: string[];
   clip: string;
@@ -61,6 +62,8 @@ export type PackageRequest = {
   xml: string;
   /** The carry lift actions' own ragdoll files, written beside the XML (ragdoll.ts). */
   ragdolls: {id: string; contents: string}[];
+  /** A locomotion project: its XML is the game's one locomotion file, Locomotion/Locomotion.xml. */
+  locomotion: boolean;
 };
 export const assetKey = (clip: string) => clip.replaceAll('\\', '/').toLowerCase();
 export function assets(w: Workspace): Asset[] {
@@ -95,6 +98,20 @@ export function assets(w: Workspace): Asset[] {
     if (found && asset.localPath && !found.paths.some(p => assetKey(p) === assetKey(asset.localPath)))
       found.paths.push(asset.localPath);
   }
+  // <Tree use="own">: the own trees' files that have a source go to the character's animations folder. One without
+  // a source is left out (the runtime plays the source kind's file there), so it never holds the package back.
+  for (const file of allTreeFiles(w)) {
+    if (!file.localPath || map.has(assetKey(file.clip))) continue;
+    const policy = w.packaging.policies.find(p => assetKey(p.clip) === assetKey(file.clip));
+    map.set(assetKey(file.clip), {
+      clip: file.clip,
+      actorRoots: [pairedRig('character').actorRoot],
+      paths: [file.localPath],
+      mode: policy?.mode ?? 'copy',
+      dependency: policy?.dependency ?? '',
+      expectedSha256: '',
+    });
+  }
   return [...map.values()];
 }
 export function selectAsset(w: Workspace, clip: string, path: string): Workspace {
@@ -103,7 +120,8 @@ export function selectAsset(w: Workspace, clip: string, path: string): Workspace
   return {
     ...w,
     assets:
-      listed || !isFirstPersonClip(clip)
+      // (as an own tree's locomotion file does, locomotion.ts treeFiles)
+      listed || !(isFirstPersonClip(clip) || isTreeFile(clip))
         ? w.assets.map(x => (assetKey(x.clip) === assetKey(clip) ? {...x, localPath: path} : x))
         : [...w.assets, {clip, localPath: path, preview: {skeletons: [], skins: []}}],
     actions: w.actions.map(a => ({
@@ -214,6 +232,9 @@ export function plugins(w: Workspace): string[] {
     ),
   ].sort();
 }
+/** The folder and file name of the project's XML below SKSE/Plugins/AnimationInjector: the mod folder's name, or
+ *  for a locomotion project the game's one locomotion file (locomotion.ts LOCOMOTION_FILE). */
+export const xmlName = (w: Workspace) => (locomotionEmpty(w.locomotion) ? w.packaging.folder : LOCOMOTION_FILE);
 /** Runtime XML is named after the mod folder, as the mod package writes <folder>/<folder>.xml. */
 export function xmlFileName(folder: string) {
   return folderValid(folder) ? folder + '.xml' : 'AnimationInjector.xml';
@@ -272,5 +293,6 @@ export function request(w: Workspace, report?: PackageReport): PackageRequest {
     plugins: plugins(w),
     xml: compileWorkspace(w),
     ragdolls: ragdollWrites(w, [], []).files,
+    locomotion: !locomotionEmpty(w.locomotion),
   };
 }
