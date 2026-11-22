@@ -297,6 +297,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'アクション ID がありません。HKX ファイルを選ぶとファイル名から決まります(ファイル名に英字がなければ直接入力してください)。',
     '还没有动作 ID。选择 HKX 文件后会按文件名设定(文件名没有英文字母时请直接填写)。',
   ],
+  'Action: facing은 상체 부위 동작(body="upper")에만 씁니다.': [
+    'Action: facing is only for an upper-body part action (body="upper").',
+    'Action: facing は上半身の部位動作（body="upper"）にのみ使います。',
+    'Action: facing 仅用于上半身部位动作（body="upper"）。',
+  ],
   'AnimationSet 루트가 필요합니다': [
     'An AnimationSet root is required',
     'AnimationSet ルートが必要です',
@@ -1243,6 +1248,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'form は 16 進数の ID である必要があります',
     'form 必须是十六进制 ID',
   ],
+  'full은 from보다 커야 합니다': [
+    'full must be greater than from',
+    'full は from より大きくなければなりません',
+    'full 必须大于 from',
+  ],
   'input, key·gamepad, control 중 하나만 씁니다': [
     'Write only one of input, key/gamepad or control',
     'input、key・gamepad、control のうち一つだけ書きます',
@@ -1372,6 +1382,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       'set 为 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak 之一: ',
     ],
   'set은 {sets} 중 하나입니다: ': ['set is one of {sets}: ', 'set は {sets} のいずれかです: ', 'set 为 {sets} 之一: '],
+  'side는 right 또는 left입니다: ': [
+    'side is right or left: ',
+    'side は right か left です：',
+    'side 为 right 或 left：',
+  ],
   'sound에는 file(소리 파일) 또는 plugin·form(등록 사운드) 중 하나만 씁니다': [
     'sound takes either file (a sound file) or plugin and form (a registered sound), not both',
     'sound には file（サウンドファイル）か plugin・form（登録サウンド）のどちらか一方だけを書きます',
@@ -1448,6 +1463,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'view is one of third, first and both',
     'view は third・first・both のいずれかです',
     'view 为 third、first、both 之一',
+  ],
+  'walk·run은 방향 이름 앞까지의 경로입니다(예: Animations\\bowdrawn_walk): ': [
+    'walk and run are paths up to the direction name (for example Animations\\bowdrawn_walk): ',
+    'walk・run は方向名の手前までのパスです（例：Animations\\bowdrawn_walk）：',
+    'walk·run 是到方向名之前的路径（例：Animations\\bowdrawn_walk）：',
+  ],
+  'walk나 run 중 하나는 지정해야 합니다': [
+    'Set walk or run',
+    'walk か run のどちらかを指定してください',
+    '必须指定 walk 或 run',
   ],
   'weapon은 2HW 또는 H2H입니다: ': ['weapon is 2HW or H2H: ', 'weapon は 2HW か H2H です: ', 'weapon 为 2HW 或 H2H: '],
   'without에 쓸 수 있는 것은 enchantment·poison·perks·impact·hitEvent입니다: ': [
@@ -1608,6 +1633,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{size} 個のアクション · {length} 件のルール · {v2} · {speed}×',
     '{size} 个动作 · {length} 条规则 · {v2} · {speed}×',
   ],
+  '{v0} · 화면': ['{v0} · Camera', '{v0} · 画面', '{v0} · 画面'],
   '{v0} → {v1}: 인칭이 맞지 않아 이어지지 않을 수 있습니다({v2} → {v3}).': [
     '{v0} → {v1}: Mismatched views may prevent continuity ({v2} → {v3}).',
     '{v0} → {v1}: 視点が一致しないため連続して再生されない可能性があります（{v2} → {v3}）。',
@@ -1762,6 +1788,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{where}：未知手柄按钮 {text}（A B X Y LB RB LT RT LS RS Start Back Up Down Left Right 或 code:数字）',
   ],
   '{where}: 없는 HKX {id}': ['{where}: no HKX {id}', '{where}: 存在しない HKX {id}', '{where}：不存在的 HKX {id}'],
+  '° 부터': ['° from', '° から', '° 起'],
+  '° 에서 전부': ['° wholly at', '° で完全', '° 时完全'],
   '· 값': ['· Values', '· 値', '· 值'],
   '→ 전환': ['→ Transition', '→ 遷移', '→ 过渡'],
   '● 시뮬레이션 보는 중': ['● Showing simulation', '● シミュレーション表示中', '● 正在查看模拟'],
@@ -1865,6 +1893,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'The same set is left out twice: ',
     '同じ set を 2 回除外しました: ',
     '同一 set 被排除了两次: ',
+  ],
+  '같은 side를 두 번 지정했습니다: ': [
+    'The same side is set twice: ',
+    '同じ side が2回指定されています：',
+    '同一 side 指定了两次：',
   ],
   '같은 weapon을 두 번 지정했습니다: ': [
     'The same weapon is named twice: ',
@@ -2003,6 +2036,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   거짓: ['False', '偽', '为假'],
   걷기: ['Walk', '歩行', '行走'],
   '걷기 → 정지': ['Walk → stop', '歩き → 停止', '行走 → 停止'],
+  '걷기 파일': ['Walk files', '歩きファイル', '走路文件'],
   '걷기·뛰기': ['Walk / run', '歩く・走る', '行走·奔跑'],
   검: ['Sword', '剣', '剑'],
   '검사 값': ['Test value', '判定値', '检测值'],
@@ -2674,12 +2708,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '別のスケルトン(rig)の動作には遷移できません: ',
     '不能转换到其他骨架(rig)的动作: ',
   ],
-  '다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 상체는 다리가 어떻게 움직여도 이 HKX의 회전 그대로입니다(골반을 따라 위아래로만). 3인칭에서만 재생합니다.':
-    [
-      "The legs keep the locomotion animation, so the player can walk and run while it plays. The upper body keeps this HKX's rotation however the legs move (it only rides up and down with the hips). Third person only.",
-      '脚は移動アニメーションのままなので、再生中に歩いたり走ったりできます。上半身は脚がどう動いてもこのHKXの回転のままです(骨盤に合わせて上下するだけ)。三人称でのみ再生します。',
-      '腿部保持移动动画，因此播放期间可以行走和奔跑。无论腿如何移动，上半身都保持此HKX的旋转(只随骨盆上下)。仅在第三人称播放。',
-    ],
+  '다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 3인칭에서만 재생합니다.': [
+    'The legs keep the locomotion, so the character can walk and run while it plays. Third person only.',
+    '脚は移動アニメーションのままなので、再生中も歩いたり走ったりできます。三人称でのみ再生します。',
+    '腿部保持移动动画，因此播放时可以行走和奔跑。仅在第三人称播放。',
+  ],
   다음: ['Next', '次', '下一个'],
   '다음 동작': ['Next action', '次のアクション', '下一个动作'],
   '다음 동작 추가': ['Add next action', '次のアクションを追加', '添加下一动作'],
@@ -2707,6 +2740,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '닫힘 이벤트': ['Close event', '閉じるイベント', '关闭事件'],
   달리기: ['Run', '走行', '奔跑'],
   '달리기 → 급정지': ['Run → sudden stop', '走り → 急停止', '奔跑 → 急停'],
+  '달리기 파일': ['Run files', '走りファイル', '跑步文件'],
   닭: ['Chicken', 'ニワトリ', '鸡'],
   대검: ['Greatsword', '大剣', '巨剑'],
   대상: ['Target', '対象', '目标'],
@@ -3248,6 +3282,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   밀쳐내기: ['Push', '押し飛ばし', '推开'],
   '밀쳐내는 힘': ['Push force', '押し飛ばす力', '推开的力'],
   바닐라: ['Vanilla', 'バニラ', '原版'],
+  '바닐라 (사용 안 함)': ['Vanilla (off)', 'バニラ（使わない）', '原版（不使用）'],
   '바닐라 (위 몸체와의 관절)': [
     'Vanilla (the joint to the body above)',
     'バニラ (上のボディとの関節)',
@@ -3362,6 +3397,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '방패 밀치기': ['Bash', 'シールドバッシュ', '盾击'],
   방향: ['Direction', '方向', '方向'],
   '방향 상관없음': ['Either way', '向きは問わない', '方向不限'],
+  '방향 이름(Forward … BackwardRight)으로 끝나는 파일을 고르세요: {clip}': [
+    'Pick a file whose name ends in a direction (Forward … BackwardRight): {clip}',
+    '方向名（Forward … BackwardRight）で終わるファイルを選んでください：{clip}',
+    '请选择以方向名（Forward … BackwardRight）结尾的文件：{clip}',
+  ],
   '방향은 래그돌의 아래·위·앞·뒤·왼쪽·오른쪽입니다.': [
     "The direction is a ragdoll's down, up, forward, backward, left or right.",
     '方向はラグドールの下・上・前・後・左・右です。',
@@ -3627,6 +3667,23 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   상체: ['Upper body', '上半身', '上半身'],
   '상체 — 척추부터 위': ['Upper body — the spine and up', '上半身 — 背骨から上', '上半身 — 脊柱以上'],
+  '상체 방향': ['Upper body direction', '上半身の向き', '上半身朝向'],
+  '상체 방향은 부위가 상체일 때만 정합니다.': [
+    "The upper body's direction is set only when the part is the upper body.",
+    '上半身の向きは部位が上半身のときだけ設定します。',
+    '仅当部位为上半身时才设置上半身朝向。',
+  ],
+  '상체 부위 동작(부위: 상체)이 재생되는 동안, 그 HKX가 가슴을 그쪽으로 튼 각도만큼 하체를 아래 걷기·달리기로 바꿉니다(정한 각도 사이에서 섞임). 활 조준·차지처럼 상체를 옆으로 튼 동작이 정면 이동 위에서 허리가 꺾여 보이지 않게 합니다. 잠행·막기 이동에는 쓰지 않습니다.':
+    [
+      'While an upper-body part action (Body part: Upper body) plays, the legs move onto the walk and run below by how far its HKX turns the chest that way (mixed between the angles set). An action that turns the upper body aside, such as aiming a bow or a charge, then does not bend at the waist over the forward locomotion. Not used while sneaking or moving while blocking.',
+      '上半身の部位動作（部位：上半身）の再生中、そのHKXが胸をその向きにひねった角度に応じて、下半身を下の歩き・走りに切り替えます（設定した角度の間で混ぜます）。弓の照準やチャージのように上半身を横にひねる動作が、正面向きの移動の上で腰から折れて見えなくなります。スニーク・ガード中の移動には使いません。',
+      '播放上半身部位动作（部位：上半身）时，按该 HKX 将胸部朝该方向扭转的角度，把下半身换成下面的走·跑（在设定的角度之间混合）。像弓瞄准、蓄力这样把上半身侧转的动作，在正面移动上就不会在腰部折断。潜行、格挡移动不使用。',
+    ],
+  '상체가 다리의 기울기·흔들림은 받지 않고 몸통 방향만 따라 돕니다(차지·물약·우산처럼 자세를 몸에 싣는 동작).': [
+    "The upper body takes none of the legs' tilt and sway and only turns with the torso's heading (for actions that carry a pose: a charge, a potion, an umbrella).",
+    '上半身は脚の傾きや揺れを受けず、胴体の向きにだけ合わせて回ります（チャージ・薬・傘のように姿勢を体に乗せる動作）。',
+    '上半身不受腿部的倾斜和晃动影响，只随躯干朝向转动（适合蓄力、喝药、撑伞等把姿势带在身上的动作）。',
+  ],
   '상체나 한쪽 팔을 고르면 재생하는 동안 걷고 달릴 수 있습니다(3인칭).': [
     'With the upper body or one arm, the player can walk and run while it plays (third person).',
     '上半身か片腕を選ぶと、再生中に歩いたり走ったりできます(三人称)。',
@@ -3654,6 +3711,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '서리 거미': ['Frostbite Spider', 'フロストバイト・スパイダー', '霜噬蜘蛛'],
   '서리 아트로나크': ['Frost Atronach', '氷のアトロナック', '霜元素'],
   석궁: ['Crossbow', 'クロスボウ', '弩'],
+  '섞기 시작 각도': ['Angle where mixing starts', '混ぜ始める角度', '开始混合的角度'],
+  '섞는 각도': ['Mixing angles', '混ぜる角度', '混合角度'],
   선입력: ['Input buffer', '先行入力', '预输入'],
   '선입력 형식 오류': ['Invalid input buffer format', '先行入力形式エラー', '预输入格式错误'],
   '선택 규칙 복제': ['Duplicate selected rule', '選択ルールを複製', '复制所选规则'],
@@ -4408,6 +4467,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '用途で使用中 — 先に参照を変更してください',
     '正在用途中使用 — 请先更改引用',
   ],
+  우측: ['Right', '右', '右'],
+  '우측 상체': ['Upper body turned right', '上半身・右向き', '上半身朝右'],
   운반: ['Carry', '運搬', '搬运'],
   '운반 고정': ['Carry fix', '運搬固定', '搬运固定'],
   '운반 고정 시점': ['Carry fix time', '運搬固定時点', '搬运固定时刻'],
@@ -5219,6 +5280,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '姿勢のまま: 持ち上げの最後の姿勢のまま付いて回ります。ぶら下がり: つかむ所ひとつだけを手に固定し、残りは物理で揺れます(ラグドール欄の値、決めなければバニラ)。ラグドールを準備できない場合は姿勢のまま運搬します。',
       '保持姿势：目标以抬起的最后姿势附着移动。悬挂：只将抓握处固定在手上，其余部分随物理摆动（布娃娃组的值，未设置时为原版）。无法准备布娃娃时按原姿势搬运。',
     ],
+  '자세 이동': ['Stance', '構え移動', '姿态移动'],
   '자세를 따라감(물리 끔)': ['Follows the pose (physics off)', '姿勢に従う(物理オフ)', '跟随姿势（物理关闭）'],
   자원: ['Resource', 'リソース', '资源'],
   '자원 비교': ['Resource comparison', 'リソース比較', '资源比较'],
@@ -5252,6 +5314,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '장착 종류': ['Equipment type', '装備の種類', '装备类型'],
   재생: ['Play', '再生', '播放'],
   '재생 안 함': ['Plays nothing', '再生しない', '不播放'],
+  '재생하는 동안 몸이 카메라 쪽으로 돌고, 상체가 카메라의 좌우·위아래를 향합니다(활·석궁·마법 조준). HKX는 정면을 조준하는 자세로 만듭니다. NPC는 하체를 따라갑니다.':
+    [
+      'While it plays the body turns toward the camera and the upper body points where the camera looks, left-right and up-down (aiming a bow, a crossbow or a spell). Make the HKX aim straight ahead. NPCs follow their legs.',
+      '再生中は体がカメラの方へ回り、上半身がカメラの左右・上下を向きます（弓・クロスボウ・魔法の照準）。HKXは正面を狙う姿勢で作ります。NPCは下半身に合わせます。',
+      '播放时身体会转向镜头，上半身朝向镜头的左右与上下（弓、弩、法术瞄准）。HKX 应制作成瞄准正前方的姿势。NPC 跟随下半身。',
+    ],
   '적대 여부는 선택한 검사 대상이 반대편에게 적대적인지 검사합니다. 동료는 플레이어 팀원 여부입니다.': [
     'Hostility checks whether the selected target is hostile to the other side. Teammate checks whether they are a player follower.',
     '敵対関係は選択した判定対象が相手に敵対しているかを判定します。仲間はプレイヤーのチームメイトであるかどうかです。',
@@ -5269,6 +5337,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '前方目标 · {range} · {angle}°',
   ],
   전부: ['Everyone', 'すべて', '全部'],
+  '전부 바뀌는 각도': ['Angle where it is whole', '完全に切り替わる角度', '完全切换的角度'],
   전신: ['Whole body', '全身', '全身'],
   '전신 (기본)': ['Whole body (default)', '全身 (既定)', '全身 (默认)'],
   전역: ['Global', 'グローバル', '全局'],
@@ -5545,6 +5614,8 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '種族に登録されている攻撃データを選択します。一覧は Skyrim.esm を基準としており、導入 MOD や種族によって異なります。名前の選択のみを行い、ダメージやヒットイベントを生成することはありません。既定値よりこの HKX の設定が優先されます。',
       '选择已注册到该种族的攻击数据。列表基于 Skyrim.esm，并因已安装模组和种族而异。此处仅选择名称，不会生成伤害或打击事件。此 HKX 设置优先于默认值。',
     ],
+  좌측: ['Left', '左', '左'],
+  '좌측 상체': ['Upper body turned left', '上半身・左向き', '上半身朝左'],
   좌표: ['Coordinates', '座標', '坐标'],
   '좌표 범위가 잘못되었습니다.': ['Coordinates out of range.', '座標範囲が無効です。', '坐标超出有效范围。'],
   주문: ['Spell', '呪文', '法术'],
@@ -6127,6 +6198,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   파괴: ['Destruction', '破壊', '毁灭'],
   파워어택: ['Power attack', '強攻撃', '重击'],
   파일: ['File', 'ファイル', '文件'],
+  '파일 {n}개를 등록했습니다.': ['Registered {n} files.', '{n}個のファイルを登録しました。', '已登记 {n} 个文件。'],
   '파일 검증': ['File verification', 'ファイル検証', '文件校验'],
   '파일 미지정': ['No file', 'ファイル未指定', '未指定文件'],
   '파일 없음 또는 접근 불가': [
@@ -6139,6 +6211,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '検査中にファイルサイズが変更されました。',
     '检查过程中文件大小发生变化。',
   ],
+  '파일: 경로 뒤에 Forward·ForwardLeft·Left·BackwardLeft·Backward·BackwardRight·Right·ForwardRight와 .hkx를 붙여 찾고, 없는 방향은 원래 이동을 씁니다. 파일은 한 주기(왼발·오른발 한 번씩)로, FootLeft·FootRight 주석과 이동 거리 주석(animmotion, 디딘 발 속도)을 넣습니다.':
+    [
+      "Files: Forward, ForwardLeft, Left, BackwardLeft, Backward, BackwardRight, Right and ForwardRight and .hkx are appended to the path; a direction without its file keeps its own locomotion. Make each file one cycle (each foot once) with FootLeft and FootRight annotations and travel annotations (animmotion, at the planted foot's speed).",
+      'ファイル：パスの後ろに Forward・ForwardLeft・Left・BackwardLeft・Backward・BackwardRight・Right・ForwardRight と .hkx を付けて探し、ない方向は元の移動を使います。ファイルは1周期（左足・右足を1回ずつ）にし、FootLeft・FootRight 注釈と移動距離注釈（animmotion、接地した足の速さ）を入れます。',
+      '文件：在路径后加上 Forward·ForwardLeft·Left·BackwardLeft·Backward·BackwardRight·Right·ForwardRight 和 .hkx 查找，缺少的方向使用原来的移动。文件做成一个周期（左脚、右脚各一次），并加入 FootLeft·FootRight 注释和移动距离注释（animmotion，按着地脚的速度）。',
+    ],
   '파일은 4 MB 이하여야 합니다.': [
     'File must be 4 MB or smaller.',
     'ファイルは 4 MB 以下である必要があります。',
@@ -6390,6 +6468,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '하나 이상 충족 OR': ['Any met OR', '1つ以上満たす OR', '满足任一 OR'],
   '하나라도 거짓': ['Any false', 'どれかが偽', '任一为假'],
   '하나라도 맞으면': ['When any holds', 'どれか1つでも満たすと', '任一满足时'],
+  '하체 따라감 (기본)': ['Follow the legs (default)', '下半身に合わせる（既定）', '跟随下半身（默认）'],
   '한 번 입력·연타를 화면 안내 없이 애니메이션 연출로 쓸 때 켭니다.': [
     'Turn on when using single press or rapid press as animation staging without on-screen prompts.',
     '単押しや連打を画面ガイドなしのアニメーション演出として使用する場合に有効にします。',
@@ -6506,6 +6585,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '只能打开格式{version}的XML。',
   ],
   호커: ['Horker', 'ホーカー', '霍克兽'],
+  '화면 — 카메라가 보는 곳': [
+    'Camera — where the camera looks',
+    '画面 — カメラが向いている方向',
+    '画面 — 镜头所看的方向',
+  ],
   '화면 높이 대비 간격입니다. 중앙에서는 양수가 오른쪽·아래쪽, 모서리에서는 양수가 화면 안쪽입니다. 가장자리에서는 잘리지 않도록 보정합니다.':
     [
       'Offset relative to screen height. From center, positive is right/down; from edges, positive is inward. Compensates to prevent clipping at edges.',

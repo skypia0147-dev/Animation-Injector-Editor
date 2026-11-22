@@ -15,7 +15,12 @@ import {
   removeLocomotion,
   setApplies,
   setExcept,
+  setStance,
+  setStanceChoice,
   setTreeUse,
+  stanceChoice,
+  stanceFiles,
+  stancePrefixOf,
   treeFiles,
 } from '../src/locomotion.ts';
 import {assets as packageAssets, request as packageRequest, selectAsset, xmlName, xmlSavePath} from '../src/package.ts';
@@ -39,7 +44,7 @@ const locomotionLines = text =>
   text
     .split('\n')
     .map(l => l.trim())
-    .filter(l => /^<\/?(Locomotion|Tree|Except)\b/.test(l));
+    .filter(l => /^<\/?(Locomotion|Tree|Except|Stance)\b/.test(l));
 const check = (name, xml) => {
   mkdirSync('tests/generated/locomotion', {recursive: true});
   writeFileSync(`tests/generated/locomotion/${name}.xml`, xml);
@@ -104,6 +109,69 @@ test('what the runtime refuses is refused on import, with its message', () => {
   const old = JSON.parse(JSON.stringify(importWorkspaceXml(WALK)));
   old.locomotion = {ladders: []};
   assert.throws(() => parseWorkspace(JSON.stringify(old)), /이동 선언 형식 오류/);
+});
+
+// Stance sets (runtime 1.0.10 <Stance>): read, written, checked by the runtime, edited from the card's choice.
+const STANCE = `<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="6" id="WalkRun">
+  <Locomotion>
+    <Tree weapon="H2H" use="own"/>
+    <Stance side="right" from="25" full="45" walk="Animations\\MyBow\\Walk" run="Animations\\MyBow\\Run"/>
+    <Stance side="left" from="10" full="30" walk="Animations\\MyBow\\LWalk"/>
+  </Locomotion>
+</AnimationSet>
+`;
+test('stance sets read in, write back unchanged and are what the runtime loads', needsChecker, () => {
+  const w = importWorkspaceXml(STANCE);
+  assert.deepEqual(w.locomotion.stances, {
+    right: {from: 25, full: 45, walk: 'Animations\\MyBow\\Walk', run: 'Animations\\MyBow\\Run'},
+    left: {from: 10, full: 30, walk: 'Animations\\MyBow\\LWalk'},
+  });
+  assert.deepEqual(errors(w), []);
+  const xml = compileWorkspace(w);
+  assert.deepEqual(locomotionLines(xml), locomotionLines(STANCE));
+  check('Stance', xml);
+  assert.deepEqual(parseWorkspace(JSON.stringify(w)).locomotion, w.locomotion);
+  // Defaults when written without from and full.
+  const short = importWorkspaceXml(STANCE.replace(' from="25" full="45"', ''));
+  assert.deepEqual(short.locomotion.stances.right.from, 25);
+  assert.deepEqual(short.locomotion.stances.right.full, 45);
+  // Refused as the runtime refuses.
+  const file = body => `<AnimationSet version="6" id="X"><Locomotion>${body}</Locomotion></AnimationSet>`;
+  for (const [body, message] of [
+    ['<Stance side="up" walk="a"/>', /side는/],
+    ['<Stance side="right"/>', /walk나 run/],
+    ['<Stance side="right" walk="a" from="40" full="30"/>', /full은 from보다/],
+    ['<Stance side="right" walk="a"/><Stance side="right" run="b"/>', /같은 side/],
+    ['<Stance side="right" walk="Animations\\a_walkforward.hkx"/>', /방향 이름 앞까지/],
+    ['<Stance side="right" walk="a" set="Bow"/>', /지원하지 않는 속성/],
+  ])
+    assert.throws(() => importWorkspaceXml(file(body)), message, body);
+});
+
+test("stance edits: the card's choice keeps a side's values, a new side starts at 25 and 45", () => {
+  const w = importWorkspaceXml(STANCE);
+  assert.equal(stanceChoice(w.locomotion), 'both');
+  setStanceChoice(w, 'right');
+  assert.equal(stanceChoice(w.locomotion), 'right');
+  assert.deepEqual(w.locomotion.stances.right.walk, 'Animations\\MyBow\\Walk');
+  setStanceChoice(w, 'left');
+  assert.deepEqual(w.locomotion.stances, {left: {from: 25, full: 45}});
+  // A side with no files is the runtime's refusal, shown on the card.
+  assert.ok(errors(w).some(i => /walk나 run/.test(i.message)));
+  setStance(w, 'left', {walk: 'Animations\\X\\Walk', full: 60});
+  assert.deepEqual(errors(w), []);
+  setStance(w, 'left', {walk: ''});
+  assert.equal('walk' in w.locomotion.stances.left, false);
+  setStanceChoice(w, '');
+  assert.equal(w.locomotion.stances, undefined);
+  assert.doesNotMatch(compileWorkspace(w), /<Stance/);
+  // A file named for a direction gives its prefix; the prefix gives the eight files.
+  assert.equal(stancePrefixOf('Animations\\Bow\\WalkForwardLeft.hkx'), 'Animations\\Bow\\Walk');
+  assert.equal(stancePrefixOf('Animations\\bowdrawn_walkbackward.hkx'), 'Animations\\bowdrawn_walk');
+  assert.equal(stancePrefixOf('Animations\\Bow\\Idle.hkx'), undefined);
+  assert.deepEqual(stanceFiles('A\\W').slice(0, 2), ['A\\WForward.hkx', 'A\\WForwardLeft.hkx']);
+  assert.equal(stanceFiles('A\\W').length, 8);
 });
 
 test('edits: a set left vanilla and covered again, the declaration removed', () => {

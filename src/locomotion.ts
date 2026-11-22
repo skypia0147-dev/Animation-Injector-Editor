@@ -40,11 +40,31 @@ export const TREE_KINDS: Record<TreeWeapon, TreeKind> = {
   '2HW': {from: '2HM', set: '2HW', blockFrom: 'Block2HM', blockSet: 'Block2HW', shared: true},
   H2H: {from: '1HM', set: 'H2H', blockFrom: 'Block1HM', blockSet: 'BlockH2H', shared: false},
 };
+/** <Stance side> (runtime 1.0.10, runtime/LadderSpec.h StanceSpec): while an upper-body part action plays, its clip's
+ *  chest turned that way by more than `from` degrees moves the legs onto these walk / run files, wholly at `full`.
+ *  `walk` and `run` are path prefixes the direction and `.hkx` are appended to (STANCE_DIRECTIONS). */
+export const STANCE_SIDES = ['right', 'left'] as const;
+export type StanceSide = (typeof STANCE_SIDES)[number];
+export type Stance = {from: number; full: number; walk?: string; run?: string};
+export const STANCE_DEFAULT: Stance = {from: 25, full: 45};
+/** The direction names a stance prefix takes (runtime/LadderSpec.h LadderNames kDirections). */
+export const STANCE_DIRECTIONS = [
+  'Forward',
+  'ForwardLeft',
+  'Left',
+  'BackwardLeft',
+  'Backward',
+  'BackwardRight',
+  'Right',
+  'ForwardRight',
+] as const;
 export type Locomotion = {
   /** Per weapon kind, how it moves: absent = vanilla. */
   trees?: Partial<Record<TreeWeapon, TreeUse>>;
   /** The sets left vanilla (<Except set>); absent = none. */
   except?: LadderSet[];
+  /** The stance sets by side (<Stance>); absent = none. */
+  stances?: Partial<Record<StanceSide, Stance>>;
 };
 /** The one file the runtime reads the locomotion from: SKSE/Plugins/AnimationInjector/Locomotion/Locomotion.xml
  *  (runtime/LadderSpec.h kLocomotionFile). Two mods' files meet at that path, so the mod manager's priority picks one
@@ -104,9 +124,43 @@ const required = (n: Xml, key: string) => {
   return s;
 };
 
+/** The files a stance prefix names, in the runtime's direction order; none without a prefix. */
+export const stanceFiles = (prefix: string | undefined): string[] =>
+  prefix ? STANCE_DIRECTIONS.map(d => prefix + d + '.hkx') : [];
+/** The prefix of a file named for a direction ("Animations\\Bow\\WalkForwardLeft.hkx" -> "Animations\\Bow\\Walk"), or
+ *  undefined when its name does not end in one. */
+export function stancePrefixOf(clip: string): string | undefined {
+  const m = /^(.*?)(ForwardLeft|ForwardRight|BackwardLeft|BackwardRight|Forward|Backward|Left|Right)\.hkx$/i.exec(clip);
+  return m && m[1] ? m[1] : undefined;
+}
+/** Which sides the locomotion uses: none, one, or both. */
+export type StanceChoice = '' | StanceSide | 'both';
+export const stanceChoice = (l: Locomotion | undefined): StanceChoice => {
+  const right = !!l?.stances?.right,
+    left = !!l?.stances?.left;
+  return right && left ? 'both' : right ? 'right' : left ? 'left' : '';
+};
+export const stanceSides = (l: Locomotion | undefined): StanceSide[] => STANCE_SIDES.filter(s => l?.stances?.[s]);
+const angle = (n: Xml, key: string, d: number) => {
+  const s = n.attrs[key];
+  if (s === undefined) return d;
+  const v = Number(s);
+  if (!s.trim() || !Number.isFinite(v) || v < 0 || v > 180) throw Error(tr('숫자 범위 또는 형식 오류: ') + s);
+  return v;
+};
+/** One <Stance>'s problem as the runtime words it, or empty. */
+function stanceProblem(s: Stance): string {
+  if (!(s.full > s.from)) return tr('full은 from보다 커야 합니다');
+  if (!s.walk && !s.run) return tr('walk나 run 중 하나는 지정해야 합니다');
+  for (const prefix of [s.walk, s.run])
+    if (prefix && prefix.toLowerCase().endsWith('.hkx'))
+      return tr('walk·run은 방향 이름 앞까지의 경로입니다(예: Animations\\bowdrawn_walk): ') + prefix;
+  return '';
+}
+
 /** <Locomotion> as the runtime reads it; throws its message on what it refuses. */
 export function readLocomotion(n: Xml): Locomotion {
-  shapeXml(n, [], ['Tree', 'Except']);
+  shapeXml(n, [], ['Tree', 'Except', 'Stance']);
   const out: Locomotion = {};
   for (const t of n.children.filter(c => c.name === 'Tree')) {
     shapeXml(t, ['weapon', 'use']);
@@ -125,6 +179,18 @@ export function readLocomotion(n: Xml): Locomotion {
     if (out.except?.includes(set)) throw Error(tr('같은 set을 두 번 뺐습니다: ') + set);
     (out.except ??= []).push(set);
   }
+  for (const s of n.children.filter(c => c.name === 'Stance')) {
+    shapeXml(s, ['side', 'from', 'full', 'walk', 'run']);
+    const side = required(s, 'side');
+    if (side !== 'right' && side !== 'left') throw Error(tr('side는 right 또는 left입니다: ') + side);
+    if (out.stances?.[side]) throw Error(tr('같은 side를 두 번 지정했습니다: ') + side);
+    const stance: Stance = {from: angle(s, 'from', 25), full: angle(s, 'full', 45)};
+    if (s.attrs.walk) stance.walk = s.attrs.walk;
+    if (s.attrs.run) stance.run = s.attrs.run;
+    const problem = stanceProblem(stance);
+    if (problem) throw Error(problem);
+    (out.stances ??= {})[side] = stance;
+  }
   return out;
 }
 
@@ -133,7 +199,11 @@ export function locomotionXml(l: Locomotion | undefined): Xml | undefined {
   if (!l) return undefined;
   const trees = TREE_WEAPONS.filter(w => l.trees?.[w]).map(w => node('Tree', {weapon: w, use: l.trees![w]}));
   const except = LADDER_SETS.filter(s => l.except?.includes(s)).map(s => node('Except', {set: s}));
-  return node('Locomotion', {}, [...trees, ...except]);
+  const stances = stanceSides(l).map(side => {
+    const s = l.stances![side]!;
+    return node('Stance', {side, from: s.from, full: s.full, walk: s.walk || undefined, run: s.run || undefined});
+  });
+  return node('Locomotion', {}, [...trees, ...except, ...stances]);
 }
 
 const fileKey = (clip: string) => clip.replaceAll('\\', '/').toLowerCase();
@@ -197,6 +267,10 @@ export function locomotionIssues(l: Locomotion | undefined): Issue[] {
       out.push({level: 'error', node: LOCOMOTION_NODE, message: tr('use="2HM"은 weapon="2HW"에만 씁니다')});
   if (new Set(l.except).size !== (l.except?.length ?? 0))
     out.push({level: 'error', node: LOCOMOTION_NODE, message: tr('같은 set을 두 번 뺐습니다: ') + l.except!.join(' ')});
+  for (const side of stanceSides(l)) {
+    const problem = stanceProblem(l.stances![side]!);
+    if (problem) out.push({level: 'error', node: LOCOMOTION_NODE, message: `${stanceSideLabel(side)}: ${problem}`});
+  }
   return out;
 }
 
@@ -225,6 +299,23 @@ export function setTreeUse(w: WithLocomotion, weapon: TreeWeapon, use: TreeUse |
     if (!Object.keys(l.trees).length) delete l.trees;
   }
 }
+export const stanceSideLabel = (side: StanceSide) => (side === 'right' ? tr('우측 상체') : tr('좌측 상체'));
+/** Which sides have a stance set: a side kept keeps its values, a new one starts at the defaults. */
+export function setStanceChoice(w: WithLocomotion, choice: StanceChoice) {
+  const l = ensureLocomotion(w);
+  const keep = (side: StanceSide) => choice === side || choice === 'both';
+  const next: Partial<Record<StanceSide, Stance>> = {};
+  for (const side of STANCE_SIDES) if (keep(side)) next[side] = l.stances?.[side] ?? {...STANCE_DEFAULT};
+  if (Object.keys(next).length) l.stances = next;
+  else delete l.stances;
+}
+/** One side's values. */
+export function setStance(w: WithLocomotion, side: StanceSide, patch: Partial<Stance>) {
+  const l = ensureLocomotion(w);
+  const s: Stance = {...(l.stances?.[side] ?? STANCE_DEFAULT), ...patch};
+  for (const key of ['walk', 'run'] as const) if (!s[key]) delete s[key];
+  (l.stances ??= {})[side] = s;
+}
 export function removeLocomotion(w: WithLocomotion) {
   delete w.locomotion;
 }
@@ -236,8 +327,18 @@ export function checkLocomotionShape(l: unknown) {
     throw Error(tr('이동 선언 형식 오류'));
   };
   if (!l || typeof l !== 'object') bad();
-  const {trees, except, ...rest} = l as Record<string, unknown>;
+  const {trees, except, stances, ...rest} = l as Record<string, unknown>;
   if (Object.keys(rest).length) bad();
+  if (stances !== undefined) {
+    if (!stances || typeof stances !== 'object') bad();
+    for (const [side, s] of Object.entries(stances as Record<string, unknown>)) {
+      if (side !== 'right' && side !== 'left') bad();
+      if (!s || typeof s !== 'object') bad();
+      const {from, full, walk, run, ...more} = s as Record<string, unknown>;
+      if (Object.keys(more).length || !Number.isFinite(from) || !Number.isFinite(full)) bad();
+      for (const p of [walk, run]) if (p !== undefined && typeof p !== 'string') bad();
+    }
+  }
   if (trees !== undefined) {
     if (!trees || typeof trees !== 'object') bad();
     for (const [weapon, use] of Object.entries(trees as Record<string, unknown>))

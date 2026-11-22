@@ -46,6 +46,10 @@ export type Project = {
   /** The part it plays on (runtime 1.0.9 <Action body>, body.ts): the upper body or one arm while the legs keep the
    *  locomotion. Absent = the whole body. Never on a pair. A part loop's maxHold 0 = until it is ended. */
   body?: BodyPart;
+  /** The upper body's direction (runtime <Action body="upper" facing="camera">, body.ts): 'camera' turns the player
+   *  toward the camera and points the upper body where the camera looks (aiming). Absent = the legs' heading. Only
+   *  with body 'upper'. */
+  facing?: 'camera';
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;

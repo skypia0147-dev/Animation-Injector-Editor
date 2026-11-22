@@ -5,7 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {compileWorkspace, validateWorkspace} from '../src/workspace.ts';
 import {importWorkspaceXml} from '../src/importXml.ts';
 import {cardIssues} from '../src/cardChecks.ts';
-import {setActionBody, fixedWhole, bodyIssues} from '../src/body.ts';
+import {setActionBody, setActionFacing, bodyChipValue, fixedWhole, bodyIssues} from '../src/body.ts';
 import {actionView, fixedThird} from '../src/view.ts';
 import {switchPlaybackKind} from '../src/actionTypes.ts';
 import {contextualAdds} from '../src/graph/contextAdd.ts';
@@ -61,6 +61,46 @@ test('part actions read in, write back unchanged and are what the runtime loads'
     /<Action id="CrossArms"[^>]*maxHold="4"[^>]*body="rightArm"|body="rightArm"[^>]*maxHold="4"/
   );
 });
+
+// The upper body's direction (runtime facing="camera", 11-23): aiming where the camera looks.
+const AIM = `<?xml version="1.0" encoding="utf-8"?>
+<AnimationSet version="6" id="Aim">
+  <Start key="Num7" to="Aim"/>
+  <Action id="Aim" clip="Animations\\bow_idledrawn.hkx" body="upper" facing="camera" loop="true">
+    <Transition key="Num7" end="true"/>
+  </Action>
+</AnimationSet>
+`;
+test(
+  'the upper body faces the camera: read, written back, loaded by the runtime, cleared off the upper body',
+  needsChecker,
+  () => {
+    const w = importWorkspaceXml(AIM);
+    assert.deepEqual(errors(w), []);
+    const aim = byId(w, 'Aim');
+    assert.equal(aim.config.facing, 'camera');
+    assert.equal(bodyChipValue(aim), '상체 · 화면');
+    const xml = compileWorkspace(w);
+    assert.match(xml, /<Action id="Aim"[^>]*body="upper"[^>]*facing="camera"/);
+    assert.equal(compileWorkspace(importWorkspaceXml(xml)), xml);
+    mkdirSync('tests/generated/body', {recursive: true});
+    writeFileSync('tests/generated/body/Aim.xml', xml);
+    execFileSync(checker, ['tests/generated/body/Aim.xml']);
+    // facing="legs" is the default: read, not written.
+    const legs = importWorkspaceXml(AIM.replace('facing="camera"', 'facing="legs"'));
+    assert.equal(byId(legs, 'Aim').config.facing, undefined);
+    assert.doesNotMatch(compileWorkspace(legs), /facing=/);
+    // Back to the legs, and off the upper body: gone.
+    assert.equal(byId(setActionFacing(w, aim.uid, false), 'Aim').config.facing, undefined);
+    assert.equal(byId(setActionBody(w, aim.uid, 'rightArm'), 'Aim').config.facing, undefined);
+    assert.equal(byId(setActionBody(w, aim.uid, undefined), 'Aim').config.facing, undefined);
+    // Only the upper body takes a direction.
+    assert.throws(() => setActionFacing(setActionBody(w, aim.uid, 'leftArm'), aim.uid, true), /상체/);
+    assert.throws(() => importWorkspaceXml(AIM.replace('body="upper" ', 'body="rightArm" ')), /facing/);
+    assert.throws(() => importWorkspaceXml(AIM.replace('body="upper" ', '')), /facing/);
+    assert.throws(() => importWorkspaceXml(AIM.replace('facing="camera"', 'facing="screen"')), /facing/);
+  }
+);
 
 test('picking a part drops what a part action does not take; a pair, putdown or creature stays whole', () => {
   let w = importWorkspaceXml(

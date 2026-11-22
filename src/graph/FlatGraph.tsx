@@ -68,7 +68,7 @@ import {menuGroups, useEditorMenu} from '../ContextMenu.tsx';
 import {t, useLanguage} from '../i18n/index.ts';
 import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
-import {bodyLabel} from '../body.ts';
+import {bodyChipValue, bodyLabel} from '../body.ts';
 /** routeTo: where each route row's pin goes now, by name (routePins); routeKinds: what it reaches (the colour of its
  *  destination chip, as a condition card's). */
 type RouteKind = 'hkx' | 'card' | 'qte' | 'event' | 'end';
@@ -206,7 +206,7 @@ function HkxSummary({node}: {node: Visual['data']}) {
         <span>{tr('종류 · 인칭 · 부위')}</span>
         <span className="node-value">
           {a?.pair ? tr('페어') : tr('일반')} · {a ? viewNames[actionView(gate.w, a)] : ''} ·{' '}
-          {a?.config.body ? <b className="hkx-part">{bodyLabel(a.config.body)}</b> : bodyLabel(undefined)}
+          {a?.config.body ? <b className="hkx-part">{bodyChipValue(a)}</b> : bodyLabel(undefined)}
         </span>
       </div>
       <div className="hkx-chips">

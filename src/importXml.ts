@@ -189,7 +189,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'loop',
         'maxHold',
         'rig',
-        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body']),
+        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body', 'facing']),
       ],
       [
         'Exit',
@@ -246,6 +246,12 @@ export function importWorkspaceXml(text: string): Workspace {
     }
     // A part action (runtime 1.0.9): the upper body or one arm while moving.
     if (!pair && n.attrs.body !== undefined) p.body = choice(n, 'body', bodyParts, 'upper');
+    // The upper body's direction (runtime facing): camera, or the legs' heading (the default).
+    if (!pair && n.attrs.facing !== undefined) {
+      const facing = choice(n, 'facing', ['legs', 'camera'] as const, 'legs');
+      if (p.body !== 'upper') throw new Error(tr('Action: facing은 상체 부위 동작(body="upper")에만 씁니다.'));
+      if (facing === 'camera') p.facing = 'camera';
+    }
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
     // Charge (runtime 10-30): a clip that plays on until its key is let go or maxHold. A part loop with no maxHold

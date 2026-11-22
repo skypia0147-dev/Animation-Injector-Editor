@@ -64,6 +64,7 @@ export function setActionBody(w: Workspace, uid: string, body: BodyPart | undefi
   if (!a) throw new Error(tr('동작을 찾지 못했습니다.'));
   const fixed = fixedWhole(next, a);
   if (body && fixed) throw new Error(fixedWholeReason(fixed));
+  if (body !== 'upper') delete a.config.facing;
   if (!body) {
     delete a.config.body;
     // A whole-body loop always has its maxHold (0 meant 「until it is ended」, a part loop's).
@@ -78,6 +79,22 @@ export function setActionBody(w: Workspace, uid: string, body: BodyPart | undefi
   a.config.steps = a.config.steps.map(s => ({...s, attack: ''}));
   return next;
 }
+
+/** The upper body's direction (runtime facing="camera"): toward the camera, or the legs' heading (undefined). */
+export function setActionFacing(w: Workspace, uid: string, camera: boolean): Workspace {
+  const next = clone(w),
+    a = next.actions.find(a => a.uid === uid);
+  if (!a) throw new Error(tr('동작을 찾지 못했습니다.'));
+  if (camera && a.config.body !== 'upper') throw new Error(tr('상체 방향은 부위가 상체일 때만 정합니다.'));
+  if (camera) a.config.facing = 'camera';
+  else delete a.config.facing;
+  return next;
+}
+/** The 「부위」 chip's value: the part, and the upper body's direction when it faces the camera. */
+export const bodyChipValue = (a: Action) =>
+  a.config.body === 'upper' && a.config.facing === 'camera'
+    ? tr('{v0} · 화면', {v0: bodyLabel(a.config.body)})
+    : bodyLabel(a.config.body);
 
 /** What the runtime refuses on a part action, as the card's problems. */
 export function bodyIssues(w: Workspace): Issue[] {

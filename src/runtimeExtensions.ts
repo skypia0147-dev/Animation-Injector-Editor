@@ -104,6 +104,11 @@ export function stripExtensions(value: any): unknown {
     if (!['upper', 'rightArm', 'leftArm'].includes(p.body)) fail();
     delete p.body;
   }
+  // The upper body's direction: camera only (the legs' heading is the default, not written).
+  if (p?.facing !== undefined) {
+    if (p.facing !== 'camera') fail();
+    delete p.facing;
+  }
   // Charge (runtime 10-30): an optional loop {maxHold}.
   if (p?.loop !== undefined) {
     const l = p.loop;

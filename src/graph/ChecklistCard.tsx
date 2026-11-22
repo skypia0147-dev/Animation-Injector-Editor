@@ -58,7 +58,16 @@ import {renderedRegistry} from './renderCache.ts';
 import {tr} from '../i18n/korean.ts';
 import {actionRig, creatureHiddenSettings, isCreatureRig, withRigOf} from '../creatureRig.ts';
 import {errorText} from '../errorText.ts';
-import {bodyLabel, bodyParts, fixedWhole, fixedWholeReason, partHiddenSettings, setActionBody} from '../body.ts';
+import {
+  bodyChipValue,
+  bodyLabel,
+  bodyParts,
+  fixedWhole,
+  fixedWholeReason,
+  partHiddenSettings,
+  setActionBody,
+  setActionFacing,
+} from '../body.ts';
 import type {BodyPart} from '../body.ts';
 
 type Context = {
@@ -275,7 +284,7 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
       {
         id: 'body',
         label: tr('부위'),
-        value: bodyLabel(p.body),
+        value: bodyChipValue(a),
         ...state.body,
         always: true,
         locked: fixedWholeReason(fixedWhole(w, a)) || undefined,
@@ -756,11 +765,32 @@ function BodyFields({
       </DetailRow>
       <p className="set-help">
         {action.config.body
-          ? tr(
-              '다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 상체는 다리가 어떻게 움직여도 이 HKX의 회전 그대로입니다(골반을 따라 위아래로만). 3인칭에서만 재생합니다.'
-            )
+          ? tr('다리는 이동 애니메이션 그대로라 재생하는 동안 걷고 달릴 수 있습니다. 3인칭에서만 재생합니다.')
           : tr('상체나 한쪽 팔을 고르면 재생하는 동안 걷고 달릴 수 있습니다(3인칭).')}
       </p>
+      {action.config.body === 'upper' && (
+        <>
+          <DetailRow label={tr('상체 방향')}>
+            <select
+              aria-label={tr('상체 방향')}
+              value={action.config.facing ?? ''}
+              onChange={e => edit(w => setActionFacing(w, action.uid, e.target.value === 'camera'))}
+            >
+              <option value="">{tr('하체 따라감 (기본)')}</option>
+              <option value="camera">{tr('화면 — 카메라가 보는 곳')}</option>
+            </select>
+          </DetailRow>
+          <p className="set-help">
+            {action.config.facing === 'camera'
+              ? tr(
+                  '재생하는 동안 몸이 카메라 쪽으로 돌고, 상체가 카메라의 좌우·위아래를 향합니다(활·석궁·마법 조준). HKX는 정면을 조준하는 자세로 만듭니다. NPC는 하체를 따라갑니다.'
+                )
+              : tr(
+                  '상체가 다리의 기울기·흔들림은 받지 않고 몸통 방향만 따라 돕니다(차지·물약·우산처럼 자세를 몸에 싣는 동작).'
+                )}
+          </p>
+        </>
+      )}
       {w.links.some(l => (l.from === action.uid || l.to === action.uid) && l.blend !== undefined) &&
         action.config.body && (
           <p className="set-help">{tr('부위 동작의 전환은 블렌드 대신 도착 동작의 시작 블렌드로 이어집니다.')}</p>

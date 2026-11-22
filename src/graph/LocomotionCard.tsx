@@ -12,18 +12,28 @@ import {
   setApplies,
   setExcept,
   setLabel,
+  setStance,
+  setStanceChoice,
   setTreeUse,
+  stanceChoice,
+  stanceFiles,
+  stancePrefixOf,
+  stanceSideLabel,
+  stanceSides,
   treeFiles,
   treeUse,
   treeWeaponOf,
   type LadderSet,
   type Locomotion,
+  type StanceChoice,
+  type StanceSide,
   type TreeFile,
   type TreeUse,
   type TreeWeapon,
 } from '../locomotion.ts';
 import {ChecklistContext} from './ChecklistCard.tsx';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
+import {NumberInput} from '../ui/details/NumberInput.tsx';
 import {tr} from '../i18n/korean.ts';
 import {errorText} from '../errorText.ts';
 import {assetKey, selectAsset} from '../package.ts';
@@ -99,6 +109,17 @@ export function LocomotionBody() {
         <span>
           {tr('전역')} · {tr('연결 없음')} · {tr('적용')} <b className="fn">{applied.length}</b> / {offered.length} ·{' '}
           {tr('전용 파일')} <b>{files}</b>
+          {stanceSides(l).length > 0 && (
+            <>
+              {' '}
+              · {tr('자세 이동')}{' '}
+              <b>
+                {stanceSides(l)
+                  .map(s => (s === 'right' ? tr('우측') : tr('좌측')))
+                  .join('·')}
+              </b>
+            </>
+          )}
         </span>
       </div>
       <div
@@ -166,7 +187,34 @@ export function LocomotionBody() {
                 <option value="own">{tr('맨손 전용 트리')}</option>
               </select>
             </DetailRow>
+            <DetailRow
+              label={tr('자세 이동')}
+              hint={tr(
+                '상체 부위 동작(부위: 상체)이 재생되는 동안, 그 HKX가 가슴을 그쪽으로 튼 각도만큼 하체를 아래 걷기·달리기로 바꿉니다(정한 각도 사이에서 섞임). 활 조준·차지처럼 상체를 옆으로 튼 동작이 정면 이동 위에서 허리가 꺾여 보이지 않게 합니다. 잠행·막기 이동에는 쓰지 않습니다.'
+              )}
+            >
+              <select
+                aria-label={tr('자세 이동')}
+                value={stanceChoice(l)}
+                onChange={e => change(w => setStanceChoice(w, e.target.value as StanceChoice))}
+              >
+                <option value="">{tr('바닐라 (사용 안 함)')}</option>
+                <option value="right">{tr('우측 상체')}</option>
+                <option value="left">{tr('좌측 상체')}</option>
+                <option value="both">{tr('양쪽')}</option>
+              </select>
+            </DetailRow>
+            {stanceSides(l).map(side => (
+              <StanceFields key={side} side={side} both={stanceSides(l).length > 1} change={change} />
+            ))}
           </div>
+          {stanceSides(l).length > 0 && (
+            <p className="set-help locomotion-stance-help">
+              {tr(
+                '파일: 경로 뒤에 Forward·ForwardLeft·Left·BackwardLeft·Backward·BackwardRight·Right·ForwardRight와 .hkx를 붙여 찾고, 없는 방향은 원래 이동을 씁니다. 파일은 한 주기(왼발·오른발 한 번씩)로, FootLeft·FootRight 주석과 이동 거리 주석(animmotion, 디딘 발 속도)을 넣습니다.'
+              )}
+            </p>
+          )}
         </section>
         <section className="checklist-section">
           <div className="checklist-section-title">
@@ -202,6 +250,106 @@ export function LocomotionBody() {
         )}
       </div>
     </>
+  );
+}
+
+/** One side's stance set (<Stance>, locomotion.ts): the turn range it mixes in over, and the walk and run files by
+ *  their prefix. 찾아보기 takes one file named for a direction, fills the prefix and registers every direction's file
+ *  found beside it in the HKX library (so a mod export copies them); the count is how many of the eight are registered. */
+function StanceFields({
+  side,
+  both,
+  change,
+}: {
+  side: StanceSide;
+  both: boolean;
+  change: (fn: (w: {locomotion?: Locomotion}) => void) => void;
+}) {
+  const {w, edit} = useContext(ChecklistContext)!;
+  const s = w.locomotion?.stances?.[side];
+  const [message, setMessage] = useState<{text: string; error: boolean} | null>(null);
+  if (!s) return null;
+  const name = (label: string) => (both ? `${stanceSideLabel(side)} · ${label}` : label);
+  const registered = (prefix: string | undefined) =>
+    stanceFiles(prefix).filter(f => w.assets.some(a => assetKey(a.clip) === assetKey(f))).length;
+  const browse = async (key: 'walk' | 'run') => {
+    try {
+      const picked = await io.pickHkx();
+      if (!picked) return;
+      const prefix = stancePrefixOf(picked.clip);
+      if (!prefix) {
+        setMessage({
+          text: tr('방향 이름(Forward … BackwardRight)으로 끝나는 파일을 고르세요: {clip}', {clip: picked.clip}),
+          error: true,
+        });
+        return;
+      }
+      // Every direction's file beside the one picked (same folder, same prefix).
+      const folder = picked.path.replace(/[^/\\]+$/, '');
+      const name = prefix.split(/[/\\]/).at(-1)!;
+      const candidates = stanceFiles(prefix).map(clip => ({clip, path: folder + name + clip.slice(prefix.length)}));
+      const resolved = await io.resolveHkx(candidates.map(c => c.path));
+      const found = candidates.filter(c =>
+        resolved.some(r => !r.error && assetKey(r.path) === assetKey(c.path) && assetKey(r.clip) === assetKey(c.clip))
+      );
+      edit((next: Workspace) => {
+        let out = found.reduce((acc, f) => selectAsset(acc, f.clip, f.path), next);
+        out = {...out, locomotion: out.locomotion && structuredClone(out.locomotion)};
+        setStance(out, side, {[key]: prefix});
+        return out;
+      });
+      setMessage({text: tr('파일 {n}개를 등록했습니다.', {n: found.length}), error: false});
+    } catch (e) {
+      setMessage({text: errorText(e), error: true});
+    }
+  };
+  const file = (key: 'walk' | 'run', label: string) => (
+    <DetailRow label={label}>
+      <span className="locomotion-stance-file">
+        <input
+          aria-label={name(label)}
+          value={s[key] ?? ''}
+          placeholder={key === 'walk' ? 'Animations\\MyBow\\Walk' : 'Animations\\MyBow\\Run'}
+          onChange={e => change(w => setStance(w, side, {[key]: e.target.value}))}
+        />
+        <small className="time registry-what">
+          <span className="fn">{registered(s[key])} / 8</span>
+        </small>
+        <button className="ghost" onClick={() => browse(key)}>
+          {tr('찾아보기')}
+        </button>
+      </span>
+    </DetailRow>
+  );
+  return (
+    <div className="locomotion-stance" data-stance={side}>
+      {both && <div className="locomotion-stance-side">{stanceSideLabel(side)}</div>}
+      <DetailRow label={tr('섞는 각도')}>
+        <span className="locomotion-stance-angle">
+          <NumberInput
+            aria-label={name(tr('섞기 시작 각도'))}
+            value={s.from}
+            min={0}
+            max={179}
+            step={1}
+            change={from => change(w => setStance(w, side, {from}))}
+          />
+          {tr('° 부터')}
+          <NumberInput
+            aria-label={name(tr('전부 바뀌는 각도'))}
+            value={s.full}
+            min={1}
+            max={180}
+            step={1}
+            change={full => change(w => setStance(w, side, {full}))}
+          />
+          {tr('° 에서 전부')}
+        </span>
+      </DetailRow>
+      {file('walk', tr('걷기 파일'))}
+      {file('run', tr('달리기 파일'))}
+      {message && <p className={message.error ? 'checklist-error' : 'set-help'}>{message.text}</p>}
+    </div>
   );
 }
 
