@@ -2035,6 +2035,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '検査対象が最後に終えたこのプロジェクトの動作（XML で追加した動作）が選んだもののひとつかを見ます。終了から何秒以内か、最後まで再生したか途中で終わったかも選べます。バニラの動作は対象外です。この条件を使うときだけ記録します。',
       '检查对象最后结束的本项目动作（在 XML 中添加的动作）是否为所选之一。也可选择结束后几秒内、是否播放到底或中途结束。原版动作不在其列。仅在使用此条件时记录。',
     ],
+  '검사 대상이 마지막으로 땅을 디딘 발입니다(이동 애니메이션의 FootLeft·FootRight 이벤트 중 나중에 온 것, 걷기·달리기 속도와 상관없음). 멈출 때 발에 맞는 정지 동작을 고르려면 moveStop 이벤트 시작에 씁니다. 이 조건을 쓸 때만 기록합니다(런타임 1.0.9 이상).':
+    [
+      "The foot the subject last set on the ground (of the locomotion's FootLeft and FootRight events, the one that came last, at any walking or running speed). To pick a stop for each foot, use it on a moveStop event start. Recorded only while this condition is used (runtime 1.0.9 or later).",
+      '検査対象が最後に地面についた足です(移動アニメーションの FootLeft・FootRight イベントのうち後に来たもの、歩き・走りの速さに関係なし)。止まるときに足に合った停止動作を選ぶには moveStop イベントの開始で使います。この条件を使うときだけ記録します(ランタイム 1.0.9 以降)。',
+      '检查对象最后落地的脚(移动动画的 FootLeft·FootRight 事件中较晚到达的那个,与走跑速度无关)。要在停下时按脚选择停止动作,请在 moveStop 事件开始中使用。仅在使用此条件时记录(运行时 1.0.9 或更高版本)。',
+    ],
   '검사 대상이 마지막으로 맞은 무기 공격의 종류입니다. 일반 공격은 파워어택도 방패 밀치기도 아닌 공격이고, 막음은 그 공격을 막았을 때입니다(막은 파워어택은 파워어택과 막음을 함께 겁니다). 마법은 세지 않습니다. 막았을 때 바꾸려면 blockHitStart 이벤트 시작에 0.5초 이내로 씁니다. 이 조건을 쓸 때만 기록합니다.':
     [
       'The kind of the last weapon hit the subject took. A normal attack is neither a power attack nor a bash; blocked is when that attack was blocked (a blocked power attack is both power attack and blocked). Spells do not count. To change what happens on a block, use it on a blockHitStart event start, within 0.5 seconds. Recorded only while this condition is used.',
@@ -2549,7 +2555,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '終了は遷移の行き先でのみ選びます。',
     '“结束”只能在转换的目的地中选择。',
   ],
-  '끝낼 때까지': ['Until ended', '終わるまで', '直到结束'],
   '나가는 곳': ['Goes to', 'ここから行く先', '去向'],
   '낙하 거리': ['Fall distance', '落下距離', '下落距离'],
   '낙하 거리는 떨어지는 중·오르는 중에서만 비교합니다.': [
@@ -2866,6 +2871,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '登録の duration は iframeOn·armorOn·rotateOn·timeOn の持続時間です',
     '注册的 duration 是 iframeOn·armorOn·rotateOn·timeOn 的持续时间',
   ],
+  '디딘 발': ['Planted foot', '接地した足', '着地脚'],
   디자인: ['Design', 'デザイン', '设计'],
   따라가기: ['Follow', '追従', '跟随'],
   '따라가기 0 · 중력·저항·관성·관절은 {rig} 스켈레톤의 게임 값 그대로 · 모든 몸체가 물리로 흔들림': [
@@ -5835,7 +5841,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   최근: ['Recent', '最近', '最近'],
   '최근 이벤트': ['Recent event', '最近のイベント', '最近事件'],
   최대: ['maximum', '最大', '最大'],
-  '최대 {v0}초': ['Max {v0} s', '最大{v0}秒', '最长 {v0} 秒'],
   '최대 경사각': ['Max slope angle', '最大傾斜角', '最大倾斜角'],
   '최대 유지 시간은 0.1~600초입니다.': [
     'Max hold is 0.1 to 600 seconds.',

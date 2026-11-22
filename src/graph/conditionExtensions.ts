@@ -557,6 +557,25 @@ export const extensionConditions = {
       );
     },
   },
+  foot: {
+    get label() {
+      return tr('디딘 발');
+    },
+    get category() {
+      return tr('상태');
+    },
+    get choices() {
+      return [
+        ['left', tr('왼발')],
+        ['right', tr('오른발')],
+      ] as const;
+    },
+    get hint() {
+      return tr(
+        '검사 대상이 마지막으로 땅을 디딘 발입니다(이동 애니메이션의 FootLeft·FootRight 이벤트 중 나중에 온 것, 걷기·달리기 속도와 상관없음). 멈출 때 발에 맞는 정지 동작을 고르려면 moveStop 이벤트 시작에 씁니다. 이 조건을 쓸 때만 기록합니다(런타임 1.0.9 이상).'
+      );
+    },
+  },
   weather: {
     get label() {
       return tr('날씨');
