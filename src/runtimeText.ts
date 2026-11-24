@@ -189,6 +189,10 @@ const pieces = [
     ...trFragment('조건 없는 행은 쓰지 않습니다: 공통 조건만으로 정하면 <True>, 나머지는 <False>로 씁니다'),
   },
   {
+    en: 'A signal name uses 1–32 letters, digits or underscores: ',
+    ...trFragment('신호 이름은 영문·숫자·밑줄 1–32자입니다: '),
+  },
+  {
     en: 'A start needs to (an action), condition (a shared condition card) or a condition card',
     ...trFragment('시작에는 to(동작), condition(함께 쓰는 조건 카드) 또는 조건 카드가 필요합니다'),
   },
@@ -434,6 +438,8 @@ const pieces = [
   {en: 'Set walk or run', ...trFragment('walk나 run 중 하나는 지정해야 합니다')},
   {en: 'Several links on the same event are ambiguous', ...trFragment('같은 이벤트에 여러 연결이 있어 모호합니다')},
   {en: 'side is right or left: ', ...trFragment('side는 right 또는 left입니다: ')},
+  {en: 'signal is for ordinary actions (Action) only', ...trFragment('signal은 일반 동작(Action)에만 씁니다')},
+  {en: 'signal is only for human (character) actions', ...trFragment('signal은 사람(캐릭터) 동작에만 씁니다')},
   {en: 'Smithing', ...trFragment('제련')},
   {
     en: 'sound needs file (a sound file) or plugin and form (a registered sound)',

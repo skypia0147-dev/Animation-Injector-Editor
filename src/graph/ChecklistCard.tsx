@@ -69,6 +69,7 @@ import {
   setActionFacing,
 } from '../body.ts';
 import type {BodyPart} from '../body.ts';
+import {setActionSignal, signalRefused, signalUsers, signalVariable, validSignalName} from '../signal.ts';
 
 type Context = {
   w: Workspace;
@@ -318,6 +319,16 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         reset: () =>
           loopItem && attempt(() => edit(w => deleteFlat(detachInspectorNode(w, loopItem.node.id), loopItem.node.id))),
         fields: () => <LoopRule action={a} edit={edit} />,
+      },
+      {
+        // An OAR signal (runtime 1.0.9, signal.ts): its chip shows the name; the graph variable is in its fields.
+        id: 'signal',
+        label: tr('OAR 신호'),
+        value: p.signal ?? '',
+        set: p.signal !== undefined,
+        applies: p.signal !== undefined || !signalRefused(a),
+        reset: () => edit(w => setActionSignal(w, a.uid, undefined)),
+        fields: () => <SignalFields w={w} action={a} edit={fn => attempt(() => edit(fn))} />,
       },
       {
         id: 'detection',
@@ -738,6 +749,66 @@ function AirRule({action, edit}: {action: Action; edit: (fn: (w: Workspace) => W
 
 /** The 「부위」 playback setting (runtime 1.0.9, body.ts): the whole body, or the upper body or one arm while the legs
  *  keep the locomotion. */
+/** An action's OAR signal: its name, the graph variable an OAR condition reads, and the other actions sharing it. */
+function SignalFields({
+  w,
+  action,
+  edit,
+}: {
+  w: Workspace;
+  action: Action;
+  edit: (fn: (w: Workspace) => Workspace) => void;
+}) {
+  const name = action.config.signal ?? '';
+  const variable = signalVariable(w, name);
+  const others = name ? signalUsers(w, name).filter(a => a.uid !== action.uid) : [];
+  const [copied, setCopied] = useState(false);
+  // One block: an open removable setting lays its fields and its trash out as two grid columns (cardSettings.css).
+  return (
+    <div className="signal-fields">
+      <DetailRow label={tr('OAR 신호')}>
+        <input
+          aria-label={tr('OAR 신호 이름')}
+          value={name}
+          maxLength={32}
+          placeholder="Charge"
+          onChange={e => edit(w => setActionSignal(w, action.uid, e.target.value || undefined))}
+        />
+      </DetailRow>
+      {name && !validSignalName(name) && <p className="set-help signal-bad">{tr('영문·숫자·_ 1~32자로 씁니다.')}</p>}
+      {name && validSignalName(name) && (
+        <DetailRow label={tr('그래프 변수')}>
+          <span className="signal-variable">
+            <code>{variable}</code>
+            <button
+              type="button"
+              onClick={() =>
+                void navigator.clipboard.writeText(variable).then(
+                  () => setCopied(true),
+                  () => setCopied(false)
+                )
+              }
+              onBlur={() => setCopied(false)}
+            >
+              {copied ? tr('복사됨') : tr('복사')}
+            </button>
+          </span>
+        </DetailRow>
+      )}
+      <p className="set-help">
+        {tr(
+          '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다.'
+        )}
+      </p>
+      {others.length > 0 && (
+        <p className="set-help">
+          {tr('같은 신호: {v0}', {v0: others.map(a => a.config.name || a.config.actionId).join(', ')})}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function BodyFields({
   w,
   action,

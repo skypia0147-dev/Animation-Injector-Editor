@@ -49,6 +49,8 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
     body: p.body,
     // The upper body aims where the camera looks (runtime facing="camera"); the legs' heading is the default.
     facing: p.body === 'upper' && p.facing === 'camera' ? 'camera' : undefined,
+    // An OAR signal (runtime 1.0.9): bAI_<set>_<name> true while it plays.
+    signal: p.signal || undefined,
     air: p.air === 'allow' ? 'both' : p.air === 'only' ? 'only' : undefined,
     attack: attack || undefined,
     // The workspace drops a blend that is off (the graph's own transition then applies).

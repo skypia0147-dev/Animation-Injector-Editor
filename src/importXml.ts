@@ -31,6 +31,7 @@ import {
   type StartPress,
 } from './cards.ts';
 import {tr} from './i18n/korean.ts';
+import {validSignalName} from './signal.ts';
 
 // Opening an XML (format 6, runtime 0.12.291): the document is the file's starts, condition cards and HKX cards, one
 // to one (docs/설계-형식6-에디터.md). Formats 4 and 5 are converted to format 6 first (format6Convert.ts), as the
@@ -189,7 +190,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'loop',
         'maxHold',
         'rig',
-        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body', 'facing']),
+        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body', 'facing', 'signal']),
       ],
       [
         'Exit',
@@ -251,6 +252,12 @@ export function importWorkspaceXml(text: string): Workspace {
       const facing = choice(n, 'facing', ['legs', 'camera'] as const, 'legs');
       if (p.body !== 'upper') throw new Error(tr('Action: facing은 상체 부위 동작(body="upper")에만 씁니다.'));
       if (facing === 'camera') p.facing = 'camera';
+    }
+    // An OAR signal (runtime 1.0.9): 1~32 of A-Z a-z 0-9 _.
+    if (!pair && n.attrs.signal !== undefined) {
+      if (!validSignalName(n.attrs.signal))
+        throw new Error(tr('Action: OAR 신호 이름은 영문·숫자·_ 1~32자입니다: {v0}', {v0: n.attrs.signal}));
+      p.signal = n.attrs.signal;
     }
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';

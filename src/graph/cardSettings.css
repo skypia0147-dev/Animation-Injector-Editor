@@ -244,3 +244,20 @@
   font-size: 11.5px;
   line-height: 1.5;
 }
+/* An OAR signal's graph variable and its copy button (signal.ts). */
+.signal-variable {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.signal-variable code {
+  font-family: Consolas, 'Cascadia Mono', monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.set-help.signal-bad {
+  color: var(--ue-bad);
+}

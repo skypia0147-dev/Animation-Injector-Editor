@@ -66,6 +66,7 @@ import {
 } from './creatureRig.ts';
 import {ordinaryEffectOps} from './clipEffects.ts';
 import {bodyIssues, partLoopDefault} from './body.ts';
+import {signalIssues} from './signal.ts';
 import {errorText} from './errorText.ts';
 export const operations = [
   'hide',
@@ -774,6 +775,7 @@ export function validateWorkspace(w: Workspace): Issue[] {
     for (const v of Object.values(a.config.eventValues ?? {})) for (const m of valueErrors(v)) err(a.uid, m);
   out.push(...viewIssues(w));
   out.push(...bodyIssues(w));
+  out.push(...signalIssues(w));
   // A creature's own action (runtime 1.1.0): what the runtime refuses on it, and transitions across skeletons.
   for (const a of w.actions) {
     const limits = creatureLimits(w, a);

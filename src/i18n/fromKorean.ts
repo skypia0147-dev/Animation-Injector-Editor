@@ -297,6 +297,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'アクション ID がありません。HKX ファイルを選ぶとファイル名から決まります(ファイル名に英字がなければ直接入力してください)。',
     '还没有动作 ID。选择 HKX 文件后会按文件名设定(文件名没有英文字母时请直接填写)。',
   ],
+  'Action: OAR 신호 이름은 영문·숫자·_ 1~32자입니다: {v0}': [
+    'Action: an OAR signal name is 1–32 letters, digits or _: {v0}',
+    'Action: OAR シグナル名は英数字・_ の 1～32 文字です: {v0}',
+    'Action: OAR 信号名称为 1～32 个字母、数字或 _：{v0}',
+  ],
   'Action: facing은 상체 부위 동작(body="upper")에만 씁니다.': [
     'Action: facing is only for an upper-body part action (body="upper").',
     'Action: facing は上半身の部位動作（body="upper"）にのみ使います。',
@@ -831,6 +836,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     "A NOT group can't be dissolved. Turn NOT off first.",
     'NOTのグループは解除できません。先にNOTを外してください。',
     '带 NOT 的分组无法解散。请先关闭 NOT。',
+  ],
+  'OAR 신호': ['OAR signal', 'OAR シグナル', 'OAR 信号'],
+  'OAR 신호 이름': ['OAR signal name', 'OAR シグナル名', 'OAR 信号名称'],
+  'OAR 신호는 사람(캐릭터) 동작에만 씁니다.': [
+    'An OAR signal is for human (character) actions only.',
+    'OAR シグナルは人間（キャラクター）のアクション専用です。',
+    'OAR 信号仅用于人类（角色）动作。',
+  ],
+  'OAR 신호는 일반 동작에만 씁니다(페어는 안 됨).': [
+    'An OAR signal is for ordinary actions only (not pairs).',
+    'OAR シグナルは通常のアクション専用です（ペアは不可）。',
+    'OAR 信号仅用于普通动作（配对不可）。',
   ],
   'OR 행 안의 묶음은 <And>로 씁니다(같은 연산자는 묶지 않습니다)': [
     'A group in an OR row is written <And> (the same operator is not grouped)',
@@ -1397,6 +1414,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'side は right か left です：',
     'side 为 right 或 left：',
   ],
+  'signal은 사람(캐릭터) 동작에만 씁니다': [
+    'signal is only for human (character) actions',
+    'signal は人間（キャラクター）のアクション専用です',
+    'signal 仅用于人类（角色）动作',
+  ],
+  'signal은 일반 동작(Action)에만 씁니다': [
+    'signal is for ordinary actions (Action) only',
+    'signal は通常のアクション（Action）専用です',
+    'signal 仅用于普通动作（Action）',
+  ],
   'sound에는 file(소리 파일) 또는 plugin·form(등록 사운드) 중 하나만 씁니다': [
     'sound takes either file (a sound file) or plugin and form (a registered sound), not both',
     'sound には file（サウンドファイル）か plugin・form（登録サウンド）のどちらか一方だけを書きます',
@@ -1683,6 +1710,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '{v0}: NPC は一人称アクションを再生しません。開始対象をプレイヤーに変更するか視点を変更してください。',
     '{v0}：NPC 不会播放第一人称动作。请将起始目标更改为玩家或更改视角。',
   ],
+  '{v0}: OAR 신호 이름은 영문·숫자·_ 1~32자입니다: {v1}': [
+    '{v0}: an OAR signal name is 1–32 letters, digits or _: {v1}',
+    '{v0}: OAR シグナル名は英数字・_ の 1～32 文字です: {v1}',
+    '{v0}: OAR 信号名称为 1～32 个字母、数字或 _：{v1}',
+  ],
   '{v0}: maxHold는 loop="true"와 함께 씁니다.': [
     '{v0}: maxHold goes with loop="true".',
     '{v0}: maxHold は loop="true" と一緒に使います。',
@@ -1954,6 +1986,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '同じ設定が重複して公開されています。',
     '重复导出了相同的设置。',
   ],
+  '같은 신호: {v0}': ['Same signal: {v0}', '同じシグナル: {v0}', '相同信号：{v0}'],
   '같은 연산자를 고르면 묶음이 풀립니다': [
     'Choosing the same operator as its row dissolves the group',
     '行と同じ演算子を選ぶとグループが解除されます',
@@ -2423,6 +2456,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'グラフ登録のみ · 機能なし',
     '仅在图表中注册 · 无功能',
   ],
+  '그래프 변수': ['Graph variable', 'グラフ変数', '图变量'],
   '그래프 전체 보기': ['Zoom to fit graph', 'グラフ全体を表示', '缩放以适应图表'],
   '그래프 편집': ['Edit graph', 'グラフの編集', '编辑图表'],
   '글자 크기 {n}%': ['Text size {n}%', '文字サイズ {n}%', '文字大小 {n}%'],
@@ -3464,6 +3498,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'コピー準備完了 · HKX 内容/注釈未検査',
     '准备复制 · 未检查 HKX 内容/注释',
   ],
+  복사됨: ['Copied', 'コピーしました', '已复制'],
   '복사한 카드가 없습니다.': ['No copied card.', 'コピーしたカードがありません。', '没有已复制的卡片。'],
   '복사할 카드를 선택하세요.': [
     'Select the cards to copy.',
@@ -4183,6 +4218,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   시커: ['Seeker', 'シーカー', '搜寻者'],
   '식별 정보': ['Identifiers', '識別情報', '识别信息'],
   '신체 높이': ['Actor height', '身体の高さ', '身体高度'],
+  '신호 이름은 영문·숫자·밑줄 1–32자입니다: ': [
+    'A signal name uses 1–32 letters, digits or underscores: ',
+    'シグナル名は英数字・アンダースコアの 1–32 文字です: ',
+    '信号名称为 1–32 个字母、数字或下划线：',
+  ],
   실내: ['Interior', '屋内', '室内'],
   실패: ['Failure', '失敗', '失败'],
   '실행되지 않습니다. {usage} 형식으로 값을 모두 적어야 합니다.': [
@@ -4400,6 +4440,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '开启必须早于关闭',
   ],
   염소: ['Goat', 'ヤギ', '山羊'],
+  '영문·숫자·_ 1~32자로 씁니다.': [
+    'Use 1–32 letters, digits or _.',
+    '英数字・_ の 1～32 文字で書きます。',
+    '使用 1～32 个字母、数字或 _。',
+  ],
   '옆 달리기(strafe)': ['Strafe run', '横走り(strafe)', '侧向奔跑(strafe)'],
   '예: FH_Grapple.esp. 설치되지 않았거나 폼 종류가 다르면 검사 불능입니다.': [
     'e.g. FH_Grapple.esp. Inconclusive if not installed or form type differs.',
@@ -4816,6 +4861,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このアクションの作成パラメータを先に削除してください。',
     '请先删除此动作的制作参数。',
   ],
+  '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다.':
+    [
+      "While this action plays, the actor's graph variable is true. Use this name in an OAR submod condition (CompareValues: graph variable Bool == 1) to swap the locomotion meanwhile. Actions of the same name that follow one another keep it on without a break.",
+      'このアクションの再生中、アクターのグラフ変数が true になります。OAR サブモッドの条件（CompareValues: グラフ変数 Bool == 1）にこの名前を使うと、その間の移動アニメーションを差し替えられます。同じ名前のアクション同士が続くと途切れません。',
+      '此动作播放期间，角色的图变量为 true。在 OAR 子模组条件（CompareValues：图变量 Bool == 1）中使用此名称，即可在此期间替换移动动画。同名动作相互衔接时不会中断。',
+    ],
   '이 동작이 직접 기다리는 이벤트입니다. 다른 HKX에는 영향이 없습니다.': [
     'An event this action waits for itself. Other HKX are not affected.',
     'このアクション自身が待つイベントです。他の HKX には影響しません。',

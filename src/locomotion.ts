@@ -40,7 +40,7 @@ export const TREE_KINDS: Record<TreeWeapon, TreeKind> = {
   '2HW': {from: '2HM', set: '2HW', blockFrom: 'Block2HM', blockSet: 'Block2HW', shared: true},
   H2H: {from: '1HM', set: 'H2H', blockFrom: 'Block1HM', blockSet: 'BlockH2H', shared: false},
 };
-/** <Stance side> (runtime 1.0.10, runtime/LadderSpec.h StanceSpec): while an upper-body part action plays, its clip's
+/** <Stance side> (runtime 1.0.9, runtime/LadderSpec.h StanceSpec): while an upper-body part action plays, its clip's
  *  chest turned that way by more than `from` degrees moves the legs onto these walk / run files, wholly at `full`.
  *  `walk` and `run` are path prefixes the direction and `.hkx` are appended to (STANCE_DIRECTIONS). */
 export const STANCE_SIDES = ['right', 'left'] as const;

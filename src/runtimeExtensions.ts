@@ -109,6 +109,11 @@ export function stripExtensions(value: any): unknown {
     if (p.facing !== 'camera') fail();
     delete p.facing;
   }
+  // An OAR signal (runtime 1.0.9): an optional name. Its rules are the card's problem (signal.ts signalIssues).
+  if (p?.signal !== undefined) {
+    if (typeof p.signal !== 'string') fail();
+    delete p.signal;
+  }
   // Charge (runtime 10-30): an optional loop {maxHold}.
   if (p?.loop !== undefined) {
     const l = p.loop;

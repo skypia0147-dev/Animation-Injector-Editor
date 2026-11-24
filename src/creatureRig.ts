@@ -73,7 +73,7 @@ export const partnerRigError = (pair: Action, next: Action) =>
 
 /** The settings (＋ 설정 ids) and the items (＋ 기능 and context add kinds) a creature card is not offered: the
  *  runtime refuses them on a creature's action (XmlV2). */
-export const creatureHiddenSettings: readonly string[] = ['view', 'otherView', 'air', 'attack'];
+export const creatureHiddenSettings: readonly string[] = ['view', 'otherView', 'air', 'attack', 'signal'];
 export const creatureHiddenAdds: readonly string[] = [
   'qte',
   'cameraRestore',

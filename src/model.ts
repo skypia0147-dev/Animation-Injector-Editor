@@ -50,6 +50,9 @@ export type Project = {
    *  toward the camera and points the upper body where the camera looks (aiming). Absent = the legs' heading. Only
    *  with body 'upper'. */
   facing?: 'camera';
+  /** An OAR signal (runtime 1.0.9 <Action signal>, signal.ts): the runtime keeps bAI_<set id>_<name> true while it
+   *  plays, for an OAR condition. Absent = none. */
+  signal?: string;
   /** Vanilla events blocked while it plays (XML format 6 <Action block>; `when` is always 'active'). A start's own
    *  block is the start card's (cards.ts StartCard). */
   suppress?: Suppression;
