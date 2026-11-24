@@ -1,7 +1,8 @@
-// OAR signals (runtime 1.0.9, <Action signal="Charge">, AnimationInjector runtime/Signals.h): while the action plays
-// the runtime keeps the actor's bool graph variable bAI_<AnimationSet id>_<name> true, and an Open Animation Replacer
-// submod swaps the locomotion on it (CompareValues, graphVariable Bool == 1). Actions of one name share the variable,
-// so a charge's start, hold and release can keep one locomotion set through. Ordinary character actions only (whole
+// OAR signals (runtime 1.0.9, <Action signal="MyBow_Charge">, AnimationInjector runtime/Signals.h): while the action
+// plays the runtime keeps the actor's bool graph variable bAI_<name> true, and an Open Animation Replacer submod swaps
+// the locomotion on it (CompareValues, graphVariable Bool == 1). Actions of one name share the variable, so a charge's
+// start, hold and release can keep one locomotion set through. The name is shared by every mod (user decision 11-24:
+// short, without the project id): authors put their mod's name in front. Ordinary character actions only (whole
 // body or part): never a pair or a creature's action.
 import type {Action, Workspace} from './workspace.ts';
 import type {Issue} from './model.ts';
@@ -11,8 +12,8 @@ import {isCreatureRig, actionRig} from './creatureRig.ts';
 
 /** A signal name as the runtime reads it: 1~32 of A-Z a-z 0-9 _. */
 export const validSignalName = (name: string) => /^[A-Za-z0-9_]{1,32}$/.test(name);
-/** The graph variable an OAR condition reads for `name` in this project (its AnimationSet id). */
-export const signalVariable = (w: Workspace, name: string) => `bAI_${w.id}_${name}`;
+/** The graph variable an OAR condition reads for `name`. */
+export const signalVariable = (name: string) => `bAI_${name}`;
 /** Why an action takes no signal: a pair or a creature's action (''). */
 export function signalRefused(a: Action): string {
   if (a.pair) return tr('OAR 신호는 일반 동작에만 씁니다(페어는 안 됨).');

@@ -30,7 +30,7 @@ test('signals read in, write back unchanged and are what the runtime loads', nee
   assert.deepEqual(errors(w), []);
   assert.equal(byId(w, 'ChargeStart').config.signal, 'Charge');
   assert.equal(byId(w, 'Release').config.signal, 'Charge_Shot');
-  assert.equal(signalVariable(w, 'Charge'), 'bAI_MyBow_Charge');
+  assert.equal(signalVariable('Charge'), 'bAI_Charge', 'the name alone, shared by every mod');
   assert.deepEqual(
     signalUsers(w, 'charge').map(a => a.config.actionId),
     ['ChargeStart', 'ChargeHold'],

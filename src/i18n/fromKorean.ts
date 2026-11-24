@@ -4861,11 +4861,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'このアクションの作成パラメータを先に削除してください。',
     '请先删除此动作的制作参数。',
   ],
-  '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다.':
+  '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다. 이름은 모든 모드가 함께 쓰므로 모드 이름을 앞에 붙이세요(예: MyBow_Charge).':
     [
-      "While this action plays, the actor's graph variable is true. Use this name in an OAR submod condition (CompareValues: graph variable Bool == 1) to swap the locomotion meanwhile. Actions of the same name that follow one another keep it on without a break.",
-      'このアクションの再生中、アクターのグラフ変数が true になります。OAR サブモッドの条件（CompareValues: グラフ変数 Bool == 1）にこの名前を使うと、その間の移動アニメーションを差し替えられます。同じ名前のアクション同士が続くと途切れません。',
-      '此动作播放期间，角色的图变量为 true。在 OAR 子模组条件（CompareValues：图变量 Bool == 1）中使用此名称，即可在此期间替换移动动画。同名动作相互衔接时不会中断。',
+      "While this action plays, the actor's graph variable is true. Use this name in an OAR submod condition (CompareValues: graph variable Bool == 1) to swap the locomotion meanwhile. Actions of the same name that follow one another keep it on without a break. Every mod shares the names, so put your mod's name in front (MyBow_Charge, for example).",
+      'このアクションの再生中、アクターのグラフ変数が true になります。OAR サブモッドの条件（CompareValues: グラフ変数 Bool == 1）にこの名前を使うと、その間の移動アニメーションを差し替えられます。同じ名前のアクション同士が続くと途切れません。名前はすべての MOD で共有されるため、MOD 名を先頭に付けてください（例: MyBow_Charge）。',
+      '此动作播放期间，角色的图变量为 true。在 OAR 子模组条件（CompareValues：图变量 Bool == 1）中使用此名称，即可在此期间替换移动动画。同名动作相互衔接时不会中断。名称由所有模组共用，请在前面加上模组名（例如 MyBow_Charge）。',
     ],
   '이 동작이 직접 기다리는 이벤트입니다. 다른 HKX에는 영향이 없습니다.': [
     'An event this action waits for itself. Other HKX are not affected.',

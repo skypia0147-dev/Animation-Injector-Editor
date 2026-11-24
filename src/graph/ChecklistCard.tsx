@@ -760,7 +760,7 @@ function SignalFields({
   edit: (fn: (w: Workspace) => Workspace) => void;
 }) {
   const name = action.config.signal ?? '';
-  const variable = signalVariable(w, name);
+  const variable = signalVariable(name);
   const others = name ? signalUsers(w, name).filter(a => a.uid !== action.uid) : [];
   const [copied, setCopied] = useState(false);
   // One block: an open removable setting lays its fields and its trash out as two grid columns (cardSettings.css).
@@ -771,7 +771,7 @@ function SignalFields({
           aria-label={tr('OAR 신호 이름')}
           value={name}
           maxLength={32}
-          placeholder="Charge"
+          placeholder="MyBow_Charge"
           onChange={e => edit(w => setActionSignal(w, action.uid, e.target.value || undefined))}
         />
       </DetailRow>
@@ -797,7 +797,7 @@ function SignalFields({
       )}
       <p className="set-help">
         {tr(
-          '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다.'
+          '이 동작이 재생되는 동안 액터의 그래프 변수가 true입니다. OAR 하위 모드 조건(CompareValues: 그래프 변수 Bool == 1)에 이 이름을 쓰면 그동안 이동 애니메이션을 바꿀 수 있습니다. 같은 이름의 동작끼리 이어지면 끊기지 않습니다. 이름은 모든 모드가 함께 쓰므로 모드 이름을 앞에 붙이세요(예: MyBow_Charge).'
         )}
       </p>
       {others.length > 0 && (
