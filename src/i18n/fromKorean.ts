@@ -6221,6 +6221,12 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '특정 순간': ['Specific moment', '特定の瞬間', '特定时刻'],
   파괴: ['Destruction', '破壊', '毁灭'],
   파워어택: ['Power attack', '強攻撃', '重击'],
+  '파워어택 공격 데이터(attackPowerStart…)는 타격(HitFrame)마다 엔진이 바닐라 파워어택 스태미나를 깎습니다. 이 동작의 스태미나 비용과 함께 두 번 빠집니다.':
+    [
+      "Power attack data (attackPowerStart…) makes the engine take the vanilla power attack's stamina at each hit (HitFrame). With this action's stamina cost, both are taken.",
+      'パワーアタックの攻撃データ(attackPowerStart…)では、ヒット(HitFrame)ごとにエンジンがバニラのパワーアタックのスタミナを消費します。このアクションのスタミナコストと合わせて二重に消費されます。',
+      '强力攻击数据(attackPowerStart…)会在每次命中(HitFrame)时由引擎扣除原版强力攻击的耐力。与此动作的耐力消耗一起会扣两次。',
+    ],
   파일: ['File', 'ファイル', '文件'],
   '파일 {n}개를 등록했습니다.': ['Registered {n} files.', '{n}個のファイルを登録しました。', '已登记 {n} 个文件。'],
   '파일 검증': ['File verification', 'ファイル検証', '文件校验'],

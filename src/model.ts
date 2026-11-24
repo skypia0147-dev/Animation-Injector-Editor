@@ -382,6 +382,20 @@ export function validate(p: Project): Issue[] {
       );
     if (s.attack && !eventValid(s.attack)) error(s.id, tr('클립 공격 데이터 이름이 잘못되었습니다.'));
   }
+  // Power attack data makes the engine take the vanilla power attack's stamina at each hit (HitFrame, measured 11-24): a
+  // stamina cost on the same action is taken too.
+  const power = (name: string) => /^(attack|bash)PowerStart/i.test(name);
+  const staminaCost =
+    (p.cost.enabled && p.cost.stamina > 0) ||
+    (p.effects ?? []).some(e => e.values.op === 'cost' && Number(e.values.stamina) > 0);
+  if (staminaCost && (power(p.attack) || p.steps.some(s => power(s.attack || p.attack))))
+    out.push({
+      level: 'warning',
+      node: 'project',
+      message: tr(
+        '파워어택 공격 데이터(attackPowerStart…)는 타격(HitFrame)마다 엔진이 바닐라 파워어택 스태미나를 깎습니다. 이 동작의 스태미나 비용과 함께 두 번 빠집니다.'
+      ),
+    });
   if (!p.steps.some(s => s.id === p.entry)) error('trigger', tr('시작 클립을 선택하세요.'));
   for (const message of extensionErrors(p)) error('project', message);
   return out;
