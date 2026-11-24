@@ -261,7 +261,7 @@ mod tests {
         assert!(
             verdict
                 .summary()
-                .contains("조건 카드를 거치는 전환에는 blend를 쓸 수 없습니다"),
+                .contains("A transition through a condition card cannot have blend"),
             "{}",
             verdict.summary()
         );

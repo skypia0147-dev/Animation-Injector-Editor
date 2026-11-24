@@ -1223,6 +1223,16 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'direction 仅用于 ragdoll',
   ],
   'ease는 timeOn에서만 씁니다': ['ease is for timeOn only', 'ease は timeOn でのみ使います', 'ease 仅用于 timeOn'],
+  'facing은 legs 또는 camera입니다: ': [
+    'facing is legs or camera: ',
+    'facing は legs または camera です: ',
+    'facing 为 legs 或 camera：',
+  ],
+  'facing은 상체 부위 동작(body="upper")에만 씁니다': [
+    'facing is used only on an upper body part action (body="upper")',
+    'facing は上半身の部位動作(body="upper")でのみ使います',
+    'facing 仅用于上半身部位动作(body="upper")',
+  ],
   'file·bone·volume은 sound에서만 씁니다': [
     'file, bone and volume are used by sound only',
     'file・bone・volume は sound でのみ使います',
@@ -1458,6 +1468,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'value and restore are used by globalSet only',
     'value・restore は globalSet でのみ使います',
     'value、restore 仅用于 globalSet',
+  ],
+  'view는 gripHold·gripRelease에서만 씁니다': [
+    'view is used only with gripHold and gripRelease',
+    'view は gripHold・gripRelease でのみ使います',
+    'view 仅用于 gripHold 和 gripRelease',
   ],
   'view는 third, first, both 중 하나입니다': [
     'view is one of third, first and both',
@@ -5256,7 +5271,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
       '将输入、条件、HKX 和过渡连接成一条线，未连接的分组按图性格网比例排列。事件注册位于最左侧。可使用 Ctrl+Z 撤销。',
     ],
   '입력을 찾지 못했습니다.': ['Could not find input.', '入力が見つかりませんでした。', '未找到输入。'],
-  있음: ['yes', 'あり', '有'],
   '자기 자신이나 자식 그룹으로 이동할 수 없습니다.': [
     'Cannot move to itself or its child groups.',
     '自分自身や子グループへ移動することはできません。',
@@ -5311,6 +5325,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   잠행: ['Sneaking', '隠密', '潜行'],
   '잡기 유지': ['Grip hold', 'グリップ保持', '保持握法'],
   '잡기 풀기': ['Grip release', 'グリップ解除', '解除握法'],
+  '잡기의 손(hand)·시점(view)은 이벤트 등록에서 정합니다': [
+    "A grip's hand and view are set in the event registration",
+    'グリップの手(hand)と視点(view)はイベント登録で決めます',
+    '握持的手(hand)和视角(view)在事件注册中设置',
+  ],
   '잡기의 손을 선택하세요.': ["Choose the grip's hand.", 'グリップの手を選んでください。', '请选择握法的手。'],
   '잡는 손': ['Gripping hand', 'つかむ手', '抓握的手'],
   '잡는 손을 따름': ['Follow gripping hand', 'つかむ手に合わせる', '跟随抓握的手'],

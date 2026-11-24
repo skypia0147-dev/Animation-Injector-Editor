@@ -6,8 +6,8 @@ import {runtimeText} from '../src/runtimeText.ts';
 import {getLanguage, setLanguage} from '../src/i18n/index.ts';
 import {checker, needsChecker} from './local.mjs';
 
-// The bundled runtime checker writes its findings in Korean (the plugin's own log words); the editor shows them in
-// the UI language by swapping the known pieces (tools/i18n-runtime.mjs). Real checker output, English UI.
+// The bundled runtime checker writes its findings in English (the plugin's own log words, 11-24); the editor shows
+// them in the UI language by swapping the known pieces (tools/i18n-runtime.mjs). Real checker output.
 const head = '<?xml version="1.0" encoding="utf-8"?>\n';
 const cases = {
   empty: '<AnimationSet version="6" id="A"/>',
@@ -28,10 +28,9 @@ const cases = {
     '<AnimationSet version="6" id="A"><Locomotion/><Action id="X" clip="Animations\\a.hkx"/></AnimationSet>',
 };
 
-test('runtime checker findings show without Korean in the English UI', needsChecker, () => {
+test('runtime checker findings show in the UI language', needsChecker, () => {
   mkdirSync('tests/generated/runtime-text', {recursive: true});
   const before = getLanguage();
-  setLanguage('en');
   try {
     for (const [name, body] of Object.entries(cases)) {
       const path = `tests/generated/runtime-text/${name}.xml`;
@@ -40,14 +39,21 @@ test('runtime checker findings show without Korean in the English UI', needsChec
       const messages = [...out.errors, ...out.warnings];
       assert.ok(messages.length, name);
       for (const message of messages) {
-        assert.match(message, /[\uac00-\ud7a3]/, `${name}: the checker writes Korean`);
-        assert.doesNotMatch(runtimeText(message), /[\uac00-\ud7a3]/, `${name}: ${runtimeText(message)}`);
+        assert.doesNotMatch(message, /[\uac00-\ud7a3]/, `${name}: the checker writes English: ${message}`);
+        setLanguage('en');
+        assert.equal(runtimeText(message), message, name);
+        setLanguage('ko');
+        assert.match(runtimeText(message), /[\uac00-\ud7a3]/, `${name}: ${runtimeText(message)}`);
       }
     }
   } finally {
     setLanguage(before);
   }
   setLanguage('ko');
-  assert.equal(runtimeText("알 수 없는 속성 'foo'"), "알 수 없는 속성 'foo'");
+  assert.equal(runtimeText("Unknown attribute 'foo'"), "알 수 없는 속성 'foo'");
+  // A piece swaps as whole words only: an action id holding one stays as it is.
+  const named = runtimeText("/AnimationSet/Action [MyAction]: Unknown attribute 'Action'");
+  assert.match(named, /\[MyAction\]/);
+  assert.doesNotMatch(named, /\/Action /);
   setLanguage(before);
 });
