@@ -55,6 +55,14 @@ const commands: {name: string; op: EventOp; fields: Field[]; span?: true; extra?
   {name: 'CancelPair', op: 'cancel', fields: []},
   {name: 'GripHold', op: 'gripHold', fields: [hand, view]},
   {name: 'GripRelease', op: 'gripRelease', fields: [hand, view]},
+  // The race's attack data by its event name (runtime 1.1.0): AI.AttackDataOn|attackStartLeftHand[|span].
+  {
+    name: 'AttackDataOn',
+    op: 'attackDataOn',
+    fields: [{key: 'name', check: t => /^[!-{}~]{1,64}$/.test(t)}],
+    span: true,
+  },
+  {name: 'AttackDataOff', op: 'attackDataOff', fields: []},
 ];
 const byName = (payload: string) => commands.find(c => c.name.toLowerCase() === payload.split('|')[0].toLowerCase());
 

@@ -176,6 +176,8 @@ export const en: Record<string, string> = {
   'notify.globalSet': 'Set global',
   'notify.modEvent': 'Send event',
   'notify.animEvent': 'Hand on animation event',
+  'notify.attackDataOn': 'Change attack data',
+  'notify.attackDataOff': 'End attack data change',
   'notify.gripHold': 'Grip hold',
   'notify.gripRelease': 'Grip release',
   'hands.both': 'Both hands',

@@ -1257,6 +1257,11 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'actorはイベント開始でのみ使います',
     'actor只用于事件开始',
   ],
+  'attackDataOn에는 name이 필요합니다: 공격 데이터의 이벤트 이름(attackStart, attackStartLeftHand, bashStart)': [
+    "attackDataOn needs a name: the attack data's event name (attackStart, attackStartLeftHand, bashStart)",
+    'attackDataOnにはnameが必要です: 攻撃データのイベント名(attackStart, attackStartLeftHand, bashStart)',
+    'attackDataOn 需要 name：攻击数据的事件名称（attackStart、attackStartLeftHand、bashStart）',
+  ],
   'animEvent에는 name이 필요합니다': ['animEvent needs a name', 'animEventにはnameが必要です', 'animEvent 需要 name'],
   'binding 본 인덱스가 음수입니다.': [
     'Binding bone index is negative.',
@@ -1396,10 +1401,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   ],
   'measure는 cost에서만 씁니다': ['measure is for cost only', 'measure は cost でのみ使います', 'measure 仅用于 cost'],
   'modEvent에는 name이 필요합니다': ['modEvent needs a name', 'modEvent には name が必要です', 'modEvent 需要 name'],
-  'name은 modEvent·animEvent에서만, text·number는 modEvent에서만 씁니다': [
-    'name is used by modEvent and animEvent; text and number by modEvent only',
-    'nameはmodEvent・animEventでのみ、text・numberはmodEventでのみ使います',
-    'name 仅用于 modEvent·animEvent，text·number 仅用于 modEvent',
+  'name은 modEvent·animEvent·attackDataOn에서만, text·number는 modEvent에서만 씁니다': [
+    'name is used by modEvent, animEvent and attackDataOn; text and number by modEvent only',
+    'nameはmodEvent・animEvent・attackDataOnでのみ、text・numberはmodEventでのみ使います',
+    'name 仅用于 modEvent·animEvent·attackDataOn，text·number 仅用于 modEvent',
   ],
   'not은 true 또는 false여야 합니다': [
     'not must be true or false',
@@ -2433,6 +2438,14 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '需要一个在导出设置范围内的数字。',
   ],
   '공격 데이터': ['Attack data', '攻撃データ', '攻击数据'],
+  '공격 데이터 끝내기': ['End attack data change', '攻撃データの変更を終了', '结束攻击数据更改'],
+  '공격 데이터 미지정': ['No attack data', '攻撃データ未指定', '未指定攻击数据'],
+  '공격 데이터 바꾸기': ['Change attack data', '攻撃データを変更', '更改攻击数据'],
+  '공격 데이터 이름을 공백 없이 입력하세요(예: attackStartLeftHand).': [
+    'Enter the attack data name without spaces (e.g. attackStartLeftHand).',
+    '攻撃データ名を空白なしで入力してください(例: attackStartLeftHand)。',
+    '请输入攻击数据名称（不含空格，例如 attackStartLeftHand）。',
+  ],
   '공격 데이터 이름 (예: attackStart_MySwing)': [
     'Attack data name',
     '攻撃データ名（例: attackStart_MySwing）',
@@ -3106,10 +3119,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '등록에 소리가 없습니다': ['The registry has no sound', '登録にサウンドがありません', '注册中没有声音'],
   '등록에 전역 값이 없습니다': ['The registry names no global', '登録にグローバル値がありません', '注册中没有全局值'],
   '등록에서 바꾸기': ['Change in registry', '登録で変更', '在注册中更改'],
-  '등록의 duration은 iframeOn·armorOn·rotateOn·timeOn의 지속 시간입니다': [
-    'A registered duration is the span of iframeOn·armorOn·rotateOn·timeOn',
-    '登録の duration は iframeOn·armorOn·rotateOn·timeOn の持続時間です',
-    '注册的 duration 是 iframeOn·armorOn·rotateOn·timeOn 的持续时间',
+  '등록의 duration은 iframeOn·armorOn·rotateOn·timeOn·attackDataOn의 지속 시간입니다': [
+    'A registered duration is the span of iframeOn·armorOn·rotateOn·timeOn·attackDataOn',
+    '登録の duration は iframeOn·armorOn·rotateOn·timeOn·attackDataOn の持続時間です',
+    '注册的 duration 是 iframeOn·armorOn·rotateOn·timeOn·attackDataOn 的持续时间',
   ],
   '디딘 발': ['Planted foot', '接地した足', '着地脚'],
   디자인: ['Design', 'デザイン', '设计'],
@@ -5230,10 +5243,10 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '未找到应用移动恢复的 HKX。',
   ],
   이름: ['Name', '名前', '名称'],
-  '이름·문자열은 모드 이벤트에서만 씁니다(이름은 애니메이션 이벤트 전달에도).': [
-    "Name and text are a mod event's only (a name also an animation event's).",
-    '名前・文字列はModイベントでのみ使います(名前はアニメーションイベントを渡すでも)。',
-    '名称·文本仅用于模组事件（名称也用于传递动画事件）。',
+  '이름·문자열은 모드 이벤트에서만 씁니다(이름은 애니메이션 이벤트 전달·공격 데이터 바꾸기에도).': [
+    "Name and text are a mod event's only (a name also an animation event's and an attack data change's).",
+    '名前・文字列はModイベントでのみ使います(名前はアニメーションイベントを渡す・攻撃データを変更でも)。',
+    '名称·文本仅用于模组事件（名称也用于传递动画事件和更改攻击数据）。',
   ],
   '이름과 영문 동작 ID를 입력하세요.': [
     'Enter name and alphanumeric action ID.',

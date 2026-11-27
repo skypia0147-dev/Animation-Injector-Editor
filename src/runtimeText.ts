@@ -176,8 +176,8 @@ const pieces = [
     ...trFragment('QTE 결과로는 부위 동작(body)으로 갈 수 없습니다: '),
   },
   {
-    en: 'A registered duration is the span of iframeOn·armorOn·rotateOn·timeOn',
-    ...trFragment('등록의 duration은 iframeOn·armorOn·rotateOn·timeOn의 지속 시간입니다'),
+    en: 'A registered duration is the span of iframeOn·armorOn·rotateOn·timeOn·attackDataOn',
+    ...trFragment('등록의 duration은 iframeOn·armorOn·rotateOn·timeOn·attackDataOn의 지속 시간입니다'),
   },
   {en: 'A relative HKX path is required: ', ...trFragment('상대 HKX 경로가 필요합니다: ')},
   {
@@ -374,8 +374,14 @@ const pieces = [
     ...trFragment('키(input, key·gamepad 또는 control), event, combat=\"npc\" 중 하나만 지정합니다'),
   },
   {
-    en: 'name is used by modEvent and animEvent; text and number by modEvent only',
-    ...trFragment('name은 modEvent·animEvent에서만, text·number는 modEvent에서만 씁니다'),
+    en: 'name is used by modEvent, animEvent and attackDataOn; text and number by modEvent only',
+    ...trFragment('name은 modEvent·animEvent·attackDataOn에서만, text·number는 modEvent에서만 씁니다'),
+  },
+  {
+    en: "attackDataOn needs a name: the attack data's event name (attackStart, attackStartLeftHand, bashStart)",
+    ...trFragment(
+      'attackDataOn에는 name이 필요합니다: 공격 데이터의 이벤트 이름(attackStart, attackStartLeftHand, bashStart)'
+    ),
   },
   {en: 'animEvent needs a name', ...trFragment('animEvent에는 name이 필요합니다')},
   {

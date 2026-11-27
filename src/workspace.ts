@@ -94,6 +94,8 @@ export const operations = [
   'gripHold',
   'gripRelease',
   'animEvent',
+  'attackDataOn',
+  'attackDataOff',
 ] as const;
 /** Keys of a pair's clip-time effect: `at` and a function's (eventRegistry.ts). */
 export const effectKeys = timedKeys;

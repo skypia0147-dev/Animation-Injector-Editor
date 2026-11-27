@@ -164,6 +164,8 @@ export const ko: Record<string, string> = {
   'notify.globalSet': '전역 값 설정',
   'notify.modEvent': '이벤트 보내기',
   'notify.animEvent': '애니메이션 이벤트 전달',
+  'notify.attackDataOn': '공격 데이터 바꾸기',
+  'notify.attackDataOff': '공격 데이터 끝내기',
   'notify.gripHold': '잡기 유지',
   'notify.gripRelease': '잡기 풀기',
   'hands.both': '양손',

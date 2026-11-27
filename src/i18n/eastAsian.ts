@@ -148,6 +148,8 @@ export const eastAsian: Record<string, [string, string]> = {
   'notify.globalSet': ['グローバル値の設定', '设置全局值'],
   'notify.modEvent': ['イベント送信', '发送事件'],
   'notify.animEvent': ['アニメーションイベントを渡す', '传递动画事件'],
+  'notify.attackDataOn': ['攻撃データを変更', '更改攻击数据'],
+  'notify.attackDataOff': ['攻撃データの変更を終了', '结束攻击数据更改'],
   'notify.gripHold': ['グリップ保持', '保持握法'],
   'notify.gripRelease': ['グリップ解除', '解除握法'],
   'hands.both': ['両手', '双手'],

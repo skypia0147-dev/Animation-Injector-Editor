@@ -43,6 +43,8 @@ export const eventOps = [
   'gripHold',
   'gripRelease',
   'animEvent',
+  'attackDataOn',
+  'attackDataOff',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
 /** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
@@ -261,6 +263,21 @@ export const opInfo: Record<EventOp, OpInfo> = {
       return tr('애니메이션 이벤트 전달');
     },
     fields: ['name'],
+  },
+  // The actor's attack data becomes its race's of that name, over the action's own (runtime 1.1.0): a clip an
+  // animation replacer swapped in names its own (a left-hand swing). It ends at its off, with the clip that sent
+  // it, after its span or once the engine puts in its own: no `lasting`, since it needs no registered off.
+  attackDataOn: {
+    get label() {
+      return tr('공격 데이터 바꾸기');
+    },
+    fields: ['name'],
+  },
+  attackDataOff: {
+    get label() {
+      return tr('공격 데이터 끝내기');
+    },
+    fields: [],
   },
 };
 export const settingKeys = [
@@ -549,7 +566,7 @@ const numberRanges: Record<string, [number, number]> = {
 };
 export const settingRange = (key: string) => numberRanges[key];
 /** A window's on: its span, the registry's `duration` (runtime 11-02): 0~60 seconds it stays on, none by default. */
-export const windowOns = ['iframeOn', 'armorOn', 'rotateOn', 'timeOn'];
+export const windowOns = ['iframeOn', 'armorOn', 'rotateOn', 'timeOn', 'attackDataOn'];
 export const isSpan = (op: string, key: string) => key === 'duration' && windowOns.includes(op);
 export const spanRange: [number, number] = [0, 60];
 export const settingDefault: Record<string, string> = {
@@ -615,11 +632,13 @@ export const registryFields = (op: string): string[] =>
                 ? ['name', 'text']
                 : op === 'animEvent'
                   ? ['name']
-                  : isGrip(op)
-                    ? ['hand', 'view']
-                    : windowOns.includes(op)
-                      ? ['duration']
-                      : [];
+                  : op === 'attackDataOn'
+                    ? ['name', 'duration']
+                    : isGrip(op)
+                      ? ['hand', 'view']
+                      : windowOns.includes(op)
+                        ? ['duration']
+                        : [];
 /** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
 export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
 /** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
@@ -810,7 +829,8 @@ export function functionParts(values: Record<string, string>): string[] {
   if (values.op === 'sound' && values.file) parts.push(values.file.split(/[\\/]/).pop() ?? values.file);
   if (values.op === 'globalSet' && values.value !== undefined) parts.push('= ' + values.value);
   if (values.op === 'globalSet' && values.restore === 'end') parts.push(tr('끝나면 되돌림'));
-  if ((values.op === 'modEvent' || values.op === 'animEvent') && values.name) parts.push(values.name);
+  if ((values.op === 'modEvent' || values.op === 'animEvent' || values.op === 'attackDataOn') && values.name)
+    parts.push(values.name);
   // A grip's hands, and its views when not third person only (docs/mockup-grip-hold).
   if (isGrip(values.op)) {
     if (values.hand) parts.push(gripLabel('hand', values.hand));
@@ -973,11 +993,14 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   if (v.op === 'modEvent' && !v.name?.trim()) out.push(tr('모드 이벤트 이름을 입력하세요.'));
   if (v.op === 'animEvent' && !/^[!-~]{1,256}$/.test(v.name ?? ''))
     out.push(tr('전달할 애니메이션 이벤트 이름을 공백 없이 입력하세요.'));
+  // An attack data's event name (runtime 1.1.0): no blank or bar, at most 64 characters.
+  if (v.op === 'attackDataOn' && !/^[!-{}~]{1,64}$/.test(v.name ?? ''))
+    out.push(tr('공격 데이터 이름을 공백 없이 입력하세요(예: attackStartLeftHand).'));
   if (
-    (v.name !== undefined && v.op !== 'modEvent' && v.op !== 'animEvent') ||
+    (v.name !== undefined && v.op !== 'modEvent' && v.op !== 'animEvent' && v.op !== 'attackDataOn') ||
     (v.text !== undefined && v.op !== 'modEvent')
   )
-    out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다(이름은 애니메이션 이벤트 전달에도).'));
+    out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다(이름은 애니메이션 이벤트 전달·공격 데이터 바꾸기에도).'));
   for (const [k, range] of Object.entries(numberRanges)) {
     const [min, max] = isSpan(v.op, k) ? spanRange : range;
     if (

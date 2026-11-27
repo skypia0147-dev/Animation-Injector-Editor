@@ -390,57 +390,65 @@ function RegistryPart({event, values}: {event: string; values: Record<string, st
   // A strike's whom and how (runtime 0.12.293): each choice as the registry set it, the hit choice an area's only.
   const choice = (key: string) =>
     strikeChoices[key]().find(([x]) => x === (values[key] ?? strikeChoices[key]()[0][0]))?.[1];
-  const text = windowOns.includes(values.op)
-    ? Number(values.duration)
-      ? values.duration + tr('초')
-      : tr('없음')
-    : values.op === 'cost'
-      ? values.measure === 'percent'
-        ? tr('최대치의 %')
-        : tr('수치')
-      : values.op === 'ragdoll'
-        ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
-        : values.op === 'sound'
-          ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
-          : values.op === 'modEvent'
-            ? [values.name, values.text].filter(Boolean).join(' · ')
-            : values.op === 'animEvent'
-              ? values.name || tr('이벤트 미지정')
-              : isGrip(values.op)
-                ? [
-                    gripChoices.hand().find(([x]) => x === values.hand)?.[1] ?? tr('손 미정'),
-                    gripChoices.view().find(([x]) => x === (values.view ?? 'third'))?.[1],
-                  ].join(' · ')
-                : values.op === 'strike'
-                  ? [
-                      choice('pick'),
-                      values.pick === 'area' && choice('hit'),
-                      choice('hand'),
-                      choice('block'),
-                      values.reaction && values.reaction !== 'none' && choice('reaction'),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : [values.plugin, values.form].filter(Boolean).join(' · ') ||
-                    (values.op === 'globalSet' ? tr('등록에 전역 값이 없습니다') : tr('등록에 마법이 없습니다'));
+  const text =
+    values.op === 'attackDataOn'
+      ? [values.name || tr('공격 데이터 미지정'), Number(values.duration) ? values.duration + tr('초') : '']
+          .filter(Boolean)
+          .join(' · ')
+      : windowOns.includes(values.op)
+        ? Number(values.duration)
+          ? values.duration + tr('초')
+          : tr('없음')
+        : values.op === 'cost'
+          ? values.measure === 'percent'
+            ? tr('최대치의 %')
+            : tr('수치')
+          : values.op === 'ragdoll'
+            ? (ragdollLabels[values.direction ?? 'down'] ?? values.direction)
+            : values.op === 'sound'
+              ? values.file || [values.plugin, values.form].filter(Boolean).join(' · ') || tr('등록에 소리가 없습니다')
+              : values.op === 'modEvent'
+                ? [values.name, values.text].filter(Boolean).join(' · ')
+                : values.op === 'animEvent'
+                  ? values.name || tr('이벤트 미지정')
+                  : isGrip(values.op)
+                    ? [
+                        gripChoices.hand().find(([x]) => x === values.hand)?.[1] ?? tr('손 미정'),
+                        gripChoices.view().find(([x]) => x === (values.view ?? 'third'))?.[1],
+                      ].join(' · ')
+                    : values.op === 'strike'
+                      ? [
+                          choice('pick'),
+                          values.pick === 'area' && choice('hit'),
+                          choice('hand'),
+                          choice('block'),
+                          values.reaction && values.reaction !== 'none' && choice('reaction'),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : [values.plugin, values.form].filter(Boolean).join(' · ') ||
+                        (values.op === 'globalSet' ? tr('등록에 전역 값이 없습니다') : tr('등록에 마법이 없습니다'));
   // A window's span and a cost's unit are the registry's too (runtime 11-02, 10-31).
-  const label = windowOns.includes(values.op)
-    ? tr('지속 시간')
-    : values.op === 'cost'
-      ? settingLabels.measure
-      : values.op === 'ragdoll'
-        ? settingLabels.direction
-        : values.op === 'strike'
-          ? tr('대상·방식')
-          : values.op === 'sound'
-            ? tr('소리')
-            : values.op === 'globalSet'
-              ? tr('전역 값')
-              : values.op === 'modEvent' || values.op === 'animEvent'
-                ? tr('이벤트')
-                : isGrip(values.op)
-                  ? tr('손·인칭')
-                  : tr('마법');
+  const label =
+    values.op === 'attackDataOn'
+      ? tr('공격 데이터')
+      : windowOns.includes(values.op)
+        ? tr('지속 시간')
+        : values.op === 'cost'
+          ? settingLabels.measure
+          : values.op === 'ragdoll'
+            ? settingLabels.direction
+            : values.op === 'strike'
+              ? tr('대상·방식')
+              : values.op === 'sound'
+                ? tr('소리')
+                : values.op === 'globalSet'
+                  ? tr('전역 값')
+                  : values.op === 'modEvent' || values.op === 'animEvent'
+                    ? tr('이벤트')
+                    : isGrip(values.op)
+                      ? tr('손·인칭')
+                      : tr('마법');
   return (
     <div className="moment-line">
       <span className="moment-label">{label}</span>

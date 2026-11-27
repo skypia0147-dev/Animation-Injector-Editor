@@ -38,6 +38,8 @@ export const names: Record<string, string> = {
   globalSet: 'notify.globalSet',
   modEvent: 'notify.modEvent',
   animEvent: 'notify.animEvent',
+  attackDataOn: 'notify.attackDataOn',
+  attackDataOff: 'notify.attackDataOff',
   gripHold: 'notify.gripHold',
   gripRelease: 'notify.gripRelease',
   shake: 'notify.cameraShake',
