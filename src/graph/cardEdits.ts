@@ -18,10 +18,25 @@ export const patchStart = (w: Workspace, uid: string, patch: Partial<StartCard>)
 });
 /** A start's trigger switched between a key and an event. */
 export const startMode = (s: StartCard, mode: StartCard['mode']): Partial<StartCard> =>
-  mode === 'event'
-    ? {mode: 'event', key: '', gamepad: 0, press: 'down'}
-    : // The key and its press are the user's to pick (11-02).
-      {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key, press: ''};
+  mode === 'combat'
+    ? // An NPC in combat asks it (runtime 1.1.0): no key, event, sender, target or block of its own.
+      {
+        mode: 'combat',
+        key: '',
+        gamepad: 0,
+        control: undefined,
+        event: '',
+        actor: 'both',
+        target: 'nearest',
+        range: undefined,
+        angle: undefined,
+        press: 'down',
+        block: undefined,
+      }
+    : mode === 'event'
+      ? {mode: 'event', key: '', gamepad: 0, press: 'down', every: undefined}
+      : // The key and its press are the user's to pick (11-02).
+        {mode: 'input', event: '', actor: 'both', target: 'nearest', key: s.key, press: '', every: undefined};
 /** A start's setting back to its default (「기본값으로」): it leaves the card. */
 export const startDefaults = {
   actor: {actor: 'both'},
@@ -76,6 +91,8 @@ export function setLinkMode(w: Workspace, id: string, mode: Link['mode']): Works
           input: '',
           event: mode === 'event' ? x.event : '',
           window: mode === 'end' ? false : x.window,
+          // An NPC's choice is read as its window opens: no buffer.
+          ...(mode === 'npc' ? {buffered: true} : {}),
         };
       }),
     },

@@ -544,16 +544,29 @@ export function importWorkspaceXml(text: string): Workspace {
         'cooldown',
         'block',
         'blockWhen',
+        'combat',
+        'every',
       ],
       CARD
     );
     const event = get(n, 'event');
     if (event && keyed(n)) throw new Error(tr('Start: 키(input 또는 key·gamepad)와 event 중 하나만 씁니다.'));
+    // A combat start (runtime 1.1.0): an NPC in combat asks it, with no key, event, sender, target or block.
+    const combat = n.attrs.combat !== undefined;
+    if (combat) {
+      if (n.attrs.combat !== 'npc') throw new Error(tr('Start: combat은 npc입니다.'));
+      if (event || keyed(n)) throw new Error(tr('Start: combat="npc"에는 키·이벤트를 쓰지 않습니다.'));
+      for (const k of ['actor', 'target', 'range', 'angle', 'press', 'block', 'blockWhen'])
+        if (n.attrs[k] !== undefined) throw new Error(tr('Start: combat="npc"에는 {v0}를 쓰지 않습니다.', {v0: k}));
+    } else if (n.attrs.every !== undefined) throw new Error(tr('Start: every는 combat="npc"에만 씁니다.'));
+    const every = combat ? num(n, 'every', 0.5) : 0.5;
+    if (combat && !(every >= 0.1 && every <= 60)) throw new Error(tr('Start: every는 0.1~60초입니다.'));
     const k: {key: string; gamepad: number; control?: GameControl} = keyed(n) ? inputKey(n) : {key: '', gamepad: 0};
     const s: StartCard = {
       uid: newUid(w, 'start'),
       ...(n.attrs.id ? {xmlId: n.attrs.id} : {}),
-      mode: event ? 'event' : 'input',
+      mode: combat ? 'combat' : event ? 'event' : 'input',
+      ...(combat && every !== 0.5 ? {every} : {}),
       key: k.key,
       gamepad: k.gamepad,
       ...(k.control ? {control: k.control} : {}),
@@ -562,7 +575,7 @@ export function importWorkspaceXml(text: string): Workspace {
       target: choice(n, 'target', ['nearest', 'combatTarget'], 'nearest'),
       ...(n.attrs.range !== undefined ? {range: num(n, 'range', 200)} : {}),
       ...(n.attrs.angle !== undefined ? {angle: num(n, 'angle', 90)} : {}),
-      press: startPress(n, event ? undefined : (k.control ?? null)),
+      press: combat ? 'down' : startPress(n, event ? undefined : (k.control ?? null)),
       cooldown: num(n, 'cooldown', 0),
       ...(n.attrs.block !== undefined
         ? {
@@ -599,6 +612,8 @@ export function importWorkspaceXml(text: string): Workspace {
           'on',
           'press',
           'end',
+          'cooldown',
+          'bufferFrom',
           'data-input',
         ],
         CARD
@@ -635,9 +650,11 @@ export function importWorkspaceXml(text: string): Workspace {
               ? 'release'
               : n.attrs.on === 'move'
                 ? 'move'
-                : n.attrs.event
-                  ? 'event'
-                  : 'input',
+                : n.attrs.on === 'npc'
+                  ? 'npc'
+                  : n.attrs.event
+                    ? 'event'
+                    : 'input',
         input: n.attrs['data-input'] ?? '',
         event: get(n, 'event'),
         window: hasWindow(n),
@@ -654,8 +671,33 @@ export function importWorkspaceXml(text: string): Workspace {
         throw new Error(tr('Transition: press는 키를 누르는 전환에만 씁니다(event·on 전환에는 쓰지 않습니다).'));
       if (press !== 'down') l.press = press;
       if (l.window) Object.assign(l, windowTimes(n));
-      if (n.attrs.on !== undefined && !['end', 'release', 'move'].includes(n.attrs.on))
-        throw new Error(tr('Transition: on은 end, release, move 중 하나입니다.'));
+      if (n.attrs.on !== undefined && !['end', 'release', 'move', 'npc'].includes(n.attrs.on))
+        throw new Error(tr('Transition: on은 end, release, move, npc 중 하나입니다.'));
+      // An NPC's own choice (runtime 1.1.0): no key or event, no buffer, full-body actions only.
+      if (l.mode === 'npc') {
+        if (l.input || l.event)
+          throw new Error(tr('Transition: NPC 판단 전환(on="npc")에는 키·이벤트를 쓰지 않습니다.'));
+        if (n.attrs.buffer !== undefined)
+          throw new Error(tr('Transition: NPC 판단 전환(on="npc")에는 buffer를 쓰지 않습니다.'));
+        if (a.pair) throw new Error(tr('Transition: NPC 판단 전환(on="npc")은 일반 동작에만 씁니다.'));
+      }
+      // A buffered window that opens later counts presses from this clip time (runtime 1.1.0).
+      if (n.attrs.bufferFrom !== undefined) {
+        const from = num(n, 'bufferFrom', 0);
+        if (!(from >= 0 && from <= 600)) throw new Error(tr('Transition: bufferFrom은 0~600초입니다.'));
+        if (!['input', 'event', 'move'].includes(l.mode) || n.attrs.from === undefined || n.attrs.buffer === 'false')
+          throw new Error(
+            tr('Transition: bufferFrom은 선입력을 받고 나중에 열리는(from) 키·이벤트·이동 전환에만 씁니다.')
+          );
+        if (from > 0) l.bufferFrom = from;
+      }
+      // How soon the actor may take it again (runtime 1.1.0).
+      if (n.attrs.cooldown !== undefined) {
+        if (ends) throw new Error(tr('Transition: 끝내기 전환(end="true")에는 cooldown을 쓰지 않습니다.'));
+        const cooldown = num(n, 'cooldown', 0);
+        if (cooldown < 0 || cooldown > 600) throw new Error(tr('Transition: cooldown은 0~600초입니다.'));
+        if (cooldown > 0) l.cooldown = cooldown;
+      }
       if (l.mode === 'move' && (l.input || l.event))
         throw new Error(tr('Transition: 이동 전환(on="move")에는 키·이벤트를 쓰지 않습니다.'));
       if (l.mode === 'end' && (l.input || l.event || l.window))
@@ -753,13 +795,14 @@ function checkSettings(w: Workspace, n: Xml): Omit<CardTest, 'id'> {
     'within',
     'ended',
     'events',
+    'variable',
   ]);
   const kind = required(n, 'kind');
   if (!checkKinds.includes(kind)) throw Error(tr('지원하지 않는 조건입니다: ') + kind);
   if (kind === 'equippedType') {
     required(n, 'hand');
     required(n, 'type');
-  } else if (n.attrs.hand !== undefined || n.attrs.type !== undefined)
+  } else if (n.attrs.hand !== undefined || (n.attrs.type !== undefined && kind !== 'graphVariable'))
     throw Error(tr('손·장비 종류는 장착 종류 검사에서만 사용하세요.'));
   if (kind === 'attackState') required(n, 'state');
   else if (n.attrs.state !== undefined) throw Error(tr('공격 상태는 공격 상태 검사에서만 사용하세요.'));

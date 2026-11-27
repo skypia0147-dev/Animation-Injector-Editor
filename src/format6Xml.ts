@@ -141,14 +141,16 @@ function owner(x: Writer, e: Xml, r: Ref): Xml {
 export function startXml(x: Writer, s: StartCard): Xml {
   const e = node('Start', {
     id: s.xmlId,
-    ...(s.mode === 'event'
-      ? {event: s.event, actor: s.actor === 'both' ? undefined : s.actor}
-      : s.control
-        ? {control: s.control}
-        : {key: s.key || undefined, gamepad: s.gamepad ? gamepadXml(s.gamepad) : undefined}),
-    target: s.target === 'combatTarget' ? s.target : undefined,
+    ...(s.mode === 'combat'
+      ? {combat: 'npc', every: s.every !== undefined && s.every !== 0.5 ? String(s.every) : undefined}
+      : s.mode === 'event'
+        ? {event: s.event, actor: s.actor === 'both' ? undefined : s.actor}
+        : s.control
+          ? {control: s.control}
+          : {key: s.key || undefined, gamepad: s.gamepad ? gamepadXml(s.gamepad) : undefined}),
+    target: s.target === 'combatTarget' && s.mode !== 'combat' ? s.target : undefined,
     // The actor-ahead cone of a start choosing among ordinary actions (runtime 0.12.299), when not the default.
-    ...(s.target !== 'combatTarget' && choosesOrdinary(x.w, s)
+    ...(s.target !== 'combatTarget' && s.mode !== 'combat' && choosesOrdinary(x.w, s)
       ? {
           range: s.range !== undefined && s.range !== frontRange ? String(s.range) : undefined,
           angle: s.angle !== undefined && s.angle !== frontAngle ? String(s.angle) : undefined,
@@ -156,8 +158,8 @@ export function startXml(x: Writer, s: StartCard): Xml {
       : {}),
     press: s.mode === 'input' && s.press !== 'down' ? s.press : undefined,
     cooldown: s.cooldown ? s.cooldown : undefined,
-    block: s.block ? uniqueEvents(s.block.events).join(',') : undefined,
-    blockWhen: s.block && s.block.when !== 'startable' ? s.block.when : undefined,
+    block: s.block && s.mode !== 'combat' ? uniqueEvents(s.block.events).join(',') : undefined,
+    blockWhen: s.block && s.mode !== 'combat' && s.block.when !== 'startable' ? s.block.when : undefined,
   });
   const out = owner(x, e, s.to);
   // id first, as the runtime's examples write it.

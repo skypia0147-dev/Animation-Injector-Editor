@@ -15,7 +15,12 @@ export type BranchTest = {
   negate?: boolean;
   option?: string;
   compare?: Comparison;
-  measure?: 'current' | 'percent' | 'base';
+  /** resource: current|percent, actorValue: current|base, distance (runtime 1.1.0): reach = the gap past the weapon's
+   *  reach (absent = the plain distance). */
+  measure?: 'current' | 'percent' | 'base' | 'reach';
+  /** graphVariable (runtime 1.1.0): the variable's name and type. */
+  variable?: string;
+  variableType?: 'bool' | 'int' | 'float';
   /** previousAction (runtime 0.12.296): the actions (uids), the seconds since it ended (absent = any time) and how. */
   actions?: string[];
   /** recentEvent (runtime 1.0.3): the animation event names; `within` is then the seconds since one arrived. */

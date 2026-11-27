@@ -200,20 +200,23 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
   // A start card reads as its trigger, then what it sets (docs/mockup-format6-editor); it is edited in Details.
   if (start) {
     const rows = [
-      start.mode === 'event'
-        ? {label: tr('받을 때'), value: start.event || tr('이벤트 미지정')}
-        : {
-            label: pressTrigger(start.press),
-            value: start.control
-              ? gameControlLabel(start.control)
-              : [start.key, start.gamepad ? gamepadXml(start.gamepad) : ''].filter(Boolean).join(' · ') ||
-                tr('키 미지정'),
-          },
+      start.mode === 'combat'
+        ? {label: tr('전투 중 NPC'), value: tr('{seconds}초마다 확인', {seconds: start.every ?? 0.5})}
+        : start.mode === 'event'
+          ? {label: tr('받을 때'), value: start.event || tr('이벤트 미지정')}
+          : {
+              label: pressTrigger(start.press),
+              value: start.control
+                ? gameControlLabel(start.control)
+                : [start.key, start.gamepad ? gamepadXml(start.gamepad) : ''].filter(Boolean).join(' · ') ||
+                  tr('키 미지정'),
+            },
     ];
     if (start.mode === 'event' && start.actor !== 'both')
       rows.push({label: tr('보낸 쪽'), value: start.actor === 'player' ? tr('플레이어') : 'NPC'});
     // A start choosing among ordinary actions names its target (mockup ⑨); a pair's names the combat target only.
-    if (choosesOrdinary(w, start))
+    if (start.mode === 'combat') rows.push({label: tr('대상'), value: tr('전투 대상')});
+    else if (choosesOrdinary(w, start))
       rows.push({
         label: tr('대상'),
         value:
@@ -240,15 +243,17 @@ export function presentCard(w: Workspace, n: FlatNode): CardPresentation {
           ? {label: tr('끝나면'), value: tr('이 HKX가 끝날 때')}
           : link.mode === 'move'
             ? {label: tr('이동 전환'), value: tr('차지 중 이동키')}
-            : link.mode === 'release' && !link.input
-              ? {label: tr('차지 종료'), value: tr('시작한 키')}
-              : {
-                  label: link.mode === 'release' ? tr('차지 종료') : pressTrigger(link.press ?? 'down'),
-                  value: input?.control
-                    ? gameControlLabel(input.control)
-                    : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||
-                      tr('키 미지정'),
-                },
+            : link.mode === 'npc'
+              ? {label: tr('NPC 판단'), value: tr('NPC가 구간에서 고름')}
+              : link.mode === 'release' && !link.input
+                ? {label: tr('차지 종료'), value: tr('시작한 키')}
+                : {
+                    label: link.mode === 'release' ? tr('차지 종료') : pressTrigger(link.press ?? 'down'),
+                    value: input?.control
+                      ? gameControlLabel(input.control)
+                      : [input?.key, input?.gamepad ? gamepadXml(input.gamepad) : ''].filter(Boolean).join(' · ') ||
+                        tr('키 미지정'),
+                  },
     ];
     if (link.window)
       rows.push({label: tr('감지 구간'), value: timingLabel(link.open) + ' → ' + timingLabel(link.close)});

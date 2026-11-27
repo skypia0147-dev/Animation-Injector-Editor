@@ -30,5 +30,7 @@ export function sampleSettings(kind) {
     ...(kind === 'weather' ? {option: 'rainy'} : {}),
     ...(kind === 'hitReceived' ? {option: 'power', within: 0.5} : {}),
     ...(kind === 'recentEvent' ? {events: ['attackStop', 'attackPowerStop'], within: 0.5} : {}),
+    // A graph variable (runtime 1.1.0): its name and type, compared as a number (any number).
+    ...(kind === 'graphVariable' ? {variable: 'MCO_nextattack', variableType: 'int', compare: 'eq', value: 2} : {}),
   };
 }

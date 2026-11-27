@@ -163,6 +163,7 @@ export const ko: Record<string, string> = {
   'notify.sound': '소리 재생',
   'notify.globalSet': '전역 값 설정',
   'notify.modEvent': '이벤트 보내기',
+  'notify.animEvent': '애니메이션 이벤트 전달',
   'notify.gripHold': '잡기 유지',
   'notify.gripRelease': '잡기 풀기',
   'hands.both': '양손',

@@ -180,11 +180,14 @@ export function flatGraph(w: Workspace) {
       id,
       kind: 'startCard',
       // Named by what starts it (docs/mockup-design-audit ③); the kind until one is set.
-      title: (s.mode === 'event' ? s.event : s.key || s.control || s.gamepad)
-        ? tr('시작 · {v0}', {v0: startText(s)})
-        : s.mode === 'event'
-          ? tr('시작 · 이벤트')
-          : tr('시작 · 키'),
+      title:
+        s.mode === 'combat'
+          ? tr('시작 · 전투 중 NPC')
+          : (s.mode === 'event' ? s.event : s.key || s.control || s.gamepad)
+            ? tr('시작 · {v0}', {v0: startText(s)})
+            : s.mode === 'event'
+              ? tr('시작 · 이벤트')
+              : tr('시작 · 키'),
       summary: startText(s),
       scope: root,
       original: id,
@@ -227,29 +230,33 @@ export function flatGraph(w: Workspace) {
           ? tr('전환 · 끝나면')
           : l.mode === 'move'
             ? tr('전환 · 이동 전환')
-            : l.mode === 'release'
-              ? tr('전환 · 차지 종료')
-              : l.mode === 'event'
-                ? l.event
-                  ? tr('전환 · {v0}', {v0: l.event})
-                  : tr('전환 이벤트')
-                : key?.control || key?.key || key?.gamepad
-                  ? tr('전환 · {v0}', {
-                      v0: key.control ? gameControlLabel(key.control) : key.key || tr('패드'),
-                    })
-                  : tr('전환 키 입력'),
+            : l.mode === 'npc'
+              ? tr('전환 · NPC 판단')
+              : l.mode === 'release'
+                ? tr('전환 · 차지 종료')
+                : l.mode === 'event'
+                  ? l.event
+                    ? tr('전환 · {v0}', {v0: l.event})
+                    : tr('전환 이벤트')
+                  : key?.control || key?.key || key?.gamepad
+                    ? tr('전환 · {v0}', {
+                        v0: key.control ? gameControlLabel(key.control) : key.key || tr('패드'),
+                      })
+                    : tr('전환 키 입력'),
       summary:
         (l.mode === 'end'
           ? tr('이 HKX가 끝날 때')
           : l.mode === 'move'
             ? tr('차지 중 이동키')
-            : l.mode === 'release' && !l.input
-              ? tr('시작한 키')
-              : l.mode === 'event'
-                ? l.event || tr('이벤트 미지정')
-                : key?.control
-                  ? gameControlLabel(key.control)
-                  : key?.key || (key?.gamepad ? tr('패드') : tr('키 미지정'))) +
+            : l.mode === 'npc'
+              ? tr('NPC가 구간에서 고름')
+              : l.mode === 'release' && !l.input
+                ? tr('시작한 키')
+                : l.mode === 'event'
+                  ? l.event || tr('이벤트 미지정')
+                  : key?.control
+                    ? gameControlLabel(key.control)
+                    : key?.key || (key?.gamepad ? tr('패드') : tr('키 미지정'))) +
         (l.mode === 'input' && l.press ? ' · ' + pressName(l.press) : '') +
         (l.end ? ' · ' + tr('끝내기') : '') +
         (l.window ? ' · ' + timingLabel(l.open) + ' → ' + timingLabel(l.close) : ''),
@@ -540,7 +547,7 @@ export function connectFlat(w: Workspace, source: string, target: string, port?:
 /** A transition several HKX may share: an event's, and (charge, 10-30) one that takes no key of its own (on end, on a
  *  movement key, on the release of the key that started the action). */
 export const sharable = (l: Link) =>
-  l.mode === 'event' || l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !l.input);
+  l.mode === 'event' || l.mode === 'end' || l.mode === 'move' || l.mode === 'npc' || (l.mode === 'release' && !l.input);
 /** A transition that reads its `input` binding of the source's inputs: a key's press, or a key of its own let go
  *  (charge). An import gives one key one binding, so the two may share it. */
 export const readsKey = (l: Link) => l.mode === 'input' || l.mode === 'release';
@@ -717,4 +724,5 @@ export const notifyKinds = [
   'fireArrow',
   'gripHold',
   'gripRelease',
+  'animEvent',
 ];

@@ -147,6 +147,7 @@ export const eastAsian: Record<string, [string, string]> = {
   'notify.sound': ['サウンド再生', '播放声音'],
   'notify.globalSet': ['グローバル値の設定', '设置全局值'],
   'notify.modEvent': ['イベント送信', '发送事件'],
+  'notify.animEvent': ['アニメーションイベントを渡す', '传递动画事件'],
   'notify.gripHold': ['グリップ保持', '保持握法'],
   'notify.gripRelease': ['グリップ解除', '解除握法'],
   'hands.both': ['両手', '双手'],

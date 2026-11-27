@@ -496,6 +496,20 @@ export const extensionConditions = {
       return tr('기술 수치·레벨 등을 비교합니다. 현재 값은 버프·디버프를 포함하고, 기본 값은 포함하지 않습니다.');
     },
   },
+  graphVariable: {
+    get label() {
+      return tr('그래프 변수');
+    },
+    get category() {
+      return tr('상태');
+    },
+    numeric: true,
+    get hint() {
+      return tr(
+        '검사 대상의 그래프 변수를 비교합니다(bool은 0·1). 조건이 쓰는 변수는 런타임이 캐릭터 그래프에 넣으므로, 비헤이비어 패치가 없어도 HKX 주석(Payload Interpreter의 @SGVI 등)이 값을 쓸 수 있습니다. 예: MCO 무브셋의 MCO_nextattack(정수)으로 다음 타를 고릅니다(런타임 1.1.0 이상).'
+      );
+    },
+  },
   heldTime: {
     get label() {
       return tr('누른 시간');
@@ -685,6 +699,8 @@ export function kindPatch(t: BranchTest, kind: string): Partial<BranchTest> {
     upper: undefined,
     within: undefined,
     events: undefined,
+    variable: undefined,
+    variableType: undefined,
     ...extensionDefaults(kind),
     // A keyword name left from the previous kind must not stay behind, hidden.
     ...(keywordKinds.includes(kind) ? {} : {keyword: undefined}),
@@ -696,6 +712,10 @@ export function kindPatch(t: BranchTest, kind: string): Partial<BranchTest> {
         ? {subject: '' as const}
         : {}),
   };
+}
+/** The least a comparison value may be: a gap past the reach is below 0 inside it, a graph variable any number. */
+export function extensionMinimum(t: BranchTest) {
+  return (t.kind === 'distance' && t.measure === 'reach') || t.kind === 'graphVariable' ? -1000000 : 0;
 }
 export function extensionMaximum(t: BranchTest) {
   return t.kind === 'chance' || (t.kind === 'resource' && t.measure === 'percent')
@@ -722,6 +742,13 @@ export function extensionError(t: BranchTest): string | undefined {
     return tr('자원 비교 기준을 선택하세요.');
   if (t.kind === 'actorValue' && !['current', 'base'].includes(t.measure ?? ''))
     return tr('능력치 비교 기준을 선택하세요.');
+  if (t.kind === 'distance' && t.measure !== undefined && t.measure !== 'reach') return tr('거리 기준을 확인하세요.');
+  // A graph variable (runtime 1.1.0): its name and type.
+  if (t.kind === 'graphVariable') {
+    if (!/^[!-~]{1,128}$/.test(t.variable ?? ''))
+      return tr('그래프 변수 이름을 공백 없는 영문·숫자·기호로 입력하세요.');
+    if (!['bool', 'int', 'float'].includes(t.variableType ?? '')) return tr('그래프 변수의 형식을 선택하세요.');
+  }
   if (t.kind === 'previousAction') {
     // Reading the XML checks the shared settings before the actions are in (importXml.ts reads those).
     if (t.actions !== undefined && !t.actions.length) return tr('직전 동작을 하나 이상 고르세요.');
@@ -752,7 +779,7 @@ export function extensionError(t: BranchTest): string | undefined {
     if ((d.numeric || d.optionalNumeric) && !comparisons().some(([v]) => v === t.compare))
       return tr('비교 방식을 선택하세요.');
     if (t.value === undefined) return tr('비교 값을 입력하세요.');
-    if (!Number.isFinite(t.value) || t.value! < 0 || t.value! > extensionMaximum(t))
+    if (!Number.isFinite(t.value) || t.value! < extensionMinimum(t) || t.value! > extensionMaximum(t))
       return tr('비교 값의 범위를 확인하세요.');
     // A game hour's range may wrap past midnight (20 to 5).
     if (
@@ -760,7 +787,7 @@ export function extensionError(t: BranchTest): string | undefined {
       (d.numeric || d.optionalNumeric) &&
       (!Number.isFinite(t.upper) ||
         (t.upper! < t.value! && t.kind !== 'gameHour') ||
-        t.upper! < 0 ||
+        t.upper! < extensionMinimum(t) ||
         t.upper! > extensionMaximum(t))
     )
       return tr('범위의 끝 값은 시작 값 이상이어야 합니다.');
@@ -778,6 +805,8 @@ export function extensionAttrs(t: BranchTest): Record<string, string> {
     ...(numeric && t.compare === 'range' ? {upper: String(t.upper)} : {}),
     ...(t.kind === 'resource' ? {measure: t.measure!} : {}),
     ...(t.kind === 'actorValue' && t.measure === 'base' ? {measure: 'base'} : {}),
+    ...(t.kind === 'distance' && t.measure === 'reach' ? {measure: 'reach'} : {}),
+    ...(t.kind === 'graphVariable' ? {variable: t.variable!, type: t.variableType!} : {}),
   };
 }
 export function readExtension(kind: string, attrs: Record<string, string>): Partial<BranchTest> {
@@ -785,7 +814,7 @@ export function readExtension(kind: string, attrs: Record<string, string>): Part
     allowed = Object.keys(
       extensionAttrs({kind, compare: attrs.compare as Comparison, measure: attrs.measure} as BranchTest)
     );
-  for (const key of ['option', 'compare', 'measure', 'value', 'upper'])
+  for (const key of ['option', 'compare', 'measure', 'value', 'upper', 'variable'])
     if (attrs[key] !== undefined && !allowed.includes(key)) throw Error(tr('이 조건에서 사용할 수 없는 속성: ') + key);
   if (!d) return {};
   for (const key of allowed) if (!attrs[key]?.trim()) throw Error(tr('조건 설정 누락: ') + key);
@@ -802,6 +831,10 @@ export function readExtension(kind: string, attrs: Record<string, string>): Part
     ...(compared && attrs.compare === 'range' ? {upper: numeric('upper')} : {}),
     ...(kind === 'resource' ? {measure: attrs.measure as 'current' | 'percent'} : {}),
     ...(kind === 'actorValue' ? {measure: (attrs.measure as 'base') ?? 'current'} : {}),
+    ...(kind === 'distance' && attrs.measure === 'reach' ? {measure: 'reach' as const} : {}),
+    ...(kind === 'graphVariable'
+      ? {variable: attrs.variable, variableType: attrs.type as BranchTest['variableType']}
+      : {}),
   };
   const error = extensionError({kind, ...value} as BranchTest);
   if (error) throw Error(error);
@@ -841,6 +874,8 @@ export function extensionSummary(t: BranchTest): string | undefined {
           ? `${t.value}%`
           : undefined,
     t.kind === 'recentEvent' ? (t.events ?? []).join('·') : undefined,
+    t.kind === 'graphVariable' ? t.variable : undefined,
+    t.kind === 'distance' && t.measure === 'reach' ? tr('무기 끝부터') : undefined,
     (t.kind === 'previousAction' || t.kind === 'hitReceived' || t.kind === 'recentEvent') && t.within !== undefined
       ? tr('{seconds}초 안', {seconds: t.within})
       : undefined,

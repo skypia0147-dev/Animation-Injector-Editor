@@ -264,7 +264,7 @@ export function ConditionFields({
           <DetailRow
             label={tr('키워드 이름')}
             hint={tr(
-              '키워드의 Editor ID입니다. 예: WeapTypeSword. 대소문자는 가리지 않습니다. 목록은 바닐라 키워드이고, 다른 모드의 키워드는 직접 입력하세요. 없는 이름이면 검사 불능입니다.'
+              '키워드의 Editor ID입니다. 예: WeapTypeSword. 대소문자는 가리지 않습니다. 목록은 바닐라 키워드이고, 다른 모드의 키워드는 직접 입력하세요. 설치된 어떤 플러그인에도 없는 이름이면 그 키워드를 가진 것이 없으므로 거짓입니다.'
             )}
           >
             <input list={keywordList} value={test.keyword} onChange={e => change({keyword: e.target.value.trim()})} />

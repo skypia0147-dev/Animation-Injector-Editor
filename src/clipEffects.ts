@@ -19,6 +19,7 @@ export const ordinaryEffectOps = [
   'fireArrow',
   'gripHold',
   'gripRelease',
+  'animEvent',
 ];
 /** A clip's time functions: a pair's (pair.effects) or an ordinary action's (config.effects). */
 export const clipEffects = (a: Action): Effect[] => (a.pair ? a.pair.effects : (a.config.effects ?? []));

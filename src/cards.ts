@@ -35,7 +35,11 @@ export type StartCard = {
   uid: string;
   /** The id a file gave it (<Start id>): the name of the runtime's selecting action in the log. */
   xmlId?: string;
-  mode: 'input' | 'event';
+  /** combat (runtime 1.1.0 <Start combat="npc">): an NPC in combat that is not attacking asks it every `every`
+   *  seconds, its checks reading the combat target as the partner. No key, event, actor, target or block. */
+  mode: 'input' | 'event' | 'combat';
+  /** combat: the seconds between asks (0.1~60); absent = 0.5. */
+  every?: number;
   key: string;
   gamepad: number;
   /** A game control instead of the key and button (runtime 0.12.292): every device's binding. */
@@ -301,6 +305,7 @@ export function cardNames(c: ConditionCard, name: (t: CardTest) => string): stri
 }
 /** A start's trigger in words. */
 export function startText(s: StartCard): string {
+  if (s.mode === 'combat') return tr('전투 중 NPC · {seconds}초마다', {seconds: s.every ?? 0.5});
   return s.mode === 'event'
     ? s.event || tr('이벤트 미지정')
     : s.control

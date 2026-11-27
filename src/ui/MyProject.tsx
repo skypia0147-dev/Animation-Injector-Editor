@@ -39,6 +39,7 @@ type Problem = 'error' | 'warning' | undefined;
 function startOf(w: Workspace, a: Action): string {
   const start = w.starts.find(s => s.to && 'action' in s.to && s.to.action === a.uid);
   if (!start) return '';
+  if (start.mode === 'combat') return 'combat:npc';
   if (start.mode === 'input') {
     const key = start.control
       ? gameControlLabel(start.control)
@@ -95,11 +96,13 @@ const ActionRow = memo(function ActionRow({
         ? tr('끝나면')
         : l.mode === 'move'
           ? tr('이동 전환')
-          : l.mode === 'release'
-            ? tr('차지 종료')
-            : l.mode === 'event'
-              ? l.event || t('row.marker')
-              : inputLabel(a.config, l.input) || t('row.input');
+          : l.mode === 'npc'
+            ? tr('NPC 판단')
+            : l.mode === 'release'
+              ? tr('차지 종료')
+              : l.mode === 'event'
+                ? l.event || t('row.marker')
+                : inputLabel(a.config, l.input) || t('row.input');
     return `→ ${names.get(l.to) ?? l.to} · ${via}`;
   };
   const actionMatch = match(a.config.name + ' ' + a.config.actionId);

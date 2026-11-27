@@ -42,6 +42,7 @@ export const eventOps = [
   'modEvent',
   'gripHold',
   'gripRelease',
+  'animEvent',
 ] as const;
 export type EventOp = (typeof eventOps)[number];
 /** Whom a pair's clip-time effect changes (runtime 0.12.275): both actors play the clip, so no one sends it.
@@ -252,6 +253,14 @@ export const opInfo: Record<EventOp, OpInfo> = {
       return tr('잡기 풀기');
     },
     fields: ['hand', 'view'],
+  },
+  // An animation event handed to the actor as its graph's (runtime 1.1.0): AttackWinStart / AttackWinEnd open and
+  // close the window a vanilla NPC picks its next attack in.
+  animEvent: {
+    get label() {
+      return tr('애니메이션 이벤트 전달');
+    },
+    fields: ['name'],
   },
 };
 export const settingKeys = [
@@ -604,11 +613,13 @@ export const registryFields = (op: string): string[] =>
               ? ['measure']
               : op === 'modEvent'
                 ? ['name', 'text']
-                : isGrip(op)
-                  ? ['hand', 'view']
-                  : windowOns.includes(op)
-                    ? ['duration']
-                    : [];
+                : op === 'animEvent'
+                  ? ['name']
+                  : isGrip(op)
+                    ? ['hand', 'view']
+                    : windowOns.includes(op)
+                      ? ['duration']
+                      : [];
 /** The numbers a registered function runs with, set on each HKX node that sends its event (delay included). */
 export const valueFields = (op: string) => fieldsOf(op).filter(k => !registryFields(op).includes(k));
 /** Functions the runtime runs only with a node's numbers: a cost's amount and a time scale's factor. */
@@ -799,7 +810,7 @@ export function functionParts(values: Record<string, string>): string[] {
   if (values.op === 'sound' && values.file) parts.push(values.file.split(/[\\/]/).pop() ?? values.file);
   if (values.op === 'globalSet' && values.value !== undefined) parts.push('= ' + values.value);
   if (values.op === 'globalSet' && values.restore === 'end') parts.push(tr('끝나면 되돌림'));
-  if (values.op === 'modEvent' && values.name) parts.push(values.name);
+  if ((values.op === 'modEvent' || values.op === 'animEvent') && values.name) parts.push(values.name);
   // A grip's hands, and its views when not third person only (docs/mockup-grip-hold).
   if (isGrip(values.op)) {
     if (values.hand) parts.push(gripLabel('hand', values.hand));
@@ -960,8 +971,13 @@ export function functionErrors(v: Record<string, string>, timed = false): string
   if (v.measure !== undefined && v.measure !== '' && !(v.op === 'cost' && v.measure === 'percent'))
     out.push(tr('단위는 자원 소모에서만 씁니다.'));
   if (v.op === 'modEvent' && !v.name?.trim()) out.push(tr('모드 이벤트 이름을 입력하세요.'));
-  if ((v.name !== undefined || v.text !== undefined) && v.op !== 'modEvent')
-    out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다.'));
+  if (v.op === 'animEvent' && !/^[!-~]{1,256}$/.test(v.name ?? ''))
+    out.push(tr('전달할 애니메이션 이벤트 이름을 공백 없이 입력하세요.'));
+  if (
+    (v.name !== undefined && v.op !== 'modEvent' && v.op !== 'animEvent') ||
+    (v.text !== undefined && v.op !== 'modEvent')
+  )
+    out.push(tr('이름·문자열은 모드 이벤트에서만 씁니다(이름은 애니메이션 이벤트 전달에도).'));
   for (const [k, range] of Object.entries(numberRanges)) {
     const [min, max] = isSpan(v.op, k) ? spanRange : range;
     if (

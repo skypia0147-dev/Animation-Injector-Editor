@@ -1,4 +1,4 @@
-# Animation Injector Editor · 1.0.5
+# Animation Injector Editor · 1.0.6
 
 A Windows program for making action mods for [Animation Injector](https://github.com/skypia0147-dev/Animation-Injector). Place HKX files as cards and connect them to build actions (done alone or as pairs), then export the XML the game reads or a mod folder.
 

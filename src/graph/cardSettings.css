@@ -33,6 +33,9 @@
 .set-value {
   justify-self: end;
   min-width: 0;
+  /* Aligned to the end, a grid item is as wide as its text: without this a long value (an event window's two event
+     names) ran over its label and out of the card instead of ending in an ellipsis. */
+  max-width: 100%;
   color: var(--card-t1);
   text-align: right;
   overflow: hidden;

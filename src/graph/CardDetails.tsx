@@ -61,11 +61,18 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
     })();
   const blockError = blockText !== null ? eventListError(blockText.split(',')) : '';
   const input = s.mode === 'input';
+  const combat = s.mode === 'combat';
   return [
     {
       id: 'trigger',
-      label: input ? pressTrigger(s.press) : tr('받을 때'),
-      value: chip(input ? keyText(s.key, s.gamepad, s.control) || tr('키 미지정') : s.event || tr('이벤트 미지정')),
+      label: input ? pressTrigger(s.press) : combat ? tr('전투 중 NPC') : tr('받을 때'),
+      value: chip(
+        input
+          ? keyText(s.key, s.gamepad, s.control) || tr('키 미지정')
+          : combat
+            ? tr('{seconds}초마다 확인', {seconds: s.every ?? 0.5})
+            : s.event || tr('이벤트 미지정')
+      ),
       set: true,
       fixed: true,
       fields: () => (
@@ -78,9 +85,25 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
             >
               <option value="input">{tr('키 입력')}</option>
               <option value="event">{tr('이벤트')}</option>
+              <option value="combat">{tr('전투 중 NPC')}</option>
             </select>
           </DetailRow>
-          {input ? (
+          {combat ? (
+            <DetailRow
+              label={tr('확인 간격')}
+              hint={tr(
+                '전투 중이고, 무기를 꺼냈고, 공격 중이 아니고, 서 있고, 이 모드의 전신 동작을 재생하지 않는 NPC가 이 간격(초, 0.1~60)마다 이 시작을 확인합니다. 그 상태가 이 시간만큼 이어져야 묻기 때문에 공격한 직후에는 그만큼 쉽니다. 조건의 「상대」는 그 NPC의 전투 대상입니다. 돌진 공격 같은 첫 공격을 거리·확률로 고를 때 씁니다(런타임 1.1.0 이상).'
+              )}
+            >
+              <NumberInput
+                value={s.every ?? 0.5}
+                min={0.1}
+                max={60}
+                step={0.1}
+                change={every => change({every: every === 0.5 ? undefined : every})}
+              />
+            </DetailRow>
+          ) : input ? (
             <>
               <KeyField
                 rows
@@ -147,7 +170,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
               ? tr('둘 다')
               : tr('선택…'),
       set: s.actor !== 'both',
-      applies: !input,
+      applies: !input && !combat,
       // Added, it chooses nothing (11-02): the user picks who sends it.
       add: () => change({actor: ''}),
       reset: () => change(startDefaults.actor),
@@ -167,7 +190,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
       label: tr('페어 상대'),
       value: s.target === 'combatTarget' ? tr('전투 대상') : s.target === '' ? tr('선택…') : tr('가장 가까운 액터'),
       set: s.target !== 'nearest',
-      applies: !input && !!pairTarget,
+      applies: !input && !combat && !!pairTarget,
       add: () => change({target: ''}),
       reset: () => change(startDefaults.partner),
       fields: () => (
@@ -193,7 +216,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
             ? tr('선택…')
             : tr('전방 대상 · {range} · {angle}°', {range: s.range ?? frontRange, angle: s.angle ?? frontAngle}),
       set: s.target !== 'nearest' || s.range !== undefined || s.angle !== undefined,
-      applies: ordinary,
+      applies: ordinary && !combat,
       add: () => change({target: ''}),
       reset: () => change(startDefaults.target),
       fields: () => (
@@ -269,6 +292,7 @@ export function useStartSettings(w: Workspace, uid: string, edit: Edit): Setting
         </span>
       ),
       set: !!s.block,
+      applies: !combat,
       reset: () => change(startDefaults.block),
       fields: () => (
         <>
@@ -339,17 +363,21 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               ? tr('차지 종료')
               : l.mode === 'move'
                 ? tr('이동 전환')
-                : tr('받을 때'),
+                : l.mode === 'npc'
+                  ? tr('NPC 판단')
+                  : tr('받을 때'),
       value: chip(
-        l.mode === 'end'
+        (l.mode === 'end'
           ? tr('이 HKX가 끝날 때')
           : l.mode === 'move'
             ? tr('차지 중 이동키')
-            : l.mode === 'event'
-              ? l.event || tr('이벤트 미지정')
-              : keyed
-                ? keyName
-                : tr('시작한 키')
+            : l.mode === 'npc'
+              ? tr('NPC가 구간에서 고름')
+              : l.mode === 'event'
+                ? l.event || tr('이벤트 미지정')
+                : keyed
+                  ? keyName
+                  : tr('시작한 키')) + (l.cooldown ? ' · ' + tr('{seconds}초마다', {seconds: l.cooldown}) : '')
       ),
       set: true,
       fixed: true,
@@ -358,7 +386,7 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
           <DetailRow
             label={tr('입력')}
             hint={tr(
-              '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 차지 종료: 감지 구간 안에서 차지 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간). 이동 전환: 차지 중에 이동키를 누르면(선입력·누르고 있음 포함) 넘어갑니다.'
+              '끝나면: 이 HKX가 끝나는 순간(종료 지점) 끝내는 대신 넘어갑니다. 차지 종료: 감지 구간 안에서 차지 키가 떼져 있으면 넘어갑니다(구간 전에 뗐으면 구간이 열리는 순간). 이동 전환: 차지 중에 이동키를 누르면(선입력·누르고 있음 포함) 넘어갑니다. NPC 판단: 감지 구간이 열릴 때마다 한 번, 전투 중인 NPC가 전투 대상을 상대로 두고 조건 카드를 보고 맞으면 넘어갑니다. 같이 열리는 NPC 판단 전환이 여럿이면 위에서부터 처음 맞는 것으로 갑니다. 플레이어는 쓰지 않습니다(런타임 1.1.0 이상).'
             )}
           >
             <select value={l.mode} onChange={e => edit(w => setLinkMode(w, id, e.target.value as Link['mode']))}>
@@ -369,6 +397,9 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               </option>
               <option value="release">{tr('차지 종료')}</option>
               <option value="move">{tr('이동 전환')}</option>
+              <option value="npc" disabled={!!from?.pair || !!from?.config.body}>
+                {tr('NPC 판단')}
+              </option>
             </select>
           </DetailRow>
           {l.mode === 'release' && (
@@ -385,7 +416,10 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               </select>
             </DetailRow>
           )}
-          {l.mode === 'end' || l.mode === 'move' || (l.mode === 'release' && !keyed) ? null : keyed ? (
+          {l.mode === 'end' ||
+          l.mode === 'move' ||
+          l.mode === 'npc' ||
+          (l.mode === 'release' && !keyed) ? null : keyed ? (
             <KeyField
               rows
               value={inputBinding?.key ?? ''}
@@ -423,6 +457,22 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
                   </option>
                 ))}
               </select>
+            </DetailRow>
+          )}
+          {!l.end && (
+            <DetailRow
+              label={tr('다시 타기까지')}
+              hint={tr(
+                '이 액터가 이 전환을 탄 뒤 정한 시간(게임 초, 0~600) 동안 다시 타지 않습니다. 0이면 제한 없음. NPC가 같은 연계만 반복하지 않게 할 때 씁니다(런타임 1.1.0 이상).'
+              )}
+            >
+              <NumberInput
+                min="0"
+                max="600"
+                step="any"
+                value={l.cooldown ?? 0}
+                change={v => change({cooldown: v > 0 ? v : undefined})}
+              />
             </DetailRow>
           )}
         </>
@@ -471,6 +521,22 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
               closeBasis="either"
               change={next => change(next)}
             />
+          )}
+          {!shared && l.window && l.buffered && (l.mode === 'input' || l.mode === 'event' || l.mode === 'move') && (
+            <DetailRow
+              label={tr('선입력 시작 (초)')}
+              hint={tr(
+                '구간이 열리기 전에 누른 키·받은 이벤트를 클립의 이 시각부터만 받고, 그 전에 온 것은 버립니다. 0이면 처음부터 받습니다. 예: 약공격 창에서 길게 누르면 엔진이 0.25초 뒤 파워 이벤트를 보내는데, 다음 타의 파워 전환에 0.35를 쓰면 그 이벤트는 버려집니다(런타임 1.1.0 이상).'
+              )}
+            >
+              <NumberInput
+                min="0"
+                max="600"
+                step="0.05"
+                value={l.bufferFrom ?? 0}
+                change={v => change({bufferFrom: v > 0 ? v : undefined})}
+              />
+            </DetailRow>
           )}
         </>
       ),

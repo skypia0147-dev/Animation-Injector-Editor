@@ -67,7 +67,8 @@ export function checkCards(w: any) {
       !idOk(s.uid) ||
       uids.has(s.uid) ||
       (s.xmlId !== undefined && !idOk(s.xmlId)) ||
-      !['input', 'event'].includes(s.mode) ||
+      !['input', 'event', 'combat'].includes(s.mode) ||
+      (s.every !== undefined && (s.mode !== 'combat' || typeof s.every !== 'number' || !Number.isFinite(s.every))) ||
       typeof s.key !== 'string' ||
       !number(s.gamepad, 0, 65535) ||
       (s.control !== undefined && !isGameControl(s.control)) ||
@@ -105,6 +106,7 @@ export function checkCards(w: any) {
             'block',
             'to',
             'position',
+            'every',
           ].includes(k)
       )
     )
@@ -284,6 +286,12 @@ export function cardIssues(w: Workspace): Issue[] {
       } else if ((!s.key && !s.gamepad) || (s.key && (!keyCode(s.key) || keyCode(s.key) > 265)))
         err(s.uid, tr('시작 키 또는 패드 버튼을 지정하세요.'));
       if (s.press === '') err(s.uid, tr('누름 방식을 선택하세요.'));
+    } else if (s.mode === 'combat') {
+      // An NPC in combat asks it (runtime 1.1.0): ordinary actions only, every 0.1~60 seconds.
+      if (s.every !== undefined && !(Number.isFinite(s.every) && s.every >= 0.1 && s.every <= 60))
+        err(s.uid, tr('확인 간격은 0.1~60초입니다.'));
+      if (playsPair(w, s.to)) err(s.uid, tr('전투 중 NPC 시작은 일반 동작만 시작합니다.'));
+      if (s.block) err(s.uid, tr('전투 중 NPC 시작에는 바닐라 차단을 쓰지 않습니다.'));
     } else if (!eventOk(s.event)) err(s.uid, tr('시작 이벤트 이름을 입력하세요.'));
     // A setting just added from 「＋ 설정」 and not chosen yet (11-02).
     if (s.mode === 'event' && s.actor === '') err(s.uid, tr('보낸 쪽을 선택하세요.'));
@@ -297,7 +305,7 @@ export function cardIssues(w: Workspace): Issue[] {
     refError(s.uid, s.to);
     // The combat target: a pair's event start, or a start choosing among ordinary actions (runtime 0.12.299).
     const ordinary = choosesOrdinary(w, s);
-    if (s.target === 'combatTarget' && !ordinary && (s.mode !== 'event' || !playsPair(w, s.to)))
+    if (s.mode !== 'combat' && s.target === 'combatTarget' && !ordinary && (s.mode !== 'event' || !playsPair(w, s.to)))
       err(s.uid, tr('전투 대상은 페어로 가는 이벤트 시작이나 일반 동작을 고르는 조건 카드 시작에만 사용하세요.'));
   }
   for (const c of w.cards) {

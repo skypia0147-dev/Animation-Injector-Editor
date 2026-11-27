@@ -352,10 +352,6 @@ const pieces = [
   {en: 'form must be a hexadecimal ID', ...trFragment('form은 16진수 ID여야 합니다')},
   {en: 'full must be greater than from', ...trFragment('full은 from보다 커야 합니다')},
   {
-    en: 'Give only one of a key (input, key/gamepad or control) or an event',
-    ...trFragment('키(input, key·gamepad 또는 control)와 event 중 하나만 지정합니다'),
-  },
-  {
     en: 'HKX paths use only ASCII letters, digits and symbols (the game cannot find other characters): ',
     ...trFragment('HKX 경로는 ASCII 영문·숫자·기호만 씁니다(한글 등은 게임이 찾지 못함): '),
   },
@@ -373,8 +369,49 @@ const pieces = [
   {en: 'maxHold goes with loop="true"', ...trFragment('maxHold는 loop="true"와 함께 씁니다')},
   {en: 'measure is for cost only', ...trFragment('measure는 cost에서만 씁니다')},
   {en: 'modEvent needs a name', ...trFragment('modEvent에는 name이 필요합니다')},
+  {
+    en: 'Give only one of a key (input, key/gamepad or control), an event or combat=\"npc\"',
+    ...trFragment('키(input, key·gamepad 또는 control), event, combat=\"npc\" 중 하나만 지정합니다'),
+  },
+  {
+    en: 'name is used by modEvent and animEvent; text and number by modEvent only',
+    ...trFragment('name은 modEvent·animEvent에서만, text·number는 modEvent에서만 씁니다'),
+  },
+  {en: 'animEvent needs a name', ...trFragment('animEvent에는 name이 필요합니다')},
+  {
+    en: 'bufferFrom is for transitions on a key, an event or a movement key',
+    ...trFragment('bufferFrom은 키·이벤트·이동 전환에만 씁니다'),
+  },
+  {
+    en: 'bufferFrom goes with a buffered window that opens later (from)',
+    ...trFragment('bufferFrom은 선입력을 받고 나중에 열리는(from) 구간과 함께 씁니다'),
+  },
+  {en: 'text and number are used by modEvent only', ...trFragment('text·number는 modEvent에서만 씁니다')},
+  {
+    en: 'an NPC\'s transition (on=\"npc\") takes no key',
+    ...trFragment('NPC 판단 전환(on=\"npc\")에는 키를 쓰지 않습니다'),
+  },
+  {
+    en: 'an NPC\'s transition (on=\"npc\") is for full-body actions',
+    ...trFragment('NPC 판단 전환(on=\"npc\")은 전신 동작에만 씁니다'),
+  },
+  {
+    en: 'an ending transition (end=\"true\") takes no cooldown',
+    ...trFragment('끝내기 전환(end=\"true\")에는 cooldown을 쓰지 않습니다'),
+  },
+  {en: 'every is used only with combat=\"npc\"', ...trFragment('every는 combat=\"npc\"에만 씁니다')},
+  {
+    en: 'A combat start (combat=\"npc\") starts ordinary actions only',
+    ...trFragment('전투 중 NPC 시작(combat=\"npc\")은 일반 동작만 시작합니다'),
+  },
+  {en: "a distance's measure is reach", ...trFragment('거리의 measure는 reach입니다')},
+  {
+    en: "a graph variable's type is bool, int or float",
+    ...trFragment('그래프 변수의 type은 bool, int, float 중 하나입니다'),
+  },
+  {en: 'invalid graph variable name', ...trFragment('그래프 변수 이름이 잘못되었습니다')},
+  {en: 'variable requires graphVariable', ...trFragment('variable은 graphVariable에서만 씁니다')},
   {en: 'Motion', ...trFragment('움직임')},
-  {en: 'name, text and number are used by modEvent only', ...trFragment('name·text·number는 modEvent에서만 씁니다')},
   {en: 'Not a clip-time function of an ordinary action: ', ...trFragment('일반 동작의 시각 기능이 아닙니다: ')},
   {en: 'not must be true or false', ...trFragment('not은 true 또는 false여야 합니다')},
   {en: 'Number out of range or malformed: ', ...trFragment('숫자 범위 또는 형식 오류: ')},

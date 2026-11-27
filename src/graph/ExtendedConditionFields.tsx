@@ -1,6 +1,6 @@
 import type {BranchTest} from './conditions.ts';
 import {NumberInput} from '../ui/details/NumberInput.tsx';
-import {comparisons, definition, extensionMaximum} from './conditionExtensions.ts';
+import {comparisons, definition, extensionMaximum, extensionMinimum} from './conditionExtensions.ts';
 import {DetailRow} from '../ui/details/DetailRow.tsx';
 import {tr} from '../i18n/korean.ts';
 import {multiValueField} from './multiValue.ts';
@@ -98,6 +98,55 @@ export function ExtendedConditionFields({
           </label>
         </DetailRow>
       )}
+      {test.kind === 'distance' && (
+        <DetailRow
+          label={tr('거리 기준')}
+          hint={tr(
+            '무기 끝부터: 거리에서 이 액터의 공격 거리와 상대의 반경을 뺀 값입니다. 0이면 상대가 무기 끝에 닿고, 0보다 작으면 이미 닿습니다. 숫자 하나로 단검과 대검에 모두 맞습니다(런타임 1.1.0 이상).'
+          )}
+        >
+          <select
+            value={test.measure === 'reach' ? 'reach' : 'distance'}
+            onChange={e =>
+              change(
+                e.target.value === 'reach'
+                  ? {measure: 'reach'}
+                  : {
+                      measure: undefined,
+                      value: test.value === undefined ? undefined : Math.max(0, test.value),
+                      upper: test.upper === undefined ? undefined : Math.max(0, test.upper),
+                    }
+              )
+            }
+          >
+            <option value="distance">{tr('기준 위치 사이')}</option>
+            <option value="reach">{tr('무기 끝부터')}</option>
+          </select>
+        </DetailRow>
+      )}
+      {test.kind === 'graphVariable' && (
+        <>
+          <DetailRow label={tr('변수 이름')} hint={d.hint}>
+            <input
+              value={test.variable ?? ''}
+              placeholder="MCO_nextattack"
+              spellCheck={false}
+              onChange={e => change({variable: e.target.value.trim()})}
+            />
+          </DetailRow>
+          <DetailRow label={tr('변수 형식')} hint={d.hint}>
+            <select
+              value={test.variableType ?? ''}
+              onChange={e => change({variableType: e.target.value as BranchTest['variableType']})}
+            >
+              <Unchosen />
+              <option value="int">{tr('정수 (int)')}</option>
+              <option value="float">{tr('실수 (float)')}</option>
+              <option value="bool">{tr('참·거짓 (bool, 0·1)')}</option>
+            </select>
+          </DetailRow>
+        </>
+      )}
       {test.kind === 'actorValue' && (
         <DetailRow label={tr('비교 기준')} hint={d.hint}>
           <select value={test.measure ?? ''} onChange={e => change({measure: e.target.value as 'current' | 'base'})}>
@@ -150,7 +199,7 @@ export function ExtendedConditionFields({
           hint={d.hint}
         >
           <NumberInput
-            min="0"
+            min={extensionMinimum(test)}
             max={extensionMaximum(test)}
             step="any"
             value={test.value}
@@ -161,7 +210,7 @@ export function ExtendedConditionFields({
       {compared && test.compare === 'range' && (
         <DetailRow label={tr('끝 값')}>
           <NumberInput
-            min={test.kind === 'gameHour' ? 0 : (test.value ?? 0)}
+            min={test.kind === 'gameHour' ? 0 : (test.value ?? extensionMinimum(test))}
             max={extensionMaximum(test)}
             step="any"
             value={test.upper}

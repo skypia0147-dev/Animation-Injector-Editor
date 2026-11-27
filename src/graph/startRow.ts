@@ -21,12 +21,14 @@ export function startRow(
   if (own.length) {
     const s = own[0];
     const text =
-      s.mode === 'input'
-        ? (s.control
-            ? gameControlLabel(s.control)
-            : tr('키 {key}', {key: s.key || (s.gamepad ? gamepadXml(s.gamepad) : '—')})) +
-          (s.press !== 'down' ? ' · ' + pressName(s.press) : '')
-        : tr('이벤트 {v0}', {v0: s.event || tr('미지정')});
+      s.mode === 'combat'
+        ? tr('전투 중 NPC')
+        : s.mode === 'input'
+          ? (s.control
+              ? gameControlLabel(s.control)
+              : tr('키 {key}', {key: s.key || (s.gamepad ? gamepadXml(s.gamepad) : '—')})) +
+            (s.press !== 'down' ? ' · ' + pressName(s.press) : '')
+          : tr('이벤트 {v0}', {v0: s.event || tr('미지정')});
     return {
       tone: 'set',
       text: text + (own.length > 1 ? tr(' 외 {v0}', {v0: own.length - 1}) : ''),

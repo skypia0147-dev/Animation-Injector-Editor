@@ -37,6 +37,7 @@ export const names: Record<string, string> = {
   sound: 'notify.sound',
   globalSet: 'notify.globalSet',
   modEvent: 'notify.modEvent',
+  animEvent: 'notify.animEvent',
   gripHold: 'notify.gripHold',
   gripRelease: 'notify.gripRelease',
   shake: 'notify.cameraShake',
@@ -90,11 +91,13 @@ export function rows(w: Workspace, a: Action, step?: string): Row[] {
           ? tr('끝나면')
           : l.mode === 'move'
             ? tr('이동 전환')
-            : l.mode === 'release'
-              ? tr('차지 종료')
-              : l.mode === 'input'
-                ? (p.inputs.find(i => i.id === l.input)?.key ?? l.input)
-                : l.event,
+            : l.mode === 'npc'
+              ? tr('NPC 판단')
+              : l.mode === 'release'
+                ? tr('차지 종료')
+                : l.mode === 'input'
+                  ? (p.inputs.find(i => i.id === l.input)?.key ?? l.input)
+                  : l.event,
       // An end transition goes at the HKX's exit point.
       from: l.mode === 'end' ? p.exit : l.window ? l.open : {...mark(), basis: 'event', event: l.event},
       until: l.window ? l.close : undefined,

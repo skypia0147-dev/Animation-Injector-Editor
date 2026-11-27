@@ -93,6 +93,7 @@ export const operations = [
   'modEvent',
   'gripHold',
   'gripRelease',
+  'animEvent',
 ] as const;
 /** Keys of a pair's clip-time effect: `at` and a function's (eventRegistry.ts). */
 export const effectKeys = timedKeys;
@@ -149,8 +150,16 @@ export type Link = {
   partnerTo: string;
   /** What moves it on: a key's press, an event, this HKX's end (charge, runtime <Transition on="end">), a key let
    *  go (on="release"; `input` empty = the key that started the action), or a movement key's press (on="move",
-   *  buffered as a key's; a movement key held as its window opens counts as buffered). */
-  mode: 'input' | 'event' | 'end' | 'release' | 'move';
+   *  buffered as a key's; a movement key held as its window opens counts as buffered), or an NPC's own choice
+   *  (runtime 1.1.0 on="npc": as its window opens, an NPC in combat reads its card with its combat target as the
+   *  partner and goes when it holds; never the player's). */
+  mode: 'input' | 'event' | 'end' | 'release' | 'move' | 'npc';
+  /** Seconds (game time) after the actor took it before it may again (runtime 1.1.0 cooldown). Stored only when set. */
+  cooldown?: number;
+  /** A press or event before its window opens counts from this clip time on (runtime 1.1.0 bufferFrom): an earlier one
+   *  is dropped. A buffered window of its own that opens later; a key's, an event's or a movement key's. Stored only
+   *  when set. */
+  bufferFrom?: number;
   /** How a key transition's key is pressed (runtime 1.0.8, XML press): a short press, two quick ones or a held one,
    *  told apart as a start's. Stored only when set; absent = the moment the key goes down. */
   press?: Exclude<import('./cards.ts').StartPress, 'down'>;
@@ -715,12 +724,16 @@ function checkLink(l: any) {
     buffered: true,
     position: {x: 0, y: 0},
   };
-  const {blend, ownWindow, card, press, end, ...baseLink} = l;
+  const {blend, ownWindow, card, press, end, cooldown, bufferFrom, ...baseLink} = l;
   exact(baseLink, sample, tr('연결'));
   if (card !== undefined && (typeof card !== 'string' || !card)) throw Error(tr('전환 조건 카드 형식 오류'));
   if (press !== undefined && !['tap', 'double', 'hold'].includes(press)) throw Error(tr('전환 누름 방식 오류'));
   if (ownWindow !== undefined && ownWindow !== true) throw Error(tr('전환 감지 구간 설정 오류'));
   if (end !== undefined && end !== true) throw Error(tr('끝내기 전환 설정 오류'));
+  if (cooldown !== undefined && (typeof cooldown !== 'number' || !Number.isFinite(cooldown) || cooldown <= 0))
+    throw Error(tr('다시 타기까지 시간 형식 오류'));
+  if (bufferFrom !== undefined && (typeof bufferFrom !== 'number' || !Number.isFinite(bufferFrom) || bufferFrom <= 0))
+    throw Error(tr('선입력 시작 형식 오류'));
   if (blend !== undefined && (typeof blend !== 'number' || !Number.isFinite(blend) || blend < 0 || blend > 5))
     throw Error(tr('연결 블렌드 범위 오류'));
   exact(l.position, sample.position, tr('좌표'));
@@ -982,12 +995,27 @@ export function validateWorkspace(w: Workspace): Issue[] {
       err(l.id, tr('경로별 블렌드는 단일 일반 HKX 사이에서만 지원합니다.'));
     if (b && l.partnerTo && (!a.pair || b.pair || !partner || partner.pair))
       err(l.id, tr('양쪽 일반 전환은 페어 출발과 일반/콤보 목적지가 필요합니다.'));
-    if (!['input', 'event', 'end', 'release', 'move'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
+    if (!['input', 'event', 'end', 'release', 'move', 'npc'].includes(l.mode)) err(l.id, tr('연결 시작 방식 오류'));
+    // How soon the actor may take it again (runtime 1.1.0): 0~600 seconds, not on an ending transition.
+    if (l.cooldown !== undefined && (!number(l.cooldown, 0, 600) || l.end))
+      err(l.id, tr('다시 타기까지 시간은 0~600초이고, 끝내기 전환에는 쓰지 않습니다.'));
+    // A buffered window that opens later (runtime 1.1.0 bufferFrom), on a key, an event or a movement key.
+    if (
+      l.bufferFrom !== undefined &&
+      (!number(l.bufferFrom, 0, 600) ||
+        !['input', 'event', 'move'].includes(l.mode) ||
+        !l.window ||
+        !l.buffered ||
+        windowAttrs(l.open, l.close, true).from === undefined)
+    )
+      err(l.id, tr('선입력 시작은 나중에 열리고 선입력을 받는 감지 구간에서만 씁니다(0~600초).'));
     if (l.press !== undefined && (l.mode !== 'input' || !['tap', 'double', 'hold'].includes(l.press)))
       err(l.id, tr('누름 방식은 키를 누르는 전환에만 씁니다.'));
-    if (l.mode === 'end' || l.mode === 'release' || l.mode === 'move') {
+    if (l.mode === 'end' || l.mode === 'release' || l.mode === 'move' || l.mode === 'npc') {
       // Charge (runtime 10-30): an ordinary HKX's; an end once per HKX, none from a loop (it has no end).
-      if (a.pair) err(l.id, tr('끝나면·차지 종료·이동 전환은 일반 HKX에서만 씁니다.'));
+      if (a.pair) err(l.id, tr('끝나면·차지 종료·이동 전환·NPC 판단 전환은 일반 HKX에서만 씁니다.'));
+      // An NPC's own choice (runtime 1.1.0): full-body actions only.
+      if (l.mode === 'npc' && a.config.body) err(l.id, tr('NPC 판단 전환은 전신 동작에서만 씁니다.'));
       if (l.mode === 'end') {
         if (a.config.loop) err(l.id, tr('반복 재생 HKX에는 끝이 없어 끝나면 전환을 쓸 수 없습니다.'));
         if (w.links.some(x => x !== l && x.from === l.from && x.mode === 'end'))
@@ -1185,9 +1213,19 @@ function actionElement(w: Workspace, x: ReturnType<typeof writerOf>, a: Action):
                 ? {on: 'release', ...(l.input ? input(l.input) : {})}
                 : l.mode === 'move'
                   ? {on: 'move'}
-                  : {...input(l.input), press: l.press}),
-          // An end has no window; a release reads the key's state, so no buffer.
-          ...(l.window && l.mode !== 'end' ? windowAttrs(l.open, l.close, l.buffered || l.mode === 'release') : {}),
+                  : l.mode === 'npc'
+                    ? {on: 'npc'}
+                    : {...input(l.input), press: l.press}),
+          // An end has no window; a release reads the key's state and an NPC's choice is read as its window opens, so
+          // neither has a buffer.
+          ...(l.window && l.mode !== 'end'
+            ? windowAttrs(l.open, l.close, l.buffered || l.mode === 'release' || l.mode === 'npc')
+            : {}),
+          bufferFrom:
+            l.bufferFrom && l.window && l.buffered && windowAttrs(l.open, l.close, true).from !== undefined
+              ? l.bufferFrom
+              : undefined,
+          cooldown: l.cooldown && !l.end ? l.cooldown : undefined,
           blend: l.end ? undefined : l.blend,
           end: l.end ? 'true' : undefined,
         }),
