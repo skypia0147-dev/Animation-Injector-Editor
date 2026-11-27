@@ -8,7 +8,17 @@ import {valuesError} from './graph/multiValue.ts';
 import {createProject, fullBodyGraph, mark} from './model.ts';
 import type {Mark, Input} from './model.ts';
 import {gamepadFromXml, gameControlFromXml, type GameControl} from './keys.ts';
-import {emptyWorkspace, wrap, defaultPair, arrange, validateWorkspace, uid} from './workspace.ts';
+import {
+  emptyWorkspace,
+  wrap,
+  defaultPair,
+  arrange,
+  validateWorkspace,
+  uid,
+  variableErrors,
+  variableSources,
+  variableTypes,
+} from './workspace.ts';
 import {readDo, readEventValues, readRegistry} from './eventRegistry.ts';
 import {readLocomotion} from './locomotion.ts';
 import type {EventRow} from './eventRegistry.ts';
@@ -142,7 +152,7 @@ export function importWorkspaceXml(text: string): Workspace {
   shapeXml(
     root,
     ['id', 'version', 'view'],
-    ['Inputs', 'EventRegistry', 'Start', 'Condition', 'Action', 'Pair', 'Locomotion']
+    ['Inputs', 'EventRegistry', 'VariableRegistry', 'Start', 'Condition', 'Action', 'Pair', 'Locomotion']
   );
   const w = emptyWorkspace();
   w.id = required(root, 'id');
@@ -190,7 +200,7 @@ export function importWorkspaceXml(text: string): Workspace {
         'loop',
         'maxHold',
         'rig',
-        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body', 'facing', 'signal']),
+        ...(pair ? ['lostBlend', 'reorient', 'interruptOnHit'] : ['body', 'facing', 'signal', 'optional']),
       ],
       [
         'Exit',
@@ -258,6 +268,14 @@ export function importWorkspaceXml(text: string): Workspace {
       if (!validSignalName(n.attrs.signal))
         throw new Error(tr('Action: OAR 신호 이름은 영문·숫자·_ 1~32자입니다: {v0}', {v0: n.attrs.signal}));
       p.signal = n.attrs.signal;
+    }
+    // A clip a moveset may not have (runtime 1.1.0): the runtime refuses it on a part or a creature's action.
+    if (!pair && bool(n, 'optional', false)) {
+      if (p.body || (p.rig && p.rig !== 'character'))
+        throw new Error(
+          tr('{v0}: 선택 클립(optional)은 캐릭터의 전신 동작에만 씁니다.', {v0: p.actionId || n.attrs.id})
+        );
+      p.optional = true;
     }
     const air = choice(n, 'air', ['both', 'only'] as const, 'both');
     p.air = n.attrs.air === undefined ? 'deny' : air === 'both' ? 'allow' : 'only';
@@ -746,6 +764,19 @@ export function importWorkspaceXml(text: string): Workspace {
   readQtes(w, root, clock, owner);
   readEventQtes(w, registryNode, owner);
   if (rows.length) w.eventRegistry = rows;
+  // Graph variables the file registers (runtime 1.1.0): kept as written.
+  const variableNode = one(root, 'VariableRegistry');
+  if (variableNode) {
+    shapeXml(variableNode, [], ['Variable']);
+    w.variables = variableNode.children.map(v => {
+      shapeXml(v, ['name', 'type', 'source']);
+      const source = v.attrs.source === undefined ? undefined : choice(v, 'source', variableSources, 'moveInput');
+      required(v, 'type');
+      return {name: required(v, 'name'), type: choice(v, 'type', variableTypes, 'int'), ...(source ? {source} : {})};
+    });
+    const wrong = variableErrors(w.variables);
+    if (wrong.length) throw new Error('VariableRegistry: ' + wrong[0]);
+  }
   // The file's order of starts, HKX cards and named cards.
   for (const n of root.children) {
     if (n.name === 'Start') w.order.push(n.attrs['data-uid']);

@@ -73,6 +73,7 @@ const pieces = [
   {en: "' is used by the file ", ...trFragment("'를 쓰는 파일이 ")},
   {en: "'): actions ", ...trFragment("'): 액션 ")},
   {en: '" is only for human (character) actions', ...trFragment('"는 사람(character) 동작에만 씁니다')},
+  {en: '" needs type="int"', ...trFragment('" 에는 type="int"가 필요합니다')},
   {en: '[Decl]   slots: rotate ', ...trFragment('[Decl]   슬롯: rotate ')},
   {en: "[Decl] action '", ...trFragment("[Decl] 액션 '")},
   {en: '[Decl] locomotion: ', ...trFragment('[Decl] 이동 사다리: ')},
@@ -104,8 +105,17 @@ const pieces = [
   },
   {en: "A carry's putdown action takes no body", ...trFragment('운반의 내려놓기 동작에는 body를 쓰지 않습니다')},
   {
+    en: 'A combat start (combat="npc") starts ordinary actions only',
+    ...trFragment('전투 중 NPC 시작(combat="npc")은 일반 동작만 시작합니다'),
+  },
+  {en: "a distance's measure is reach", ...trFragment('거리의 measure는 reach입니다')},
+  {
     en: 'a game control that opens a menu (wait, favorites, tweenMenu) opens it as it goes down: press="down" only',
     ...trFragment('메뉴를 여는 게임 동작(wait·favorites·tweenMenu)은 누르는 순간 메뉴가 열려 press="down"만 씁니다'),
+  },
+  {
+    en: "a graph variable's type is bool, int or float",
+    ...trFragment('그래프 변수의 type은 bool, int, float 중 하나입니다'),
   },
   {
     en: "A grip's hand and view are set in the event registration",
@@ -223,6 +233,10 @@ const pieces = [
   },
   {en: 'a transition with on takes no event', ...trFragment('on을 쓴 전환에는 event를 쓰지 않습니다')},
   {
+    en: 'A variable name uses 1–64 letters, digits or underscores: ',
+    ...trFragment('변수 이름은 영문·숫자·밑줄 1~64자입니다: '),
+  },
+  {
     en: "A window's duration (span) is set in the event registry",
     ...trFragment('구간 기능의 duration(지속 시간)은 이벤트 등록에서 정합니다'),
   },
@@ -253,6 +267,10 @@ const pieces = [
     ...trFragment('끝내기 전환(end="true")에는 blend와 partnerTo를 쓰지 않습니다(끝 블렌드는 <Exit blend>)'),
   },
   {
+    en: 'an ending transition (end="true") takes no cooldown',
+    ...trFragment('끝내기 전환(end="true")에는 cooldown을 쓰지 않습니다'),
+  },
+  {
     en: 'an ending transition (end="true") takes no to and no condition card',
     ...trFragment('끝내기 전환(end="true")에는 to와 조건 카드를 쓰지 않습니다'),
   },
@@ -265,6 +283,11 @@ const pieces = [
     ...trFragment('ID는 영문으로 시작하는 영문/숫자/밑줄 64자 이내여야 합니다: '),
   },
   {
+    en: 'an NPC\'s transition (on="npc") is for full-body actions',
+    ...trFragment('NPC 판단 전환(on="npc")은 전신 동작에만 씁니다'),
+  },
+  {en: 'an NPC\'s transition (on="npc") takes no key', ...trFragment('NPC 판단 전환(on="npc")에는 키를 쓰지 않습니다')},
+  {
     en: 'an on="end" transition is only for an action that ends at a time (Exit at="end-…")',
     ...trFragment('끝나면(on="end") 전환은 시각으로 끝나는 동작(Exit at="end-…")에만 씁니다'),
   },
@@ -276,14 +299,29 @@ const pieces = [
     en: "An ordinary action's clip-time function applies to the actor playing it: no target or from",
     ...trFragment('일반 동작의 시각 기능은 그 동작을 재생하는 액터에게 적용됩니다: target·from을 쓰지 않습니다'),
   },
+  {en: 'animEvent needs a name', ...trFragment('animEvent에는 name이 필요합니다')},
   {
     en: 'At least one Bone with a weight above 0 is required',
     ...trFragment('무게가 0보다 큰 Bone이 하나 이상 필요합니다'),
+  },
+  {
+    en: "attackDataOn needs a name: the attack data's event name (attackStart, attackStartLeftHand, bashStart)",
+    ...trFragment(
+      'attackDataOn에는 name이 필요합니다: 공격 데이터의 이벤트 이름(attackStart, attackStartLeftHand, bashStart)'
+    ),
   },
   {en: 'blockWhen goes together with block', ...trFragment('blockWhen은 block과 함께 씁니다')},
   {en: 'body is for character actions only', ...trFragment('body는 사람(character) 동작에만 씁니다')},
   {en: 'body is for ordinary actions (Action) only', ...trFragment('body는 일반 동작(Action)에만 씁니다')},
   {en: 'body is one of upper, rightArm, leftArm: ', ...trFragment('body는 upper, rightArm, leftArm 중 하나입니다: ')},
+  {
+    en: 'bufferFrom goes with a buffered window that opens later (from)',
+    ...trFragment('bufferFrom은 선입력을 받고 나중에 열리는(from) 구간과 함께 씁니다'),
+  },
+  {
+    en: 'bufferFrom is for transitions on a key, an event or a movement key',
+    ...trFragment('bufferFrom은 키·이벤트·이동 전환에만 씁니다'),
+  },
   {en: 'Camera', ...trFragment('카메라')},
   {
     en: 'Cannot transition to an action of another skeleton (rig): ',
@@ -303,6 +341,7 @@ const pieces = [
     ...trFragment('combatTarget은 페어 이벤트 시작이나 일반 동작을 고르는 조건 카드 시작에만 사용할 수 있습니다'),
   },
   {en: 'Common conditions go before rows and True', ...trFragment('공통 조건은 행·True보다 앞에 씁니다')},
+  {en: 'compare="exists" takes no value', ...trFragment('compare="exists"는 값을 쓰지 않습니다')},
   {en: 'Condition', ...trFragment('조건')},
   {en: 'Condition cards point at each other in a loop: ', ...trFragment('조건 카드가 서로를 가리켜 순환합니다: ')},
   {en: 'Conditions are written as <Check>, <And>, <Or>', ...trFragment('조건은 <Check>·<And>·<Or>로 씁니다')},
@@ -333,6 +372,7 @@ const pieces = [
     en: 'Element not allowed in a row (conditions <Check>, <And>, <Or> and a following <Condition>)',
     ...trFragment('행에 쓸 수 없는 요소입니다(조건 <Check>·<And>·<Or>와 이어지는 <Condition>)'),
   },
+  {en: 'every is used only with combat="npc"', ...trFragment('every는 combat="npc"에만 씁니다')},
   {en: 'facing is legs or camera: ', ...trFragment('facing은 legs 또는 camera입니다: ')},
   {
     en: 'facing is used only on an upper body part action (body="upper")',
@@ -352,15 +392,20 @@ const pieces = [
   {en: 'form must be a hexadecimal ID', ...trFragment('form은 16진수 ID여야 합니다')},
   {en: 'full must be greater than from', ...trFragment('full은 from보다 커야 합니다')},
   {
+    en: 'Give only one of a key (input, key/gamepad or control), an event or combat="npc"',
+    ...trFragment('키(input, key·gamepad 또는 control), event, combat="npc" 중 하나만 지정합니다'),
+  },
+  {
     en: 'HKX paths use only ASCII letters, digits and symbols (the game cannot find other characters): ',
     ...trFragment('HKX 경로는 ASCII 영문·숫자·기호만 씁니다(한글 등은 게임이 찾지 못함): '),
   },
   {en: 'Illusion', ...trFragment('환영')},
   {en: 'Invalid event name: ', ...trFragment('이벤트 이름이 잘못되었습니다: ')},
+  {en: 'invalid graph variable name', ...trFragment('그래프 변수 이름이 잘못되었습니다')},
   {
-    en: 'It needs 1–256 actions, an event registry or locomotion ladders (Locomotion) (a start or transition that chooses by conditions counts as one each)',
+    en: 'It needs 1–1024 actions, an event registry, a variable registry or locomotion ladders (Locomotion) (a start or transition that chooses by conditions counts as one each)',
     ...trFragment(
-      '1~256개 액션, 이벤트 등록 또는 이동 사다리(Locomotion)가 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)'
+      '1~1024개 액션, 이벤트 등록, 변수 등록 또는 이동 사다리(Locomotion)가 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)'
     ),
   },
   {en: 'Lockpicking', ...trFragment('자물쇠 따기')},
@@ -369,55 +414,11 @@ const pieces = [
   {en: 'maxHold goes with loop="true"', ...trFragment('maxHold는 loop="true"와 함께 씁니다')},
   {en: 'measure is for cost only', ...trFragment('measure는 cost에서만 씁니다')},
   {en: 'modEvent needs a name', ...trFragment('modEvent에는 name이 필요합니다')},
-  {
-    en: 'Give only one of a key (input, key/gamepad or control), an event or combat=\"npc\"',
-    ...trFragment('키(input, key·gamepad 또는 control), event, combat=\"npc\" 중 하나만 지정합니다'),
-  },
+  {en: 'Motion', ...trFragment('움직임')},
   {
     en: 'name is used by modEvent, animEvent and attackDataOn; text and number by modEvent only',
     ...trFragment('name은 modEvent·animEvent·attackDataOn에서만, text·number는 modEvent에서만 씁니다'),
   },
-  {
-    en: "attackDataOn needs a name: the attack data's event name (attackStart, attackStartLeftHand, bashStart)",
-    ...trFragment(
-      'attackDataOn에는 name이 필요합니다: 공격 데이터의 이벤트 이름(attackStart, attackStartLeftHand, bashStart)'
-    ),
-  },
-  {en: 'animEvent needs a name', ...trFragment('animEvent에는 name이 필요합니다')},
-  {
-    en: 'bufferFrom is for transitions on a key, an event or a movement key',
-    ...trFragment('bufferFrom은 키·이벤트·이동 전환에만 씁니다'),
-  },
-  {
-    en: 'bufferFrom goes with a buffered window that opens later (from)',
-    ...trFragment('bufferFrom은 선입력을 받고 나중에 열리는(from) 구간과 함께 씁니다'),
-  },
-  {en: 'text and number are used by modEvent only', ...trFragment('text·number는 modEvent에서만 씁니다')},
-  {
-    en: 'an NPC\'s transition (on=\"npc\") takes no key',
-    ...trFragment('NPC 판단 전환(on=\"npc\")에는 키를 쓰지 않습니다'),
-  },
-  {
-    en: 'an NPC\'s transition (on=\"npc\") is for full-body actions',
-    ...trFragment('NPC 판단 전환(on=\"npc\")은 전신 동작에만 씁니다'),
-  },
-  {
-    en: 'an ending transition (end=\"true\") takes no cooldown',
-    ...trFragment('끝내기 전환(end=\"true\")에는 cooldown을 쓰지 않습니다'),
-  },
-  {en: 'every is used only with combat=\"npc\"', ...trFragment('every는 combat=\"npc\"에만 씁니다')},
-  {
-    en: 'A combat start (combat=\"npc\") starts ordinary actions only',
-    ...trFragment('전투 중 NPC 시작(combat=\"npc\")은 일반 동작만 시작합니다'),
-  },
-  {en: "a distance's measure is reach", ...trFragment('거리의 measure는 reach입니다')},
-  {
-    en: "a graph variable's type is bool, int or float",
-    ...trFragment('그래프 변수의 type은 bool, int, float 중 하나입니다'),
-  },
-  {en: 'invalid graph variable name', ...trFragment('그래프 변수 이름이 잘못되었습니다')},
-  {en: 'variable requires graphVariable', ...trFragment('variable은 graphVariable에서만 씁니다')},
-  {en: 'Motion', ...trFragment('움직임')},
   {en: 'Not a clip-time function of an ordinary action: ', ...trFragment('일반 동작의 시각 기능이 아닙니다: ')},
   {en: 'not must be true or false', ...trFragment('not은 true 또는 false여야 합니다')},
   {en: 'Number out of range or malformed: ', ...trFragment('숫자 범위 또는 형식 오류: ')},
@@ -428,6 +429,10 @@ const pieces = [
   {en: 'one on="end" transition per action', ...trFragment('끝나면(on="end") 전환은 동작마다 하나입니다')},
   {en: 'Only format 6 (version="6") is read', ...trFragment('형식 6(version="6")만 읽습니다')},
   {en: 'Open must come before close', ...trFragment('열림은 닫힘보다 빨라야 합니다')},
+  {
+    en: "optional is for a character's ordinary full-body actions (Action, no body or rig)",
+    ...trFragment('optional은 캐릭터의 일반 전신 동작에만 씁니다(Action, body·rig 없이)'),
+  },
   {en: 'otherView is block or switch', ...trFragment('otherView는 block 또는 switch입니다')},
   {en: 'otherView is not used on a first-person pair', ...trFragment('otherView는 1인칭 페어에 쓰지 않습니다')},
   {
@@ -471,6 +476,7 @@ const pieces = [
   },
   {en: 'range and angle must be greater than 0', ...trFragment('range·angle은 0보다 커야 합니다')},
   {en: 'Registered the same event twice: ', ...trFragment('같은 이벤트를 두 번 등록했습니다: ')},
+  {en: 'Registered the same variable twice: ', ...trFragment('같은 변수를 두 번 등록했습니다: ')},
   {en: 'Restoration', ...trFragment('회복')},
   {
     en: 'set is one of 1HM, 2HM, 2HW, H2H, Bow, CrossBow, Magic, MagicCast, Sheathed, Sneak, Block1HM, Block2HM, Block2HW, BlockH2H, BlockBow, BlockSneak: ',
@@ -496,12 +502,14 @@ const pieces = [
     en: "sound's file is a path under Data (sound\\fx\\…\\a.wav)",
     ...trFragment('sound의 file은 Data 아래 상대 경로입니다(sound\\fx\\…\\a.wav)'),
   },
+  {en: 'source value is not supported: ', ...trFragment('지원하지 않는 source 값입니다: ')},
   {en: 'Stance', ...trFragment('자세 이동')},
   {en: 'Success', ...trFragment('성공')},
   {
     en: 'target is used only on an event start or a condition-card start that chooses among ordinary actions',
     ...trFragment('target은 이벤트 시작이나 일반 동작을 고르는 조건 카드 시작에서만 사용합니다'),
   },
+  {en: 'text and number are used by modEvent only', ...trFragment('text·number는 modEvent에서만 씁니다')},
   {en: 'Text inside the element is not allowed', ...trFragment('요소 안의 텍스트는 허용하지 않습니다')},
   {
     en: 'The condition card cannot be made into an execution flow (',
@@ -536,6 +544,10 @@ const pieces = [
   {en: 'The same set is left out twice: ', ...trFragment('같은 set을 두 번 뺐습니다: ')},
   {en: 'The same side is set twice: ', ...trFragment('같은 side를 두 번 지정했습니다: ')},
   {en: 'The same weapon is named twice: ', ...trFragment('같은 weapon을 두 번 지정했습니다: ')},
+  {
+    en: 'The variable registry is empty: write <Variable name="…" type="…"/>',
+    ...trFragment('변수 등록이 비어 있습니다. <Variable name="…" type="…"/>를 쓰세요'),
+  },
   {en: 'There must be one root element', ...trFragment('루트 요소는 하나여야 합니다')},
   {en: 'This element does not fit the action kind', ...trFragment('액션 종류에 맞지 않는 요소입니다')},
   {en: 'timeOn needs factor', ...trFragment('timeOn에는 factor가 필요합니다')},
@@ -552,6 +564,7 @@ const pieces = [
     en: 'True is the only row of a card with common conditions only: it is not used with other rows',
     ...trFragment('True는 공통 조건만 쓴 카드의 유일한 행입니다: 다른 행과 함께 쓰지 않습니다'),
   },
+  {en: 'type is bool, int or float: ', ...trFragment('type은 bool, int, float 중 하나입니다: ')},
   {en: 'Undefined action: ', ...trFragment('정의되지 않은 액션: ')},
   {en: 'Undefined condition card: ', ...trFragment('정의되지 않은 조건 카드: ')},
   {en: 'Undefined input: ', ...trFragment('정의되지 않은 입력: ')},
@@ -562,6 +575,7 @@ const pieces = [
   {en: 'Unknown skeleton: ', ...trFragment('알 수 없는 스켈레톤: ')},
   {en: 'Unknown target skeleton: ', ...trFragment('알 수 없는 대상 스켈레톤: ')},
   {en: 'Unsupported element', ...trFragment('지원하지 않는 요소')},
+  {en: 'Up to 256 variable registrations per file', ...trFragment('변수 등록은 파일당 256개까지입니다')},
   {en: 'Up to 4 QTEs per event', ...trFragment('이벤트 하나에 QTE는 4개까지입니다')},
   {en: 'Up to 4096 event registrations per file', ...trFragment('이벤트 등록은 파일당 4096개까지입니다')},
   {en: 'Up to 64 features per event', ...trFragment('이벤트 하나에 기능은 64개까지입니다')},
@@ -569,6 +583,7 @@ const pieces = [
   {en: 'use="2HM" is for weapon="2HW" only', ...trFragment('use="2HM"은 weapon="2HW"에만 씁니다')},
   {en: 'value and restore are used by globalSet only', ...trFragment('value·restore는 globalSet에서만 씁니다')},
   {en: 'Values written twice for the same event: ', ...trFragment('같은 이벤트의 값을 두 번 썼습니다: ')},
+  {en: 'variable requires graphVariable', ...trFragment('variable은 graphVariable에서만 씁니다')},
   {en: 'view is one of third, first and both', ...trFragment('view는 third, first, both 중 하나입니다')},
   {en: 'view is used only with gripHold and gripRelease', ...trFragment('view는 gripHold·gripRelease에서만 씁니다')},
   {

@@ -114,6 +114,11 @@ export function stripExtensions(value: any): unknown {
     if (typeof p.signal !== 'string') fail();
     delete p.signal;
   }
+  // A clip a moveset may not have (runtime 1.1.0 <Action optional>): true only (false is not written).
+  if (p?.optional !== undefined) {
+    if (p.optional !== true) fail();
+    delete p.optional;
+  }
   // Charge (runtime 10-30): an optional loop {maxHold}.
   if (p?.loop !== undefined) {
     const l = p.loop;

@@ -149,10 +149,42 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '请输入十六进制 Form ID。',
   ],
   '1HM과 같게': ['Same as 1HM', '1HM と同じ', '与 1HM 相同'],
-  '1~256개 액션, 이벤트 등록 또는 이동 사다리(Locomotion)가 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)': [
-    'It needs 1–256 actions, an event registry or locomotion ladders (Locomotion) (a start or transition that chooses by conditions counts as one each)',
-    '1~256 個のアクション、イベント登録、または移動ラダー(Locomotion)が必要です(条件で選ぶ開始・遷移も1つずつ数えます)',
-    '需要 1~256 个动作、事件注册或移动梯级(Locomotion)(按条件选择的开始·转换也各算一个)',
+  '1~1024개 액션, 이벤트 등록, 변수 등록 또는 이동 사다리(Locomotion)가 필요합니다(조건으로 고르는 시작·전환도 하나씩 셉니다)':
+    [
+      'It needs 1–1024 actions, an event registry, a variable registry or locomotion ladders (Locomotion) (a start or transition that chooses by conditions counts as one each)',
+      '1~1024 個のアクション、イベント登録、変数登録、または移動ラダー(Locomotion)が必要です(条件で選ぶ開始・遷移も1つずつ数えます)',
+      '需要 1~1024 个动作、事件注册、变量注册或移动梯级(Locomotion)(按条件选择的开始·转换也各算一个)',
+    ],
+  '변수 이름은 영문·숫자·밑줄 1~64자입니다: ': [
+    'A variable name uses 1–64 letters, digits or underscores: ',
+    '変数名は英数字とアンダースコア 1～64 文字です: ',
+    '变量名称为 1～64 个字母、数字或下划线：',
+  ],
+  '같은 변수를 두 번 등록했습니다: ': [
+    'Registered the same variable twice: ',
+    '同じ変数を 2 回登録しています: ',
+    '同一变量注册了两次：',
+  ],
+  'type은 bool, int, float 중 하나입니다: ': [
+    'type is bool, int or float: ',
+    'type は bool、int、float のいずれかです: ',
+    'type 为 bool、int 或 float：',
+  ],
+  '지원하지 않는 source 값입니다: ': [
+    'source value is not supported: ',
+    'サポートされていない source の値です: ',
+    '不支持的 source 值：',
+  ],
+  '" 에는 type="int"가 필요합니다': ['" needs type="int"', '" には type="int" が必要です', '" 需要 type="int"'],
+  '변수 등록이 비어 있습니다. <Variable name="…" type="…"/>를 쓰세요': [
+    'The variable registry is empty: write <Variable name="…" type="…"/>',
+    '変数登録が空です。<Variable name="…" type="…"/> を書いてください',
+    '变量注册为空：请写入 <Variable name="…" type="…"/>',
+  ],
+  '변수 등록은 파일당 256개까지입니다': [
+    'Up to 256 variable registrations per file',
+    '変数登録は 1 ファイルにつき 256 個までです',
+    '每个文件最多注册 256 个变量',
   ],
   '1·3인칭': ['First·third person', '一人称·三人称', '第一·第三人称'],
   '1인칭': ['First person', '一人称', '第一人称'],
@@ -2224,12 +2256,36 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '検査対象を使わない条件です: ',
     '此条件不使用检查目标: ',
   ],
-  '검사 대상의 그래프 변수를 비교합니다(bool은 0·1). 조건이 쓰는 변수는 런타임이 캐릭터 그래프에 넣으므로, 비헤이비어 패치가 없어도 HKX 주석(Payload Interpreter의 @SGVI 등)이 값을 쓸 수 있습니다. 예: MCO 무브셋의 MCO_nextattack(정수)으로 다음 타를 고릅니다(런타임 1.1.0 이상).':
+  '검사 대상의 그래프 변수를 비교합니다(bool은 0·1). 조건이 쓰는 변수는 런타임이 캐릭터 그래프에 넣으므로, 비헤이비어 패치가 없어도 HKX 주석(Payload Interpreter의 @SGVI 등)이 값을 쓸 수 있습니다. 예: MCO 무브셋의 MCO_nextattack(정수)으로 다음 타를 고릅니다. 비교를 「그래프에 있음」으로 두면 값 대신 그 변수가 그래프에 있는지 봅니다(그 변수는 그래프에 넣지 않으므로, 비헤이비어 패치가 설치됐는지 알 수 있습니다). 런타임 1.1.0 이상.':
     [
-      "Compares a graph variable of the subject (a bool reads 0 or 1). The runtime adds every variable a condition reads to the character graphs, so an HKX annotation (Payload Interpreter's @SGVI and the like) can set it without a behavior patch. For example, an MCO moveset's MCO_nextattack (an integer) picks the next hit (runtime 1.1.0 or later).",
-      '検査対象のグラフ変数を比較します(boolは0・1)。条件が使う変数はランタイムがキャラクターグラフに入れるため、ビヘイビアパッチがなくてもHKX注釈(Payload Interpreterの@SGVIなど)が値を書けます。例: MCOムーブセットのMCO_nextattack(整数)で次の一撃を選びます(ランタイム1.1.0以上)。',
-      '比较检查对象的图变量（bool 为 0·1）。条件使用的变量由运行时加入角色图，因此即使没有行为补丁，HKX 注释（Payload Interpreter 的 @SGVI 等）也能写入值。例如：用 MCO 招式组的 MCO_nextattack（整数）选择下一击（运行时 1.1.0 以上）。',
+      "Compares a graph variable of the subject (a bool reads 0 or 1). The runtime adds every variable a condition reads to the character graphs, so an HKX annotation (Payload Interpreter's @SGVI and the like) can set it without a behavior patch. For example, an MCO moveset's MCO_nextattack (an integer) picks the next hit. With the comparison 「In the graph」 it asks whether the graph has the variable at all, not its value (that variable is not added, so it tells whether a behavior patch is installed). Runtime 1.1.0 or later.",
+      '検査対象のグラフ変数を比較します(boolは0・1)。条件が使う変数はランタイムがキャラクターグラフに入れるため、ビヘイビアパッチがなくてもHKX注釈(Payload Interpreterの@SGVIなど)が値を書けます。例: MCOムーブセットのMCO_nextattack(整数)で次の一撃を選びます。比較を「グラフにある」にすると、値の代わりにその変数がグラフにあるかを見ます(その変数はグラフに入れないため、ビヘイビアパッチが入っているかが分かります)。ランタイム1.1.0以上。',
+      '比较检查对象的图变量（bool 为 0·1）。条件使用的变量由运行时加入角色图，因此即使没有行为补丁，HKX 注释（Payload Interpreter 的 @SGVI 等）也能写入值。例如：用 MCO 招式组的 MCO_nextattack（整数）选择下一击。把比较设为「图中存在」时，不看值，而是看图中是否有该变量（该变量不会被加入图中，因此可判断是否安装了行为补丁）。运行时 1.1.0 以上。',
     ],
+  '그래프에 있음': ['In the graph', 'グラフにある', '图中存在'],
+  '선택 클립': ['Optional clip', '任意クリップ', '可选剪辑'],
+  '설치된 경우만': ['Only when installed', 'インストール時のみ', '仅在已安装时'],
+  '이 HKX 파일이 기본 경로에도, OAR·DAR 폴더 어디에도 없으면 런타임이 이 동작을 만들지 않고, 이 동작으로 가는 전환·조건 행은 건너뜁니다(다음 행으로). 무브셋마다 있을 수도 없을 수도 있는 클립(MCO의 차지·전환 클립 등)에 씁니다. 런타임 1.1.0 이상.':
+    [
+      "When this HKX file is neither at its own path nor in any OAR or DAR folder, the runtime does not make this action and passes over the transitions and condition rows going to it (on to the next row). For clips a moveset may or may not have (MCO's charge and transition clips and the like). Runtime 1.1.0 or later.",
+      'このHKXファイルが既定のパスにも、OAR・DARのどのフォルダーにもない場合、ランタイムはこの動作を作らず、この動作へ向かう遷移・条件行は飛ばします(次の行へ)。ムーブセットによってあったりなかったりするクリップ(MCOのチャージ・遷移クリップなど)に使います。ランタイム1.1.0以上。',
+      '当此 HKX 文件既不在默认路径、也不在任何 OAR·DAR 文件夹中时，运行时不会创建此动作，并跳过通往它的转换·条件行（转到下一行）。用于招式组可能有也可能没有的剪辑（MCO 的蓄力·过渡剪辑等）。运行时 1.1.0 以上。',
+    ],
+  '{v0}: 선택 클립(optional)은 캐릭터의 전신 동작에만 씁니다.': [
+    "{v0}: an optional clip (optional) is for a character's whole-body actions only.",
+    '{v0}: 任意クリップ(optional)はキャラクターの全身動作にのみ使います。',
+    '{v0}：可选剪辑（optional）只用于角色的全身动作。',
+  ],
+  'compare="exists"는 값을 쓰지 않습니다': [
+    'compare="exists" takes no value',
+    'compare="exists" は値を書きません',
+    'compare="exists" 不写值',
+  ],
+  'optional은 캐릭터의 일반 전신 동작에만 씁니다(Action, body·rig 없이)': [
+    "optional is for a character's ordinary full-body actions (Action, no body or rig)",
+    'optional はキャラクターの通常の全身動作にのみ使います(Action、body・rig なし)',
+    'optional 只用于角色的普通全身动作（Action，不带 body·rig）',
+  ],
   '검사 대상의 높이 ÷ 반대편 높이입니다. 검사 대상을 상대로 지정하면 본인 대비 상대의 크기를 비교합니다. 같은 높이는 1입니다.':
     [
       'Target height divided by other side height. Setting target to partner compares partner size relative to self. Equal height is 1.',
@@ -3083,6 +3139,32 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     'アクションを 1 つ以上追加してください。',
     '请至少添加一个动作。',
   ],
+  '그래프 변수 등록은 1~256개입니다.': [
+    'A file registers 1 to 256 graph variables.',
+    'グラフ変数の登録は 1～256 個です。',
+    '图变量注册数量为 1～256 个。',
+  ],
+  '그래프 변수 이름은 영문·숫자·밑줄 1~64자입니다: ': [
+    'A graph variable name uses 1–64 letters, digits or underscores: ',
+    'グラフ変数名は英数字とアンダースコア 1～64 文字です: ',
+    '图变量名称为 1～64 个字母、数字或下划线：',
+  ],
+  '같은 그래프 변수를 두 번 등록했습니다: ': [
+    'The same graph variable is registered twice: ',
+    '同じグラフ変数が 2 回登録されています: ',
+    '同一图变量注册了两次：',
+  ],
+  '입력을 받는 그래프 변수는 int 형식이어야 합니다: ': [
+    'A graph variable that takes the input must be an int: ',
+    '入力を受け取るグラフ変数は int 型である必要があります: ',
+    '接收输入的图变量必须是 int 类型：',
+  ],
+  '그래프 변수 등록 형식 오류': [
+    'Graph variable registration format error',
+    'グラフ変数登録の形式エラー',
+    '图变量注册格式错误',
+  ],
+  '그래프 변수 등록': ['Graph variable registration', 'グラフ変数の登録', '图变量注册'],
   '동작이 끝나면 되돌림': ['Restore when the action ends', '動作が終わったら戻す', '动作结束时恢复'],
   '되돌림은 전역 값 설정에서만 씁니다.': [
     'Restore is used by Set global only.',

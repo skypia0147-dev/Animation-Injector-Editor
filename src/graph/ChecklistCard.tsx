@@ -321,6 +321,23 @@ export function ChecklistBody({node, fold = false}: {node: FlatNode; fold?: bool
         fields: () => <LoopRule action={a} edit={edit} />,
       },
       {
+        // A clip a moveset may not have (runtime 1.1.0 <Action optional>): made only when a file is installed for it.
+        id: 'optional',
+        label: tr('선택 클립'),
+        value: tr('설치된 경우만'),
+        set: !!p.optional,
+        applies: !!p.optional || (!a.pair && !p.body && !isCreatureRig(actionRig(a))),
+        add: () => edit(w => putAction(w, {...a, config: {...a.config, optional: true}})),
+        reset: () => edit(w => putAction(w, {...a, config: {...a.config, optional: undefined}})),
+        fields: () => (
+          <p className="set-help">
+            {tr(
+              '이 HKX 파일이 기본 경로에도, OAR·DAR 폴더 어디에도 없으면 런타임이 이 동작을 만들지 않고, 이 동작으로 가는 전환·조건 행은 건너뜁니다(다음 행으로). 무브셋마다 있을 수도 없을 수도 있는 클립(MCO의 차지·전환 클립 등)에 씁니다. 런타임 1.1.0 이상.'
+            )}
+          </p>
+        ),
+      },
+      {
         // An OAR signal (runtime 1.0.9, signal.ts): its chip shows the name; the graph variable is in its fields.
         id: 'signal',
         label: tr('OAR 신호'),

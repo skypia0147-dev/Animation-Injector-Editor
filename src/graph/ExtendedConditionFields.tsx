@@ -163,6 +163,8 @@ export function ExtendedConditionFields({
             onChange={e =>
               change({
                 compare: e.target.value as BranchTest['compare'],
+                // Whether the graph has the variable at all takes no value.
+                ...(e.target.value === 'exists' ? {value: undefined, upper: undefined} : {}),
                 // A range's end is entered by the user; one already there is kept within the range.
                 ...(e.target.value === 'range' && test.upper !== undefined
                   ? {upper: Math.max(test.value ?? 0, Math.min(extensionMaximum(test), test.upper))}
@@ -171,7 +173,7 @@ export function ExtendedConditionFields({
             }
           >
             <Unchosen />
-            {comparisons().map(([v, label]) => (
+            {comparisons(test.kind).map(([v, label]) => (
               <option key={v} value={v}>
                 {label}
               </option>
@@ -179,7 +181,7 @@ export function ExtendedConditionFields({
           </select>
         </DetailRow>
       )}
-      {(compared || test.kind === 'chance') && (
+      {(compared || test.kind === 'chance') && test.compare !== 'exists' && (
         <DetailRow
           label={
             test.kind === 'chance'

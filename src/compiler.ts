@@ -58,6 +58,8 @@ export function actionXml(p: Project, a: {enterBlendEnabled: boolean; exitBlendE
     block: p.suppress ? uniqueEvents(p.suppress.events).join(',') : undefined,
     loop: p.loop ? true : undefined,
     maxHold: p.loop && p.loop.maxHold !== 3 ? p.loop.maxHold : undefined,
+    // A clip a moveset may not have (runtime 1.1.0): left out when installed nowhere.
+    optional: p.optional ? true : undefined,
   });
   // An element whose every attribute is the default is left out, unless its presence is the setting.
   const add = (

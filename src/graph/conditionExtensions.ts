@@ -506,7 +506,7 @@ export const extensionConditions = {
     numeric: true,
     get hint() {
       return tr(
-        '검사 대상의 그래프 변수를 비교합니다(bool은 0·1). 조건이 쓰는 변수는 런타임이 캐릭터 그래프에 넣으므로, 비헤이비어 패치가 없어도 HKX 주석(Payload Interpreter의 @SGVI 등)이 값을 쓸 수 있습니다. 예: MCO 무브셋의 MCO_nextattack(정수)으로 다음 타를 고릅니다(런타임 1.1.0 이상).'
+        '검사 대상의 그래프 변수를 비교합니다(bool은 0·1). 조건이 쓰는 변수는 런타임이 캐릭터 그래프에 넣으므로, 비헤이비어 패치가 없어도 HKX 주석(Payload Interpreter의 @SGVI 등)이 값을 쓸 수 있습니다. 예: MCO 무브셋의 MCO_nextattack(정수)으로 다음 타를 고릅니다. 비교를 「그래프에 있음」으로 두면 값 대신 그 변수가 그래프에 있는지 봅니다(그 변수는 그래프에 넣지 않으므로, 비헤이비어 패치가 설치됐는지 알 수 있습니다). 런타임 1.1.0 이상.'
       );
     },
   },
@@ -623,14 +623,17 @@ export const extensionConditions = {
   },
 } satisfies Record<string, Definition>;
 export type ExtensionKind = keyof typeof extensionConditions;
-export type Comparison = 'lt' | 'le' | 'eq' | 'ge' | 'gt' | 'range';
-export const comparisons = (): readonly (readonly [Comparison, string])[] => [
+export type Comparison = 'lt' | 'le' | 'eq' | 'ge' | 'gt' | 'range' | 'exists';
+/** The ways a check compares; a graph variable can also ask whether the graph has it at all (runtime 1.1.0: a
+ *  behavior patch's own variable tells that patch is installed). */
+export const comparisons = (kind?: string): readonly (readonly [Comparison, string])[] => [
   ['lt', tr('미만')],
   ['le', tr('이하')],
   ['eq', tr('같음')],
   ['ge', tr('이상')],
   ['gt', tr('초과')],
   ['range', tr('범위')],
+  ...(kind === 'graphVariable' ? [['exists', tr('그래프에 있음')] as const] : []),
 ];
 export const extensionKinds = Object.keys(extensionConditions) as ExtensionKind[];
 export const formKinds = ['magicEffect', 'global', ...extensionKinds.filter(k => 'form' in extensionConditions[k])];
@@ -748,6 +751,7 @@ export function extensionError(t: BranchTest): string | undefined {
     if (!/^[!-~]{1,128}$/.test(t.variable ?? ''))
       return tr('그래프 변수 이름을 공백 없는 영문·숫자·기호로 입력하세요.');
     if (!['bool', 'int', 'float'].includes(t.variableType ?? '')) return tr('그래프 변수의 형식을 선택하세요.');
+    if (t.compare === 'exists') return;
   }
   if (t.kind === 'previousAction') {
     // Reading the XML checks the shared settings before the actions are in (importXml.ts reads those).
@@ -776,7 +780,7 @@ export function extensionError(t: BranchTest): string | undefined {
   if (d.optionalNumeric && t.compare === undefined && t.value === undefined) return;
   if (d.numeric || d.optionalNumeric || t.kind === 'chance') {
     // The way to compare first: a new check has neither, and that is the one to pick first.
-    if ((d.numeric || d.optionalNumeric) && !comparisons().some(([v]) => v === t.compare))
+    if ((d.numeric || d.optionalNumeric) && !comparisons(t.kind).some(([v]) => v === t.compare))
       return tr('비교 방식을 선택하세요.');
     if (t.value === undefined) return tr('비교 값을 입력하세요.');
     if (!Number.isFinite(t.value) || t.value! < extensionMinimum(t) || t.value! > extensionMaximum(t))
@@ -798,10 +802,12 @@ export function extensionAttrs(t: BranchTest): Record<string, string> {
   if (!d) return {};
   // A fall's distance is written only when it is asked.
   const numeric = d.numeric || (d.optionalNumeric && t.compare !== undefined);
+  // Whether the graph has the variable at all: no value.
+  const exists = t.compare === 'exists';
   return {
     ...(d.choices ? {option: t.option!} : {}),
     ...(numeric ? {compare: t.compare!} : {}),
-    ...(numeric || t.kind === 'chance' ? {value: String(t.value)} : {}),
+    ...((numeric && !exists) || t.kind === 'chance' ? {value: String(t.value)} : {}),
     ...(numeric && t.compare === 'range' ? {upper: String(t.upper)} : {}),
     ...(t.kind === 'resource' ? {measure: t.measure!} : {}),
     ...(t.kind === 'actorValue' && t.measure === 'base' ? {measure: 'base'} : {}),
@@ -824,10 +830,11 @@ export function readExtension(kind: string, attrs: Record<string, string>): Part
     return Number(value);
   };
   const compared = d.numeric || (d.optionalNumeric && attrs.compare !== undefined);
+  const exists = attrs.compare === 'exists';
   const value: Partial<BranchTest> = {
     ...(d.choices ? {option: attrs.option} : {}),
     ...(compared ? {compare: attrs.compare as Comparison} : {}),
-    ...(compared || kind === 'chance' ? {value: numeric('value')} : {}),
+    ...((compared && !exists) || kind === 'chance' ? {value: numeric('value')} : {}),
     ...(compared && attrs.compare === 'range' ? {upper: numeric('upper')} : {}),
     ...(kind === 'resource' ? {measure: attrs.measure as 'current' | 'percent'} : {}),
     ...(kind === 'actorValue' ? {measure: (attrs.measure as 'base') ?? 'current'} : {}),
@@ -860,19 +867,21 @@ export function extensionSummary(t: BranchTest): string | undefined {
   const value =
     t.compare === 'range'
       ? `${t.value}~${t.upper}${unit}`
-      : `${t.value}${unit} ${comparisons().find(([v]) => v === t.compare)?.[1] ?? ''}`;
+      : `${t.value}${unit} ${comparisons(t.kind).find(([v]) => v === t.compare)?.[1] ?? ''}`;
   return [
     t.subject === 'partner' ? tr('상대') : tr('본인'),
     d.label,
     option,
     d.form ? (byKeywordName(t) ? t.keyword : `${t.form?.plugin ?? ''} : ${t.form?.id ?? ''}`) : undefined,
-    !Number.isFinite(t.value)
-      ? undefined
-      : d.numeric || (d.optionalNumeric && t.compare !== undefined)
-        ? value
-        : t.kind === 'chance'
-          ? `${t.value}%`
-          : undefined,
+    t.compare === 'exists'
+      ? tr('그래프에 있음')
+      : !Number.isFinite(t.value)
+        ? undefined
+        : d.numeric || (d.optionalNumeric && t.compare !== undefined)
+          ? value
+          : t.kind === 'chance'
+            ? `${t.value}%`
+            : undefined,
     t.kind === 'recentEvent' ? (t.events ?? []).join('·') : undefined,
     t.kind === 'graphVariable' ? t.variable : undefined,
     t.kind === 'distance' && t.measure === 'reach' ? tr('무기 끝부터') : undefined,

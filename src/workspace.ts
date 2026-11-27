@@ -181,6 +181,25 @@ export type Layout = Record<string, Record<string, Position & {text?: string}>>;
 export type PreviewAssets = {skeletons: string[]; skins: string[]};
 /** HKX registered in the asset browser, including editor-only local preview sources for A1/A2. */
 export type AssetRef = {clip: string; localPath: string; preview: PreviewAssets};
+/** A registered graph variable. `source` = the player's input the runtime writes into it (an int). */
+export type GraphVariable = {name: string; type: 'bool' | 'int' | 'float'; source?: 'moveInput' | 'strafeInput'};
+export const variableTypes = ['bool', 'int', 'float'] as const;
+export const variableSources = ['moveInput', 'strafeInput'] as const;
+/** What is wrong with the registered variables, as the runtime's parser judges them (XmlV2 Variables). */
+export function variableErrors(variables: GraphVariable[] | undefined): string[] {
+  const out: string[] = [];
+  if (!variables) return out;
+  if (!variables.length || variables.length > 256) out.push(tr('그래프 변수 등록은 1~256개입니다.'));
+  const seen = new Set<string>();
+  for (const v of variables) {
+    if (!/^[A-Za-z0-9_]{1,64}$/.test(v.name)) out.push(tr('그래프 변수 이름은 영문·숫자·밑줄 1~64자입니다: ') + v.name);
+    else if (seen.has(v.name.toLowerCase())) out.push(tr('같은 그래프 변수를 두 번 등록했습니다: ') + v.name);
+    seen.add(v.name.toLowerCase());
+    if (v.source !== undefined && v.type !== 'int')
+      out.push(tr('입력을 받는 그래프 변수는 int 형식이어야 합니다: ') + v.name);
+  }
+  return out;
+}
 export type Workspace = {
   /** The view of actions that do not set one (<AnimationSet view>); absent = third person. */
   view?: View;
@@ -188,6 +207,9 @@ export type Workspace = {
   sharedRules?: import('./graph/sharing.ts').SharedRule[];
   /** The global event registry: every event name the project registers, with its functions. */
   eventRegistry?: EventRow[];
+  /** Graph variables the file registers (<VariableRegistry>, runtime 1.1.0), kept as read: the editor has no card
+   *  for them yet, so a file that registers some opens and saves with them unchanged. */
+  variables?: GraphVariable[];
   /** The locomotion ladders (<Locomotion>, locomotion.ts); absent = the project has none. */
   locomotion?: Locomotion;
   schema: 9;
@@ -525,8 +547,17 @@ export const WORKSPACE_SCHEMA = 9;
 
 /** Phase 1: optional workspace collections. */
 function checkCollections(w: any) {
-  const {eventRegistry, sharedRules, view} = w;
+  const {eventRegistry, sharedRules, view, variables} = w;
   if (view !== undefined && !views.includes(view)) throw Error(tr('기본 인칭 형식 오류'));
+  if (variables !== undefined) {
+    if (!Array.isArray(variables)) throw Error(tr('그래프 변수 등록 형식 오류'));
+    for (const v of variables) {
+      const {source, ...r} = v ?? {};
+      exact(r, {name: '', type: ''}, tr('그래프 변수 등록'));
+      if (!variableTypes.includes(r.type) || (source !== undefined && !variableSources.includes(source)))
+        throw Error(tr('그래프 변수 등록 형식 오류'));
+    }
+  }
   if (eventRegistry !== undefined) {
     if (!Array.isArray(eventRegistry) || eventRegistry.length > 4096) throw Error(tr('이벤트 등록 형식 오류'));
     const ids = new Set();
@@ -568,7 +599,7 @@ function checkCollections(w: any) {
 
 /** Phase 1: the workspace shell (everything but actions and links). */
 function checkShell(w: any) {
-  const {qtes, eventRegistry, sharedRules, view, locomotion, ...baseWorkspace} = w;
+  const {qtes, eventRegistry, sharedRules, view, locomotion, variables, ...baseWorkspace} = w;
   exact(baseWorkspace, emptyWorkspace(), tr('프로젝트'));
   checkLocomotionShape(locomotion);
   if (!Array.isArray(w.assets) || w.assets.length > 500) throw new Error(tr('에셋 개수 제한'));
@@ -614,7 +645,9 @@ function checkShell(w: any) {
       throw new Error(tr('공통 입력') + tr(': 알 수 없거나 누락된 필드'));
   }
   authoringShape(w);
-  if (!Array.isArray(w.actions) || !Array.isArray(w.links) || w.actions.length > 100 || w.links.length > 500)
+  // The runtime's per-file limit (1.1.0: 1024 actions, an add-on declaring every clip a framework can play), and the
+  // links that many actions have.
+  if (!Array.isArray(w.actions) || !Array.isArray(w.links) || w.actions.length > 1024 || w.links.length > 4096)
     throw new Error(tr('동작/연결 개수 제한'));
 }
 
@@ -849,7 +882,10 @@ export function validateWorkspace(w: Workspace): Issue[] {
   out.push(...validateParameters(w));
   if (!idOk(w.id) || !w.name.trim()) err('project', tr('묶음 이름과 영문 ID가 필요합니다.'));
   // The runtime also loads a file with locomotion ladders alone (runtime 1.0.9).
-  if (!w.actions.length && locomotionEmpty(w.locomotion)) err('project', tr('동작을 하나 이상 추가하세요.'));
+  // So does it one that only registers events or graph variables (runtime 1.1.0).
+  if (!w.actions.length && locomotionEmpty(w.locomotion) && !w.eventRegistry?.length && !w.variables?.length)
+    err('project', tr('동작을 하나 이상 추가하세요.'));
+  for (const m of variableErrors(w.variables)) err('project', m);
   // The game reads its locomotion from one file that holds nothing else (locomotion.ts LOCOMOTION_FILE).
   if (!locomotionEmpty(w.locomotion) && (w.actions.length || w.eventRegistry?.length))
     err(
@@ -1107,6 +1143,15 @@ export function compileWorkspace(w: Workspace): string {
     e.children.push(xml);
   }
   if (registry) root.children.push(registry);
+  // The graph variables the file registers, as read (runtime 1.1.0).
+  if (w.variables?.length)
+    root.children.push(
+      node(
+        'VariableRegistry',
+        {},
+        w.variables.map(v => node('Variable', {name: v.name, type: v.type, source: v.source}))
+      )
+    );
   // The locomotion ladders: the project's, apart from any action (runtime 1.0.9).
   const locomotion = locomotionXml(w.locomotion);
   if (locomotion) root.children.push(locomotion);
