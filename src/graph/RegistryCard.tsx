@@ -27,7 +27,7 @@ import {
   useKind,
   groupUses,
   settingDefault,
-  settingLabels,
+  settingLabel,
   settingRange,
   isSpan,
   spanRange,
@@ -452,7 +452,7 @@ export function FunctionEditor({fn, change, remove}: {fn: Effect; change: (fn: E
     change({...fn, values});
   };
   const setting = (key: string) => {
-    const label = settingLabels[key];
+    const label = settingLabel(v.op, key);
     // What a strike's hit brings along (runtime 0.12.294): each on unless `without` names it.
     if (key === 'without') {
       const off = new Set((v.without ?? '').split(',').filter(Boolean));

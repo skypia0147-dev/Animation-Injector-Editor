@@ -565,6 +565,9 @@ const numberRanges: Record<string, [number, number]> = {
   edge: [0, 1],
 };
 export const settingRange = (key: string) => numberRanges[key];
+/** A setting's label on a function's row: an attack data change's name is an attack data's, not an event's. */
+export const settingLabel = (op: string | undefined, key: string) =>
+  op === 'attackDataOn' && key === 'name' ? tr('공격 데이터 이름') : settingLabels[key];
 /** A window's on: its span, the registry's `duration` (runtime 11-02): 0~60 seconds it stays on, none by default. */
 export const windowOns = ['iframeOn', 'armorOn', 'rotateOn', 'timeOn', 'attackDataOn'];
 export const isSpan = (op: string, key: string) => key === 'duration' && windowOns.includes(op);

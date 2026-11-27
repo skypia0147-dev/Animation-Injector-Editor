@@ -8,6 +8,7 @@ import {
   fieldsOf,
   valueFields,
   settingDefault,
+  settingLabel,
   settingLabels,
   settingRange,
   isSpan,
@@ -114,7 +115,7 @@ export function EffectDetails({
         <Prop
           key={key}
           id={id}
-          label={settingLabels[key]}
+          label={settingLabel(v.op, key)}
           value={v[key] ?? ''}
           change={value => set(key, value || undefined)}
         />

@@ -2446,6 +2446,7 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
     '攻撃データ名を空白なしで入力してください(例: attackStartLeftHand)。',
     '请输入攻击数据名称（不含空格，例如 attackStartLeftHand）。',
   ],
+  '공격 데이터 이름': ['Attack data name', '攻撃データ名', '攻击数据名称'],
   '공격 데이터 이름 (예: attackStart_MySwing)': [
     'Attack data name',
     '攻撃データ名（例: attackStart_MySwing）',
