@@ -57,8 +57,8 @@ export function uniqueEvents(events: string[]): string[] {
 export function extensionErrors(p: Project): string[] {
   const errors: (string | undefined)[] = [];
   if (p.suppress) {
+    // Its timing is not asked (an action's block holds while it plays, 11-27): a project saved with none compiles.
     errors.push(eventListError(p.suppress.events));
-    if (!['startable', 'active', 'both'].includes(p.suppress.when)) errors.push(tr('이벤트 차단 시점을 선택하세요.'));
   }
   return errors.filter((s): s is string => !!s);
 }

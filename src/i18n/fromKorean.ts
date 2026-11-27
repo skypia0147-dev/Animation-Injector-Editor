@@ -1773,7 +1773,18 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '{seconds}초': ['{seconds}s', '{seconds}秒', '{seconds}秒'],
   '{seconds}초 동안': ['for {seconds} s', '{seconds}秒間', '持续 {seconds} 秒'],
   '{seconds}초 안': ['within {seconds} s', '{seconds}秒以内', '{seconds} 秒内'],
-  '{seconds}초마다': ['every {seconds} s', '{seconds}秒ごと', '每 {seconds} 秒'],
+  '다시 타기까지 {seconds}초': ['{seconds} s before again', '再び使うまで{seconds}秒', '再次使用前 {seconds} 秒'],
+  '같은 이름의 조건 카드가 있습니다: {name}': [
+    'Another condition card has this name: {name}',
+    '同じ名前の条件カードがあります: {name}',
+    '已有同名的条件卡片：{name}',
+  ],
+  'XML의 <Condition id>입니다. 여러 곳에서 이 카드로 가면 이 이름으로 공유되고, 도착 목록에도 이 이름으로 나옵니다. 영문으로 시작하는 영문·숫자·_만 됩니다. 비우면 Choice1처럼 자동으로 붙습니다.':
+    [
+      "The XML's <Condition id>. A card several places go to is shared under this name, and the destination lists show it. Letters, digits and _ only, starting with a letter. Left empty, it is named like Choice1.",
+      'XMLの<Condition id>です。複数の場所からこのカードへ行くとこの名前で共有され、到着先の一覧にもこの名前で表示されます。英字で始まる英数字と_のみ使えます。空にするとChoice1のように自動で付きます。',
+      'XML 的 <Condition id>。多处前往此卡片时以此名称共享，目的地列表中也显示此名称。只能使用以字母开头的字母、数字和 _。留空则自动命名为 Choice1 之类。',
+    ],
   '{seconds}초마다 확인': ['Checked every {seconds} s', '{seconds}秒ごとに確認', '每 {seconds} 秒检查'],
   '{set} 적용': ['Apply to {set}', '{set} に適用', '应用于 {set}'],
   '{size}개 동작 · {length}개 규칙 · {v2} · {speed}×': [
@@ -5352,11 +5363,6 @@ export const fromKorean: Record<string, readonly [string, string, string]> = {
   '이벤트 이름이 잘못되었습니다.': ['Invalid event name.', 'イベント名が無効です。', '事件名称无效。'],
   '이벤트 이름이 잘못되었습니다: ': ['Invalid event name: ', 'イベント名が不正です: ', '事件名称无效：'],
   '이벤트 차단': ['Event block', 'イベント遮断', '事件阻止'],
-  '이벤트 차단 시점을 선택하세요.': [
-    'Select when to suppress events.',
-    'イベント遮断のタイミングを選択してください。',
-    '请选择事件拦截时机。',
-  ],
   '이벤트 차단 추가': ['Add event suppression', 'イベント抑制を追加', '添加屏蔽事件'],
   '이벤트 카드는 자기 QTE에만 연결됩니다.': [
     'Event card only connects to its own QTE.',

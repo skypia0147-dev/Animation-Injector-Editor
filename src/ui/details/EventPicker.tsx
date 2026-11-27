@@ -45,6 +45,7 @@ export function EventPicker({
   return (
     <select
       aria-label={label}
+      title={value || undefined}
       value={value}
       onChange={e => {
         if (e.target.value === '\u0000new') setDraft('');

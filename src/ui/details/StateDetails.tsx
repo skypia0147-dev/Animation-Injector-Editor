@@ -246,11 +246,12 @@ export function StateDetails({
       )}
       {p.suppress && (
         <Category title={t('node.suppress')} initialOpen>
+          {/* An action's own block holds while it plays (runtime XmlV2: kActive, no blockWhen on <Action>): no timing
+              to choose (11-27; the choice 11-02 asked for was never written). A start's block has its own timing. */}
           <RuntimeEventFields
             events={p.suppress.events}
-            suppression={p.suppress.when}
-            change={events => patch({suppress: {...p.suppress!, events}})}
-            changeWhen={when => patch({suppress: {...p.suppress!, when}})}
+            blocking
+            change={events => patch({suppress: {...p.suppress!, events, when: 'active'}})}
           />
         </Category>
       )}

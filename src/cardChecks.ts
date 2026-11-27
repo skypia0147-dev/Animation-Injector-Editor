@@ -268,6 +268,14 @@ export function cardIssues(w: Workspace): Issue[] {
   };
   const loop = cardLoop(w);
   if (loop) err(loop[0], tr('조건 카드가 서로를 가리켜 순환합니다. 선 하나를 끊으세요.'));
+  // A card's name is its root <Condition id> (11-27): two cards with one name would write one id twice.
+  const named = new Map<string, string>();
+  for (const c of w.cards) {
+    if (!c.xmlId) continue;
+    const key = c.xmlId.toLowerCase();
+    if (named.has(key)) err(c.uid, tr('같은 이름의 조건 카드가 있습니다: {name}', {name: c.xmlId}));
+    else named.set(key, c.uid);
+  }
   const uses = cardUses(w);
   // A start's, transition's or QTE result's card must reach some HKX (the runtime refuses one playing nothing).
   const playsNothing = new Set<string>();

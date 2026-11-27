@@ -26,7 +26,7 @@ import {beginFocus, retainFocus, type FocusSession} from './focusSession.ts';
 import {ConnectionEdge} from './ConnectionEdge.tsx';
 import {executeGraphCommand} from './commands.ts';
 import {startRow, type StartRow} from './startRow.ts';
-import {freePlayPosition, visibleNodePosition, visiblePastePosition} from './placement.ts';
+import {dropGrid, freePlayPosition, visibleNodePosition, visiblePastePosition} from './placement.ts';
 import {fitsAt, neighbors} from './navigation.ts';
 import {arrangeLayout} from './arrange.ts';
 import {HelpTip} from '../ui/HelpTip.tsx';
@@ -62,7 +62,7 @@ import {advanceGate, gateState} from './cardGate.ts';
 import type {FlatNode} from './flat.ts';
 import {moveNodes, addComment} from './projection.ts';
 import {CanvasControls, Icon} from '../EditorChrome.tsx';
-import {presentCard, cardWidth, cardHeight, pinTop, summaryHeight} from './cardPresentation.ts';
+import {presentCard, cardWidth, cardHeight, pinTop, summaryHeight, SUMMARY_HEIGHT} from './cardPresentation.ts';
 import type {CardPresentation} from './cardPresentation.ts';
 import {menuGroups, useEditorMenu} from '../ContextMenu.tsx';
 import {t, useLanguage} from '../i18n/index.ts';
@@ -1264,9 +1264,22 @@ function FlatGraphPanel({
     registryShown !== w.id;
   // A new HKX card goes where nothing is (a fresh project shows the event registry in the middle).
   const addPlay = () => {
-    const r = addFlat(w, '', 'playNode', freePlayPosition(screenToFlowPosition));
+    // The clear patch on screen, or, when the view is full, the nearest cell clear of every card (off-screen ones too):
+    // before, a full view put each new card on the panel's centre, on top of the last (11-27, twenty cards on one spot).
+    let at = freePlayPosition(screenToFlowPosition);
+    const occupied = getNodes().map(n => ({
+      x: n.position.x,
+      y: n.position.y,
+      w: n.measured?.width ?? 380,
+      h: n.measured?.height ?? SUMMARY_HEIGHT,
+    }));
+    const crowded = occupied.some(b => at.x < b.x + b.w && at.x + 360 > b.x && at.y < b.y + b.h && at.y + 360 > b.y);
+    if (crowded) at = dropGrid(at, 1, occupied, {w: 360, h: 360})[0];
+    const r = addFlat(w, '', 'playNode', at);
     edit(() => r.workspace);
     select(r.id ?? '');
+    // A card placed past the full view is brought into it: the new card is the one to fill in next.
+    if (crowded) setCenter(at.x + 180, at.y + 180, {zoom: getZoom(), duration: 200});
   };
   const removeChosen = () =>
     attempt(() => {

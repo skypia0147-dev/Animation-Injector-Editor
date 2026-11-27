@@ -285,12 +285,16 @@ export function newStart(w: Workspace, position: Position, mode: StartCard['mode
 }
 /** A condition card's title: 「조건」 with several conditions, 「조건 (이름)」 with one (docs decision 6). */
 export function cardTitle(c: ConditionCard, name: (t: CardTest) => string): string {
+  // A named card (its <Condition id>, 11-27) is called by its name: two cards with the same kind of conditions (MCO's
+  // next light and next power hit, both graph variables) are told apart in every list.
+  if (c.xmlId) return tr('조건 · {name}', {name: c.xmlId});
   const names = cardNames(c, name);
   return names ? tr('조건 · {name}', {name: names}) : tr('조건');
 }
 /** A condition card's conditions in a few words, its title without 「조건 ·」: where a route goes, on the canvas, the
  *  route chip's colour saying it is a condition card (docs/mockup-chip-i18n ③). Empty with no condition. */
 export function cardNames(c: ConditionCard, name: (t: CardTest) => string): string {
+  if (c.xmlId) return c.xmlId;
   // Named by its conditions (docs/mockup-design-audit ③): the first two different names, then 「…」.
   const roots = [...c.guards, ...c.rows.flatMap(r => r.guards)];
   const names = [

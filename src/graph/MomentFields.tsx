@@ -216,12 +216,22 @@ function TimingFields({w, action, id, edit}: {w: Workspace; action: Action; id: 
   const kind = timingKind(action, id)!;
   const row = timelineRows(w, action).find(r => r.id === id);
   const {length, ticks} = useClipBar(w, action);
-  const events = useSentEvents(w, action);
+  const sent = useSentEvents(w, action);
   const [picking, setPicking] = useState(false);
   if (!row) return null;
   const pair = id.startsWith('pair:');
   // A recovery's event is the action's own; a window's and a cost's is the registry's.
   const own = kind === 'recovery';
+  // A recovery may also wait for a registered event (11-27): a clip an animation replacer gives (OAR/DAR, as MCO's)
+  // has no file of its own to read annotations from, and the runtime takes any event the actor's graph sends.
+  const events: Sent[] = own
+    ? [
+        ...sent,
+        ...(w.eventRegistry ?? [])
+          .filter(r => r.name && !sent.some(s => eventKey(s.name) === eventKey(r.name)))
+          .map(r => ({name: r.name, times: [], roles: new Set<'initiator' | 'receiver'>()})),
+      ]
+    : sent;
   const isEvent = own && row.from.basis === 'event';
   const set = (change: {from?: Mark; until?: Mark}) => edit(w => patch(w, action.uid, id, change));
   // 「이벤트」 opens the picker; the item moves to an event only when one is picked (user request 11-02).

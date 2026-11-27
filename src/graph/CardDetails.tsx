@@ -377,7 +377,8 @@ export function useTransitionSettings(w: Workspace, id: string, edit: Edit): Set
                 ? l.event || tr('이벤트 미지정')
                 : keyed
                   ? keyName
-                  : tr('시작한 키')) + (l.cooldown ? ' · ' + tr('{seconds}초마다', {seconds: l.cooldown}) : '')
+                  : tr('시작한 키')) +
+          (l.cooldown ? ' · ' + tr('다시 타기까지 {seconds}초', {seconds: l.cooldown}) : '')
       ),
       set: true,
       fixed: true,

@@ -34,7 +34,7 @@ function EventLine({
   change: (e: string) => void;
 }) {
   return (
-    <div className="moment-line">
+    <div className="moment-line stack">
       <span className="moment-label">{label}</span>
       <span className="moment-inline">
         <EventPicker label={label} value={value} events={events} change={change} />
@@ -100,6 +100,16 @@ export function WindowFields({
       />
       {isEvent ? (
         <>
+          {/* Each side its own basis (11-27, rebuilding the MCO add-on by hand): a window can close on an event
+              (until="event:…"), or open at a clip time and close on an event; before, only the open side could. */}
+          <WhenSwitch
+            label={tr('열림')}
+            clip={value.open.basis !== 'event'}
+            disabled={{
+              event: events.length ? undefined : tr('이 HKX가 보내는 이벤트가 없습니다(HKX 원본을 연결하면 보입니다).'),
+            }}
+            choose={clip => change({open: clip ? openMark(0) : toEvent(value.open, events[0] ?? '')})}
+          />
           {value.open.basis === 'event' ? (
             <EventLine
               label={tr('열림 이벤트')}
@@ -116,6 +126,21 @@ export function WindowFields({
               onAt={t => change({open: openMark(t)})}
             />
           )}
+          <WhenSwitch
+            label={tr('닫힘')}
+            clip={value.close.basis !== 'event'}
+            disabled={{
+              event: events.length ? undefined : tr('이 HKX가 보내는 이벤트가 없습니다(HKX 원본을 연결하면 보입니다).'),
+            }}
+            choose={clip =>
+              change({
+                close: clip
+                  ? (closeMark(atEnd) ??
+                    ({...value.close, basis: 'end', seconds: 0, event: '', fallback: false} satisfies Mark))
+                  : toEvent(value.close, events[0] ?? ''),
+              })
+            }
+          />
           {value.close.basis === 'event' ? (
             <EventLine
               label={tr('닫힘 이벤트')}

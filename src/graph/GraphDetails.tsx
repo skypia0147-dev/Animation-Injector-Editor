@@ -36,7 +36,45 @@ export function GraphDetails({
   if (ref.kind === 'startCard' || ref.kind === 'transition')
     return <p className="info-box">{tr('시작·전환 설정은 캔버스의 카드에서 편집합니다.')}</p>;
   // A condition card's conditions are edited on the card itself (AGENTS: AND/OR and NOT inside the card).
-  if (ref.kind === 'conditionCard') return <p className="info-box">{tr('조건은 캔버스의 카드에서 편집합니다.')}</p>;
+  if (ref.kind === 'conditionCard') {
+    const c = w.cards.find(c => c.uid === ref.uid);
+    return (
+      <DetailPanel>
+        <p className="info-box">{tr('조건은 캔버스의 카드에서 편집합니다.')}</p>
+        {c && (
+          <DetailCategory title={tr('이름')} initialOpen>
+            <DetailRow
+              label={tr('이름')}
+              hint={tr(
+                'XML의 <Condition id>입니다. 여러 곳에서 이 카드로 가면 이 이름으로 공유되고, 도착 목록에도 이 이름으로 나옵니다. 영문으로 시작하는 영문·숫자·_만 됩니다. 비우면 Choice1처럼 자동으로 붙습니다.'
+              )}
+            >
+              <input
+                aria-label={tr('이름')}
+                placeholder="NextLight"
+                value={c.xmlId ?? ''}
+                onChange={e => {
+                  const value = e.target.value.trim();
+                  // Only a name the runtime takes as an id is kept (the card's format check refuses any other).
+                  if (value && !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(value)) return;
+                  edit(w => ({
+                    ...w,
+                    cards: w.cards.map(x => {
+                      if (x.uid !== c.uid) return x;
+                      const next = {...x};
+                      if (value) next.xmlId = value;
+                      else delete next.xmlId;
+                      return next;
+                    }),
+                  }));
+                }}
+              />
+            </DetailRow>
+          </DetailCategory>
+        )}
+      </DetailPanel>
+    );
+  }
   const visual = projectGraph(w, graph).nodes.find(n => n.id === node);
   const a = graph.kind === 'root' ? w.actions.find(a => a.uid === node) : graphAction(w, graph);
   const kind = visual?.kind;

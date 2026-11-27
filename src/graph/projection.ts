@@ -227,8 +227,10 @@ export function mutateGraph(w: Workspace, g: GraphRef, kind: NodeKind, remove = 
     }
     if (kind === 'suppress') {
       if (remove) delete p.suppress;
-      // When it blocks is the user's to choose (11-02).
-      else p.suppress ??= {events: [''], when: ''};
+      // An action's own block holds while it plays (runtime XmlV2: kActive, no blockWhen on <Action>), as an imported
+      // block reads (11-27). The timing the user chose since 11-02 was never written, and its empty default kept the
+      // project from compiling until one was picked.
+      else p.suppress ??= {events: [''], when: 'active'};
       return n;
     }
     if (kind === 'carry' && a.pair) {

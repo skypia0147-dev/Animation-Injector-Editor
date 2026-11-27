@@ -7,16 +7,22 @@ export function RuntimeEventFields({
   change,
   suppression,
   changeWhen,
+  blocking,
 }: {
   events: string[];
   change: (v: string[]) => void;
   suppression?: Suppression['when'];
   changeWhen?: (v: Suppression['when']) => void;
+  /** Events this action blocks (its hint), with no timing to choose: an action's block holds while it plays. */
+  blocking?: boolean;
 }) {
   const error = eventListError(events);
   return (
     <>
-      <DetailRow label={t('ext.eventNames')} hint={t(suppression ? 'ext.suppressHint' : 'ext.extraEventsHint')}>
+      <DetailRow
+        label={t('ext.eventNames')}
+        hint={t(blocking || suppression ? 'ext.suppressHint' : 'ext.extraEventsHint')}
+      >
         <textarea
           aria-label={t('ext.eventNames')}
           rows={4}

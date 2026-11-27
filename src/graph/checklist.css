@@ -343,6 +343,18 @@
   flex-wrap: wrap;
   min-width: 0;
 }
+/* A window's event line (열림 이벤트, 닫힘 이벤트) puts its label above the menu, the menu the card's whole width, and
+   the menu takes that whole line, its 「이 동작만」 tag below: a long event name (MCO_PowerWinOpen, MCO_PowerWinClose)
+   was cut to the same 「MCO_PowerWin…」 on both lines of a window (11-27). */
+.moment-line.stack {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.moment-inline select {
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+}
 .moment-inline input[type='number'] {
   width: 76px;
   text-align: right;
